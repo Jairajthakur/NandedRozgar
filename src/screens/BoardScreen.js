@@ -12,22 +12,28 @@ import { C, CATS, CAT_ICONS } from '../utils/constants';
 export default function BoardScreen() {
   const { jobs, loadJobs, role } = useAuth();
   const nav = useNavigation();
-  const [search, setSearch] = useState('');
-  const [cat, setCat]       = useState('All');
+  const [search, setSearch]     = useState('');
+  const [cat, setCat]           = useState('All');
   const [refreshing, setRefreshing] = useState(false);
+
+  const isGiver = role === 'giver' || role === 'admin';
 
   const filtered = useMemo(() => {
     return jobs
       .filter(j =>
         j.status === 'active' &&
         (cat === 'All' || j.category === cat) &&
-        (search === '' || [j.title, j.location, j.company, j.description || '']
-          .join(' ').toLowerCase().includes(search.toLowerCase()))
+        (search === '' ||
+          [j.title, j.location, j.company, j.description || '']
+            .join(' ')
+            .toLowerCase()
+            .includes(search.toLowerCase()))
       )
-      .sort((a, b) =>
-        ((b.featured ? 2 : 0) + (b.urgent ? 1 : 0)) -
-        ((a.featured ? 2 : 0) + (a.urgent ? 1 : 0)) ||
-        b.timestamp - a.timestamp
+      .sort(
+        (a, b) =>
+          ((b.featured ? 2 : 0) + (b.urgent ? 1 : 0)) -
+          ((a.featured ? 2 : 0) + (a.urgent ? 1 : 0)) ||
+          b.timestamp - a.timestamp
       );
   }, [jobs, search, cat]);
 
@@ -57,11 +63,18 @@ export default function BoardScreen() {
       </View>
 
       {/* Category pills */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.pills} style={{ maxHeight: 46 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pills}
+        style={{ maxHeight: 46 }}
+      >
         {CATS.map(c => (
-          <TouchableOpacity key={c} onPress={() => setCat(c)}
-            style={[styles.pill, cat === c && styles.pillActive]}>
+          <TouchableOpacity
+            key={c}
+            onPress={() => setCat(c)}
+            style={[styles.pill, cat === c && styles.pillActive]}
+          >
             <Text style={[styles.pillText, cat === c && styles.pillTextActive]}>
               {c !== 'All' ? CAT_ICONS[c] + ' ' : ''}{c}
             </Text>
@@ -74,8 +87,14 @@ export default function BoardScreen() {
         data={filtered}
         keyExtractor={j => j.id}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}
-          colors={[C.dark]} tintColor={C.dark} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[C.dark]}
+            tintColor={C.dark}
+          />
+        }
         renderItem={({ item }) => (
           <JobCard job={item} onPress={() => nav.navigate('JobDetail', { job: item })} />
         )}
@@ -83,8 +102,12 @@ export default function BoardScreen() {
           <Empty
             icon="🔍"
             title="No jobs found"
-            sub={search || cat !== 'All' ? 'Try different filters' : 'Check back later for new listings'}
-            action={role === 'giver' ? () => nav.navigate('Post') : null}
+            sub={
+              search || cat !== 'All'
+                ? 'Try different filters'
+                : 'Check back later for new listings'
+            }
+            action={isGiver ? () => nav.navigate('Post') : null}
             actionLabel="Post a Job"
           />
         }
@@ -96,19 +119,29 @@ export default function BoardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   searchWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderWidth: 1.5, borderColor: C.border,
-    borderRadius: 9, margin: 12, marginBottom: 6, paddingLeft: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 9,
+    margin: 12,
+    marginBottom: 6,
+    paddingLeft: 12,
   },
-  searchIcon: { fontSize: 15, marginRight: 6 },
+  searchIcon:  { fontSize: 15, marginRight: 6 },
   searchInput: { flex: 1, paddingVertical: 10, fontSize: 13, color: C.text },
   pills: { paddingHorizontal: 12, paddingBottom: 8, gap: 6 },
   pill: {
-    borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card,
-    paddingVertical: 5, paddingHorizontal: 13, borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.card,
+    paddingVertical: 5,
+    paddingHorizontal: 13,
+    borderRadius: 20,
   },
-  pillActive: { backgroundColor: C.dark, borderColor: C.dark },
-  pillText: { fontSize: 12, fontWeight: '600', color: '#555' },
+  pillActive:     { backgroundColor: C.dark, borderColor: C.dark },
+  pillText:       { fontSize: 12, fontWeight: '600', color: '#555' },
   pillTextActive: { color: '#fff' },
   list: { padding: 12, paddingTop: 8 },
 });
