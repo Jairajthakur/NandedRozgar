@@ -1,0 +1,63 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout your code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # 4. Setup Java (required for Android build)
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # 5. Setup Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # 6. Install Expo CLI and EAS CLI
+      - name: Install Expo & EAS CLI
+        run: npm install -g expo-cli eas-cli
+
+      # 7. Setup Expo
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # 8. Build APK using EAS (local build, no EAS cloud needed)
+      - name: Build APK (local)
+        run: |
+          eas build --platform android --profile preview --local --output ./NandedRozgar.apk --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      # 9. Upload APK as artifact (downloadable from Actions tab)
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NandedRozgar-APK
+          path: ./NandedRozgar.apk
+          retention-days: 30  # APK stays available for 30 days
