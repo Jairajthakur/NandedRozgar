@@ -2,10 +2,12 @@
   "name": "nanded-rozgar-backend",
   "version": "1.0.0",
   "main": "src/index.js",
+  "private": true,
 
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "expo:dev": "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN:5000 npx expo start --localhost"
   },
 
   "dependencies": {
@@ -14,9 +16,13 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
-    "expo-font": "~14.0.10",
-    "expo-secure-store": "~14.0.7",
-    "pg": "^8.12.0"
+    "pg": "^8.12.0",
+
+    "expo": "^53.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.9",
+    "expo-font": "~13.0.1",
+    "expo-secure-store": "~14.0.1"
   },
 
   "devDependencies": {
