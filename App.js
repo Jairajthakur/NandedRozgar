@@ -20,19 +20,21 @@ import { C } from './src/utils/constants';
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
-function TabIcon({ emoji, label, focused }) {
+function TabIcon({ emoji, focused }) {
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontSize: 20 }}>{emoji}</Text>
-      {focused && <View style={{ width: 4, height: 4, backgroundColor: C.dark, borderRadius: 2, marginTop: 2 }} />}
+      {focused && (
+        <View style={{ width: 4, height: 4, backgroundColor: C.dark, borderRadius: 2, marginTop: 2 }} />
+      )}
     </View>
   );
 }
 
 function MainTabs() {
   const { role } = useAuth();
-  const isAdmin  = role === 'admin';
-  const isGiver  = role === 'giver';
+  const isAdmin = role === 'admin';
+  const isGiver = role === 'giver';
 
   return (
     <Tab.Navigator
@@ -52,28 +54,58 @@ function MainTabs() {
         headerTitle: 'NandedRozgar 🏙️',
       }}
     >
-      <Tab.Screen name="Board" component={BoardScreen}
-        options={{ tabBarLabel: 'Jobs',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏙️" focused={focused} /> }} />
+      {/* Jobs board — visible to everyone */}
+      <Tab.Screen
+        name="Board"
+        component={BoardScreen}
+        options={{
+          tabBarLabel: 'Jobs',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🏙️" focused={focused} />,
+        }}
+      />
 
+      {/* Post Job — only visible to employers (givers) and admins */}
       {(isGiver || isAdmin) && (
-        <Tab.Screen name="Post" component={PostScreen}
-          options={{ tabBarLabel: 'Post Job',
-            tabBarIcon: ({ focused }) => <TabIcon emoji="📝" focused={focused} /> }} />
+        <Tab.Screen
+          name="Post"
+          component={PostScreen}
+          options={{
+            tabBarLabel: 'Post Job',
+            tabBarIcon: ({ focused }) => <TabIcon emoji="📝" focused={focused} />,
+          }}
+        />
       )}
 
-      <Tab.Screen name="AI" component={AIScreen}
-        options={{ tabBarLabel: 'AI Match',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="✨" focused={focused} /> }} />
+      {/* AI Match — visible to everyone */}
+      <Tab.Screen
+        name="AI"
+        component={AIScreen}
+        options={{
+          tabBarLabel: 'AI Match',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="✨" focused={focused} />,
+        }}
+      />
 
-      <Tab.Screen name="Profile" component={ProfileScreen}
-        options={{ tabBarLabel: 'Profile',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} /> }} />
+      {/* Profile — visible to everyone */}
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
+        }}
+      />
 
+      {/* Admin panel — only visible to admins */}
       {isAdmin && (
-        <Tab.Screen name="Admin" component={AdminScreen}
-          options={{ tabBarLabel: 'Admin',
-            tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} /> }} />
+        <Tab.Screen
+          name="Admin"
+          component={AdminScreen}
+          options={{
+            tabBarLabel: 'Admin',
+            tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} />,
+          }}
+        />
       )}
     </Tab.Navigator>
   );
@@ -86,7 +118,9 @@ function RootNavigator() {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.dark }}>
         <Text style={{ fontSize: 40, marginBottom: 16 }}>🏙️</Text>
-        <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 24 }}>NandedRozgar</Text>
+        <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 24 }}>
+          NandedRozgar
+        </Text>
         <ActivityIndicator color="#fff" size="large" />
       </View>
     );
@@ -99,7 +133,9 @@ function RootNavigator() {
       ) : (
         <>
           <Stack.Screen name="Main" component={MainTabs} />
-          <Stack.Screen name="JobDetail" component={JobDetailScreen}
+          <Stack.Screen
+            name="JobDetail"
+            component={JobDetailScreen}
             options={{
               headerShown: true,
               headerTitle: 'Job Details',
