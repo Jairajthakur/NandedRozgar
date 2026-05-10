@@ -40,4 +40,4 @@ export const PRICING = {
 };
 
 // ✏️ CHANGE THIS to your Railway URL after deploying!
-export const BASE_URL = 'https://YOUR-RAILWAY-URL.up.railway.app';
+export const BASE_URL = 'https://nandedrozgar-production.up.railway.app';
