@@ -24,6 +24,11 @@
       "package": "com.nandedrozgar.app",
       "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
     },
-    "plugins": ["expo-font", "expo-secure-store"]
+    "plugins": ["expo-font", "expo-secure-store"],
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    }
   }
 }
