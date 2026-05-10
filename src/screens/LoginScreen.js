@@ -1,167 +1,161 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity,
+  StyleSheet, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
-import JobCard from '../components/JobCard';
-import { Card, Btn, Chip, Empty } from '../components/UI';
-import { C, PRICING } from '../utils/constants';
-import { fmtDate, timeAgo } from '../utils/api';
+import { Input, Btn, Spinner } from '../components/UI';
+import { C } from '../utils/constants';
 
-export default function ProfileScreen() {
-  const nav = useNavigation();
-  const { user, role, jobs, signOut } = useAuth();
-  const [tab, setTab] = React.useState('jobs');
+export default function LoginScreen() {
+  const { login, register } = useAuth();
+  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [form, setForm] = useState({
+    email: '', password: '', name: '', phone: '', company: '', regRole: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  if (!user) return null;
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const myJobs      = jobs.filter(j => j.posted_by === user.id && j.status !== 'deleted');
-  const appliedJobs = jobs.filter(j => (j.applicants || []).includes(user.id));
-  const savedJobs   = jobs.filter(j => (j.saved   || []).includes(user.id));
-
-  const totalViews = myJobs.reduce((a, j) => a + (j.views || 0), 0);
-  const totalApps  = myJobs.reduce((a, j) => a + (j.applicant_count || 0), 0);
-
-  const tabs = role === 'giver'
-    ? [['jobs',`My Jobs (${myJobs.length})`], ['stats','Analytics']]
-    : role === 'seeker'
-    ? [['jobs',`Applied (${appliedJobs.length})`], ['saved',`Saved (${savedJobs.length})`]]
-    : [];
-
-  function renderContent() {
-    if (role === 'admin') return (
-      <Card>
-        <Text style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>
-          You are the platform administrator.
-        </Text>
-        <Btn label="Go to Admin Panel →" onPress={() => nav.navigate('Admin')} />
-      </Card>
-    );
-
-    const listJobs = tab === 'saved' ? savedJobs : tab === 'jobs' && role === 'seeker' ? appliedJobs : myJobs;
-
-    if (tab === 'stats') return (
-      <View>
-        <View style={styles.statsGrid}>
-          {[['📋', myJobs.length,'Total Posted'],['👁', totalViews,'Total Views'],['👤', totalApps,'Applications']].map(([i,v,l]) => (
-            <View key={l} style={styles.statCard}>
-              <Text style={{ fontSize: 22 }}>{i}</Text>
-              <Text style={styles.statVal}>{v}</Text>
-              <Text style={styles.statLbl}>{l}</Text>
-            </View>
-          ))}
-        </View>
-        {myJobs.length === 0
-          ? <Empty icon="📊" title="No jobs posted yet" />
-          : myJobs.map(j => <JobCard key={j.id} job={j} onPress={() => nav.navigate('JobDetail', { job: j })} />)
-        }
-      </View>
-    );
-
-    return listJobs.length === 0
-      ? <Empty
-          icon={tab === 'saved' ? '🔖' : '📋'}
-          title={tab === 'saved' ? 'No saved jobs' : role === 'giver' ? 'No jobs posted yet' : 'No applications yet'}
-          action={() => nav.navigate('Board')}
-          actionLabel="Browse Jobs"
-        />
-      : <View>{listJobs.map(j =>
-          <JobCard key={j.id} job={j} onPress={() => nav.navigate('JobDetail', { job: j })} />
-        )}</View>;
+  async function handleSubmit() {
+    setError('');
+    if (mode === 'login') {
+      if (!form.email || !form.password) { setError('Enter email and password'); return; }
+      setLoading(true);
+      const r = await login(form.email, form.password);
+      setLoading(false);
+      if (!r.ok) setError(r.error || 'Login failed');
+    } else {
+      if (!form.name || !form.email || !form.password) { setError('Fill all fields'); return; }
+      if (!form.regRole) { setError('Select Job Seeker or Employer'); return; }
+      if (form.password.length < 6) { setError('Password must be at least 6 characters'); return; }
+      setLoading(true);
+      const r = await register({
+        name: form.name, email: form.email, password: form.password,
+        role: form.regRole, phone: form.phone, company: form.company,
+      });
+      setLoading(false);
+      if (!r.ok) setError(r.error || 'Registration failed');
+    }
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
-      {/* Profile card */}
-      <Card style={{ marginBottom: 14 }}>
-        <View style={styles.profileRow}>
-          <View style={styles.avatar}>
-            <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800' }}>
-              {user.name?.[0] || '?'}
-            </Text>
-          </View>
-          <View style={{ flex: 1, marginLeft: 14 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Text style={styles.name}>{user.name}</Text>
-              {user.premium
-                ? <View style={styles.proPill}><Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>💎 PRO</Text></View>
-                : <Chip label="Starter" variant="gray" />}
+    <LinearGradient colors={['#111111', '#222222', '#333333']} style={styles.gradient}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          {/* Logo */}
+          <View style={styles.logoWrap}>
+            <View style={styles.logoMark}>
+              <Text style={{ fontSize: 26 }}>🏙️</Text>
             </View>
-            <Text style={styles.email}>{user.email}{user.phone ? ` · ${user.phone}` : ''}</Text>
-            <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-              {user.location && <Chip label={`📍 ${user.location}`} />}
-              {user.company  && <Chip label={`🏢 ${user.company}`}  variant="gold" />}
+            <Text style={styles.logoText}>NandedRozgar</Text>
+            <Text style={styles.logoSub}>Local Jobs · Local Life · Nanded</Text>
+          </View>
+
+          <View style={styles.box}>
+            {/* Mode Toggle */}
+            <View style={styles.modeRow}>
+              {['login','register'].map(m => (
+                <TouchableOpacity key={m} onPress={() => { setMode(m); setError(''); }}
+                  style={[styles.modeBtn, mode === m && styles.modeBtnActive]}>
+                  <Text style={[styles.modeBtnText, mode === m && styles.modeBtnTextActive]}>
+                    {m === 'login' ? 'Sign In' : 'Register'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Register fields */}
+            {mode === 'register' && (
+              <>
+                <Text style={styles.roleLabel}>I am a…</Text>
+                <View style={styles.roleRow}>
+                  {[['seeker','👷 Job Seeker'],['giver','🏢 Employer']].map(([r,l]) => (
+                    <TouchableOpacity key={r} onPress={() => set('regRole', r)}
+                      style={[styles.roleBtn, form.regRole === r && styles.roleBtnActive]}>
+                      <Text style={[styles.roleBtnText, form.regRole === r && { fontWeight: '800' }]}>{l}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Input label="Full Name" value={form.name}
+                  onChangeText={v => set('name', v)} placeholder="Your full name" />
+                {form.regRole === 'giver' && (
+                  <Input label="Company / Business Name" value={form.company}
+                    onChangeText={v => set('company', v)} placeholder="e.g. Patil Builders" />
+                )}
+                <Input label="Phone Number" value={form.phone}
+                  onChangeText={v => set('phone', v)} placeholder="9XXXXXXXXX"
+                  keyboardType="phone-pad" maxLength={10} />
+              </>
+            )}
+
+            <Input label="Email Address" value={form.email}
+              onChangeText={v => set('email', v)} placeholder="you@email.com"
+              keyboardType="email-address" autoCapitalize="none" />
+            <Input label="Password" value={form.password}
+              onChangeText={v => set('password', v)}
+              placeholder={mode === 'register' ? 'Create a password' : 'Your password'}
+              secureTextEntry />
+
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            {loading
+              ? <Spinner size="small" />
+              : <Btn label={mode === 'login' ? 'Sign In →' : 'Create Account →'}
+                  onPress={handleSubmit} size="lg" style={{ marginTop: 4 }} />
+            }
+
+            <View style={styles.switchRow}>
+              <Text style={styles.switchText}>
+                {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+              </Text>
+              <TouchableOpacity onPress={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>
+                <Text style={styles.switchLink}>
+                  {mode === 'login' ? 'Register Free' : 'Sign In'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </View>
-
-        {role === 'giver' && !user.premium && (
-          <View style={styles.upgradeBanner}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.upgradeTitle}>💎 Upgrade to PRO — ₹{PRICING.pro_monthly}/month</Text>
-              <Text style={styles.upgradeSub}>Unlimited posts · Priority placement · Analytics</Text>
-            </View>
-            <Btn label="Upgrade" variant="gold" size="sm" onPress={() => {}} />
-          </View>
-        )}
-
-        {role === 'seeker' && (
-          <View style={[styles.upgradeBanner, { backgroundColor: '#f0fdf4', borderColor: '#86efac' }]}>
-            <Text style={{ fontWeight: '700', fontSize: 13, color: '#166534' }}>
-              🎉 Job Seeker Account — Always FREE!
-            </Text>
-          </View>
-        )}
-      </Card>
-
-      {/* Tabs */}
-      {tabs.length > 0 && (
-        <View style={styles.tabs}>
-          {tabs.map(([t, label]) => (
-            <TouchableOpacity key={t} onPress={() => setTab(t)}
-              style={[styles.tab, tab === t && styles.tabActive]}>
-              <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {renderContent()}
-
-      <Btn label="Sign Out" variant="outline" onPress={signOut} style={{ marginTop: 24, marginBottom: 8 }} />
-    </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  profileRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  avatar: {
-    width: 66, height: 66, borderRadius: 33, backgroundColor: '#222',
-    alignItems: 'center', justifyContent: 'center',
+  gradient: { flex: 1 },
+  scroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  logoWrap: { alignItems: 'center', marginBottom: 28 },
+  logoMark: {
+    width: 60, height: 60, backgroundColor: '#222', borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
-  name:  { fontSize: 18, fontWeight: '800', color: C.text },
-  email: { fontSize: 13, color: C.muted, marginTop: 2 },
-  proPill: { backgroundColor: '#222', borderRadius: 20, paddingVertical: 3,
-    paddingHorizontal: 10 },
-  upgradeBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#fefce8', borderWidth: 1.5, borderColor: '#fbbf24',
-    borderRadius: 10, padding: 12, marginTop: 14,
+  logoText: { color: '#fff', fontSize: 24, fontWeight: '800', letterSpacing: 0.3 },
+  logoSub:  { color: '#888', fontSize: 12, marginTop: 3 },
+  box: {
+    backgroundColor: '#fff', borderRadius: 20, padding: 24,
+    width: '100%', maxWidth: 400,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 20, elevation: 10,
   },
-  upgradeTitle: { fontWeight: '700', fontSize: 13, color: '#92400e' },
-  upgradeSub:   { fontSize: 11, color: C.muted, marginTop: 2 },
-  tabs: { flexDirection: 'row', borderBottomWidth: 1.5, borderBottomColor: C.border, marginBottom: 14 },
-  tab: { paddingVertical: 9, paddingHorizontal: 16 },
-  tabActive: { borderBottomWidth: 2.5, borderBottomColor: C.dark },
-  tabText:       { fontSize: 13, fontWeight: '500', color: C.muted },
-  tabTextActive: { fontSize: 13, fontWeight: '700', color: C.text },
-  statsGrid: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  statCard: {
-    flex: 1, backgroundColor: C.card, borderRadius: 10, borderWidth: 1,
-    borderColor: C.border, padding: 12, alignItems: 'center',
-  },
-  statVal: { fontSize: 22, fontWeight: '800', color: C.text, marginTop: 2 },
-  statLbl: { fontSize: 10, color: C.muted, marginTop: 2, textTransform: 'uppercase' },
+  modeRow: { flexDirection: 'row', borderRadius: 10, backgroundColor: C.grayLight,
+    marginBottom: 20, padding: 3 },
+  modeBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 8 },
+  modeBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.1,
+    shadowRadius: 4, elevation: 2 },
+  modeBtnText: { fontSize: 13, fontWeight: '600', color: C.muted },
+  modeBtnTextActive: { color: C.text, fontWeight: '700' },
+  roleLabel: { fontSize: 12, fontWeight: '600', color: '#444', marginBottom: 8 },
+  roleRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  roleBtn: { flex: 1, padding: 11, borderRadius: 9, borderWidth: 2,
+    borderColor: C.border, alignItems: 'center', backgroundColor: '#fff' },
+  roleBtnActive: { borderColor: C.dark, backgroundColor: C.grayLight },
+  roleBtnText: { fontSize: 12, fontWeight: '600', color: C.text },
+  error: { color: '#e55', fontSize: 12, fontWeight: '500', marginBottom: 10,
+    backgroundColor: '#fff0f0', padding: 10, borderRadius: 8 },
+  switchRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 16,
+    paddingTop: 14, borderTopWidth: 1, borderTopColor: C.border },
+  switchText: { fontSize: 12, color: C.muted },
+  switchLink: { fontSize: 12, fontWeight: '700', color: C.dark },
 });
