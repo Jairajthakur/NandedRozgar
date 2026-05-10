@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NandedRozgar — Local Jobs · Local Life</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g1:#111111;--g2:#333333;--g3:#888888;--g4:#f5f5f5;--g5:#ebebeb;
+  --gold:#444444;--gold2:#f0f0f0;--gold3:#555555;--gold-lt:#f0f0f0;
+  --bg:#f8f8f8;--card:#ffffff;--border:#e0e0e0;--text:#111111;--muted:#777777;
+  --red:#111111;--red-lt:#f5f5f5;--blue:#111111;--blue-lt:#f0f0f0;
+  --radius:12px;--shadow:0 2px 16px rgba(0,0,0,.08);
+  --font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif;
+}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
+button{cursor:pointer;font-family:var(--font-body)}
+input,select,textarea{font-family:var(--font-body)}
+a{text-decoration:none}
+
+/* ── HEADER ── */
+.header{background:#111111;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+.header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:10px;height:58px;padding:0 1rem}
+.logo{display:flex;align-items:center;gap:9px;cursor:pointer;flex:1;user-select:none}
+.logo-mark{width:34px;height:34px;background:#333333;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.logo-text{color:#fff;font-family:var(--font-head);font-weight:800;font-size:16px;line-height:1.1}
+.logo-sub{color:var(--g3);font-size:9px;letter-spacing:.1em;font-weight:600;text-transform:uppercase}
+.nav{display:flex;gap:2px}
+.nav-btn{background:transparent;color:rgba(255,255,255,.65);border:none;padding:6px 11px;border-radius:7px;font-size:12.5px;font-weight:500;transition:all .15s;white-space:nowrap;font-family:var(--font-body)}
+.nav-btn.active,.nav-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.hdr-right{display:flex;gap:8px;align-items:center}
+.role-pill{padding:3px 11px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+.pill-seeker{background:#f0f0f0;color:#111111}
+.pill-giver{background:#e8e8e8;color:#111111}
+.pill-admin{background:#dddddd;color:#111111}
+.pro-pill{background:#222222;color:#ffffff;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.04em}
+.sign-out-btn{background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.2);padding:4px 11px;border-radius:7px;font-size:12px;font-weight:500;font-family:var(--font-body)}
+.sign-out-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#111;color:#fff;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:9999;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── MAIN ── */
+.main{flex:1;max-width:1100px;margin:0 auto;padding:1.4rem 1rem;width:100%}
+
+/* ── CARD ── */
+.card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:16px 20px}
+.card-lg{padding:22px 26px;border-radius:16px}
+
+/* ── GRID ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+
+/* ── STAT ── */
+.stat{background:var(--card);border-radius:10px;border:1px solid var(--border);padding:12px 14px;text-align:center}
+.stat-icon{font-size:20px;margin-bottom:3px}
+.stat-val{font-size:22px;font-weight:800;color:#111111;line-height:1;font-family:var(--font-head)}
+.stat-lbl{font-size:10px;color:var(--muted);margin-top:2px;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+
+/* ── BUTTONS ── */
+.btn{border:none;padding:10px 20px;border-radius:9px;font-size:13px;font-weight:600;transition:all .15s;font-family:var(--font-body);display:inline-flex;align-items:center;gap:6px;justify-content:center}
+.btn:hover{opacity:.88;transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-primary{background:#111111;color:#ffffff}
+.btn-gold{background:#333333;color:#ffffff}
+.btn-outline{background:transparent;border:1.5px solid #111111;color:#111111}
+.btn-outline-gray{background:transparent;border:1.5px solid var(--border);color:var(--muted)}
+.btn-sm{padding:5px 13px;font-size:12px;border-radius:7px}
+.btn-danger{background:#333333;color:#ffffff}
+.btn-full{width:100%}
+.btn:disabled{opacity:.45;cursor:default;transform:none}
+
+/* ── FORM ── */
+.fg{margin-bottom:14px}
+.fl{display:block;font-size:12px;font-weight:600;color:#444;margin-bottom:5px;letter-spacing:.02em}
+.fi{width:100%;padding:10px 13px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;outline:none;transition:border .15s;background:#fff;color:var(--text)}
+.fi:focus{border-color:#111111;box-shadow:0 0 0 3px rgba(0,0,0,.08)}
+textarea.fi{resize:vertical;min-height:80px}
+select.fi option{background:#fff}
+.form-error{background:var(--red-lt);border:1px solid var(--red);border-radius:8px;padding:9px 13px;font-size:12px;color:var(--red);font-weight:500;margin-bottom:12px}
+
+/* ── CHIPS ── */
+.chip{display:inline-flex;align-items:center;gap:3px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.chip-g{background:#f0f0f0;color:#111111}
+.chip-gold{background:#e8e8e8;color:#333333}
+.chip-gray{background:#eeeeee;color:#555555}
+.chip-blue{background:#eeeeee;color:#111111}
+.chip-red{background:#e8e8e8;color:#333333}
+.chip-purple{background:#ebebeb;color:#222222}
+
+/* ── JOB CARD ── */
+.job-card{background:var(--card);border-radius:12px;border:1.5px solid var(--border);padding:15px 18px;cursor:pointer;transition:all .18s;position:relative}
+.job-card:hover{box-shadow:var(--shadow);border-color:#c0c0b8;transform:translateY(-1px)}
+.job-card.featured{border-color:#333333;box-shadow:0 0 0 1px #333333}
+.job-card.urgent-card{border-left:4px solid #444444}
+.feat-badge{position:absolute;top:-1px;right:14px;background:#222222;color:#ffffff;font-size:9px;font-weight:700;padding:2px 9px;border-radius:0 0 7px 7px;letter-spacing:.05em}
+.urg-badge{position:absolute;top:-1px;left:14px;background:#555555;color:#ffffff;font-size:9px;font-weight:700;padding:2px 9px;border-radius:0 0 7px 7px;letter-spacing:.05em}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:2px;margin-bottom:16px;border-bottom:1.5px solid var(--border);padding-bottom:0}
+.tab-btn{background:transparent;border:none;padding:9px 16px;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:all .15s;font-family:var(--font-body)}
+.tab-btn.active{color:#111111;border-bottom-color:#111111;font-weight:700}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)}
+.modal{background:var(--card);border-radius:18px;padding:26px;max-width:530px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-title{font-size:17px;font-weight:700;font-family:var(--font-head)}
+.close-btn{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.close-btn:hover{background:#f0f0ec}
+
+/* ── AVATAR ── */
+.avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;font-family:var(--font-head)}
+.av-g{background:#222222}
+.av-b{background:#444444}
+.av-r{background:#666666}
+.av-gold{background:#555555}
+
+/* ── FREE BADGE ── */
+.free-banner{background:linear-gradient(90deg,#eff6ff,#dbeafe);border:1.5px solid var(--g3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.free-banner-icon{font-size:20px}
+.free-banner-text{font-size:12px;font-weight:600;color:#1e3a8a}
+.free-banner-sub{font-size:11px;color:var(--muted);font-weight:400}
+
+/* ── PRICING ── */
+.price-card{border-radius:12px;border:2px solid var(--border);padding:16px;background:var(--card);position:relative;transition:all .2s}
+.price-card.pop{border-color:#222222;background:#f5f5f5}
+.price-card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.price-amt{font-size:30px;font-weight:800;color:#111111;line-height:1;font-family:var(--font-head)}
+.price-unit{font-size:12px;color:var(--muted);font-weight:400}
+
+/* ── AI ── */
+.ai-badge{display:inline-flex;align-items:center;gap:5px;background:#f0f0f0;color:#222222;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.03em}
+.ai-box{background:#f8f8f8;border:1.5px solid #dddddd;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.75;color:#222222;margin-top:10px}
+.ai-typing{display:flex;gap:5px;align-items:center;padding:4px 0}
+.dot{width:7px;height:7px;background:#333333;border-radius:50%;animation:bounce 1.2s infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-7px)}}
+
+/* ── SEARCH ── */
+.search-wrap{position:relative;margin-bottom:12px}
+.search-wrap input{width:100%;padding:10px 14px 10px 38px;border-radius:9px;border:1.5px solid var(--border);font-size:13px;outline:none;transition:border .15s;background:#fff;font-family:var(--font-body)}
+.search-wrap input:focus{border-color:var(--g1)}
+.search-ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px}
+
+/* ── CAT PILLS ── */
+.cat-pills{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:none}
+.cat-pills::-webkit-scrollbar{display:none}
+.cat-pill{border:1.5px solid var(--border);background:var(--card);color:#555;padding:5px 13px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;transition:all .15s}
+.cat-pill.active{background:#111111;color:#ffffff;border-color:#111111}
+
+/* ── ADMIN TABLE ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:9px 11px;text-align:left;font-weight:700;color:var(--muted);border-bottom:1.5px solid var(--border);white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+td{padding:9px 11px;border-bottom:1px solid #f5f4f0}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafaf8}
+
+/* ── SECTION ── */
+.sec-title{font-size:17px;font-weight:800;margin-bottom:8px;color:#111111;font-family:var(--font-head)}
+.sec-sub{font-size:12px;color:var(--muted);margin-top:2px}
+hr.div{border:none;border-top:1.5px solid var(--border);margin:14px 0}
+
+/* ── NOTIF ── */
+.notif-dot{width:8px;height:8px;background:var(--red);border-radius:50%;display:inline-block;margin-left:3px;vertical-align:middle;flex-shrink:0}
+
+/* ── BOOST OPTION ── */
+.boost-opt{cursor:pointer;border-radius:11px;border:2px solid var(--border);background:#fff;padding:13px;transition:all .15s;user-select:none}
+.boost-opt:hover{border-color:#aaa}
+.boost-opt.sel-gold{border-color:#222222;background:#f0f0f0}
+.boost-opt.sel-red{border-color:#444444;background:#ebebeb}
+.boost-check{width:19px;height:19px;border-radius:5px;border:2px solid #ccc;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.boost-check.chk-gold{border-color:#222222;background:#222222}
+.boost-check.chk-red{border-color:#444444;background:#444444}
+
+/* ── LOGIN ── */
+.login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#111111 0%,#222222 60%,#333333 100%);padding:16px;position:relative;overflow:hidden}
+.login-page::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%237ecba1' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+.login-box{background:#fff;border-radius:20px;padding:32px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative;z-index:1}
+.login-logo{text-align:center;margin-bottom:24px}
+.login-logo-mark{width:56px;height:56px;background:#111111;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 10px}
+.login-logo-text{font-family:var(--font-head);font-size:22px;font-weight:800;color:#111111}
+.login-logo-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.demo-btn{border:1.5px solid var(--border);background:#fafaf8;color:#444;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;transition:all .15s;font-family:var(--font-body)}
+.demo-btn:hover{background:#f0f0f0;border-color:#111111;color:#111111}
+
+/* ── FREE SEEKER BANNER ── */
+.seeker-free-info{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px dashed #93c5fd;border-radius:12px;padding:14px;margin-bottom:16px;text-align:center}
+
+/* ── LOADING ── */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;backdrop-filter:blur(3px)}
+.spinner{width:36px;height:36px;border:3px solid var(--g4);border-top-color:var(--g1);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.empty-text{font-size:15px;font-weight:600;color:#444;margin-bottom:6px}
+.empty-sub{font-size:13px}
+
+/* ── PAYMENT MODAL ── */
+.pay-modal-header{background:#111111;margin:-26px -26px 20px;padding:24px 26px;border-radius:16px 16px 0 0;color:#ffffff}
+.pay-feature-item{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.pay-feature-item:last-child{border-bottom:none}
+.pay-check{width:22px;height:22px;background:#f0f0f0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#111111;flex-shrink:0}
+.pay-input-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* ── BACKEND STATUS ── */
+.backend-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:5px;box-shadow:0 0 0 2px rgba(34,197,94,.2);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 2px rgba(34,197,94,.2)}50%{box-shadow:0 0 0 5px rgba(34,197,94,.1)}}
+
+/* ── RESPONSIVE ── */
+@media(max-width:640px){
+  .g4{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr}
+  .g2{grid-template-columns:1fr}
+  .nav{display:none}
+  .header-inner{gap:6px}
+  .main{padding:.75rem .6rem}
+  .card{padding:13px 14px}
+  .card-lg{padding:15px 16px}
+  .modal{padding:18px;border-radius:14px}
+  .stat{padding:10px 8px}
+  .stat-val{font-size:18px}
+  .stat-lbl{font-size:9px}
+  .job-card{padding:12px 14px}
+  .btn{padding:9px 16px;font-size:13px}
+  .sec-title{font-size:15px}
+  .logo-text{font-size:15px}
+  .hdr-right{gap:5px}
+  .sign-out-btn{padding:4px 8px;font-size:11px}
+  .role-pill{font-size:10px;padding:3px 8px}
+  .pay-input-row{grid-template-columns:1fr}
+  table{font-size:11px}
+  th,td{padding:7px 8px}
+}
+@media(max-width:400px){
+  .g3{grid-template-columns:1fr 1fr}
+  .stat-val{font-size:16px}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+//  PUNEJOBS v2 — FULL BACKEND + APP
+// ═══════════════════════════════════════
+
+// ── CONSTANTS ──
+const CATS = ["All","Construction","Driver","Domestic Help","Security","Delivery","Shop Assistant","Plumber","Electrician","Carpenter","Painter","Other"];
+const CAT_ICONS = {Construction:"🏗️",Driver:"🚗","Domestic Help":"🏠",Security:"🛡️",Delivery:"📦","Shop Assistant":"🛍️",Plumber:"🔧",Electrician:"⚡",Carpenter:"🪚",Painter:"🖌️",Other:"💼"};
+
+// ── PRICING CONFIG ──
+const PRICING = {
+  basic: 49,       // every job post costs this base fee
+  featured: 49,    // add-on: top placement
+  urgent: 29,      // add-on: urgent badge
+  bundle: 69,      // featured + urgent together
+  pro_monthly: 499,
+  pro_quarterly: 1199,
+  whatsapp_blast: 99,
+  banner_monthly: 299,
+};
+
+// ═══════════════════════════════════════
+//  REAL API LAYER (connects to Express server)
+// ═══════════════════════════════════════
+const BASE = '';  // same origin — Railway serves both
+
+let TOKEN = localStorage.getItem('nr_token') || null;
+
+async function http(method, path, body){
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if(TOKEN) opts.headers['Authorization'] = 'Bearer ' + TOKEN;
+  if(body) opts.body = JSON.stringify(body);
+  try {
+    const res = await fetch(BASE + path, opts);
+    const data = await res.json();
+    return data;
+  } catch(e) {
+    return { ok: false, error: 'Network error. Please try again.' };
+  }
+}
+
+
+
+// ═══════════════════════════════════════
+//  APP STATE
+// ═══════════════════════════════════════
+let S = {
+  page:"login", role:null, user:null,
+  jobs:[], users:[],
+  selJob:null, cat:"All", search:"",
+  tab:"jobs", adminTab:"jobs",
+  form:{}, formError:"", loginForm:{email:"",password:"",name:"",phone:"",company:"",mode:"login",regRole:""},
+  aiQuery:"", aiResponse:"", aiLoading:false,
+  payModal:null, // {plan, amount, title, desc}
+  payForm:{card:"",expiry:"",cvv:"",name:""},
+  payLoading:false,
+  loading:false,
+};
+
+// Jobs and users loaded async after login
+
+function emptyForm(){
+  return {title:"",company:S.user?.company||"",category:"Construction",location:"",salary:"",type:"Full-time",phone:S.user?.phone||"",description:"",featured:false,urgent:false};
+}
+
+// ═══════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════
+function timeAgo(ts){
+  const t = typeof ts==="string"?new Date(ts).getTime():ts;
+  const d=(Date.now()-t)/1000;
+  if(d<3600)return `${Math.floor(d/60)}m ago`;
+  if(d<86400)return `${Math.floor(d/3600)}h ago`;
+  return `${Math.floor(d/86400)}d ago`;
+}
+function toast(msg,dur=3000){
+  const el=document.getElementById("toast");
+  if(!el)return;
+  el.textContent=msg;el.classList.add("show");
+  setTimeout(()=>el.classList.remove("show"),dur);
+}
+function fmtDate(ts){
+  return new Date(ts).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
+}
+function planLabel(user){
+  if(!user.premium)return "Starter";
+  if(user.planExpiry && Date.now()>user.planExpiry){ user.premium=false; return "Expired"; }
+  return "PRO";
+}
+
+// ═══════════════════════════════════════
+//  RENDER ENGINE
+// ═══════════════════════════════════════
+function render(){
+  const app=document.getElementById("app");
+  let html="";
+  if(S.loading) html+=`<div class="loading-overlay"><div class="spinner"></div><div style="font-size:13px;color:var(--muted)">Please wait…</div></div>`;
+  if(S.page==="login"){
+    html+=renderLogin();
+  } else {
+    html+=`<div style="display:flex;flex-direction:column;min-height:100vh">`;
+    html+=renderHeader();
+    html+=`<main class="main">${renderPage()}</main>`;
+    html+=`</div>`;
+  }
+  if(S.payModal) html+=renderPayModal();
+  app.innerHTML=html;
+}
+
+// ══ HEADER ══
+function renderHeader(){
+  const u=S.user;
+  const isAdmin=S.role==="admin";
+  const isGiver=S.role==="giver";
+  const isSeeker=S.role==="seeker";
+  const pages=isAdmin
+    ?[["board","Browse"],["post","Post Job"],["admin","Admin Panel"]]
+    :isGiver
+    ?[["board","Browse"],["post","Post Job"],["profile","My Profile"],["ai","AI Match"]]
+    :[["board","Browse Jobs"],["profile","My Profile"],["ai","AI Match"]];
+  const pillCls=isAdmin?"pill-admin":isGiver?"pill-giver":"pill-seeker";
+  const roleLabel=isAdmin?"Admin":isGiver?"Employer":"Job Seeker";
+
+  return `<header class="header">
+    <div class="header-inner">
+      <div class="logo" onclick="nav('board')">
+        <div class="logo-mark">🏙️</div>
+        <div>
+          <div class="logo-text">NandedRozgar</div>
+          <div class="logo-sub">Local Jobs · Local Life</div>
+        </div>
+      </div>
+      <nav class="nav">
+        ${pages.map(([p,l])=>`<button class="nav-btn ${S.page===p?"active":""}" onclick="nav('${p}')">${l}</button>`).join("")}
+      </nav>
+      <div class="hdr-right">
+        <span style="font-size:11px;color:rgba(255,255,255,.5)"><span class="backend-dot"></span>Live</span>
+        ${u&&u.premium?`<span class="pro-pill">💎 PRO</span>`:""}
+        <span class="role-pill ${pillCls}">${u?u.name.split(" ")[0]:""}</span>
+        <button class="sign-out-btn" onclick="signOut()">Sign Out</button>
+      </div>
+    </div>
+  </header>`;
+}
+
+// ══ PAGE ROUTER ══
+function renderPage(){
+  if(S.page==="board"&&S.selJob) return renderJobDetail();
+  if(S.page==="board") return renderBoard();
+  if(S.page==="post") return S.role==="seeker"?renderSeekerBlocked():renderPost();
+  if(S.page==="profile") return renderProfile();
+  if(S.page==="admin") return renderAdmin();
+  if(S.page==="ai") return renderAI();
+  return `<p>Page not found</p>`;
+}
+
+// ═══════════════════════════════════════
+//  LOGIN PAGE
+// ═══════════════════════════════════════
+function renderLogin(){
+  const f=S.loginForm;
+  const isReg=f.mode==="register";
+  return `<div class="login-page">
+    <div class="login-box">
+      <div class="login-logo">
+        <div class="login-logo-mark">🏙️</div>
+        <div class="login-logo-text">NandedRozgar</div>
+        <div class="login-logo-sub">Local Jobs · Local Life · Nanded</div>
+      </div>
+
+
+
+      ${isReg?`
+      <div class="fg">
+        <label class="fl">I am a…</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+          ${["seeker","giver"].map(r=>`
+          <button onclick="lf('regRole','${r}')" style="padding:11px;border-radius:9px;border:2px solid ${f.regRole===r?"var(--g1)":"var(--border)"};background:${f.regRole===r?"var(--g4)":"#fff"};font-weight:700;font-size:13px;cursor:pointer;transition:all .15s;font-family:var(--font-body)">
+            ${r==="seeker"?"👷 Job Seeker":"🏢 Employer / Recruiter"}
+          </button>`).join("")}
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Full Name</label><input class="fi" value="${f.name}" placeholder="Your full name" oninput="lf('name',this.value)"></div>
+      ${f.regRole==="giver"?`<div class="fg"><label class="fl">Company / Business Name</label><input class="fi" value="${f.company||""}" placeholder="e.g. Patil Builders" oninput="lf('company',this.value)"></div>`:""}
+      <div class="fg"><label class="fl">Phone Number</label><input class="fi" value="${f.phone||""}" placeholder="9XXXXXXXXX" maxlength="10" oninput="lf('phone',this.value)"></div>
+      `:""}
+
+      <div class="fg"><label class="fl">Email Address</label><input class="fi" value="${f.email}" placeholder="you@email.com" oninput="lf('email',this.value)"></div>
+      <div class="fg"><label class="fl">Password</label><input class="fi" type="password" value="${f.password}" placeholder="${isReg?"Create a password":"Your password"}" oninput="lf('password',this.value)" onkeydown="if(event.key==='Enter')${isReg?"doRegister()":"doLogin()}"}"></div>
+
+      <div id="login-err" style="display:none" class="form-error"></div>
+      <button class="btn btn-primary btn-full" style="font-size:15px;padding:13px;border-radius:10px" onclick="${isReg?"doRegister()":"doLogin()"}">
+        ${isReg?"Create Account →":"Sign In →"}
+      </button>
+
+      <div style="text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+          ${isReg?"Already have an account?":"Don't have an account?"}
+          <a href="#" onclick="lf('mode','${isReg?"login":"register"}');return false" style="color:var(--g1);font-weight:700;margin-left:4px">${isReg?"Sign In":"Register Free"}</a>
+        </p>
+
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════
+//  BOARD
+// ═══════════════════════════════════════
+function renderBoard(){
+  const jobs=S.jobs.filter(j=>
+    j.status==="active"&&
+    (S.cat==="All"||j.category===S.cat)&&
+    (S.search===""||[j.title,j.location,j.company,j.description].join(" ").toLowerCase().includes(S.search.toLowerCase()))
+  ).sort((a,b)=>((b.featured?2:0)+(b.urgent?1:0))-((a.featured?2:0)+(a.urgent?1:0))||(b.timestamp-a.timestamp));
+
+  return `
+
+
+
+
+    <div class="search-wrap">
+      <span class="search-ico">🔍</span>
+      <input value="${S.search}" placeholder="Search jobs, area, company, skill…" oninput="setSearch(this.value)">
+    </div>
+    <div class="cat-pills">
+      ${CATS.map(c=>`<button class="cat-pill ${S.cat===c?"active":""}" onclick="setCat('${c}')">${c!=="All"?(CAT_ICONS[c]+" "):""}${c}</button>`).join("")}
+    </div>
+    ${jobs.length===0
+      ?`<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No jobs found</div><div class="empty-sub">Try different filters or check back later</div>${S.role==="giver"?`<button class="btn btn-primary" style="margin-top:16px" onclick="nav('post')">Post a Job</button>`:""}</div>`
+      :`<div style="display:flex;flex-direction:column;gap:10px">${jobs.map(renderJobCard).join("")}</div>`
+    }
+  `;
+}
+
+function renderJobCard(job){
+  const hasFeat=job.featured, hasUrg=job.urgent;
+  return `<div class="job-card ${hasFeat?"featured":""} ${hasUrg?"urgent-card":""}" onclick="openJob('${job.id}')">
+    ${hasFeat?`<div class="feat-badge">⭐ FEATURED</div>`:""}
+    ${hasUrg?`<div class="urg-badge">🔥 URGENT</div>`:""}
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;${hasFeat||hasUrg?"margin-top:10px":""}">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:24px">${CAT_ICONS[job.category]||"💼"}</span>
+          <div>
+            <div style="font-size:15px;font-weight:700;font-family:var(--font-head)">${job.title}</div>
+            <div style="font-size:12px;color:var(--muted)">${job.company}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <span class="chip chip-g">📍 ${job.location}</span>
+          <span class="chip chip-gold">💰 ${job.salary}</span>
+          <span class="chip chip-gray">${job.type}</span>
+          <span class="chip chip-gray">${CAT_ICONS[job.category]||"💼"} ${job.category}</span>
+        </div>
+      </div>
+      <div style="text-align:right;margin-left:10px;min-width:54px">
+        <div style="font-size:10px;color:#aaa">${timeAgo(job.timestamp)}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:2px">👁 ${job.views}</div>
+        ${job.applicants?.length?`<div style="font-size:10px;color:var(--g1);margin-top:2px;font-weight:700">👤 ${job.applicants.length}</div>`:""}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════
+//  JOB DETAIL
+// ═══════════════════════════════════════
+function renderJobDetail(){
+  const job=S.selJob; if(!job)return"";
+  const users=API.getUsers();
+  const poster=users.find(u=>u.id===job.postedBy)||{name:"Employer"};
+  const uid=S.user?.id;
+  const hasApplied=job.applicants?.includes(uid);
+  const hasSaved=job.saved?.includes(uid);
+  const isOwner=job.postedBy===uid||S.role==="admin";
+
+  return `
+    <button class="btn btn-outline-gray btn-sm" onclick="closeJob()" style="margin-bottom:16px">← Back to Jobs</button>
+    <div class="card card-lg">
+      ${job.featured?`<div style="background:var(--gold-lt);border:1px solid var(--gold3);border-radius:9px;padding:9px 13px;margin-bottom:14px;font-size:12px;color:#92400e;font-weight:600;display:flex;align-items:center;gap:6px">⭐ Featured Listing — Top Placement</div>`:""}
+      ${job.urgent?`<div style="background:var(--red-lt);border:1px solid var(--red);border-radius:9px;padding:9px 13px;margin-bottom:14px;font-size:12px;color:var(--red);font-weight:600;display:flex;align-items:center;gap:6px">🔥 Urgent Hiring — Apply Immediately</div>`:""}
+
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px">
+        <div>
+          <h1 style="font-size:20px;font-weight:800;font-family:var(--font-head);margin-bottom:4px">${job.title}</h1>
+          <div style="font-size:14px;color:var(--muted);font-weight:500">${job.company}</div>
+        </div>
+        <span style="font-size:32px">${CAT_ICONS[job.category]||"💼"}</span>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+        <span class="chip chip-g" style="font-size:13px;padding:5px 13px">📍 ${job.location}</span>
+        <span class="chip chip-gold" style="font-size:13px;padding:5px 13px">💰 ${job.salary}</span>
+        <span class="chip chip-gray" style="font-size:13px;padding:5px 13px">⏰ ${job.type}</span>
+        <span class="chip chip-blue" style="font-size:13px;padding:5px 13px">${CAT_ICONS[job.category]} ${job.category}</span>
+      </div>
+
+      <hr class="div">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:8px">About the Role</h3>
+      <p style="font-size:14px;line-height:1.75;color:#333;margin-bottom:18px">${job.description}</p>
+
+      <hr class="div">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+        <div class="avatar av-g" style="width:40px;height:40px;font-size:15px">${poster.avatar||poster.name[0]}</div>
+        <div>
+          <div style="font-weight:700;font-size:13px">${poster.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${poster.company||"Recruiter"} · Posted ${timeAgo(job.timestamp)}</div>
+        </div>
+        <div style="margin-left:auto;font-size:12px;color:var(--muted)">👁 ${job.views} views · 👤 ${job.applicants?.length||0} applied</div>
+      </div>
+
+      ${S.role==="seeker"?`
+        <div style="background:var(--g4);border:1.5px solid var(--g3);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:var(--g1);margin-bottom:4px">📱 Contact Employer</div>
+          <div style="font-size:15px;font-weight:800;color:var(--text);letter-spacing:.03em">${job.phone}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">Call or WhatsApp directly — It's FREE for you!</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" style="flex:1" onclick="applyJob('${job.id}')" ${hasApplied?"disabled":""}>
+            ${hasApplied?"✅ Applied":"✅ Mark as Applied"}
+          </button>
+          <button class="btn btn-outline" onclick="saveJob('${job.id}')" style="min-width:100px">
+            ${hasSaved?"🔖 Saved":"🔖 Save Job"}
+          </button>
+          <a href="https://wa.me/91${job.phone.replace(/\D/g,'')}?text=Hi, I saw your job posting on NandedRozgar for ${encodeURIComponent(job.title)}. I am interested." target="_blank" class="btn" style="background:#25d366;color:#fff;min-width:100px">💬 WhatsApp</a>
+        </div>
+      `:`
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${isOwner?`<button class="btn btn-danger btn-sm" onclick="deleteJob('${job.id}')">🗑 Delete Job</button>`:""}
+          <div style="font-size:12px;color:var(--muted);align-self:center;margin-left:auto">${job.applicants?.length||0} application(s) received</div>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════
+//  POST JOB (Givers & Admin only)
+// ═══════════════════════════════════════
+function renderPost(){
+  const f=S.form;
+  const price=(f.featured&&f.urgent)?PRICING.bundle:f.featured?PRICING.featured:f.urgent?PRICING.urgent:0;
+  const isPro=S.user?.premium;
+  const freeJobsThisMonth=S.jobs.filter(j=>j.postedBy===S.user?.id&&!j.featured&&!j.urgent&&Date.now()-j.timestamp<30*86400000).length;
+
+  return `<div style="max-width:700px;margin:0 auto">
+    <h2 class="sec-title">Post a Job</h2>
+    <p class="sec-sub" style="margin-bottom:20px">Reach thousands of local job seekers in Nanded</p>
+
+    ${!isPro?`
+    <div style="background:var(--gold-lt);border:1.5px solid var(--gold3);border-radius:11px;padding:13px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#92400e">📋 Starter Plan: ₹${PRICING.basic} per job post</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Upgrade to PRO for unlimited jobs, priority support & analytics</div>
+      </div>
+      <button class="btn btn-gold btn-sm" onclick="openPayModal('pro_monthly')">💎 Upgrade ₹${PRICING.pro_monthly}/mo</button>
+    </div>`:""}
+
+    <div class="card card-lg">
+      <div class="g2">
+        <div class="fg"><label class="fl">Job Title *</label><input class="fi" value="${f.title||""}" placeholder="e.g. Security Guard Needed" oninput="ff('title',this.value)"></div>
+        <div class="fg"><label class="fl">Company Name *</label><input class="fi" value="${f.company||""}" placeholder="Your company or name" oninput="ff('company',this.value)"></div>
+      </div>
+      <div class="g2">
+        <div class="fg"><label class="fl">Category *</label>
+          <select class="fi" onchange="ff('category',this.value)">
+            ${CATS.filter(c=>c!=="All").map(c=>`<option value="${c}" ${f.category===c?"selected":""}>${CAT_ICONS[c]} ${c}</option>`).join("")}
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Job Type</label>
+          <select class="fi" onchange="ff('type',this.value)">
+            ${["Full-time","Part-time","Contract","Daily Wage","Gig"].map(t=>`<option value="${t}" ${f.type===t?"selected":""}>${t}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="fg"><label class="fl">Location in Nanded *</label><input class="fi" value="${f.location||""}" placeholder="e.g. Cidco, Shivaji Nagar, Vazirabad" oninput="ff('location',this.value)"></div>
+        <div class="fg"><label class="fl">Salary / Pay *</label><input class="fi" value="${f.salary||""}" placeholder="e.g. ₹12,000/month or ₹600/day" oninput="ff('salary',this.value)"></div>
+      </div>
+      <div class="fg"><label class="fl">Contact Phone *</label><input class="fi" value="${f.phone||""}" placeholder="10-digit mobile number" maxlength="10" oninput="ff('phone',this.value)"></div>
+      <div class="fg"><label class="fl">Job Description *</label>
+        <textarea class="fi" rows="4" placeholder="Describe the job, requirements, timings, food/stay, etc." oninput="ff('description',this.value)">${f.description||""}</textarea>
+      </div>
+
+      <!-- BOOST OPTIONS -->
+      <div style="margin-bottom:18px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text)">⚡ Boost Your Job Post</div>
+        <div class="g2" style="gap:10px;margin-bottom:10px">
+          <div class="boost-opt ${f.featured?"sel-gold":""}" onclick="ff('featured',!${f.featured})">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <div class="boost-check ${f.featured?"chk-gold":""}">${f.featured?`<span style="color:#fff;font-size:11px">✓</span>`:""}</div>
+              <span style="font-weight:700;font-size:13px;color:#92400e">⭐ Featured</span>
+            </div>
+            <div style="font-size:24px;font-weight:800;color:var(--g1);font-family:var(--font-head)">₹${PRICING.featured}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Top of results · Gold border · 5× more views</div>
+          </div>
+          <div class="boost-opt ${f.urgent?"sel-red":""}" onclick="ff('urgent',!${f.urgent})">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <div class="boost-check ${f.urgent?"chk-red":""}">${f.urgent?`<span style="color:#fff;font-size:11px">✓</span>`:""}</div>
+              <span style="font-weight:700;font-size:13px;color:var(--red)">🔥 Urgent Badge</span>
+            </div>
+            <div style="font-size:24px;font-weight:800;color:var(--g1);font-family:var(--font-head)">₹${PRICING.urgent}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Red badge · Priority placement</div>
+          </div>
+        </div>
+        ${f.featured&&f.urgent?`
+        <div style="background:var(--g4);border:1.5px solid var(--g3);border-radius:9px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-weight:700;font-size:13px;color:var(--g1)">🎉 Bundle Deal!</span>
+          <span style="font-size:13px">Pay <strong style="color:var(--g1)">₹${PRICING.bundle}</strong> <s style="color:#aaa;font-size:12px">₹${PRICING.featured+PRICING.urgent}</s> <span class="chip chip-g" style="margin-left:4px">Save ₹${(PRICING.featured+PRICING.urgent)-PRICING.bundle}</span></span>
+        </div>`:""}
+      </div>
+
+      ${S.formError?`<div class="form-error">${S.formError}</div>`:""}
+
+      <button class="btn btn-primary btn-full" style="font-size:15px;padding:14px;border-radius:11px" id="post-btn" onclick="handlePost()">
+        🚀 Post Job & Pay ₹${PRICING.basic + (f.featured&&f.urgent?PRICING.bundle:price)}
+      </button>
+    </div>
+
+    <!-- PRICING TABLE -->
+    <div class="card" style="margin-top:16px">
+      <div class="sec-title" style="margin-bottom:12px">💰 Employer Pricing Plans</div>
+      <div class="g3" style="gap:10px;margin-bottom:16px">
+        <div class="price-card">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Starter</div>
+          <div class="price-amt">₹${PRICING.basic}<span class="price-unit">/post</span></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Pay per job posting</div>
+          <hr class="div">
+          ${["1 active job listing","Standard placement","No analytics"].map(f=>`<div style="font-size:12px;color:#555;margin-bottom:4px">• ${f}</div>`).join("")}
+        </div>
+        <div class="price-card pop" style="position:relative">
+          <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--gold3);color:#fff;font-size:10px;font-weight:700;padding:3px 12px;border-radius:20px">POPULAR</div>
+          <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">💎 PRO Monthly</div>
+          <div class="price-amt">₹${PRICING.pro_monthly}<span class="price-unit">/mo</span></div>
+          <hr class="div">
+          ${["Unlimited job postings","Priority placement","Analytics dashboard","Verified ✓ badge","WhatsApp support"].map(f=>`<div style="font-size:12px;color:#555;margin-bottom:4px">✅ ${f}</div>`).join("")}
+          <button class="btn btn-gold btn-full btn-sm" style="margin-top:10px" onclick="openPayModal('pro_monthly')">Upgrade Now</button>
+        </div>
+        <div class="price-card">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">💎 PRO Quarterly</div>
+          <div class="price-amt">₹${PRICING.pro_quarterly}<span class="price-unit">/3mo</span></div>
+          <div style="font-size:11px;color:var(--g1);font-weight:700;margin-top:2px">Save ₹${(PRICING.pro_monthly*3)-PRICING.pro_quarterly}!</div>
+          <hr class="div">
+          ${["All PRO features","3 months access","Best value for employers"].map(f=>`<div style="font-size:12px;color:#555;margin-bottom:4px">✅ ${f}</div>`).join("")}
+          <button class="btn btn-outline btn-full btn-sm" style="margin-top:10px" onclick="openPayModal('pro_quarterly')">Get 3 Months</button>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text)">À la carte Boosts</div>
+        <table>
+          <tr><th>Boost</th><th>Price</th><th>What you get</th></tr>
+          ${[
+            ["⭐ Featured Listing",`₹${PRICING.featured}/post`,"Top of search, gold border, 5× views"],
+            ["🔥 Urgent Badge",`₹${PRICING.urgent}/post`,"Red badge, priority placement"],
+            ["⭐🔥 Featured + Urgent",`₹${PRICING.bundle}/post`,`Save ₹${(PRICING.featured+PRICING.urgent)-PRICING.bundle} vs separate`],
+            ["💬 WhatsApp Blast",`₹${PRICING.whatsapp_blast}/blast`,"Reach 1,000+ active seekers instantly"],
+            ["🎯 Banner Ad",`₹${PRICING.banner_monthly}/month`,"Visible to all seekers on job board"],
+          ].map(([n,p,d])=>`<tr><td style="font-weight:600">${n}</td><td style="font-weight:800;color:var(--g1)">${p}</td><td style="color:var(--muted)">${d}</td></tr>`).join("")}
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderSeekerBlocked(){
+  return `<div class="empty">
+    <div class="empty-icon">🎉</div>
+    <div class="empty-text">You're a Job Seeker — browsing is FREE!</div>
+    <div class="empty-sub">Job posting is only for employers. Head to Browse Jobs to find opportunities.</div>
+    <button class="btn btn-primary" style="margin-top:20px" onclick="nav('board')">Browse Jobs →</button>
+  </div>`;
+}
+
+// ═══════════════════════════════════════
+//  PROFILE
+// ═══════════════════════════════════════
+function renderProfile(){
+  const u=S.user;
+  const jobs=API.getJobs();
+  const myJobs=jobs.filter(j=>j.postedBy===u.id&&j.status!=="deleted");
+  const appliedJobs=jobs.filter(j=>j.applicants?.includes(u.id));
+  const savedJobs=jobs.filter(j=>j.saved?.includes(u.id));
+  const txns=API.getTransactions().filter(t=>t.userId===u.id);
+
+  return `<div style="max-width:720px;margin:0 auto">
+    <!-- Profile Card -->
+    <div class="card card-lg" style="margin-bottom:16px">
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div class="avatar ${u.role==="admin"?"av-r":u.role==="giver"?"av-g":"av-b"}" style="width:68px;height:68px;font-size:26px">${u.avatar||u.name[0]}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+            <h2 style="font-size:19px;font-weight:800;font-family:var(--font-head)">${u.name}</h2>
+            ${u.premium?`<span class="pro-pill">💎 PRO${u.planExpiry?` · until ${fmtDate(u.planExpiry)}`:""}</span>`:`<span class="chip chip-gray">Starter Plan</span>`}
+          </div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:6px">${u.email}${u.phone?` · ${u.phone}`:""}</div>
+          ${u.bio?`<div style="font-size:13px;color:#444;margin-bottom:8px">${u.bio}</div>`:""}
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${u.location?`<span class="chip chip-g">📍 ${u.location}</span>`:""}
+            ${u.company?`<span class="chip chip-gold">🏢 ${u.company}</span>`:""}
+            ${(u.skills||[]).map(s=>`<span class="chip chip-blue">${s}</span>`).join("")}
+          </div>
+        </div>
+        <div style="text-align:right;font-size:11px;color:var(--muted)">
+          <div>Member since</div>
+          <div style="font-weight:700;color:var(--text)">${fmtDate(u.joined)}</div>
+        </div>
+      </div>
+      ${u.role==="giver"&&!u.premium?`
+      <div style="margin-top:16px;background:var(--gold-lt);border:1.5px solid var(--gold3);border-radius:10px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-weight:700;font-size:13px;color:#92400e">💎 Upgrade to PRO — ₹${PRICING.pro_monthly}/month</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Unlimited posts · Priority placement · Analytics · Verified badge</div>
+        </div>
+        <button class="btn btn-gold btn-sm" onclick="openPayModal('pro_monthly')">Upgrade Now</button>
+      </div>`:u.role==="seeker"?`
+      <div style="margin-top:16px;background:var(--g4);border:1.5px solid var(--g3);border-radius:10px;padding:13px 16px">
+        <div style="font-weight:700;font-size:13px;color:#0a5c38">🎉 Job Seeker Account — Always FREE!</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Browse all jobs, apply, save, and contact employers — no charges ever.</div>
+      </div>`:""}
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      ${u.role==="giver"?`
+        <button class="tab-btn ${S.tab==="jobs"?"active":""}" onclick="setTab('jobs')">My Jobs (${myJobs.length})</button>
+        <button class="tab-btn ${S.tab==="stats"?"active":""}" onclick="setTab('stats')">Analytics</button>
+        <button class="tab-btn ${S.tab==="billing"?"active":""}" onclick="setTab('billing')">Billing</button>
+      `:u.role==="seeker"?`
+        <button class="tab-btn ${S.tab==="jobs"?"active":""}" onclick="setTab('jobs')">Applied (${appliedJobs.length})</button>
+        <button class="tab-btn ${S.tab==="saved"?"active":""}" onclick="setTab('saved')">Saved (${savedJobs.length})</button>
+      `:`
+        <button class="tab-btn active">Admin Profile</button>
+      `}
+    </div>
+
+    ${u.role==="giver"?
+      S.tab==="jobs"?
+        myJobs.length===0
+          ?`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No jobs posted yet</div><button class="btn btn-primary" style="margin-top:14px" onclick="nav('post')">Post First Job</button></div>`
+          :`<div style="display:flex;flex-direction:column;gap:8px">${myJobs.map(renderJobCard).join("")}</div>`
+      :S.tab==="stats"?renderGiverStats(myJobs)
+      :renderGiverBilling(txns)
+    :u.role==="seeker"?
+      S.tab==="jobs"?
+        appliedJobs.length===0
+          ?`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No applications yet</div><button class="btn btn-primary" style="margin-top:14px" onclick="nav('board')">Browse Jobs</button></div>`
+          :`<div style="display:flex;flex-direction:column;gap:8px">${appliedJobs.map(renderJobCard).join("")}</div>`
+      :savedJobs.length===0
+          ?`<div class="empty"><div class="empty-icon">🔖</div><div class="empty-text">No saved jobs</div><button class="btn btn-primary" style="margin-top:14px" onclick="nav('board')">Browse Jobs</button></div>`
+          :`<div style="display:flex;flex-direction:column;gap:8px">${savedJobs.map(renderJobCard).join("")}</div>`
+    :`<div class="card"><p style="color:var(--muted);font-size:13px">You are the platform administrator. Use the Admin Panel to manage jobs and users.</p><button class="btn btn-primary" style="margin-top:12px" onclick="nav('admin')">Go to Admin Panel →</button></div>`}
+  </div>`;
+}
+
+function renderGiverStats(myJobs){
+  const totalViews=myJobs.reduce((a,j)=>a+j.views,0);
+  const totalApps=myJobs.reduce((a,j)=>a+(j.applicants?.length||0),0);
+  const featured=myJobs.filter(j=>j.featured).length;
+  return `
+    <div class="g3" style="margin-bottom:16px">
+      ${[["Total Posted",myJobs.length,"📋"],["Total Views",totalViews,"👁️"],["Applications",totalApps,"👤"]].map(([l,v,i])=>`<div class="stat"><div class="stat-icon">${i}</div><div class="stat-val">${v}</div><div class="stat-lbl">${l}</div></div>`).join("")}
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">Job Performance</div>
+      ${myJobs.length===0?`<p style="color:var(--muted);font-size:13px">No data yet.</p>`:
+      `<table>
+        <tr><th>Job</th><th>Views</th><th>Applied</th><th>Boost</th><th>Age</th></tr>
+        ${myJobs.map(j=>`<tr>
+          <td style="font-weight:600">${j.title}</td>
+          <td>👁 ${j.views}</td>
+          <td>👤 ${j.applicants?.length||0}</td>
+          <td>${j.featured?"⭐":""}${j.urgent?"🔥":""}</td>
+          <td style="color:var(--muted)">${timeAgo(j.timestamp)}</td>
+        </tr>`).join("")}
+      </table>`}
+    </div>`;
+}
+
+function renderGiverBilling(txns){
+  return `<div class="card">
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px">Payment History</div>
+    ${txns.length===0?`<p style="color:var(--muted);font-size:13px">No transactions yet.</p>`:""}
+    ${txns.map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <div>
+        <div style="font-weight:600">${t.description}</div>
+        <div style="color:var(--muted);font-size:11px">${fmtDate(t.ts)} · ${t.method||"card"} · <span class="chip chip-g" style="font-size:10px">${t.status}</span></div>
+      </div>
+      <div style="font-weight:800;font-size:14px;color:var(--g1)">₹${t.amount}</div>
+    </div>`).join("")}
+  </div>`;
+}
+
+// ═══════════════════════════════════════
+//  ADMIN PANEL
+// ═══════════════════════════════════════
+function renderAdmin(){
+  if(S.role!=="admin") return `<div class="empty"><div class="empty-icon">🔐</div><div class="empty-text">Access Denied</div></div>`;
+  const jobs=API.getJobs();
+  const users=API.getUsers();
+  const txns=API.getTransactions();
+  const totalViews=jobs.reduce((a,j)=>a+j.views,0);
+  const totalRevenue=txns.filter(t=>t.status==="success").reduce((a,t)=>a+t.amount,0);
+
+  return `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <h2 class="sec-title" style="margin:0">Admin Panel</h2>
+      <span style="font-size:12px;color:var(--muted)"><span class="backend-dot"></span>Backend Live</span>
+    </div>
+
+    <div class="g3" style="margin-bottom:18px">
+      ${[["Total Jobs",jobs.length,"📋"],["Total Users",users.length,"👥"],["Total Views",totalViews,"👁️"],["Revenue",`₹${totalRevenue.toLocaleString("en-IN")}`,"💰"]].map(([l,v,i])=>`<div class="stat"><div class="stat-icon">${i}</div><div class="stat-val">${v}</div><div class="stat-lbl">${l}</div></div>`).join("")}
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn ${S.adminTab==="jobs"?"active":""}" onclick="setAT('jobs')">All Jobs (${jobs.length})</button>
+      <button class="tab-btn ${S.adminTab==="users"?"active":""}" onclick="setAT('users')">Users (${users.length})</button>
+      <button class="tab-btn ${S.adminTab==="revenue"?"active":""}" onclick="setAT('revenue')">Revenue & Analytics</button>
+      <button class="tab-btn ${S.adminTab==="txns"?"active":""}" onclick="setAT('txns')">Transactions (${txns.length})</button>
+    </div>
+
+    ${S.adminTab==="jobs"?`
+    <div class="card tbl-wrap">
+      <table>
+        <tr><th>Title</th><th>Company</th><th>Category</th><th>Status</th><th>Boosts</th><th>Views</th><th>Apps</th><th>Actions</th></tr>
+        ${jobs.map(j=>`<tr>
+          <td style="font-weight:600;max-width:160px">${j.title}</td>
+          <td>${j.company}</td>
+          <td><span class="chip chip-gray">${j.category}</span></td>
+          <td><span class="chip ${j.status==="active"?"chip-g":"chip-red"}">${j.status}</span></td>
+          <td>${j.featured?"⭐":""}${j.urgent?"🔥":""}</td>
+          <td>👁 ${j.views}</td>
+          <td>👤 ${j.applicants?.length||0}</td>
+          <td style="display:flex;gap:4px">
+            ${j.status==="active"
+              ?`<button class="btn btn-sm btn-danger" onclick="adminToggleJob('${j.id}','inactive')" style="font-size:10px;padding:3px 8px">Remove</button>`
+              :`<button class="btn btn-sm btn-outline" onclick="adminToggleJob('${j.id}','active')" style="font-size:10px;padding:3px 8px">Restore</button>`}
+          </td>
+        </tr>`).join("")}
+      </table>
+    </div>`
+
+    :S.adminTab==="users"?`
+    <div class="card tbl-wrap">
+      <table>
+        <tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th>Plan</th><th>Status</th><th>Actions</th></tr>
+        ${users.map(u=>`<tr>
+          <td style="font-weight:600">${u.name}</td>
+          <td><span class="chip ${u.role==="admin"?"chip-red":u.role==="giver"?"chip-gold":"chip-blue"}">${u.role}</span></td>
+          <td style="font-size:11px">${u.email}</td>
+          <td>${u.phone||"—"}</td>
+          <td>${u.premium?`<span class="chip chip-g">💎 PRO</span>`:`<span class="chip chip-gray">Free</span>`}</td>
+          <td><span class="chip ${u.active?"chip-g":"chip-red"}">${u.active?"Active":"Banned"}</span></td>
+          <td style="display:flex;gap:4px;flex-wrap:wrap">
+            <button class="btn btn-sm ${u.active?"btn-danger":"btn-outline"}" onclick="adminToggleUser('${u.id}')" style="font-size:10px;padding:3px 8px">${u.active?"Ban":"Unban"}</button>
+            ${!u.premium?`<button class="btn btn-sm btn-gold" onclick="adminGrantPro('${u.id}')" style="font-size:10px;padding:3px 8px">💎 Grant PRO</button>`:""}
+          </td>
+        </tr>`).join("")}
+      </table>
+    </div>`
+
+    :S.adminTab==="revenue"?`
+    <div class="card">
+      <div class="sec-title" style="margin-bottom:16px">Revenue Analytics</div>
+      <div class="g3" style="margin-bottom:18px">
+        ${[
+          ["Featured Job Boosts","₹"+(jobs.filter(j=>j.featured).length*PRICING.featured),"@₹"+PRICING.featured+" each"],
+          ["Urgent Badges","₹"+(jobs.filter(j=>j.urgent).length*PRICING.urgent),"@₹"+PRICING.urgent+" each"],
+          ["PRO Subscriptions","₹"+(users.filter(u=>u.premium).length*PRICING.pro_monthly),"@₹"+PRICING.pro_monthly+"/month"],
+        ].map(([l,v,d])=>`<div class="stat"><div class="stat-val">${v}</div><div class="stat-lbl">${l}</div><div style="font-size:10px;color:#aaa;margin-top:2px">${d}</div></div>`).join("")}
+      </div>
+      <div style="background:var(--g4);border-radius:10px;padding:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--g1);margin-bottom:10px">📈 Revenue Projections</div>
+        <div style="font-size:12px;color:#555;line-height:2">
+          At 20 featured jobs/day → <strong>₹29,400/month</strong><br>
+          At 30 urgent badges/day → <strong>₹26,100/month</strong><br>
+          At 100 PRO employers → <strong>₹49,900/month</strong><br>
+          WhatsApp Blasts (10/day) → <strong>₹29,700/month</strong><br>
+          <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--g3)">
+            <strong style="color:var(--g1);font-size:14px">Potential: ₹1,35,000+/month</strong>
+          </div>
+        </div>
+      </div>
+    </div>`
+
+    :`<div class="card tbl-wrap">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">All Transactions</div>
+      ${txns.length===0?`<p style="color:var(--muted);font-size:13px">No transactions yet.</p>`:""}
+      <table>
+        <tr><th>Date</th><th>User</th><th>Description</th><th>Plan</th><th>Amount</th><th>Status</th></tr>
+        ${txns.map(t=>{
+          const u=users.find(u=>u.id===t.userId)||{name:"Unknown"};
+          return `<tr>
+            <td style="font-size:11px;color:var(--muted)">${fmtDate(t.ts)}</td>
+            <td style="font-weight:600">${u.name}</td>
+            <td>${t.description}</td>
+            <td><span class="chip chip-purple">${t.plan||"boost"}</span></td>
+            <td style="font-weight:800;color:var(--g1)">₹${t.amount}</td>
+            <td><span class="chip chip-g">${t.status}</span></td>
+          </tr>`;
+        }).join("")}
+      </table>
+    </div>`}
+  `;
+}
+
+// ═══════════════════════════════════════
+//  AI MATCH
+// ═══════════════════════════════════════
+function renderAI(){
+  const isSeeker=S.role==="seeker";
+  const hints=isSeeker
+    ?["Find jobs matching my skills in Nanded","How do I improve my chances of getting hired?","What skills should I learn for better pay in Nanded?","Which areas in Nanded have the most job openings?"]
+    :["What salary should I offer for a driver role in Nanded?","Write a compelling job description for a security guard","How many applications should I expect for ₹12,000/month?","Best way to hire quickly in Nanded?"];
+
+  return `<div style="max-width:700px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <h2 class="sec-title" style="margin:0">AI Career Assistant</h2>
+      
+      
+    </div>
+    <p class="sec-sub" style="margin-bottom:20px">${isSeeker?"Get smart job recommendations based on your skills and location":"Get hiring insights and salary benchmarks for Nanded market"}</p>
+    <div class="card card-lg">
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+        ${hints.map(q=>`<button class="btn btn-outline-gray btn-sm" style="text-align:left;width:100%;justify-content:flex-start;font-weight:500" onclick="setAIQ(\`${q}\`)">${q}</button>`).join("")}
+      </div>
+      <div class="fg">
+        <label class="fl">Ask anything about jobs in Nanded</label>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <textarea class="fi" rows="2" id="ai-input" placeholder="Type your question…" oninput="S.aiQuery=this.value">${S.aiQuery}</textarea>
+          <button class="btn btn-primary" style="white-space:nowrap;align-self:flex-end" onclick="askAI()" ${S.aiLoading?"disabled":""}>
+            ${S.aiLoading?"⏳":"✨ Ask"}
+          </button>
+        </div>
+      </div>
+      ${S.aiLoading?`<div class="ai-box"><div class="ai-typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span style="font-size:12px;color:#888;margin-left:8px">Claude is thinking…</span></div></div>`:""}
+      ${S.aiResponse&&!S.aiLoading?`<div class="ai-box">${S.aiResponse.replace(/\n/g,"<br>")}</div>`:""}
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--g1)">Context Available to AI</div>
+      <div style="font-size:12px;color:var(--muted)">
+        AI has access to <strong>${S.jobs.filter(j=>j.status==="active").length}</strong> active jobs in Nanded.
+        ${isSeeker?`Your profile: ${S.user.skills?.join(", ")||"No skills listed"} · ${S.user.location||"Nanded"}`:`Your company: ${S.user.company||""} · ${S.user.location||"Nanded"}`}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════
+//  PAYMENT MODAL
+// ═══════════════════════════════════════
+function openPayModal(plan){
+  const labels={
+    pro_monthly:{title:"PRO Monthly Plan",amount:PRICING.pro_monthly,desc:"Unlimited job posts for 1 month"},
+    pro_quarterly:{title:"PRO Quarterly Plan",amount:PRICING.pro_quarterly,desc:"Unlimited job posts for 3 months"},
+    featured:{title:"Featured Job Boost",amount:PRICING.featured,desc:"Top placement for your job post"},
+    urgent:{title:"Urgent Badge",amount:PRICING.urgent,desc:"Red urgent badge on your job"},
+    whatsapp:{title:"WhatsApp Job Blast",amount:PRICING.whatsapp_blast,desc:"Reach 1,000+ active job seekers"},
+  };
+  S.payModal={plan,...labels[plan]||{title:plan,amount:0,desc:""}};
+  S.payForm={card:"",expiry:"",cvv:"",name:S.user?.name||""};
+  render();
+}
+
+function renderPayModal(){
+  const p=S.payModal;
+  const features={
+    pro_monthly:["Unlimited job postings","⭐ Featured boost included (1 free)","Analytics & insights dashboard","✅ Verified employer badge","Priority WhatsApp support"],
+    pro_quarterly:["All PRO features for 3 months","Save ₹"+(PRICING.pro_monthly*3-PRICING.pro_quarterly)+" vs monthly","Best value for active recruiters"],
+  }[p.plan]||[];
+
+  return `<div class="overlay" onclick="if(event.target===this)closePayModal()">
+    <div class="modal" style="max-width:480px">
+      <div class="pay-modal-header">
+        <div style="font-size:12px;font-weight:700;letter-spacing:.08em;opacity:.8;text-transform:uppercase;margin-bottom:6px">Secure Checkout</div>
+        <div style="font-size:20px;font-weight:800;font-family:var(--font-head)">${p.title}</div>
+        <div style="font-size:13px;opacity:.8;margin-top:2px">${p.desc}</div>
+        <div style="font-size:32px;font-weight:800;font-family:var(--font-head);margin-top:12px">₹${p.amount}<span style="font-size:14px;font-weight:400;opacity:.7">${p.plan==="pro_monthly"?" /month":p.plan==="pro_quarterly"?" /3 months":""}</span></div>
+      </div>
+
+      ${features.length?`
+      <div style="margin-bottom:18px">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">What you get</div>
+        ${features.map(f=>`<div class="pay-feature-item"><div class="pay-check">✓</div><span>${f}</span></div>`).join("")}
+      </div>`:""}
+
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Payment Details</div>
+
+      <div class="fg"><label class="fl">Cardholder Name</label><input class="fi" value="${S.payForm.name}" placeholder="Name on card" oninput="pf('name',this.value)"></div>
+      <div class="fg"><label class="fl">Card Number</label><input class="fi" value="${S.payForm.card}" placeholder="1234 5678 9012 3456" maxlength="19" oninput="pf('card',fmtCard(this.value));this.value=S.payForm.card"></div>
+      <div class="pay-input-row">
+        <div class="fg"><label class="fl">Expiry (MM/YY)</label><input class="fi" value="${S.payForm.expiry}" placeholder="MM/YY" maxlength="5" oninput="pf('expiry',this.value)"></div>
+        <div class="fg"><label class="fl">CVV</label><input class="fi" value="${S.payForm.cvv}" placeholder="•••" maxlength="3" type="password" oninput="pf('cvv',this.value)"></div>
+      </div>
+
+      <div id="pay-err" style="display:none" class="form-error" style="margin-bottom:10px"></div>
+
+      <button class="btn btn-gold btn-full" style="font-size:15px;padding:14px;border-radius:11px;margin-top:4px" onclick="processPayment()" ${S.payLoading?"disabled":""}>
+        ${S.payLoading?`<div class="spinner" style="width:18px;height:18px;border-width:2px"></div> Processing…`:`🔒 Pay ₹${p.amount} Securely`}
+      </button>
+
+      <div style="text-align:center;margin-top:12px">
+        <span style="font-size:11px;color:var(--muted)">🔒 256-bit SSL · Powered by Razorpay · PCI DSS Compliant</span>
+      </div>
+      <button class="btn btn-outline-gray btn-sm btn-full" style="margin-top:8px" onclick="closePayModal()">Cancel</button>
+    </div>
+  </div>`;
+}
+
+function fmtCard(v){
+  return v.replace(/\D/g,"").replace(/(.{4})/g,"$1 ").trim().slice(0,19);
+}
+
+// ═══════════════════════════════════════
+//  ACTIONS / EVENT HANDLERS
+// ═══════════════════════════════════════
+function nav(page){
+  if(page==="post"&&!S.user)return;
+  S.page=page; S.selJob=null; S.tab="jobs"; S.formError="";
+  if(page==="post") S.form=emptyForm();
+  S.jobs=API.getJobs(); S.users=API.getUsers();
+  render();
+}
+
+function signOut(){ S={...S,page:"login",role:null,user:null,selJob:null,search:"",cat:"All",tab:"jobs",adminTab:"jobs",aiQuery:"",aiResponse:"",aiLoading:false,payModal:null}; render(); }
+
+function setSearch(v){S.search=v;render();}
+function setCat(c){S.cat=c;render();}
+function setTab(t){S.tab=t;render();}
+function setAT(t){S.adminTab=t;render();}
+function ff(k,v){S.form={...S.form,[k]:v};render();}
+function lf(k,v){S.loginForm={...S.loginForm,[k]:v};render();}
+function pf(k,v){S.payForm={...S.payForm,[k]:v};render();}
+function setAIQ(q){S.aiQuery=q;S.aiResponse="";render();document.getElementById("ai-input")&&(document.getElementById("ai-input").value=q);}
+
+function openJob(id){
+  const job=S.jobs.find(j=>j.id===id);
+  if(!job)return;
+  API.viewJob(id);
+  S.jobs=API.getJobs();
+  S.selJob=S.jobs.find(j=>j.id===id);
+  render();
+}
+function closeJob(){S.selJob=null;render();}
+function closePayModal(){S.payModal=null;S.payLoading=false;render();}
+
+async function applyJob(jobId){
+  const r=await http('POST',`/api/jobs/${jobId}/apply`);
+  if(r.ok){await loadJobs();S.selJob=S.jobs.find(j=>j.id==jobId);toast("✅ Marked as Applied! Good luck!");render();}
+}
+async function saveJob(jobId){
+  const r=await http('POST',`/api/jobs/${jobId}/save`);
+  if(r.ok){await loadJobs();S.selJob=S.jobs.find(j=>j.id==jobId);toast(r.saved?"🔖 Job saved!":"🔖 Job removed from saved");render();}
+}
+async function deleteJob(jobId){
+  if(!confirm("Delete this job?"))return;
+  await http('DELETE',`/api/jobs/${jobId}`);
+  await loadJobs();S.selJob=null;toast("🗑 Job deleted.");render();
+}
+async function adminToggleJob(jobId,status){
+  await http('PATCH',`/api/admin/jobs/${jobId}/status`,{status});
+  await loadJobs();toast(`Job ${status==="active"?"restored":"removed"}.`);render();
+}
+async function adminToggleUser(uid){
+  const r=await http('PATCH',`/api/admin/users/${uid}/toggle`);
+  await loadUsers();toast(r.user?.active?"User unbanned.":"User banned.");render();
+}
+async function adminGrantPro(uid){
+  await http('PATCH',`/api/admin/users/${uid}/grant-pro`);
+  await loadUsers();toast("💎 PRO granted to user!");render();
+}
+
+function handlePost(){
+  const f=S.form;
+  if(!f.title||!f.company||!f.location||!f.phone||!f.description||!f.salary){
+    S.formError="Please fill all required fields.";render();return;
+  }
+  S.formError="";
+  const boostPrice=(f.featured&&f.urgent)?PRICING.bundle:f.featured?PRICING.featured:f.urgent?PRICING.urgent:0;
+  const total=PRICING.basic+boostPrice;
+  const boostLabel=f.featured&&f.urgent?" + Featured + Urgent":f.featured?" + Featured":f.urgent?" + Urgent":"";
+  S.payModal={plan:"boost",title:`Post Job${boostLabel}`,amount:total,desc:`"${f.title}" — Base fee ₹${PRICING.basic}${boostPrice?` + Boost ₹${boostPrice}`:""}`};
+  S.payForm={card:"",expiry:"",cvv:"",name:S.user?.name||""};
+  render();
+}
+
+async function doPostJob(){
+  const f=S.form;
+  const btn=document.getElementById("post-btn");
+  if(btn){btn.textContent="⏳ Posting…";btn.disabled=true;}
+  const r=await http('POST','/api/jobs',f);
+  if(r.ok){
+    await loadJobs();
+    S.form=emptyForm();
+    nav("board");
+    toast("✅ Job posted successfully! Now live on NandedRozgar.");
+  } else {
+    toast("❌ Failed to post job. Try again.");
+    if(btn){btn.textContent="🚀 Post Job";btn.disabled=false;}
+  }
+}
+
+async function processPayment(){
+  const pf=S.payForm;
+  const errEl=document.getElementById("pay-err");
+  if(!pf.name||!pf.card||!pf.expiry||!pf.cvv){
+    if(errEl){errEl.textContent="Please fill all payment fields.";errEl.style.display="block";}return;
+  }
+  S.payLoading=true;render();
+  const plan=S.payModal.plan;
+  const amount=S.payModal.amount;
+  const jobData=plan==="boost"?S.form:null;
+  const r=await http('POST','/api/payments',{plan,amount,description:S.payModal.title,jobData});
+  if(r.ok){
+    const me=await http('GET','/api/auth/me');
+    if(me.ok){S.user={...S.user,...me.user};}
+    S.payModal=null;S.payLoading=false;
+    if(plan==="boost"){
+      if(r.job){await loadJobs();S.form=emptyForm();nav("board");toast("✅ Job posted successfully!");}
+    } else {
+      render();toast(`✅ Payment successful! ${plan.includes("pro")?"💎 PRO activated!":"Boost applied!"}`);
+    }
+  } else {
+    S.payLoading=false;render();
+    const errEl=document.getElementById("pay-err");
+    if(errEl){errEl.textContent="Payment failed. Try again.";errEl.style.display="block";}
+  }
+}
+
+async function doLogin(){
+  const {email,password}=S.loginForm;
+  if(!email||!password){showLoginErr("Please enter email and password");return;}
+  S.loading=true;render();
+  const r=await http('POST','/api/auth/login',{email,password});
+  S.loading=false;
+  if(!r.ok){showLoginErr(r.error||"Login failed");render();return;}
+  TOKEN=r.token; localStorage.setItem('nr_token',TOKEN);
+  S.user=r.user; S.role=r.user.role;
+  S.loginForm={email:"",password:"",name:"",phone:"",company:"",mode:"login",regRole:""};
+  await loadJobs();
+  if(S.role==="admin") await loadUsers();
+  S.page="board";render();
+  toast(`Welcome back, ${r.user.name.split(" ")[0]}! 👋`);
+}
+
+async function doRegister(){
+  const f=S.loginForm;
+  if(!f.name||!f.email||!f.password){showLoginErr("Please fill all fields");return;}
+  if(!f.regRole){showLoginErr("Please select Job Seeker or Employer");return;}
+  if(f.password.length<6){showLoginErr("Password must be at least 6 characters");return;}
+  S.loading=true;render();
+  const r=await http('POST','/api/auth/register',{name:f.name,email:f.email,password:f.password,role:f.regRole,phone:f.phone||"",company:f.company||""});
+  S.loading=false;
+  if(!r.ok){showLoginErr(r.error||"Registration failed");render();return;}
+  TOKEN=r.token; localStorage.setItem('nr_token',TOKEN);
+  S.user=r.user; S.role=r.user.role;
+  S.loginForm={email:"",password:"",name:"",phone:"",company:"",mode:"login",regRole:""};
+  await loadJobs();
+  S.page="board";render();
+  toast(`🎉 Welcome to NandedRozgar, ${r.user.name.split(" ")[0]}!`);
+}
+
+function demoLogin(role){
+  const creds={seeker:{email:"sunita@gmail.com",password:"pass123"},giver:{email:"ramesh@gmail.com",password:"pass123"},admin:{email:"admin@nandedrozgar.in",password:"admin@2024"}};
+  S.loginForm={...S.loginForm,...creds[role]};
+  doLogin();
+}
+
+function showLoginErr(msg){
+  const el=document.getElementById("login-err");
+  if(el){el.textContent=msg;el.style.display="block";}
+}
+
+async function askAI(){
+  if(!S.aiQuery.trim())return;
+  S.aiLoading=true;S.aiResponse="";render();
+  const jobs=S.jobs.filter(j=>j.status==="active").slice(0,6).map(j=>`• ${j.title} at ${j.company} (${j.location}) — ${j.salary}, ${j.type}`).join("\n");
+  const uctx=S.role==="seeker"
+    ?`User: Job Seeker. Skills: ${S.user.skills?.join(", ")||"not specified"}. Location: ${S.user.location||"Nanded"}.`
+    :`User: Employer. Company: ${S.user.company||""}. Location: ${S.user.location||"Nanded"}.`;
+  const system=`You are NandedRozgar AI — a helpful, concise career assistant for the Nanded local job market. Help both employers and job seekers.\n${uctx}\nActive jobs:\n${jobs}\nBe practical, use ₹ for currency, Nanded/India context. Max 120 words. Use bullet points where helpful.`;
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system,messages:[{role:"user",content:S.aiQuery}]})});
+    const data=await res.json();
+    S.aiResponse=data.content?.[0]?.text||"Sorry, no response received.";
+  }catch(e){S.aiResponse="Error connecting to AI. Please check your connection and try again.";}
+  S.aiLoading=false;render();
+}
+
+// ── LOADERS ──
+async function loadJobs(){
+  const r=await http('GET','/api/jobs');
+  if(r.ok) S.jobs=r.jobs.map(j=>({
+    ...j,
+    id:j.id, postedBy:j.posted_by,
+    timestamp:new Date(j.created_at).getTime(),
+    applicants:[], saved:[],
+    applicant_count: parseInt(j.applicant_count)||0,
+  }));
+}
+
+async function loadUsers(){
+  const r=await http('GET','/api/admin/users');
+  if(r.ok) S.users=r.users;
+}
+
+async function loadMyData(){
+  if(S.role==="seeker"){
+    const [apps,saved]=await Promise.all([http('GET','/api/me/applications'),http('GET','/api/me/saved')]);
+    if(apps.ok) S.myApplications=apps.jobs.map(j=>j.id);
+    if(saved.ok) S.mySaved=saved.jobs.map(j=>j.id);
+  }
+}
+
+// ── AUTO LOGIN (restore session) ──
+async function init(){
+  render(); // show login first
+  if(TOKEN){
+    S.loading=true;render();
+    const r=await http('GET','/api/auth/me');
+    if(r.ok){
+      S.user=r.user; S.role=r.user.role;
+      await loadJobs();
+      if(S.role==="admin") await loadUsers();
+      S.page="board";
+    } else {
+      TOKEN=null; localStorage.removeItem('nr_token');
+    }
+    S.loading=false;
+  }
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
