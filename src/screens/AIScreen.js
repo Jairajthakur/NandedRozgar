@@ -4,53 +4,60 @@ import {
   TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { http } from '../utils/api';
 import { Card, Btn, SectionTitle } from '../components/UI';
-import { C, BASE_URL } from '../utils/constants';
+import { C } from '../utils/constants';
 
 export default function AIScreen() {
   const { user, role, jobs } = useAuth();
   const [query, setQuery] = useState('');
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const isSeeker = role === 'seeker';
+
   const hints = isSeeker
-    ? ['Find jobs matching my skills in Nanded','How do I improve my chances of getting hired?',
-       'What skills should I learn for better pay?','Which areas in Nanded have most job openings?']
-    : ['What salary should I offer for a driver role in Nanded?',
-       'Write a compelling job description for a security guard',
-       'How many applications should I expect for ₹12,000/month?',
-       'Best way to hire quickly in Nanded?'];
+    ? [
+        'Find jobs matching my skills in Nanded',
+        'How do I improve my chances of getting hired?',
+        'What skills should I learn for better pay?',
+        'Which areas in Nanded have most job openings?',
+      ]
+    : [
+        'What salary should I offer for a driver role in Nanded?',
+        'Write a compelling job description for a security guard',
+        'How many applications should I expect for ₹12,000/month?',
+        'Best way to hire quickly in Nanded?',
+      ];
 
   async function askAI() {
     if (!query.trim()) return;
     setLoading(true);
     setResponse('');
-    const jobList = jobs.filter(j => j.status === 'active').slice(0, 6)
+    setError('');
+
+    const jobList = jobs
+      .filter(j => j.status === 'active')
+      .slice(0, 6)
       .map(j => `• ${j.title} at ${j.company} (${j.location}) — ${j.salary}, ${j.type}`)
       .join('\n');
+
     const uctx = isSeeker
       ? `User: Job Seeker. Skills: ${(user.skills || []).join(', ') || 'not specified'}. Location: ${user.location || 'Nanded'}.`
       : `User: Employer. Company: ${user.company || ''}. Location: ${user.location || 'Nanded'}.`;
+
     const system = `You are NandedRozgar AI — a helpful, concise career assistant for the Nanded local job market.\n${uctx}\nActive jobs:\n${jobList}\nBe practical, use ₹ for currency, Nanded/India context. Max 120 words. Use bullet points where helpful.`;
 
-    try {
-      // NOTE: In production, route this through your own backend to protect the API key
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          system,
-          messages: [{ role: 'user', content: query }],
-        }),
-      });
-      const data = await res.json();
-      setResponse(data.content?.[0]?.text || 'Sorry, no response received.');
-    } catch (e) {
-      setResponse('Error connecting to AI. Please check your connection and try again.');
+    // Safe: calls our own backend — API key never exposed to client
+    const r = await http('POST', '/api/ai/chat', { system, message: query });
+
+    if (r.ok) {
+      setResponse(r.text);
+    } else {
+      setError(r.error || 'Something went wrong. Please try again.');
     }
+
     setLoading(false);
   }
 
@@ -58,21 +65,21 @@ export default function AIScreen() {
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       <SectionTitle
         title="AI Career Assistant"
-        sub={isSeeker
-          ? 'Get smart job recommendations based on your skills'
-          : 'Get hiring insights and salary benchmarks for Nanded'}
+        sub={
+          isSeeker
+            ? 'Get smart job recommendations based on your skills'
+            : 'Get hiring insights and salary benchmarks for Nanded'
+        }
         style={{ marginBottom: 16 }}
       />
 
       <Card style={{ marginBottom: 12 }}>
-        {/* Hints */}
         {hints.map(q => (
           <TouchableOpacity key={q} onPress={() => setQuery(q)} style={styles.hintBtn}>
             <Text style={styles.hintText}>{q}</Text>
           </TouchableOpacity>
         ))}
 
-        {/* Input */}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
@@ -83,18 +90,26 @@ export default function AIScreen() {
             multiline
           />
         </View>
-        <Btn label={loading ? '⏳ Thinking…' : '✨ Ask AI'}
-          onPress={askAI} disabled={loading || !query.trim()} />
 
-        {/* Loading dots */}
+        <Btn
+          label={loading ? '⏳ Thinking…' : '✨ Ask AI'}
+          onPress={askAI}
+          disabled={loading || !query.trim()}
+        />
+
         {loading && (
           <View style={styles.aiBox}>
             <ActivityIndicator color={C.dark} style={{ marginRight: 10 }} />
-            <Text style={{ fontSize: 12, color: C.muted }}>Claude is thinking…</Text>
+            <Text style={{ fontSize: 12, color: C.muted }}>AI is thinking…</Text>
           </View>
         )}
 
-        {/* Response */}
+        {error ? (
+          <View style={[styles.aiBox, { backgroundColor: '#fff0f0', borderColor: '#fca5a5' }]}>
+            <Text style={{ fontSize: 13, color: '#b91c1c' }}>⚠️ {error}</Text>
+          </View>
+        ) : null}
+
         {response && !loading && (
           <View style={styles.aiBox}>
             <Text style={styles.aiText}>{response}</Text>
@@ -105,8 +120,11 @@ export default function AIScreen() {
       <Card>
         <Text style={styles.contextTitle}>Context Available to AI</Text>
         <Text style={{ fontSize: 12, color: C.muted, lineHeight: 18 }}>
-          AI has access to <Text style={{ fontWeight: '700' }}>{jobs.filter(j => j.status === 'active').length}</Text> active jobs in Nanded.
-          {'\n'}
+          AI has access to{' '}
+          <Text style={{ fontWeight: '700' }}>
+            {jobs.filter(j => j.status === 'active').length}
+          </Text>{' '}
+          active jobs in Nanded.{'\n'}
           {isSeeker
             ? `Your skills: ${(user?.skills || []).join(', ') || 'none listed'}`
             : `Your company: ${user?.company || 'not specified'}`}
