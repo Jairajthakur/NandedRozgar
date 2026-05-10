@@ -33,6 +33,12 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
+      - name: Inject EAS Project ID into app.json
+        run: |
+          jq --arg id "${{ secrets.EXPO_PROJECT_ID }}" \
+            '.expo.extra.eas.projectId = $id' \
+            app.json > app.json.tmp && mv app.json.tmp app.json
+
       - name: Build APK
         run: eas build --platform android --profile preview --local --output ./NandedRozgar.apk --non-interactive
         env:
