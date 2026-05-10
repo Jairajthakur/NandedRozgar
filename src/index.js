@@ -13,6 +13,7 @@ app.use('/api/auth',     require('./routes/auth'));
 app.use('/api/jobs',     require('./routes/jobs'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/admin',    require('./routes/admin'));
+app.use('/api/ai',       require('./routes/ai'));
 
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true, status: 'NandedRozgar API running 🚀' }));
