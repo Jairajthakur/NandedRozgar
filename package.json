@@ -4,11 +4,11 @@
   "main": "index.js",
   "private": true,
   "scripts": {
-    "start": "expo start",
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "expo": "expo start",
     "android": "expo run:android",
-    "ios": "expo run:ios",
-    "server": "node src/index.js",
-    "server:dev": "nodemon src/index.js"
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "expo": "~53.0.0",
@@ -20,6 +20,7 @@
     "@react-navigation/native-stack": "^6.11.0",
     "@react-navigation/bottom-tabs": "^6.6.1",
     "react-native-gesture-handler": "~2.24.0",
+    "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-toast-message": "^2.2.1"
@@ -35,6 +36,9 @@
     "pg": "^8.12.0"
   },
   "overrides": {
+    "use-latest-callback": "0.1.9"
+  },
+  "resolutions": {
     "use-latest-callback": "0.1.9"
   },
   "engines": {
