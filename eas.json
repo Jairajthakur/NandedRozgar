@@ -17,10 +17,10 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleDebug"
+        "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "production"
       }
     },
 
