@@ -10,7 +10,15 @@ export function AuthProvider({ children }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { init(); }, []);
+  useEffect(() => {
+    // Wrap in a timeout fallback — if init() hangs for any reason
+    // (e.g. SecureStore crash on first install), we still clear the spinner
+    const fallback = setTimeout(() => setLoading(false), 10000);
+    init().finally(() => {
+      clearTimeout(fallback);
+      setLoading(false);
+    });
+  }, []);
 
   async function init() {
     try {
@@ -23,15 +31,13 @@ export function AuthProvider({ children }) {
           await loadJobs();
           if (r.user.role === 'admin') await loadUsers();
         } else {
-          await clearToken();
+          // Token expired or invalid — clear it silently
+          await clearToken().catch(() => {});
         }
       }
     } catch (e) {
       console.warn('App init error:', e);
       try { await clearToken(); } catch {}
-    } finally {
-      // Always stop the loading spinner — even if something went wrong
-      setLoading(false);
     }
   }
 
