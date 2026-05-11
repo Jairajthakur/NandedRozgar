@@ -14,44 +14,60 @@ const TYPES = ['Full-time', 'Part-time', 'Contract', 'Daily Wage', 'Gig'];
 export default function PostScreen({ navigation }) {
   const { user, role, loadJobs } = useAuth();
 
-  // Seekers should never reach this screen (tab is hidden), but guard anyway
+  // ── ALL hooks must come before any conditional return ─────────
+  // (React's Rules of Hooks — violating this crashed the app)
+  const [form, setForm] = useState({
+    title: '',
+    company: '',
+    category: 'Construction',
+    type: 'Full-time',
+    location: '',
+    salary: '',
+    phone: '',
+    description: '',
+    featured: false,
+    urgent: false,
+  });
+  const [error, setError]               = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [payForm, setPayForm]           = useState({
+    card: '', expiry: '', cvv: '', name: '',
+  });
+  // ─────────────────────────────────────────────────────────────
+
+  // Sync user defaults into the form once the user object is available.
+  // Using useEffect avoids reading from useState initial values which are
+  // only captured once and may be stale if user loads asynchronously.
+  React.useEffect(() => {
+    if (user) {
+      setForm(f => ({
+        ...f,
+        company: f.company || user.company || '',
+        phone:   f.phone   || user.phone   || '',
+      }));
+      setPayForm(p => ({ ...p, name: p.name || user.name || '' }));
+    }
+  }, [user?.id]); // Only re-run when user identity changes
+
+  // Guard: seekers should never reach this screen (tab is hidden),
+  // but if they do, show a friendly message.
   if (role === 'seeker') {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
         <Text style={{ fontSize: 40, marginBottom: 16 }}>🎉</Text>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: C.text, marginBottom: 8, textAlign: 'center' }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: C.text,
+          marginBottom: 8, textAlign: 'center' }}>
           You're a Job Seeker — browsing is FREE!
         </Text>
         <Text style={{ fontSize: 13, color: C.muted, textAlign: 'center' }}>
           Job posting is only available for employers.
         </Text>
-        <Btn
-          label="Browse Jobs →"
-          onPress={() => navigation.goBack()}
-          style={{ marginTop: 20 }}
-        />
+        <Btn label="Browse Jobs →" onPress={() => navigation.goBack()}
+          style={{ marginTop: 20 }} />
       </View>
     );
   }
-
-  const [form, setForm] = useState({
-    title: '',
-    company: user?.company || '',
-    category: 'Construction',
-    type: 'Full-time',
-    location: '',
-    salary: '',
-    phone: user?.phone || '',
-    description: '',
-    featured: false,
-    urgent: false,
-  });
-  const [error, setError]           = useState('');
-  const [loading, setLoading]       = useState(false);
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [payForm, setPayForm]       = useState({
-    card: '', expiry: '', cvv: '', name: user?.name || '',
-  });
 
   const set  = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setP = (k, v) => setPayForm(f => ({ ...f, [k]: v }));
@@ -64,7 +80,8 @@ export default function PostScreen({ navigation }) {
   const total = PRICING.basic + boostPrice;
 
   function handlePost() {
-    if (!form.title || !form.company || !form.location || !form.phone || !form.description || !form.salary) {
+    if (!form.title || !form.company || !form.location ||
+        !form.phone || !form.description || !form.salary) {
       setError('Please fill all required fields.');
       return;
     }
