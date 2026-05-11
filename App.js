@@ -1,9 +1,8 @@
-// GestureHandlerRootView must wrap the entire app on Android
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
 import React from 'react';
 import {
-  View, Text, ActivityIndicator, StatusBar, TouchableOpacity, StyleSheet,
+  View, Text, ActivityIndicator, StatusBar,
+  TouchableOpacity, StyleSheet,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -24,35 +23,26 @@ import { C } from './src/utils/constants';
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
-// ── Error Boundary ────────────────────────────────────────────────────────────
+// ─── Error Boundary ───────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+  state = { hasError: false, error: null };
 
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
-
   componentDidCatch(error, info) {
-    console.error('App Error:', error, info);
+    console.error('ErrorBoundary caught:', error, info);
   }
-
   render() {
     if (this.state.hasError) {
       return (
-        <View style={styles.errorContainer}>
-          <Text style={{ fontSize: 48, marginBottom: 16 }}>⚠️</Text>
-          <Text style={styles.errorTitle}>Something went wrong</Text>
-          <Text style={styles.errorMsg}>
-            {this.state.error?.message || 'An unexpected error occurred.'}
-          </Text>
-          <TouchableOpacity
-            onPress={() => this.setState({ hasError: false, error: null })}
-            style={styles.errorBtn}
-          >
-            <Text style={styles.errorBtnText}>Try Again</Text>
+        <View style={s.errBox}>
+          <Text style={s.errEmoji}>⚠️</Text>
+          <Text style={s.errTitle}>Something went wrong</Text>
+          <Text style={s.errMsg}>{this.state.error?.message || 'Unexpected error'}</Text>
+          <TouchableOpacity style={s.errBtn}
+            onPress={() => this.setState({ hasError: false, error: null })}>
+            <Text style={s.errBtnTxt}>Try Again</Text>
           </TouchableOpacity>
         </View>
       );
@@ -61,129 +51,119 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// ── Tab Icon ──────────────────────────────────────────────────────────────────
-function TabIcon({ emoji, focused }) {
-  return (
-    <View style={styles.tabIcon}>
+// ─── Shared tab options ───────────────────────────────────────────────────────
+const TAB_BAR_STYLE = {
+  tabBarStyle: {
+    backgroundColor: '#ffffff',
+    borderTopColor: '#e0e0e0',
+    borderTopWidth: 1,
+    height: 60,
+    paddingBottom: 8,
+  },
+  tabBarActiveTintColor:   '#111111',
+  tabBarInactiveTintColor: '#777777',
+  headerStyle:      { backgroundColor: '#111111' },
+  headerTintColor:  '#ffffff',
+  headerTitleStyle: { fontWeight: '800' },
+  headerTitle:      'NandedRozgar 🏙️',
+};
+
+function icon(emoji) {
+  return ({ focused }) => (
+    <View style={{ alignItems: 'center' }}>
       <Text style={{ fontSize: 20 }}>{emoji}</Text>
-      {focused && <View style={styles.tabDot} />}
+      {focused && <View style={{ width: 4, height: 4, borderRadius: 2,
+        backgroundColor: '#111', marginTop: 2 }} />}
     </View>
   );
 }
 
-// Shared tab screen options
-const tabScreenOptions = {
-  tabBarStyle: {
-    backgroundColor: '#fff',
-    borderTopColor: C.border,
-    borderTopWidth: 1,
-    height: 62,
-    paddingBottom: 8,
-  },
-  tabBarActiveTintColor:   C.dark,
-  tabBarInactiveTintColor: C.muted,
-  headerStyle: { backgroundColor: C.dark },
-  headerTintColor: '#fff',
-  headerTitleStyle: { fontWeight: '800', fontSize: 17 },
-  headerTitle: 'NandedRozgar 🏙️',
-};
-
-const boardOpts   = { tabBarLabel: 'Jobs',    tabBarIcon: ({ focused }) => <TabIcon emoji="🏙️" focused={focused} /> };
-const postOpts    = { tabBarLabel: 'Post Job', tabBarIcon: ({ focused }) => <TabIcon emoji="📝" focused={focused} /> };
-const aiOpts      = { tabBarLabel: 'AI Match', tabBarIcon: ({ focused }) => <TabIcon emoji="✨" focused={focused} /> };
-const profileOpts = { tabBarLabel: 'Profile',  tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} /> };
-const adminOpts   = { tabBarLabel: 'Admin',    tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} /> };
-
-// ── Main Tabs ─────────────────────────────────────────────────────────────────
-// FIX: Conditional <Tab.Screen> inside one navigator causes a native Android crash.
-// Solution: render separate Tab.Navigator instances per role — each is fully static.
-function MainTabs() {
-  const { role } = useAuth();
-
-  if (role === 'admin') {
-    return (
-      <Tab.Navigator screenOptions={tabScreenOptions}>
-        <Tab.Screen name="Board"   component={BoardScreen}   options={boardOpts} />
-        <Tab.Screen name="Post"    component={PostScreen}    options={postOpts} />
-        <Tab.Screen name="AI"      component={AIScreen}      options={aiOpts} />
-        <Tab.Screen name="Profile" component={ProfileScreen} options={profileOpts} />
-        <Tab.Screen name="Admin"   component={AdminScreen}   options={adminOpts} />
-      </Tab.Navigator>
-    );
-  }
-
-  if (role === 'giver') {
-    return (
-      <Tab.Navigator screenOptions={tabScreenOptions}>
-        <Tab.Screen name="Board"   component={BoardScreen}   options={boardOpts} />
-        <Tab.Screen name="Post"    component={PostScreen}    options={postOpts} />
-        <Tab.Screen name="AI"      component={AIScreen}      options={aiOpts} />
-        <Tab.Screen name="Profile" component={ProfileScreen} options={profileOpts} />
-      </Tab.Navigator>
-    );
-  }
-
-  // seeker (default)
+// ─── Three separate static navigators — no conditional screens inside one Tab ─
+function SeekerTabs() {
   return (
-    <Tab.Navigator screenOptions={tabScreenOptions}>
-      <Tab.Screen name="Board"   component={BoardScreen}   options={boardOpts} />
-      <Tab.Screen name="AI"      component={AIScreen}      options={aiOpts} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={profileOpts} />
+    <Tab.Navigator screenOptions={TAB_BAR_STYLE}>
+      <Tab.Screen name="Board"   component={BoardScreen}   options={{ tabBarLabel: 'Jobs',    tabBarIcon: icon('🏙️') }} />
+      <Tab.Screen name="AI"      component={AIScreen}      options={{ tabBarLabel: 'AI Match', tabBarIcon: icon('✨') }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile',  tabBarIcon: icon('👤') }} />
     </Tab.Navigator>
   );
 }
 
-// ── Root Navigator ────────────────────────────────────────────────────────────
+function GiverTabs() {
+  return (
+    <Tab.Navigator screenOptions={TAB_BAR_STYLE}>
+      <Tab.Screen name="Board"   component={BoardScreen}   options={{ tabBarLabel: 'Jobs',     tabBarIcon: icon('🏙️') }} />
+      <Tab.Screen name="Post"    component={PostScreen}    options={{ tabBarLabel: 'Post Job',  tabBarIcon: icon('📝') }} />
+      <Tab.Screen name="AI"      component={AIScreen}      options={{ tabBarLabel: 'AI Match',  tabBarIcon: icon('✨') }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile',   tabBarIcon: icon('👤') }} />
+    </Tab.Navigator>
+  );
+}
+
+function AdminTabs() {
+  return (
+    <Tab.Navigator screenOptions={TAB_BAR_STYLE}>
+      <Tab.Screen name="Board"   component={BoardScreen}   options={{ tabBarLabel: 'Jobs',     tabBarIcon: icon('🏙️') }} />
+      <Tab.Screen name="Post"    component={PostScreen}    options={{ tabBarLabel: 'Post Job',  tabBarIcon: icon('📝') }} />
+      <Tab.Screen name="AI"      component={AIScreen}      options={{ tabBarLabel: 'AI Match',  tabBarIcon: icon('✨') }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile',   tabBarIcon: icon('👤') }} />
+      <Tab.Screen name="Admin"   component={AdminScreen}   options={{ tabBarLabel: 'Admin',     tabBarIcon: icon('⚙️') }} />
+    </Tab.Navigator>
+  );
+}
+
+function MainTabs() {
+  const { role } = useAuth();
+  if (role === 'admin') return <AdminTabs />;
+  if (role === 'giver') return <GiverTabs />;
+  return <SeekerTabs />;
+}
+
+// ─── Root navigator ───────────────────────────────────────────────────────────
 function RootNavigator() {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <View style={styles.splash}>
-        <View style={styles.splashLogo}>
-          <Text style={{ fontSize: 36 }}>🏙️</Text>
-        </View>
-        <Text style={styles.splashTitle}>NandedRozgar</Text>
-        <Text style={styles.splashSub}>Local Jobs · Local Life · Nanded</Text>
-        <ActivityIndicator color="#fff" size="large" style={{ marginTop: 36 }} />
+      <View style={s.splash}>
+        <View style={s.splashIcon}><Text style={{ fontSize: 40 }}>🏙️</Text></View>
+        <Text style={s.splashTitle}>NandedRozgar</Text>
+        <Text style={s.splashSub}>Local Jobs · Local Life · Nanded</Text>
+        <ActivityIndicator color="#fff" size="large" style={{ marginTop: 40 }} />
       </View>
     );
   }
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!user ? (
-        <Stack.Screen name="Login" component={LoginScreen} />
-      ) : (
-        <Stack.Screen name="Main" component={MainTabs} />
-      )}
+      {!user
+        ? <Stack.Screen name="Login" component={LoginScreen} />
+        : <Stack.Screen name="Main"  component={MainTabs} />
+      }
       <Stack.Screen
         name="JobDetail"
         component={JobDetailScreen}
         options={{
           headerShown: true,
           headerTitle: 'Job Details',
-          headerStyle: { backgroundColor: C.dark },
-          headerTintColor: '#fff',
+          headerStyle: { backgroundColor: '#111111' },
+          headerTintColor: '#ffffff',
           headerTitleStyle: { fontWeight: '800' },
-          headerBackTitle: 'Back',
         }}
       />
     </Stack.Navigator>
   );
 }
 
-// ── Root App ──────────────────────────────────────────────────────────────────
+// ─── Root export ──────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    // GestureHandlerRootView is REQUIRED on Android.
-    // Without it, the gesture handler native module crashes on launch.
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
         <SafeAreaProvider>
           <AuthProvider>
             <NavigationContainer>
-              <StatusBar barStyle="light-content" backgroundColor={C.dark} />
+              <StatusBar barStyle="light-content" backgroundColor="#111111" />
               <RootNavigator />
             </NavigationContainer>
             <Toast />
@@ -194,36 +174,19 @@ export default function App() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  errorContainer: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: C.dark, padding: 32,
-  },
-  errorTitle: {
-    color: '#fff', fontSize: 20, fontWeight: '800',
-    marginBottom: 12, textAlign: 'center',
-  },
-  errorMsg: {
-    color: '#aaa', fontSize: 13, textAlign: 'center', marginBottom: 24, lineHeight: 20,
-  },
-  errorBtn: {
-    backgroundColor: '#fff', borderRadius: 10,
-    paddingVertical: 12, paddingHorizontal: 28,
-  },
-  errorBtnText: { color: C.dark, fontWeight: '700', fontSize: 14 },
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  errBox:   { flex:1, alignItems:'center', justifyContent:'center',
+               backgroundColor:'#111', padding:32 },
+  errEmoji: { fontSize:48, marginBottom:16 },
+  errTitle: { color:'#fff', fontSize:20, fontWeight:'800', marginBottom:12, textAlign:'center' },
+  errMsg:   { color:'#aaa', fontSize:13, textAlign:'center', marginBottom:24, lineHeight:20 },
+  errBtn:   { backgroundColor:'#fff', borderRadius:10, paddingVertical:12, paddingHorizontal:28 },
+  errBtnTxt:{ color:'#111', fontWeight:'700', fontSize:14 },
 
-  splash: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.dark,
-  },
-  splashLogo: {
-    width: 80, height: 80, backgroundColor: '#1a1a2e', borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 18,
-    borderWidth: 2, borderColor: '#333',
-  },
-  splashTitle: { color: '#fff', fontSize: 28, fontWeight: '800', letterSpacing: 0.5 },
-  splashSub:   { color: '#888', fontSize: 13, marginTop: 4 },
-
-  tabIcon: { alignItems: 'center', justifyContent: 'center' },
-  tabDot:  { width: 4, height: 4, backgroundColor: C.dark, borderRadius: 2, marginTop: 2 },
+  splash:      { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#111' },
+  splashIcon:  { width:80, height:80, backgroundColor:'#222', borderRadius:20,
+                 alignItems:'center', justifyContent:'center', marginBottom:16 },
+  splashTitle: { color:'#fff', fontSize:28, fontWeight:'800', letterSpacing:0.5 },
+  splashSub:   { color:'#888', fontSize:13, marginTop:4 },
 });
