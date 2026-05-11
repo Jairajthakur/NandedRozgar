@@ -4,60 +4,50 @@ import {
   TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { http } from '../utils/api';
 import { Card, Btn, SectionTitle } from '../components/UI';
-import { C } from '../utils/constants';
+import { C, BASE_URL } from '../utils/constants';
+import { getToken } from '../utils/api';
 
 export default function AIScreen() {
   const { user, role, jobs } = useAuth();
-  const [query, setQuery] = useState('');
+  const [query, setQuery]       = useState('');
   const [response, setResponse] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading]   = useState(false);
 
   const isSeeker = role === 'seeker';
-
   const hints = isSeeker
-    ? [
-        'Find jobs matching my skills in Nanded',
-        'How do I improve my chances of getting hired?',
-        'What skills should I learn for better pay?',
-        'Which areas in Nanded have most job openings?',
-      ]
-    : [
-        'What salary should I offer for a driver role in Nanded?',
-        'Write a compelling job description for a security guard',
-        'How many applications should I expect for ₹12,000/month?',
-        'Best way to hire quickly in Nanded?',
-      ];
+    ? ['Find jobs matching my skills in Nanded','How do I improve my chances of getting hired?',
+       'What skills should I learn for better pay?','Which areas in Nanded have most job openings?']
+    : ['What salary should I offer for a driver role in Nanded?',
+       'Write a compelling job description for a security guard',
+       'How many applications should I expect for ₹12,000/month?',
+       'Best way to hire quickly in Nanded?'];
 
   async function askAI() {
     if (!query.trim()) return;
     setLoading(true);
     setResponse('');
-    setError('');
-
-    const jobList = jobs
-      .filter(j => j.status === 'active')
-      .slice(0, 6)
-      .map(j => `• ${j.title} at ${j.company} (${j.location}) — ${j.salary}, ${j.type}`)
-      .join('\n');
-
-    const uctx = isSeeker
-      ? `User: Job Seeker. Skills: ${(user.skills || []).join(', ') || 'not specified'}. Location: ${user.location || 'Nanded'}.`
-      : `User: Employer. Company: ${user.company || ''}. Location: ${user.location || 'Nanded'}.`;
-
-    const system = `You are NandedRozgar AI — a helpful, concise career assistant for the Nanded local job market.\n${uctx}\nActive jobs:\n${jobList}\nBe practical, use ₹ for currency, Nanded/India context. Max 120 words. Use bullet points where helpful.`;
-
-    // Safe: calls our own backend — API key never exposed to client
-    const r = await http('POST', '/api/ai/chat', { system, message: query });
-
-    if (r.ok) {
-      setResponse(r.text);
-    } else {
-      setError(r.error || 'Something went wrong. Please try again.');
+    try {
+      // AI calls go through the backend (/api/ai/chat) which holds the API key securely.
+      // See src/routes/ai.js on your Railway server.
+      const token = getToken();
+      const res = await fetch(`${BASE_URL}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: 'Bearer ' + token } : {}),
+        },
+        body: JSON.stringify({ query, role, userLocation: user?.location }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setResponse(data.reply);
+      } else {
+        setResponse(data.error || 'Sorry, AI is not available right now.');
+      }
+    } catch (e) {
+      setResponse('Error connecting to AI. Please check your connection and try again.');
     }
-
     setLoading(false);
   }
 
@@ -65,21 +55,21 @@ export default function AIScreen() {
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       <SectionTitle
         title="AI Career Assistant"
-        sub={
-          isSeeker
-            ? 'Get smart job recommendations based on your skills'
-            : 'Get hiring insights and salary benchmarks for Nanded'
-        }
+        sub={isSeeker
+          ? 'Get smart job recommendations based on your skills'
+          : 'Get hiring insights and salary benchmarks for Nanded'}
         style={{ marginBottom: 16 }}
       />
 
       <Card style={{ marginBottom: 12 }}>
+        {/* Hints */}
         {hints.map(q => (
           <TouchableOpacity key={q} onPress={() => setQuery(q)} style={styles.hintBtn}>
             <Text style={styles.hintText}>{q}</Text>
           </TouchableOpacity>
         ))}
 
+        {/* Input */}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
@@ -90,13 +80,10 @@ export default function AIScreen() {
             multiline
           />
         </View>
+        <Btn label={loading ? '⏳ Thinking…' : '✨ Ask AI'}
+          onPress={askAI} disabled={loading || !query.trim()} />
 
-        <Btn
-          label={loading ? '⏳ Thinking…' : '✨ Ask AI'}
-          onPress={askAI}
-          disabled={loading || !query.trim()}
-        />
-
+        {/* Loading indicator */}
         {loading && (
           <View style={styles.aiBox}>
             <ActivityIndicator color={C.dark} style={{ marginRight: 10 }} />
@@ -104,17 +91,12 @@ export default function AIScreen() {
           </View>
         )}
 
-        {error ? (
-          <View style={[styles.aiBox, { backgroundColor: '#fff0f0', borderColor: '#fca5a5' }]}>
-            <Text style={{ fontSize: 13, color: '#b91c1c' }}>⚠️ {error}</Text>
-          </View>
-        ) : null}
-
-        {response && !loading && (
+        {/* Response */}
+        {response ? (
           <View style={styles.aiBox}>
             <Text style={styles.aiText}>{response}</Text>
           </View>
-        )}
+        ) : null}
       </Card>
 
       <Card>
@@ -124,7 +106,8 @@ export default function AIScreen() {
           <Text style={{ fontWeight: '700' }}>
             {jobs.filter(j => j.status === 'active').length}
           </Text>{' '}
-          active jobs in Nanded.{'\n'}
+          active jobs in Nanded.
+          {'\n'}
           {isSeeker
             ? `Your skills: ${(user?.skills || []).join(', ') || 'none listed'}`
             : `Your company: ${user?.company || 'not specified'}`}
