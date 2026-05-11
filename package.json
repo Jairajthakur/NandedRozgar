@@ -4,10 +4,10 @@
   "main": "node_modules/expo/AppEntry.js",
   "private": true,
   "scripts": {
-    "start": "expo start",
+    "start": "node src/index.js",
+    "expo": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "server": "node src/index.js",
     "server:dev": "nodemon src/index.js"
   },
   "dependencies": {
