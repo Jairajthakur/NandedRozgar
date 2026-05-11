@@ -9,9 +9,9 @@ import { C } from '../utils/constants';
 
 export default function LoginScreen() {
   const { login, register } = useAuth();
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [mode, setMode] = useState('login');
   const [form, setForm] = useState({
-    email: '', password: '', name: '', phone: '', company: '', regRole: '',
+    email: '', password: '', name: '', phone: '', company: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,13 +27,13 @@ export default function LoginScreen() {
       setLoading(false);
       if (!r.ok) setError(r.error || 'Login failed');
     } else {
-      if (!form.name || !form.email || !form.password) { setError('Fill all fields'); return; }
-      if (!form.regRole) { setError('Select Job Seeker or Employer'); return; }
+      if (!form.name || !form.email || !form.password) { setError('Fill all required fields'); return; }
       if (form.password.length < 6) { setError('Password must be at least 6 characters'); return; }
       setLoading(true);
       const r = await register({
         name: form.name, email: form.email, password: form.password,
-        role: form.regRole, phone: form.phone, company: form.company,
+        role: 'giver',
+        phone: form.phone, company: form.company,
       });
       setLoading(false);
       if (!r.ok) setError(r.error || 'Registration failed');
@@ -45,7 +45,6 @@ export default function LoginScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#111111" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          {/* Logo */}
           <View style={styles.logoWrap}>
             <View style={styles.logoMark}>
               <Text style={{ fontSize: 26 }}>🏙️</Text>
@@ -55,7 +54,6 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.box}>
-            {/* Mode Toggle */}
             <View style={styles.modeRow}>
               {['login','register'].map(m => (
                 <TouchableOpacity key={m} onPress={() => { setMode(m); setError(''); }}
@@ -67,24 +65,12 @@ export default function LoginScreen() {
               ))}
             </View>
 
-            {/* Register fields */}
             {mode === 'register' && (
               <>
-                <Text style={styles.roleLabel}>I am a…</Text>
-                <View style={styles.roleRow}>
-                  {[['seeker','👷 Job Seeker'],['giver','🏢 Employer']].map(([r,l]) => (
-                    <TouchableOpacity key={r} onPress={() => set('regRole', r)}
-                      style={[styles.roleBtn, form.regRole === r && styles.roleBtnActive]}>
-                      <Text style={[styles.roleBtnText, form.regRole === r && { fontWeight: '800' }]}>{l}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <Input label="Full Name" value={form.name}
+                <Input label="Full Name *" value={form.name}
                   onChangeText={v => set('name', v)} placeholder="Your full name" />
-                {form.regRole === 'giver' && (
-                  <Input label="Company / Business Name" value={form.company}
-                    onChangeText={v => set('company', v)} placeholder="e.g. Patil Builders" />
-                )}
+                <Input label="Company / Business Name" value={form.company}
+                  onChangeText={v => set('company', v)} placeholder="e.g. Patil Builders (optional)" />
                 <Input label="Phone Number" value={form.phone}
                   onChangeText={v => set('phone', v)} placeholder="9XXXXXXXXX"
                   keyboardType="phone-pad" maxLength={10} />
@@ -96,7 +82,7 @@ export default function LoginScreen() {
               keyboardType="email-address" autoCapitalize="none" />
             <Input label="Password" value={form.password}
               onChangeText={v => set('password', v)}
-              placeholder={mode === 'register' ? 'Create a password' : 'Your password'}
+              placeholder={mode === 'register' ? 'Create a password (min 6 chars)' : 'Your password'}
               secureTextEntry />
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -117,6 +103,14 @@ export default function LoginScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+
+          <View style={styles.benefits}>
+            {['💼 Post Jobs', '🚗 List Vehicles', '🏠 List Rooms'].map(b => (
+              <View key={b} style={styles.benefitItem}>
+                <Text style={styles.benefitText}>{b}</Text>
+              </View>
+            ))}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -146,16 +140,18 @@ const styles = StyleSheet.create({
     shadowRadius: 4, elevation: 2 },
   modeBtnText: { fontSize: 13, fontWeight: '600', color: C.muted },
   modeBtnTextActive: { color: C.text, fontWeight: '700' },
-  roleLabel: { fontSize: 12, fontWeight: '600', color: '#444', marginBottom: 8 },
-  roleRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  roleBtn: { flex: 1, padding: 11, borderRadius: 9, borderWidth: 2,
-    borderColor: C.border, alignItems: 'center', backgroundColor: '#fff' },
-  roleBtnActive: { borderColor: C.dark, backgroundColor: C.grayLight },
-  roleBtnText: { fontSize: 12, fontWeight: '600', color: C.text },
   error: { color: '#e55', fontSize: 12, fontWeight: '500', marginBottom: 10,
     backgroundColor: '#fff0f0', padding: 10, borderRadius: 8 },
   switchRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 16,
     paddingTop: 14, borderTopWidth: 1, borderTopColor: C.border },
   switchText: { fontSize: 12, color: C.muted },
   switchLink: { fontSize: 12, fontWeight: '700', color: C.dark },
+  benefits: {
+    flexDirection: 'row', marginTop: 20, gap: 8, flexWrap: 'wrap', justifyContent: 'center',
+  },
+  benefitItem: {
+    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20,
+    paddingVertical: 6, paddingHorizontal: 14,
+  },
+  benefitText: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '600' },
 });
