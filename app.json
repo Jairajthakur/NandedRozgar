@@ -23,8 +23,7 @@
         "backgroundColor": "#111111"
       },
       "package": "com.nandedrozgar.app",
-      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"],
-      "minSdkVersion": 24
+      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
     },
     "plugins": [
       "expo-secure-store",
@@ -34,7 +33,8 @@
           "android": {
             "usesCleartextTraffic": true,
             "enableProguardInReleaseBuilds": false,
-            "newArchEnabled": false
+            "newArchEnabled": false,
+            "minSdkVersion": 24
           }
         }
       ]
