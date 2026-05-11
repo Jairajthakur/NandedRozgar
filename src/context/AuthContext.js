@@ -13,63 +13,86 @@ export function AuthProvider({ children }) {
   useEffect(() => { init(); }, []);
 
   async function init() {
-    const token = await loadToken();
-    if (token) {
-      const r = await http('GET', '/api/auth/me');
-      if (r.ok) {
-        setUser(r.user);
-        setRole(r.user.role);
-        await loadJobs();
-        if (r.user.role === 'admin') await loadUsers();
-      } else {
-        await clearToken();
+    try {
+      const token = await loadToken();
+      if (token) {
+        const r = await http('GET', '/api/auth/me');
+        if (r.ok) {
+          setUser(r.user);
+          setRole(r.user.role);
+          await loadJobs();
+          if (r.user.role === 'admin') await loadUsers();
+        } else {
+          await clearToken();
+        }
       }
+    } catch (e) {
+      console.warn('App init error:', e);
+      try { await clearToken(); } catch {}
+    } finally {
+      // Always stop the loading spinner — even if something went wrong
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function loadJobs() {
-    const r = await http('GET', '/api/jobs');
-    if (r.ok) {
-      setJobs(r.jobs.map(j => ({
-        ...j,
-        id: String(j.id),
-        postedBy: j.posted_by,
-        timestamp: new Date(j.created_at).getTime(),
-        applicants: [],
-        saved: [],
-      })));
+    try {
+      const r = await http('GET', '/api/jobs');
+      if (r.ok) {
+        setJobs(r.jobs.map(j => ({
+          ...j,
+          id: String(j.id),
+          postedBy: j.posted_by,
+          timestamp: new Date(j.created_at).getTime(),
+          applicants: [],
+          saved: [],
+        })));
+      }
+    } catch (e) {
+      console.warn('loadJobs error:', e);
     }
   }
 
   async function loadUsers() {
-    const r = await http('GET', '/api/admin/users');
-    if (r.ok) setUsers(r.users);
+    try {
+      const r = await http('GET', '/api/admin/users');
+      if (r.ok) setUsers(r.users);
+    } catch (e) {
+      console.warn('loadUsers error:', e);
+    }
   }
 
   async function login(email, password) {
-    const r = await http('POST', '/api/auth/login', { email, password });
-    if (!r.ok) return r;
-    await saveToken(r.token);
-    setUser(r.user);
-    setRole(r.user.role);
-    await loadJobs();
-    if (r.user.role === 'admin') await loadUsers();
-    return r;
+    try {
+      const r = await http('POST', '/api/auth/login', { email, password });
+      if (!r.ok) return r;
+      await saveToken(r.token);
+      setUser(r.user);
+      setRole(r.user.role);
+      await loadJobs();
+      if (r.user.role === 'admin') await loadUsers();
+      return r;
+    } catch (e) {
+      return { ok: false, error: 'Login failed. Please try again.' };
+    }
   }
 
   async function register(data) {
-    const r = await http('POST', '/api/auth/register', data);
-    if (!r.ok) return r;
-    await saveToken(r.token);
-    setUser(r.user);
-    setRole(r.user.role);
-    await loadJobs();
-    return r;
+    try {
+      const r = await http('POST', '/api/auth/register', data);
+      if (!r.ok) return r;
+      await saveToken(r.token);
+      setUser(r.user);
+      setRole(r.user.role);
+      await loadJobs();
+      return r;
+    } catch (e) {
+      return { ok: false, error: 'Registration failed. Please try again.' };
+    }
   }
 
   async function signOut() {
-    await clearToken();
+    try { await clearToken(); } catch {}
     setUser(null);
     setRole(null);
     setJobs([]);
