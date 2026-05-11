@@ -1,5 +1,4 @@
-// ⚠️ react-native-gesture-handler MUST be the very first import on Android
-// Placing it anywhere else causes a native crash at startup
+// IMPORTANT: react-native-gesture-handler must be the FIRST import on Android
 import 'react-native-gesture-handler';
 
 import React from 'react';
@@ -11,20 +10,18 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import LoginScreen    from './src/screens/LoginScreen';
-import BoardScreen    from './src/screens/BoardScreen';
+import LoginScreen     from './src/screens/LoginScreen';
+import BoardScreen     from './src/screens/BoardScreen';
 import JobDetailScreen from './src/screens/JobDetailScreen';
-import PostScreen     from './src/screens/PostScreen';
-import ProfileScreen  from './src/screens/ProfileScreen';
-import AIScreen       from './src/screens/AIScreen';
-import AdminScreen    from './src/screens/AdminScreen';
+import PostScreen      from './src/screens/PostScreen';
+import ProfileScreen   from './src/screens/ProfileScreen';
+import AIScreen        from './src/screens/AIScreen';
+import AdminScreen     from './src/screens/AdminScreen';
 import { C } from './src/utils/constants';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
-// Catches any render-time crash so the app shows an error screen
-// instead of closing silently (black screen)
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -108,7 +105,6 @@ function MainTabs() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="🏙️" focused={focused} />,
         }}
       />
-
       {(isGiver || isAdmin) && (
         <Tab.Screen
           name="Post"
@@ -119,7 +115,6 @@ function MainTabs() {
           }}
         />
       )}
-
       <Tab.Screen
         name="AI"
         component={AIScreen}
@@ -128,7 +123,6 @@ function MainTabs() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="✨" focused={focused} />,
         }}
       />
-
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
@@ -137,7 +131,6 @@ function MainTabs() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
         }}
       />
-
       {isAdmin && (
         <Tab.Screen
           name="Admin"
@@ -168,26 +161,26 @@ function RootNavigator() {
     );
   }
 
+  // NOTE: No React Fragment (<>) wrapper around Stack.Screen children
+  // This is required for react-navigation compatibility
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!user ? (
         <Stack.Screen name="Login" component={LoginScreen} />
       ) : (
-        <>
-          <Stack.Screen name="Main" component={MainTabs} />
-          <Stack.Screen
-            name="JobDetail"
-            component={JobDetailScreen}
-            options={{
-              headerShown: true,
-              headerTitle: 'Job Details',
-              headerStyle: { backgroundColor: C.dark },
-              headerTintColor: '#fff',
-              headerTitleStyle: { fontWeight: '800' },
-            }}
-          />
-        </>
+        <Stack.Screen name="Main" component={MainTabs} />
       )}
+      <Stack.Screen
+        name="JobDetail"
+        component={JobDetailScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Job Details',
+          headerStyle: { backgroundColor: C.dark },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: '800' },
+        }}
+      />
     </Stack.Navigator>
   );
 }
@@ -195,7 +188,6 @@ function RootNavigator() {
 export default function App() {
   return (
     <ErrorBoundary>
-      {/* No GestureHandlerRootView needed — gesture-handler imported at top */}
       <SafeAreaProvider>
         <AuthProvider>
           <NavigationContainer>
