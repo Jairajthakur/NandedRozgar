@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, Alert,
+  StyleSheet, KeyboardAvoidingView, Platform, StatusBar,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import { Input, Btn, Spinner } from '../components/UI';
 import { C } from '../utils/constants';
@@ -42,7 +41,8 @@ export default function LoginScreen() {
   }
 
   return (
-    <LinearGradient colors={['#111111', '#222222', '#333333']} style={styles.gradient}>
+    <View style={styles.gradient}>
+      <StatusBar barStyle="light-content" backgroundColor="#111111" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Logo */}
@@ -120,12 +120,12 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  gradient: { flex: 1 },
+  gradient: { flex: 1, backgroundColor: '#111111' },
   scroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   logoWrap: { alignItems: 'center', marginBottom: 28 },
   logoMark: {
