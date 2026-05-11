@@ -33,7 +33,6 @@
           "android": {
             "usesCleartextTraffic": true,
             "enableProguardInReleaseBuilds": false,
-            "newArchEnabled": false,
             "minSdkVersion": 24
           }
         }
@@ -41,7 +40,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
+        "projectId": "da8f053f-5fd8-4bff-9004-7c4ecba82ff8"
       }
     }
   }
