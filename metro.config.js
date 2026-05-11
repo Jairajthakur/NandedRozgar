@@ -4,14 +4,16 @@ const fs = require('fs');
 
 const config = getDefaultConfig(__dirname);
 
-// Exclude server-side files from the mobile bundle.
-// Without this, Metro may try to bundle Node.js modules (express, pg, bcryptjs)
-// which have no React Native equivalent and cause a native crash at startup.
+// Block only THIS PROJECT'S server-side files, not node_modules.
+// The previous regexes like /src\/index\.js$/ were too broad —
+// they also matched node_modules/expo-secure-store/src/index.js etc.,
+// causing "keeps stopping" crashes on device.
+const esc = __dirname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 config.resolver.blockList = [
-  /src\/index\.js$/,
-  /src\/db\.js$/,
-  /src\/routes\/.*/,
-  /src\/middleware\/.*/,
+  new RegExp(`^${esc}/src/index\\.js$`),
+  new RegExp(`^${esc}/src/db\\.js$`),
+  new RegExp(`^${esc}/src/routes/.*`),
+  new RegExp(`^${esc}/src/middleware/.*`),
 ];
 
 // Workaround: use-latest-callback ships a broken `main` field pointing to
