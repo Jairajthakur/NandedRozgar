@@ -1,10 +1,13 @@
+// ⚠️ react-native-gesture-handler MUST be the very first import on Android
+// Placing it anywhere else causes a native crash at startup
+import 'react-native-gesture-handler';
+
 import React from 'react';
 import { View, Text, ActivityIndicator, StatusBar, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -20,9 +23,8 @@ import { C } from './src/utils/constants';
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
-// ── Error Boundary ─────────────────────────────────────────────────────────
-// Catches any render-time crash so the app shows an error screen instead of
-// closing silently (which is what was happening before).
+// Catches any render-time crash so the app shows an error screen
+// instead of closing silently (black screen)
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -193,17 +195,16 @@ function RootNavigator() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>
-          <AuthProvider>
-            <NavigationContainer>
-              <StatusBar barStyle="light-content" backgroundColor={C.dark} />
-              <RootNavigator />
-            </NavigationContainer>
-            <Toast />
-          </AuthProvider>
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
+      {/* No GestureHandlerRootView needed — gesture-handler imported at top */}
+      <SafeAreaProvider>
+        <AuthProvider>
+          <NavigationContainer>
+            <StatusBar barStyle="light-content" backgroundColor={C.dark} />
+            <RootNavigator />
+          </NavigationContainer>
+          <Toast />
+        </AuthProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }
