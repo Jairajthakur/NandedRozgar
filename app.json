@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -24,7 +25,17 @@
       "package": "com.nandedrozgar.app",
       "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
     },
-    "plugins": ["expo-font", "expo-secure-store"],
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "YOUR_EAS_PROJECT_ID"
