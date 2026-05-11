@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, StatusBar } from 'react-native';
+import { View, Text, ActivityIndicator, StatusBar, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -20,12 +20,56 @@ import { C } from './src/utils/constants';
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
+// ── Error Boundary ─────────────────────────────────────────────────────────
+// Catches any render-time crash so the app shows an error screen instead of
+// closing silently (which is what was happening before).
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('App Error:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center',
+          backgroundColor: C.dark, padding: 32 }}>
+          <Text style={{ fontSize: 40, marginBottom: 16 }}>⚠️</Text>
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800',
+            marginBottom: 12, textAlign: 'center' }}>
+            Something went wrong
+          </Text>
+          <Text style={{ color: '#aaa', fontSize: 13, textAlign: 'center',
+            marginBottom: 24 }}>
+            {this.state.error?.message || 'An unexpected error occurred.'}
+          </Text>
+          <TouchableOpacity
+            onPress={() => this.setState({ hasError: false, error: null })}
+            style={{ backgroundColor: '#fff', borderRadius: 9, paddingVertical: 12,
+              paddingHorizontal: 24 }}>
+            <Text style={{ color: C.dark, fontWeight: '700', fontSize: 14 }}>
+              Try Again
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function TabIcon({ emoji, focused }) {
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontSize: 20 }}>{emoji}</Text>
       {focused && (
-        <View style={{ width: 4, height: 4, backgroundColor: C.dark, borderRadius: 2, marginTop: 2 }} />
+        <View style={{ width: 4, height: 4, backgroundColor: C.dark,
+          borderRadius: 2, marginTop: 2 }} />
       )}
     </View>
   );
@@ -54,7 +98,6 @@ function MainTabs() {
         headerTitle: 'NandedRozgar 🏙️',
       }}
     >
-      {/* Jobs board — visible to everyone */}
       <Tab.Screen
         name="Board"
         component={BoardScreen}
@@ -64,7 +107,6 @@ function MainTabs() {
         }}
       />
 
-      {/* Post Job — only visible to employers (givers) and admins */}
       {(isGiver || isAdmin) && (
         <Tab.Screen
           name="Post"
@@ -76,7 +118,6 @@ function MainTabs() {
         />
       )}
 
-      {/* AI Match — visible to everyone */}
       <Tab.Screen
         name="AI"
         component={AIScreen}
@@ -86,7 +127,6 @@ function MainTabs() {
         }}
       />
 
-      {/* Profile — visible to everyone */}
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
@@ -96,7 +136,6 @@ function MainTabs() {
         }}
       />
 
-      {/* Admin panel — only visible to admins */}
       {isAdmin && (
         <Tab.Screen
           name="Admin"
@@ -116,7 +155,8 @@ function RootNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.dark }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: C.dark }}>
         <Text style={{ fontSize: 40, marginBottom: 16 }}>🏙️</Text>
         <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 24 }}>
           NandedRozgar
@@ -152,16 +192,18 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <NavigationContainer>
-            <StatusBar barStyle="light-content" backgroundColor={C.dark} />
-            <RootNavigator />
-          </NavigationContainer>
-          <Toast />
-        </AuthProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <NavigationContainer>
+              <StatusBar barStyle="light-content" backgroundColor={C.dark} />
+              <RootNavigator />
+            </NavigationContainer>
+            <Toast />
+          </AuthProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
