@@ -95,10 +95,10 @@ export function Spinner({ size = 'large', color = ORANGE }) {
 }
 
 // ── Empty State ───────────────────────────────────────────────
-export function Empty({ icon = '🔍', title, sub, action, actionLabel }) {
+export function Empty({ icon = 'search', title, sub, action, actionLabel }) {
   return (
     <View style={{ alignItems: 'center', padding: 60 }}>
-      <Text style={{ fontSize: 40, marginBottom: 12 }}>{icon}</Text>
+      <Ionicons name={icon} size={40} color="#ccc" style={{ marginBottom: 12 }} />
       <Text style={{ fontSize: 15, fontWeight: '700', color: '#333', marginBottom: 6 }}>{title}</Text>
       {sub && <Text style={{ fontSize: 13, color: '#999', textAlign: 'center' }}>{sub}</Text>}
       {action && (
