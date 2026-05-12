@@ -1,127 +1,193 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, FlatList, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, RefreshControl,
+  View, Text, FlatList, ScrollView, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useAuth } from '../context/AuthContext';
-import RoomCard from '../components/RoomCard';
-import { Empty } from '../components/UI';
 import { C } from '../utils/constants';
 
-const ROOM_TYPES = ['All', 'PG', '1 BHK', '2 BHK', 'Boys', 'Girls'];
+const FILTERS = ['All', 'PG', '1 BHK', '2 BHK', 'Boys', 'Girls'];
+
+export const ROOMS = [
+  {
+    id: '1',
+    name: 'Boys PG Near Station',
+    subtitle: 'Single occupancy · Meals included · WiFi',
+    price: '₹4,500/mo',
+    location: 'Station Road',
+    forGender: 'Boys',
+    type: 'PG',
+    available: true,
+    availableLabel: 'Available',
+    photos: 4,
+    iconColor: '#1e2a3a',
+    icon: '🏠',
+    specs: { Type: 'PG Single', Deposit: '₹9,000', For: 'Boys', Floor: '2nd floor' },
+    amenities: ['WiFi', 'Meals 2x/day', 'CCTV', 'Laundry', '24hr water'],
+    owner: { name: 'Sunita Patil', initials: 'SP', area: 'Replies within 1 hr', color: '#0f6e56', bg: '#e1f5ee' },
+    verified: true,
+  },
+  {
+    id: '2',
+    name: '1 BHK Furnished Flat',
+    subtitle: 'Fully furnished · Cidco Colony · Ground floor',
+    price: '₹7,000/mo',
+    location: 'Cidco',
+    forGender: 'Family/Single',
+    type: '1 BHK',
+    available: true,
+    availableLabel: 'Available',
+    photos: 3,
+    iconColor: '#1a2e1e',
+    icon: '🏡',
+    specs: { Type: '1 BHK', Deposit: '₹14,000', For: 'Family', Floor: 'Ground' },
+    amenities: ['Furnished', 'Parking', 'RO water', 'Power backup'],
+    owner: { name: 'Prakash Joshi', initials: 'PJ', area: 'Responds in 2 hrs', color: '#185fa5', bg: '#e6f1fb' },
+    verified: true,
+  },
+  {
+    id: '3',
+    name: 'Girls PG with Meals',
+    subtitle: '2 meals/day · WiFi · CCTV · Shivaji Nagar',
+    price: '₹5,500/mo',
+    location: 'Shivaji Nagar',
+    forGender: 'Girls',
+    type: 'PG',
+    available: false,
+    availableLabel: '2 left',
+    photos: 2,
+    iconColor: '#2e1a1a',
+    icon: '🏢',
+    specs: { Type: 'PG Shared', Deposit: '₹11,000', For: 'Girls', Floor: '1st floor' },
+    amenities: ['Meals 2x/day', 'WiFi', 'CCTV', 'Wardrobe', 'Attached bath'],
+    owner: { name: 'Meena Bhosale', initials: 'MB', area: 'Replies within 30 mins', color: '#854f0b', bg: '#faeeda' },
+    verified: false,
+  },
+];
 
 export default function RoomsScreen() {
-  const { rooms, loadRooms, role } = useAuth();
   const nav = useNavigation();
-  const [search, setSearch] = useState('');
-  const [type, setType] = useState('All');
-  const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState('All');
 
-  const activeRooms = rooms || [];
-
-  const filtered = useMemo(() => {
-    return activeRooms.filter(r =>
-      r.status === 'active' &&
-      (type === 'All' || r.room_type === type || r.gender === type) &&
-      (search === '' ||
-        [r.title, r.area, r.description || '']
-          .join(' ')
-          .toLowerCase()
-          .includes(search.toLowerCase()))
-    ).sort((a, b) => (b.id || 0) - (a.id || 0));
-  }, [activeRooms, search, type]);
-
-  async function onRefresh() {
-    setRefreshing(true);
-    await loadRooms?.();
-    setRefreshing(false);
-  }
-
-  const canPost = role === 'giver' || role === 'admin';
+  const filtered = ROOMS.filter(r =>
+    filter === 'All' ||
+    r.type === filter ||
+    r.forGender === filter
+  );
 
   return (
-    <View style={styles.container}>
-      {/* Search */}
-      <View style={styles.searchWrap}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Area, budget, type…"
-          placeholderTextColor={C.muted}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Text style={{ color: C.muted, fontSize: 18, paddingRight: 10 }}>✕</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Type pills */}
+    <View style={s.container}>
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.pills}
-        style={{ maxHeight: 46 }}
+        horizontal showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.pills}
+        style={{ maxHeight: 50 }}
       >
-        {ROOM_TYPES.map(t => (
+        {FILTERS.map(f => (
           <TouchableOpacity
-            key={t}
-            onPress={() => setType(t)}
-            style={[styles.pill, type === t && styles.pillActive]}
+            key={f}
+            onPress={() => setFilter(f)}
+            style={[s.pill, filter === f && s.pillOn]}
           >
-            <Text style={[styles.pillText, type === t && styles.pillTextActive]}>{t}</Text>
+            <Text style={[s.pillTxt, filter === f && s.pillTxtOn]}>{f}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {/* Listings */}
       <FlatList
         data={filtered}
-        keyExtractor={r => String(r.id)}
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh}
-            colors={[C.dark]} tintColor={C.dark} />
-        }
+        keyExtractor={r => r.id}
+        contentContainerStyle={{ padding: 12, paddingTop: 4 }}
         renderItem={({ item }) => (
-          <RoomCard
-            room={item}
+          <TouchableOpacity
+            style={s.card}
+            activeOpacity={0.85}
             onPress={() => nav.navigate('RoomDetail', { room: item })}
-          />
+          >
+            {/* Photo Strip */}
+            <View style={[s.imgStrip, { backgroundColor: item.iconColor }]}>
+              <Text style={s.roomIcon}>{item.icon}</Text>
+              <View style={s.photoThumbs}>
+                {['Room', 'Kitchen', 'Bath', 'Outside'].slice(0, item.photos).map((lbl, i) => (
+                  <View key={i} style={[s.thumb, i === 0 && s.thumbActive]}>
+                    <Text style={[s.thumbTxt, i === 0 && s.thumbTxtActive]}>{lbl}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={s.photoBadge}>
+                <Text style={s.photoBadgeTxt}>{item.photos} photos</Text>
+              </View>
+              <View style={[s.availBadge, { backgroundColor: item.available ? 'rgba(29,158,117,0.85)' : 'rgba(186,117,23,0.85)' }]}>
+                <Text style={s.availBadgeTxt}>{item.availableLabel}</Text>
+              </View>
+            </View>
+            <View style={s.body}>
+              <Text style={s.name}>{item.name}</Text>
+              <Text style={s.subtitle}>{item.subtitle}</Text>
+              <View style={s.metaRow}>
+                <View style={s.tag}><Text style={s.tagTxt}>📍 {item.location}</Text></View>
+                <View style={s.tag}><Text style={s.tagTxt}>👤 {item.forGender}</Text></View>
+                <View style={s.priceBadge}><Text style={s.priceTxt}>{item.price}</Text></View>
+              </View>
+            </View>
+          </TouchableOpacity>
         )}
-        ListEmptyComponent={
-          <Empty
-            icon="🏠"
-            title="No rooms found"
-            sub={search || type !== 'All' ? 'Try different filters' : 'No rooms listed yet'}
-            action={canPost ? () => nav.navigate('PostRoom') : null}
-            actionLabel="List Your Room"
-          />
+        ListHeaderComponent={
+          <View style={{ paddingBottom: 4 }}>
+            <Text style={{ fontSize: 11, color: C.muted, fontWeight: '500' }}>{filtered.length} listings in Nanded</Text>
+          </View>
         }
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: C.bg },
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderWidth: 1.5, borderColor: C.border,
-    borderRadius: 9, margin: 12, marginBottom: 6, paddingLeft: 12,
-  },
-  searchIcon:  { fontSize: 15, marginRight: 6 },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 13, color: C.text },
-  pills: { paddingHorizontal: 12, paddingBottom: 8, gap: 6 },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
+  pills: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
   pill: {
-    borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card,
     paddingVertical: 5, paddingHorizontal: 13, borderRadius: 20,
+    borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
   },
-  pillActive:     { backgroundColor: C.dark, borderColor: C.dark },
-  pillText:       { fontSize: 12, fontWeight: '600', color: '#555' },
-  pillTextActive: { color: '#fff' },
-  list: { padding: 12, paddingTop: 8 },
+  pillOn: { backgroundColor: C.dark, borderColor: C.dark },
+  pillTxt: { fontSize: 12, fontWeight: '600', color: '#555' },
+  pillTxtOn: { color: '#fff' },
+
+  card: {
+    backgroundColor: C.card, borderRadius: 13,
+    borderWidth: 1, borderColor: C.border,
+    marginBottom: 10, overflow: 'hidden',
+  },
+  imgStrip: { height: 150, alignItems: 'center', justifyContent: 'center' },
+  roomIcon: { fontSize: 48, opacity: 0.25, marginBottom: 8 },
+  photoThumbs: { flexDirection: 'row', gap: 5 },
+  thumb: {
+    width: 48, height: 30, borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  thumbActive: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)',
+  },
+  thumbTxt: { fontSize: 8, color: 'rgba(255,255,255,0.6)' },
+  thumbTxtActive: { color: '#fff' },
+  photoBadge: {
+    position: 'absolute', top: 8, left: 8,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 6, paddingVertical: 3, paddingHorizontal: 7,
+  },
+  photoBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '600' },
+  availBadge: {
+    position: 'absolute', top: 8, right: 8,
+    borderRadius: 5, paddingVertical: 3, paddingHorizontal: 7,
+  },
+  availBadgeTxt: { color: '#fff', fontSize: 8, fontWeight: '600' },
+
+  body: { padding: 13 },
+  name: { fontSize: 14, fontWeight: '700', color: C.text },
+  subtitle: { fontSize: 11, color: C.muted, marginTop: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 5, marginTop: 9 },
+  tag: { backgroundColor: '#f0f0f0', borderRadius: 5, paddingVertical: 3, paddingHorizontal: 7 },
+  tagTxt: { fontSize: 10, color: C.muted },
+  priceBadge: { marginLeft: 'auto', backgroundColor: C.dark, borderRadius: 6, paddingVertical: 4, paddingHorizontal: 9 },
+  priceTxt: { color: '#fff', fontSize: 12, fontWeight: '600' },
 });
