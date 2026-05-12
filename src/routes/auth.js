@@ -23,7 +23,7 @@ router.post('/register', async (req, res) => {
     if (password.length < 6) {
       return res.json({ ok: false, error: 'Password must be at least 6 characters' });
     }
-    const userRole = ['seeker', 'giver'].includes(role) ? role : 'seeker';
+    const userRole = ['user', 'admin'].includes(role) ? role : 'user';
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
       `INSERT INTO users (name, email, password, role, phone, company)
