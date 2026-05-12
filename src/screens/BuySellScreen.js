@@ -91,7 +91,7 @@ export default function BuySellScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
