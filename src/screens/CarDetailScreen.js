@@ -47,7 +47,7 @@ export default function CarDetailScreen() {
       {/* Gallery */}
       <View style={[s.gallery, { backgroundColor: GALLERY_COLORS[activeImg] }]}>
         <TouchableOpacity style={s.backBtn} onPress={() => nav.goBack()}>
-          <Text style={{ color: '#fff', fontSize: 18 }}>‹</Text>
+          <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Ionicons name={GALLERY_ICONS[activeImg]} size={80} color="#fff" style={{ opacity: 0.18 }} />
         {/* Thumbnail Nav */}
@@ -137,7 +137,7 @@ const s = StyleSheet.create({
   gallery: { height: 200, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   backBtn: {
     position: 'absolute', top: 44, left: 12,
-    width: 32, height: 32, borderRadius: 16,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center', justifyContent: 'center', zIndex: 10,
   },
