@@ -5,7 +5,15 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { C } from '../utils/constants';
 
-const CATEGORIES = ['All', 'Electronics', 'Furniture', 'Vehicles', 'Clothes', 'Books', 'Other'];
+const CATEGORIES = [
+  { key: 'All', label: 'All 🔷' },
+  { key: 'Electronics', label: '📱 Electronics' },
+  { key: 'Furniture', label: '🪑 Furniture' },
+  { key: 'Vehicles', label: '🛵 Vehicles' },
+  { key: 'Clothes', label: '👕 Clothes' },
+  { key: 'Books', label: '📚 Books' },
+  { key: 'Other', label: '📦 Other' },
+];
 
 const SAMPLE_ITEMS = [
   { id: 1, title: 'Samsung TV 42"', price: '₹8,500', cat: 'Electronics', loc: 'Cidco', time: '2h ago', emoji: '📺', condition: 'Good' },
@@ -43,10 +51,10 @@ export default function BuySellScreen() {
 
       {/* Category chips */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
-        {CATEGORIES.map(cat => (
-          <TouchableOpacity key={cat} onPress={() => setActiveCat(cat)}
-            style={[s.chip, activeCat === cat && s.chipActive]}>
-            <Text style={[s.chipTxt, activeCat === cat && s.chipTxtActive]}>{cat}</Text>
+        {CATEGORIES.map(({ key, label }) => (
+          <TouchableOpacity key={key} onPress={() => setActiveCat(key)}
+            style={[s.chip, activeCat === key && s.chipActive]}>
+            <Text style={[s.chipTxt, activeCat === key && s.chipTxtActive]}>{label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -84,7 +92,7 @@ export default function BuySellScreen() {
 
       {/* Sell button */}
       <TouchableOpacity style={s.sellBtn} activeOpacity={0.9}>
-        <Text style={s.sellBtnTxt}>+ Sell an Item</Text>
+        <Text style={s.sellBtnTxt}>🏷️ Sell an Item</Text>
       </TouchableOpacity>
     </View>
   );
