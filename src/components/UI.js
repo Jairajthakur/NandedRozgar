@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { C } from '../utils/constants';
 
 const ORANGE = '#f97316';
