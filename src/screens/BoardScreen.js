@@ -9,6 +9,8 @@ import JobCard from '../components/JobCard';
 import { Empty, Btn } from '../components/UI';
 import { C, CATS, CAT_ICONS } from '../utils/constants';
 
+const ORANGE = '#f97316';
+
 export default function BoardScreen() {
   const { jobs, loadJobs, role } = useAuth();
   const nav = useNavigation();
@@ -51,13 +53,13 @@ export default function BoardScreen() {
         <TextInput
           style={styles.searchInput}
           placeholder="Search jobs, area, company…"
-          placeholderTextColor={C.muted}
+          placeholderTextColor="#aaa"
           value={search}
           onChangeText={setSearch}
         />
         {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Text style={{ color: C.muted, fontSize: 18, paddingRight: 10 }}>✕</Text>
+          <TouchableOpacity onPress={() => setSearch('')} style={{ paddingRight: 12 }}>
+            <Text style={{ color: '#999', fontSize: 16 }}>✕</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -67,7 +69,7 @@ export default function BoardScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.pills}
-        style={{ maxHeight: 46 }}
+        style={{ maxHeight: 48 }}
       >
         {CATS.map(c => (
           <TouchableOpacity
@@ -82,6 +84,11 @@ export default function BoardScreen() {
         ))}
       </ScrollView>
 
+      {/* Results count */}
+      {filtered.length > 0 && (
+        <Text style={styles.countTxt}>{filtered.length} jobs found</Text>
+      )}
+
       {/* Job list */}
       <FlatList
         data={filtered}
@@ -91,8 +98,8 @@ export default function BoardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[C.dark]}
-            tintColor={C.dark}
+            colors={[ORANGE]}
+            tintColor={ORANGE}
           />
         }
         renderItem={({ item }) => (
@@ -117,31 +124,32 @@ export default function BoardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: C.border,
-    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 10,
     margin: 12,
     marginBottom: 6,
     paddingLeft: 12,
   },
   searchIcon:  { fontSize: 15, marginRight: 6 },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 13, color: C.text },
+  searchInput: { flex: 1, paddingVertical: 11, fontSize: 13, color: '#111' },
   pills: { paddingHorizontal: 12, paddingBottom: 8, gap: 6 },
   pill: {
-    borderWidth: 1.5,
-    borderColor: C.border,
-    backgroundColor: C.card,
-    paddingVertical: 5,
-    paddingHorizontal: 13,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    backgroundColor: '#fff',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
     borderRadius: 20,
   },
-  pillActive:     { backgroundColor: C.dark, borderColor: C.dark },
+  pillActive:     { backgroundColor: '#111', borderColor: '#111' },
   pillText:       { fontSize: 12, fontWeight: '600', color: '#555' },
   pillTextActive: { color: '#fff' },
-  list: { padding: 12, paddingTop: 8 },
+  countTxt: { fontSize: 11, color: '#999', paddingHorizontal: 16, paddingBottom: 4, fontWeight: '500' },
+  list: { padding: 12, paddingTop: 4 },
 });
