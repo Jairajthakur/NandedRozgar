@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Linking, Alert,
@@ -19,12 +20,12 @@ const PLACEHOLDER_CAR = {
   owner: { name: 'Mahesh Kulkarni', initials: 'MK', area: 'Shivaji Nagar · Responds fast', color: '#185fa5', bg: '#e6f1fb' },
   verified: true,
   iconColor: '#2d3a4a',
-  icon: '🚗',
+  icon: 'car-sport',
   photos: 4,
 };
 
 const GALLERY_COLORS = ['#2d3a4a', '#1e3a2f', '#2a1e3a', '#2e1a1a'];
-const GALLERY_ICONS = ['🚗', '🚙', '🛞', '🚗'];
+const GALLERY_ICONS = ['car-sport', 'car', 'car-sport', 'car'];
 
 export default function CarDetailScreen() {
   const nav = useNavigation();
@@ -48,7 +49,7 @@ export default function CarDetailScreen() {
         <TouchableOpacity style={s.backBtn} onPress={() => nav.goBack()}>
           <Text style={{ color: '#fff', fontSize: 18 }}>‹</Text>
         </TouchableOpacity>
-        <Text style={s.galleryIcon}>{GALLERY_ICONS[activeImg]}</Text>
+        <Ionicons name={GALLERY_ICONS[activeImg]} size={80} color="#fff" style={{ opacity: 0.18 }} />
         {/* Thumbnail Nav */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.galNav} contentContainerStyle={{ gap: 5, padding: 8 }}>
           {tabs.map((lbl, i) => (
@@ -72,7 +73,7 @@ export default function CarDetailScreen() {
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={s.price}>{car.price}<Text style={s.perDay}>/day</Text></Text>
-            <Text style={s.rating}>⭐ {car.rating} · {car.reviews} trips</Text>
+            <Text style={s.rating}>★ {car.rating} · {car.reviews} trips</Text>
           </View>
         </View>
 
@@ -124,7 +125,7 @@ export default function CarDetailScreen() {
           <Text style={{ fontSize: 20 }}>💬</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.ctaIcon} onPress={() => Alert.alert('Saved', 'Added to your saved listings.')}>
-          <Text style={{ fontSize: 20 }}>🔖</Text>
+          <Ionicons name="bookmark" size={20} color="#555" />
         </TouchableOpacity>
       </View>
     </View>
