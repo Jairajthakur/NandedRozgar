@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { C } from '../utils/constants';
+import { Ionicons } from '@expo/vector-icons';
 
 const ORANGE = '#f97316';
 const FILTERS = ['All', 'Car', 'Bike', 'Auto', 'SUV'];
@@ -25,7 +26,7 @@ const CARS = [
     owner: { name: 'Mahesh Kulkarni', initials: 'MK', area: 'Shivaji Nagar · Responds fast', color: '#185fa5', bg: '#e6f1fb' },
     verified: true,
     iconColor: '#1a2a3a',
-    icon: '🚗',
+    icon: 'car-sport',
   },
   {
     id: '2',
@@ -42,7 +43,7 @@ const CARS = [
     owner: { name: 'Ramesh Sharma', initials: 'RS', area: 'Cidco · Member since 2022', color: '#854f0b', bg: '#faeeda' },
     verified: true,
     iconColor: '#1e3a2f',
-    icon: '🚙',
+    icon: 'car',
   },
   {
     id: '3',
@@ -59,7 +60,7 @@ const CARS = [
     owner: { name: 'Anil Deshmukh', initials: 'AD', area: 'Sadar · Responds fast', color: '#0f6e56', bg: '#e1f5ee' },
     verified: false,
     iconColor: '#2a1e3a',
-    icon: '🛵',
+    icon: 'bicycle',
   },
 ];
 
@@ -100,7 +101,7 @@ export default function CarsScreen() {
           >
             {/* Photo Strip */}
             <View style={[s.imgStrip, { backgroundColor: item.iconColor }]}>
-              <Text style={s.carIcon}>{item.icon}</Text>
+              <Ionicons name={item.icon} size={48} color="#fff" style={{ opacity: 0.2, marginBottom: 8 }} />
               <View style={s.photoThumbs}>
                 {['Front', 'Side', 'Inside', 'Back'].slice(0, item.photos).map((lbl, i) => (
                   <View key={i} style={[s.thumb, i === 0 && s.thumbActive]}>
@@ -122,9 +123,9 @@ export default function CarsScreen() {
               <Text style={s.name}>{item.name}</Text>
               <Text style={s.subtitle}>{item.subtitle}</Text>
               <View style={s.metaRow}>
-                <View style={s.tag}><Text style={s.tagTxt}>📍 {item.location}</Text></View>
+                <View style={s.tag}><Ionicons name="location-sharp" size={11} color="#555" /><Text style={[s.tagTxt, { marginLeft: 3 }]}>{item.location}</Text></View>
                 <View style={s.ratingWrap}>
-                  <Text style={s.ratingTxt}>⭐ {item.rating} ({item.reviews})</Text>
+                  <Text style={s.ratingTxt}>★ {item.rating} ({item.reviews})</Text>
                 </View>
                 <View style={s.priceBadge}><Text style={s.priceTxt}>{item.price}</Text></View>
               </View>
@@ -190,7 +191,7 @@ const s = StyleSheet.create({
   name: { fontSize: 14, fontWeight: '700', color: '#111' },
   subtitle: { fontSize: 11, color: '#999', marginTop: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  tag: { backgroundColor: '#f5f5f5', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
+  tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
   tagTxt: { fontSize: 11, color: '#777' },
   ratingWrap: { backgroundColor: '#fff7ed', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
   ratingTxt: { fontSize: 11, color: '#c2410c', fontWeight: '600' },
