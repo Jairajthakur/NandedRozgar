@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import JobCard from '../components/JobCard';
 import { Card, Btn, Chip, Empty } from '../components/UI';
 import { C, PRICING } from '../utils/constants';
@@ -24,9 +25,9 @@ export default function ProfileScreen() {
   const totalViews = myJobs.reduce((a, j) => a + (j.views || 0), 0);
   const totalApps  = myJobs.reduce((a, j) => a + (j.applicant_count || 0), 0);
 
-  const tabs = role === 'giver'
+  const tabs = role === 'user' || role === 'admin'
     ? [['jobs',`My Jobs (${myJobs.length})`], ['stats','Analytics']]
-    : role === 'seeker'
+    : role === 'user' // user
     ? [['jobs',`Applied (${appliedJobs.length})`], ['saved',`Saved (${savedJobs.length})`]]
     : [];
 
@@ -40,14 +41,14 @@ export default function ProfileScreen() {
       </Card>
     );
 
-    const listJobs = tab === 'saved' ? savedJobs : tab === 'jobs' && role === 'seeker' ? appliedJobs : myJobs;
+    const listJobs = tab === 'saved' ? savedJobs : tab === 'jobs' && role === 'user' ? appliedJobs : myJobs;
 
     if (tab === 'stats') return (
       <View>
         <View style={styles.statsGrid}>
-          {[['📋', myJobs.length,'Total Posted'],['👁', totalViews,'Total Views'],['👤', totalApps,'Applications']].map(([i,v,l]) => (
+          {[['clipboard', myJobs.length,'Total Posted'],['eye', totalViews,'Total Views'],['person', totalApps,'Applications']].map(([i,v,l]) => (
             <View key={l} style={styles.statCard}>
-              <Text style={{ fontSize: 22 }}>{i}</Text>
+              <Ionicons name={i} size={22} color="#f97316" />
               <Text style={styles.statVal}>{v}</Text>
               <Text style={styles.statLbl}>{l}</Text>
             </View>
@@ -62,8 +63,8 @@ export default function ProfileScreen() {
 
     return listJobs.length === 0
       ? <Empty
-          icon={tab === 'saved' ? '🔖' : '📋'}
-          title={tab === 'saved' ? 'No saved jobs' : role === 'giver' ? 'No jobs posted yet' : 'No applications yet'}
+          icon={tab === 'saved' ? 'bookmark' : 'clipboard'}
+          title={tab === 'saved' ? 'No saved jobs' : role === 'user' || role === 'admin' ? 'No jobs posted yet' : 'No applications yet'}
           action={() => nav.navigate('Jobs')}
           actionLabel="Browse Jobs"
         />
@@ -92,13 +93,13 @@ export default function ProfileScreen() {
             </View>
             <Text style={styles.email}>{user.email}{user.phone ? ` · ${user.phone}` : ''}</Text>
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-              {user.location && <Chip label={`📍 ${user.location}`} />}
-              {user.company  && <Chip label={`🏢 ${user.company}`}  variant="orange" />}
+              {user.location && <Chip label={user.location} iconName="location-sharp" />}
+              {user.company && <Chip label={user.company} iconName="business" variant="orange" />}
             </View>
           </View>
         </View>
 
-        {role === 'giver' && !user.premium && (
+        {role === 'user' && !user.premium && (
           <View style={styles.upgradeBanner}>
             <View style={{ flex: 1 }}>
               <Text style={styles.upgradeTitle}>💎 Upgrade to PRO — ₹{PRICING.pro_monthly}/month</Text>
@@ -108,7 +109,7 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {role === 'seeker' && (
+        {role === 'user' && (
           <View style={[styles.upgradeBanner, { backgroundColor: '#f0fdf4', borderColor: '#86efac' }]}>
             <Text style={{ fontWeight: '700', fontSize: 13, color: '#166534' }}>
               🎉 Job Seeker Account — Always FREE!
