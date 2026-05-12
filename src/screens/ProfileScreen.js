@@ -7,7 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import JobCard from '../components/JobCard';
 import { Card, Btn, Chip, Empty } from '../components/UI';
 import { C, PRICING } from '../utils/constants';
-import { fmtDate, timeAgo } from '../utils/api';
+
+const ORANGE = '#f97316';
 
 export default function ProfileScreen() {
   const nav = useNavigation();
@@ -32,10 +33,10 @@ export default function ProfileScreen() {
   function renderContent() {
     if (role === 'admin') return (
       <Card>
-        <Text style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>
+        <Text style={{ color: '#999', fontSize: 13, marginBottom: 12 }}>
           You are the platform administrator.
         </Text>
-        <Btn label="Go to Admin Panel →" onPress={() => nav.navigate('Admin')} />
+        <Btn label="Go to Admin Panel →" onPress={() => nav.navigate('Admin')} variant="orange" />
       </Card>
     );
 
@@ -63,7 +64,7 @@ export default function ProfileScreen() {
       ? <Empty
           icon={tab === 'saved' ? '🔖' : '📋'}
           title={tab === 'saved' ? 'No saved jobs' : role === 'giver' ? 'No jobs posted yet' : 'No applications yet'}
-          action={() => nav.navigate('Board')}
+          action={() => nav.navigate('Jobs')}
           actionLabel="Browse Jobs"
         />
       : <View>{listJobs.map(j =>
@@ -73,12 +74,13 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
+
       {/* Profile card */}
       <Card style={{ marginBottom: 14 }}>
         <View style={styles.profileRow}>
           <View style={styles.avatar}>
             <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800' }}>
-              {user.name?.[0] || '?'}
+              {user.name?.[0]?.toUpperCase() || '?'}
             </Text>
           </View>
           <View style={{ flex: 1, marginLeft: 14 }}>
@@ -91,7 +93,7 @@ export default function ProfileScreen() {
             <Text style={styles.email}>{user.email}{user.phone ? ` · ${user.phone}` : ''}</Text>
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
               {user.location && <Chip label={`📍 ${user.location}`} />}
-              {user.company  && <Chip label={`🏢 ${user.company}`}  variant="gold" />}
+              {user.company  && <Chip label={`🏢 ${user.company}`}  variant="orange" />}
             </View>
           </View>
         </View>
@@ -102,7 +104,7 @@ export default function ProfileScreen() {
               <Text style={styles.upgradeTitle}>💎 Upgrade to PRO — ₹{PRICING.pro_monthly}/month</Text>
               <Text style={styles.upgradeSub}>Unlimited posts · Priority placement · Analytics</Text>
             </View>
-            <Btn label="Upgrade" variant="gold" size="sm" onPress={() => {}} />
+            <Btn label="Upgrade" variant="orange" size="sm" onPress={() => {}} />
           </View>
         )}
 
@@ -135,33 +137,33 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
   profileRow: { flexDirection: 'row', alignItems: 'flex-start' },
   avatar: {
-    width: 66, height: 66, borderRadius: 33, backgroundColor: '#222',
+    width: 66, height: 66, borderRadius: 33, backgroundColor: ORANGE,
     alignItems: 'center', justifyContent: 'center',
   },
-  name:  { fontSize: 18, fontWeight: '800', color: C.text },
-  email: { fontSize: 13, color: C.muted, marginTop: 2 },
-  proPill: { backgroundColor: '#222', borderRadius: 20, paddingVertical: 3,
+  name:  { fontSize: 18, fontWeight: '800', color: '#111' },
+  email: { fontSize: 13, color: '#999', marginTop: 2 },
+  proPill: { backgroundColor: '#111', borderRadius: 20, paddingVertical: 3,
     paddingHorizontal: 10 },
   upgradeBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#fefce8', borderWidth: 1.5, borderColor: '#fbbf24',
+    backgroundColor: '#fff7ed', borderWidth: 1.5, borderColor: '#fdba74',
     borderRadius: 10, padding: 12, marginTop: 14,
   },
-  upgradeTitle: { fontWeight: '700', fontSize: 13, color: '#92400e' },
-  upgradeSub:   { fontSize: 11, color: C.muted, marginTop: 2 },
-  tabs: { flexDirection: 'row', borderBottomWidth: 1.5, borderBottomColor: C.border, marginBottom: 14 },
+  upgradeTitle: { fontWeight: '700', fontSize: 13, color: '#c2410c' },
+  upgradeSub:   { fontSize: 11, color: '#999', marginTop: 2 },
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#ebebeb', marginBottom: 14 },
   tab: { paddingVertical: 9, paddingHorizontal: 16 },
-  tabActive: { borderBottomWidth: 2.5, borderBottomColor: C.dark },
-  tabText:       { fontSize: 13, fontWeight: '500', color: C.muted },
-  tabTextActive: { fontSize: 13, fontWeight: '700', color: C.text },
+  tabActive: { borderBottomWidth: 2.5, borderBottomColor: ORANGE },
+  tabText:       { fontSize: 13, fontWeight: '500', color: '#999' },
+  tabTextActive: { fontSize: 13, fontWeight: '700', color: '#111' },
   statsGrid: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   statCard: {
-    flex: 1, backgroundColor: C.card, borderRadius: 10, borderWidth: 1,
-    borderColor: C.border, padding: 12, alignItems: 'center',
+    flex: 1, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1,
+    borderColor: '#ebebeb', padding: 12, alignItems: 'center',
   },
-  statVal: { fontSize: 22, fontWeight: '800', color: C.text, marginTop: 2 },
-  statLbl: { fontSize: 10, color: C.muted, marginTop: 2, textTransform: 'uppercase' },
+  statVal: { fontSize: 22, fontWeight: '800', color: '#111', marginTop: 2 },
+  statLbl: { fontSize: 10, color: '#999', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
 });
