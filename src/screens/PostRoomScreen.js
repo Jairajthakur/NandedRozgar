@@ -152,7 +152,7 @@ export default function PostRoomScreen() {
               <TextInput
                 style={s.input}
                 placeholder="4500"
-                placeholderTextColor={C.muted}
+                placeholderTextColor='#bbb'
                 keyboardType="numeric"
                 value={form.rent}
                 onChangeText={v => set('rent', v)}
@@ -164,7 +164,7 @@ export default function PostRoomScreen() {
               <TextInput
                 style={s.input}
                 placeholder="9000"
-                placeholderTextColor={C.muted}
+                placeholderTextColor='#bbb'
                 keyboardType="numeric"
                 value={form.deposit}
                 onChangeText={v => set('deposit', v)}
@@ -190,7 +190,7 @@ export default function PostRoomScreen() {
           <TextInput
             style={s.input}
             placeholder="e.g. Station Road, Cidco…"
-            placeholderTextColor={C.muted}
+            placeholderTextColor='#bbb'
             value={form.area}
             onChangeText={v => set('area', v)}
           />
@@ -199,7 +199,7 @@ export default function PostRoomScreen() {
           <TextInput
             style={s.input}
             placeholder="9876543210"
-            placeholderTextColor={C.muted}
+            placeholderTextColor='#bbb'
             keyboardType="phone-pad"
             value={form.whatsapp}
             onChangeText={v => set('whatsapp', v)}
@@ -209,7 +209,7 @@ export default function PostRoomScreen() {
           <TextInput
             style={[s.input, { height: 80, textAlignVertical: 'top' }]}
             placeholder="Describe the room, rules, nearby landmarks…"
-            placeholderTextColor={C.muted}
+            placeholderTextColor='#bbb'
             multiline
             value={form.description}
             onChangeText={v => set('description', v)}
@@ -229,10 +229,10 @@ export default function PostRoomScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 14, paddingTop: 52, backgroundColor: C.dark,
+    padding: 14, paddingTop: 52, backgroundColor: '#111',
   },
   backBtn: {
     width: 30, height: 30, borderRadius: 15,
@@ -255,7 +255,7 @@ const s = StyleSheet.create({
   labelSub: { fontWeight: '400', color: C.muted },
 
   uploadArea: {
-    borderWidth: 1.5, borderColor: C.border, borderStyle: 'dashed',
+    borderWidth: 1.5, borderColor: '#ebebeb', borderStyle: 'dashed',
     borderRadius: 10, padding: 22, alignItems: 'center',
     backgroundColor: '#f8f8f8', marginBottom: 14, gap: 5,
   },
@@ -279,7 +279,7 @@ const s = StyleSheet.create({
   },
   addMoreBox: {
     width: '30%', aspectRatio: 1, borderRadius: 8,
-    borderWidth: 1.5, borderColor: C.border, borderStyle: 'dashed',
+    borderWidth: 1.5, borderColor: '#ebebeb', borderStyle: 'dashed',
     backgroundColor: '#f0f0f0', alignItems: 'center', justifyContent: 'center',
   },
 
@@ -287,20 +287,20 @@ const s = StyleSheet.create({
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 },
   chip: {
     paddingVertical: 5, paddingHorizontal: 11, borderRadius: 20,
-    backgroundColor: '#f0f0f0', borderWidth: 1, borderColor: C.border,
+    backgroundColor: '#f0f0f0', borderWidth: 1, borderColor: '#ebebeb',
   },
-  chipOn: { backgroundColor: C.dark, borderColor: C.dark },
+  chipOn: { backgroundColor: '#111', borderColor: C.dark },
   chipTxt: { fontSize: 11, fontWeight: '600', color: '#555' },
 
   input: {
-    borderWidth: 1, borderColor: C.border, borderRadius: 8,
+    borderWidth: 1, borderColor: '#ebebeb', borderRadius: 8,
     paddingVertical: 10, paddingHorizontal: 12,
     fontSize: 13, color: C.text, backgroundColor: '#fff',
     marginBottom: 14,
   },
 
   submitBtn: {
-    backgroundColor: C.dark, borderRadius: 10,
+    backgroundColor: '#111', borderRadius: 10,
     paddingVertical: 14, alignItems: 'center', marginTop: 4,
   },
   submitTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
