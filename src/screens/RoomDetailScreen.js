@@ -39,7 +39,7 @@ export default function RoomDetailScreen() {
       {/* Gallery */}
       <View style={[s.gallery, { backgroundColor: GALLERY_COLORS[activeImg % GALLERY_COLORS.length] }]}>
         <TouchableOpacity style={s.backBtn} onPress={() => nav.goBack()}>
-          <Text style={{ color: '#fff', fontSize: 18 }}>‹</Text>
+          <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={s.galleryIcon}>{GALLERY_ICONS[activeImg]}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.galNav} contentContainerStyle={{ gap: 5, padding: 8 }}>
@@ -133,7 +133,7 @@ const s = StyleSheet.create({
   gallery: { height: 200, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   backBtn: {
     position: 'absolute', top: 44, left: 12,
-    width: 32, height: 32, borderRadius: 16,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center', justifyContent: 'center', zIndex: 10,
   },
