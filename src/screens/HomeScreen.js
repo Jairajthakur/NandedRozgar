@@ -8,124 +8,147 @@ import { C } from '../utils/constants';
 
 export default function HomeScreen() {
   const nav = useNavigation();
-  const { jobs } = useAuth();
+  const { jobs, user, role } = useAuth();
 
   const activeJobs = jobs?.filter(j => j.status === 'active') || [];
   const recentJobs = activeJobs.slice(0, 2);
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 24 }}>
-      {/* Promo Banner */}
-      <View style={s.promo}>
-        <View>
-          <Text style={s.promoTitle}>Free listings this week</Text>
-          <Text style={s.promoSub}>Cars & Rooms — no charges</Text>
+
+      {/* ── Dark header band ── */}
+      <View style={s.headerBand}>
+        <View style={s.headerTop}>
+          <View>
+            <Text style={s.greeting}>Good morning,</Text>
+            <View style={s.locRow}>
+              <Text style={s.pin}>📍</Text>
+              <Text style={s.locText}>Nanded, Maharashtra</Text>
+            </View>
+          </View>
+          {/* Profile icon — no letter, just icon tap to go to Profile */}
+          <TouchableOpacity style={s.profileBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
+            <Text style={s.profileIcon}>👤</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={s.promoBtn} onPress={() => nav.navigate('PostCar')}>
-          <Text style={s.promoBtnTxt}>Post free</Text>
+
+        {/* Search bar */}
+        <TouchableOpacity style={s.searchBar} activeOpacity={0.8}>
+          <Text style={s.searchIcon}>🔍</Text>
+          <Text style={s.searchPlaceholder}>Search jobs, cars, rooms…</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Stats */}
+      {/* ── Stats row ── */}
       <View style={s.statsRow}>
-        <View style={s.statBox}>
-          <Text style={s.statNum}>{activeJobs.length || 348}</Text>
-          <Text style={s.statLbl}>JOBS</Text>
-        </View>
-        <View style={s.statBox}>
-          <Text style={s.statNum}>42</Text>
-          <Text style={s.statLbl}>CARS</Text>
-        </View>
-        <View style={s.statBox}>
-          <Text style={s.statNum}>120</Text>
-          <Text style={s.statLbl}>ROOMS</Text>
-        </View>
+        {[
+          [activeJobs.length || 348, 'Jobs'],
+          ['42',  'Cars'],
+          ['120', 'Rooms'],
+        ].map(([val, lbl]) => (
+          <View key={lbl} style={s.statBox}>
+            <Text style={s.statNum}>{val}</Text>
+            <Text style={s.statLbl}>{lbl}</Text>
+          </View>
+        ))}
       </View>
 
-      {/* Services Grid */}
+      {/* ── Services grid ── */}
       <Text style={s.sectionTitle}>OUR SERVICES</Text>
-      <View style={s.servicesGrid}>
-        <TouchableOpacity style={s.serviceCard} onPress={() => nav.navigate('Jobs')}>
-          <View style={[s.serviceIcon, { backgroundColor: '#e6f1fb' }]}>
+      <View style={s.grid}>
+
+        <TouchableOpacity style={s.card} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
+          <View style={[s.cardIcon, { backgroundColor: '#fff7ed' }]}>
             <Text style={{ fontSize: 18 }}>💼</Text>
           </View>
-          <Text style={s.serviceName}>Find Jobs</Text>
-          <Text style={s.serviceSub}>{activeJobs.length || 348} openings nearby</Text>
-          <View style={[s.serviceBadge, { backgroundColor: '#e6f1fb' }]}>
-            <Text style={[s.serviceBadgeTxt, { color: '#185fa5' }]}>{activeJobs.length || 348} open</Text>
+          <Text style={s.cardTitle}>Find Jobs</Text>
+          <Text style={s.cardSub}>{activeJobs.length || 348} openings</Text>
+          <View style={[s.badge, { backgroundColor: '#fff7ed' }]}>
+            <Text style={[s.badgeTxt, { color: '#c2410c' }]}>Live</Text>
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.serviceCard} onPress={() => nav.navigate('Cars')}>
-          <View style={[s.serviceIcon, { backgroundColor: '#faeeda' }]}>
+        <TouchableOpacity style={s.card} onPress={() => nav.navigate('Cars')} activeOpacity={0.85}>
+          <View style={[s.cardIcon, { backgroundColor: '#eff6ff' }]}>
             <Text style={{ fontSize: 18 }}>🚗</Text>
           </View>
-          <Text style={s.serviceName}>Car Rental</Text>
-          <Text style={s.serviceSub}>42 vehicles available</Text>
-          <View style={[s.serviceBadge, { backgroundColor: '#faeeda' }]}>
-            <Text style={[s.serviceBadgeTxt, { color: '#854f0b' }]}>With photos</Text>
+          <Text style={s.cardTitle}>Car Rental</Text>
+          <Text style={s.cardSub}>42 vehicles</Text>
+          <View style={[s.badge, { backgroundColor: '#eff6ff' }]}>
+            <Text style={[s.badgeTxt, { color: '#1d4ed8' }]}>With photos</Text>
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.serviceCard} onPress={() => nav.navigate('Rooms')}>
-          <View style={[s.serviceIcon, { backgroundColor: '#e1f5ee' }]}>
+        <TouchableOpacity style={s.card} onPress={() => nav.navigate('Rooms')} activeOpacity={0.85}>
+          <View style={[s.cardIcon, { backgroundColor: '#f0fdf4' }]}>
             <Text style={{ fontSize: 18 }}>🏠</Text>
           </View>
-          <Text style={s.serviceName}>Rooms & PG</Text>
-          <Text style={s.serviceSub}>120 listings in city</Text>
-          <View style={[s.serviceBadge, { backgroundColor: '#e1f5ee' }]}>
-            <Text style={[s.serviceBadgeTxt, { color: '#0f6e56' }]}>With photos</Text>
+          <Text style={s.cardTitle}>Rooms & PG</Text>
+          <Text style={s.cardSub}>120 listings</Text>
+          <View style={[s.badge, { backgroundColor: '#f0fdf4' }]}>
+            <Text style={[s.badgeTxt, { color: '#15803d' }]}>With photos</Text>
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[s.serviceCard, { borderStyle: 'dashed' }]}
-          onPress={() => nav.navigate('PostCar')}
-        >
-          <View style={[s.serviceIcon, { backgroundColor: '#f0f0f0' }]}>
-            <Text style={{ fontSize: 18 }}>➕</Text>
+        <TouchableOpacity style={s.card} onPress={() => nav.navigate('BuySell')} activeOpacity={0.85}>
+          <View style={[s.cardIcon, { backgroundColor: '#fdf4ff' }]}>
+            <Text style={{ fontSize: 18 }}>🏷️</Text>
           </View>
-          <Text style={s.serviceName}>List Your Vehicle</Text>
-          <Text style={s.serviceSub}>Earn from your car/bike</Text>
+          <Text style={s.cardTitle}>Buy & Sell</Text>
+          <Text style={s.cardSub}>New & used items</Text>
+          <View style={[s.badge, { backgroundColor: '#fdf4ff' }]}>
+            <Text style={[s.badgeTxt, { color: '#7e22ce' }]}>New</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
-      {/* Recent Jobs */}
+      {/* ── Quick links row: AI Match + Profile ── */}
+      <View style={s.quickRow}>
+        <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.85}>
+          <Text style={{ fontSize: 16 }}>✨</Text>
+          <Text style={s.quickTxt}>AI Job Match</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.85}>
+          <Text style={{ fontSize: 16 }}>👤</Text>
+          <Text style={s.quickTxt}>My Profile</Text>
+        </TouchableOpacity>
+        {role === 'admin' && (
+          <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('Admin')} activeOpacity={0.85}>
+            <Text style={{ fontSize: 16 }}>⚙️</Text>
+            <Text style={s.quickTxt}>Admin</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* ── Recent Jobs ── */}
       <Text style={s.sectionTitle}>RECENT JOBS</Text>
       {recentJobs.length > 0 ? recentJobs.map(job => (
-        <TouchableOpacity
-          key={job.id}
-          style={s.jobCard}
-          onPress={() => nav.navigate('JobDetail', { job })}
-          activeOpacity={0.85}
-        >
+        <TouchableOpacity key={job.id} style={s.jobCard}
+          onPress={() => nav.navigate('JobDetail', { job })} activeOpacity={0.85}>
           <View style={s.jobRow}>
-            <View style={[s.jobThumb, { backgroundColor: '#e6f1fb' }]}>
+            <View style={[s.jobThumb, { backgroundColor: '#fff7ed' }]}>
               <Text style={{ fontSize: 18 }}>💼</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.jobTitle} numberOfLines={1}>{job.title}</Text>
               <Text style={s.jobSub} numberOfLines={1}>{job.company} · {job.location}</Text>
             </View>
-            <View style={s.priceBadge}>
-              <Text style={s.priceTxt}>{job.salary}</Text>
-            </View>
+            <View style={s.priceBadge}><Text style={s.priceTxt}>{job.salary}</Text></View>
           </View>
           <View style={s.tagRow}>
             <View style={s.tag}><Text style={s.tagTxt}>🕐 Just posted</Text></View>
             {job.featured && (
-              <View style={[s.tag, { backgroundColor: '#e6f1fb' }]}>
-                <Text style={[s.tagTxt, { color: '#185fa5' }]}>✓ Verified</Text>
+              <View style={[s.tag, { backgroundColor: '#eff6ff' }]}>
+                <Text style={[s.tagTxt, { color: '#1d4ed8' }]}>✓ Verified</Text>
               </View>
             )}
           </View>
         </TouchableOpacity>
       )) : (
-        // Placeholder jobs if none loaded
         <>
           <TouchableOpacity style={s.jobCard} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
             <View style={s.jobRow}>
-              <View style={[s.jobThumb, { backgroundColor: '#e6f1fb' }]}>
+              <View style={[s.jobThumb, { backgroundColor: '#eff6ff' }]}>
                 <Text style={{ fontSize: 18 }}>🚚</Text>
               </View>
               <View style={{ flex: 1 }}>
@@ -136,14 +159,14 @@ export default function HomeScreen() {
             </View>
             <View style={s.tagRow}>
               <View style={s.tag}><Text style={s.tagTxt}>🕐 2h ago</Text></View>
-              <View style={[s.tag, { backgroundColor: '#e1f5ee' }]}>
-                <Text style={[s.tagTxt, { color: '#0f6e56' }]}>✓ Verified</Text>
+              <View style={[s.tag, { backgroundColor: '#f0fdf4' }]}>
+                <Text style={[s.tagTxt, { color: '#15803d' }]}>✓ Verified</Text>
               </View>
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={s.jobCard} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
             <View style={s.jobRow}>
-              <View style={[s.jobThumb, { backgroundColor: '#faeeda' }]}>
+              <View style={[s.jobThumb, { backgroundColor: '#fff7ed' }]}>
                 <Text style={{ fontSize: 18 }}>🏪</Text>
               </View>
               <View style={{ flex: 1 }}>
@@ -168,61 +191,76 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
 
-  promo: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: C.dark, borderRadius: 13, margin: 12, marginTop: 12, padding: 13,
-  },
-  promoTitle: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  promoSub: { color: '#aaa', fontSize: 11, marginTop: 2 },
-  promoBtn: {
-    backgroundColor: '#fff', borderRadius: 7,
-    paddingVertical: 6, paddingHorizontal: 12,
-  },
-  promoBtnTxt: { color: '#111', fontSize: 11, fontWeight: '700' },
+  // ── Header band ──
+  headerBand: { backgroundColor: '#111111', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 },
+  headerTop:  { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 },
+  greeting:   { color: '#888', fontSize: 12, marginBottom: 4 },
+  locRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  pin:        { fontSize: 13 },
+  locText:    { color: '#ffffff', fontSize: 16, fontWeight: '700' },
 
-  statsRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 12, marginBottom: 4 },
-  statBox: {
-    flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
-    borderRadius: 9, padding: 10, alignItems: 'center',
+  // Profile icon button — NO letter, just an icon circle
+  profileBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#2a2a2a',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#444',
   },
-  statNum: { fontSize: 16, fontWeight: '800', color: C.text },
-  statLbl: { fontSize: 8, color: C.muted, marginTop: 2, letterSpacing: 0.5, fontWeight: '600' },
+  profileIcon: { fontSize: 16 },
 
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#1e1e22', borderRadius: 12,
+    borderWidth: 0.5, borderColor: '#333',
+    paddingVertical: 10, paddingHorizontal: 14,
+  },
+  searchIcon:        { fontSize: 14 },
+  searchPlaceholder: { fontSize: 13, color: '#555' },
+
+  // ── Stats ──
+  statsRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 12, marginTop: 12, marginBottom: 4 },
+  statBox:  { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 9, padding: 10, alignItems: 'center' },
+  statNum:  { fontSize: 16, fontWeight: '800', color: C.text },
+  statLbl:  { fontSize: 8, color: C.muted, marginTop: 2, letterSpacing: 0.5, fontWeight: '600', textTransform: 'uppercase' },
+
+  // ── Section title ──
   sectionTitle: {
     fontSize: 9, fontWeight: '700', color: C.muted,
     textTransform: 'uppercase', letterSpacing: 0.5,
     paddingHorizontal: 12, paddingTop: 14, paddingBottom: 6,
   },
 
-  servicesGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 9,
-    paddingHorizontal: 12, marginBottom: 4,
-  },
-  serviceCard: {
-    width: '47%', backgroundColor: C.card, borderRadius: 13,
-    borderWidth: 1, borderColor: C.border, padding: 13,
-  },
-  serviceIcon: { width: 36, height: 36, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  serviceName: { fontSize: 13, fontWeight: '700', color: C.text },
-  serviceSub: { fontSize: 10, color: C.muted, marginTop: 2 },
-  serviceBadge: { marginTop: 6, borderRadius: 5, paddingVertical: 2, paddingHorizontal: 6, alignSelf: 'flex-start' },
-  serviceBadgeTxt: { fontSize: 9, fontWeight: '700' },
+  // ── Services grid ──
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, paddingHorizontal: 12, marginBottom: 4 },
+  card: { width: '47%', backgroundColor: C.card, borderRadius: 13, borderWidth: 1, borderColor: C.border, padding: 13 },
+  cardIcon: { width: 36, height: 36, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: C.text },
+  cardSub:   { fontSize: 10, color: C.muted, marginTop: 2 },
+  badge:     { marginTop: 6, borderRadius: 5, paddingVertical: 2, paddingHorizontal: 6, alignSelf: 'flex-start' },
+  badgeTxt:  { fontSize: 9, fontWeight: '700' },
 
-  jobCard: {
-    backgroundColor: C.card, borderRadius: 12,
+  // ── Quick row (AI + Profile) ──
+  quickRow: { flexDirection: 'row', gap: 9, paddingHorizontal: 12, marginTop: 4, marginBottom: 4 },
+  quickBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: C.card, borderRadius: 10,
     borderWidth: 1, borderColor: C.border,
-    marginHorizontal: 12, marginBottom: 9, padding: 13,
+    paddingVertical: 10, paddingHorizontal: 12,
   },
-  jobRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 9 },
-  jobThumb: { width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  jobTitle: { fontSize: 13, fontWeight: '700', color: C.text },
-  jobSub: { fontSize: 11, color: C.muted, marginTop: 1 },
-  priceBadge: { backgroundColor: C.dark, borderRadius: 6, paddingVertical: 4, paddingHorizontal: 9 },
-  priceTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  tagRow: { flexDirection: 'row', gap: 5 },
-  tag: { backgroundColor: '#f0f0f0', borderRadius: 5, paddingVertical: 3, paddingHorizontal: 7 },
-  tagTxt: { fontSize: 10, color: C.muted },
+  quickTxt: { fontSize: 12, fontWeight: '600', color: C.text },
 
-  viewAll: { marginHorizontal: 12, marginTop: 2, alignItems: 'center', padding: 10 },
+  // ── Job cards ──
+  jobCard:   { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginHorizontal: 12, marginBottom: 9, padding: 13 },
+  jobRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 9 },
+  jobThumb:  { width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  jobTitle:  { fontSize: 13, fontWeight: '700', color: C.text },
+  jobSub:    { fontSize: 11, color: C.muted, marginTop: 1 },
+  priceBadge:{ backgroundColor: C.dark, borderRadius: 6, paddingVertical: 4, paddingHorizontal: 9 },
+  priceTxt:  { color: '#fff', fontSize: 12, fontWeight: '700' },
+  tagRow:    { flexDirection: 'row', gap: 5 },
+  tag:       { backgroundColor: '#f0f0f0', borderRadius: 5, paddingVertical: 3, paddingHorizontal: 7 },
+  tagTxt:    { fontSize: 10, color: C.muted },
+
+  viewAll:    { marginHorizontal: 12, marginTop: 2, alignItems: 'center', padding: 10 },
   viewAllTxt: { fontSize: 12, color: C.muted, fontWeight: '600' },
 });
