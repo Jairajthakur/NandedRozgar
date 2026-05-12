@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, FlatList, ScrollView, TouchableOpacity,
-  StyleSheet, Dimensions,
+  StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { C } from '../utils/constants';
 
-const { width } = Dimensions.get('window');
-
+const ORANGE = '#f97316';
 const FILTERS = ['All', 'Car', 'Bike', 'Auto', 'SUV'];
 
 const CARS = [
@@ -25,7 +24,7 @@ const CARS = [
     includes: ['AC', 'Music system', 'GPS', '100 km/day', 'Fuel not included'],
     owner: { name: 'Mahesh Kulkarni', initials: 'MK', area: 'Shivaji Nagar · Responds fast', color: '#185fa5', bg: '#e6f1fb' },
     verified: true,
-    iconColor: '#2d3a4a',
+    iconColor: '#1a2a3a',
     icon: '🚗',
   },
   {
@@ -76,7 +75,7 @@ export default function CarsScreen() {
       <ScrollView
         horizontal showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.pills}
-        style={{ maxHeight: 50 }}
+        style={{ maxHeight: 52 }}
       >
         {FILTERS.map(f => (
           <TouchableOpacity
@@ -112,6 +111,11 @@ export default function CarsScreen() {
               <View style={s.photoBadge}>
                 <Text style={s.photoBadgeTxt}>{item.photos} photos</Text>
               </View>
+              {item.verified && (
+                <View style={s.verifiedBadge}>
+                  <Text style={s.verifiedTxt}>✓ Verified</Text>
+                </View>
+              )}
             </View>
             {/* Body */}
             <View style={s.body}>
@@ -128,8 +132,8 @@ export default function CarsScreen() {
           </TouchableOpacity>
         )}
         ListHeaderComponent={
-          <View style={s.listHeader}>
-            <Text style={s.listHeaderTxt}>{filtered.length} vehicles available</Text>
+          <View style={{ paddingBottom: 4 }}>
+            <Text style={{ fontSize: 11, color: '#999', fontWeight: '500' }}>{filtered.length} vehicles available</Text>
           </View>
         }
       />
@@ -138,53 +142,58 @@ export default function CarsScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  pills: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  pills: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   pill: {
-    paddingVertical: 5, paddingHorizontal: 13, borderRadius: 20,
-    borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
+    paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20,
+    borderWidth: 1, borderColor: '#e5e5e5', backgroundColor: '#fff',
   },
-  pillOn: { backgroundColor: C.dark, borderColor: C.dark },
+  pillOn: { backgroundColor: '#111', borderColor: '#111' },
   pillTxt: { fontSize: 12, fontWeight: '600', color: '#555' },
   pillTxtOn: { color: '#fff' },
 
   card: {
-    backgroundColor: C.card, borderRadius: 13,
-    borderWidth: 1, borderColor: C.border,
+    backgroundColor: '#fff', borderRadius: 14,
+    borderWidth: 1, borderColor: '#ebebeb',
     marginBottom: 10, overflow: 'hidden',
+    shadowColor: '#000', shadowOpacity: 0.04,
+    shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
   imgStrip: { height: 150, alignItems: 'center', justifyContent: 'center' },
-  carIcon: { fontSize: 48, opacity: 0.25, marginBottom: 8 },
+  carIcon: { fontSize: 48, opacity: 0.2, marginBottom: 8 },
   photoThumbs: { flexDirection: 'row', gap: 5 },
   thumb: {
-    width: 44, height: 28, borderRadius: 4,
+    width: 44, height: 28, borderRadius: 5,
     backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
   thumbActive: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.22)',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)',
   },
   thumbTxt: { fontSize: 9, color: 'rgba(255,255,255,0.6)' },
   thumbTxtActive: { color: '#fff' },
   photoBadge: {
-    position: 'absolute', top: 8, left: 8,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 6, paddingVertical: 3, paddingHorizontal: 7,
+    position: 'absolute', top: 10, left: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8,
   },
-  photoBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '600' },
+  photoBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '600' },
+  verifiedBadge: {
+    position: 'absolute', top: 10, right: 10,
+    backgroundColor: 'rgba(22,163,74,0.85)',
+    borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8,
+  },
+  verifiedTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
-  body: { padding: 13 },
-  name: { fontSize: 14, fontWeight: '700', color: C.text },
-  subtitle: { fontSize: 11, color: C.muted, marginTop: 2 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 5, marginTop: 9 },
-  tag: { backgroundColor: '#f0f0f0', borderRadius: 5, paddingVertical: 3, paddingHorizontal: 7 },
-  tagTxt: { fontSize: 10, color: C.muted },
-  ratingWrap: { backgroundColor: '#f0f0f0', borderRadius: 5, paddingVertical: 3, paddingHorizontal: 7 },
-  ratingTxt: { fontSize: 10, color: '#9a6200', fontWeight: '600' },
-  priceBadge: { marginLeft: 'auto', backgroundColor: C.dark, borderRadius: 6, paddingVertical: 4, paddingHorizontal: 9 },
-  priceTxt: { color: '#fff', fontSize: 12, fontWeight: '600' },
-
-  listHeader: { paddingBottom: 4 },
-  listHeaderTxt: { fontSize: 11, color: C.muted, fontWeight: '500' },
+  body: { padding: 14 },
+  name: { fontSize: 14, fontWeight: '700', color: '#111' },
+  subtitle: { fontSize: 11, color: '#999', marginTop: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  tag: { backgroundColor: '#f5f5f5', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
+  tagTxt: { fontSize: 11, color: '#777' },
+  ratingWrap: { backgroundColor: '#fff7ed', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
+  ratingTxt: { fontSize: 11, color: '#c2410c', fontWeight: '600' },
+  priceBadge: { marginLeft: 'auto', backgroundColor: '#111', borderRadius: 7, paddingVertical: 5, paddingHorizontal: 10 },
+  priceTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
 });
