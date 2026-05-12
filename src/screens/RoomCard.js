@@ -37,7 +37,7 @@ export default function RoomCard({ room: r, onPress }) {
             />
           ) : (
             <View style={[styles.photo, styles.noPhoto]}>
-              <Text style={{ fontSize: 36 }}>🏠</Text>
+              <Ionicons name="home" size={36} color="#6366f1" />
             </View>
           )}
           {/* Photo tabs */}
@@ -70,7 +70,7 @@ export default function RoomCard({ room: r, onPress }) {
           <View style={styles.chips}>
             {r.area && (
               <View style={styles.chip}>
-                <Text style={styles.chipText}>📍 {r.area}</Text>
+                <><Ionicons name="location-sharp" size={11} color="#555" /><Text style={[styles.chipText, { marginLeft: 3 }]}>{r.area}</Text></>
               </View>
             )}
             {r.gender && (
