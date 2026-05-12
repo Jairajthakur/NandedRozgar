@@ -4,6 +4,7 @@ import {
   ScrollView, StyleSheet, RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import JobCard from '../components/JobCard';
 import { Empty, Btn } from '../components/UI';
@@ -18,7 +19,7 @@ export default function BoardScreen() {
   const [cat, setCat]           = useState('All');
   const [refreshing, setRefreshing] = useState(false);
 
-  const isGiver = role === 'giver' || role === 'admin';
+  const isGiver = role === 'user' || role === 'admin';
 
   const filtered = useMemo(() => {
     return jobs
@@ -49,7 +50,7 @@ export default function BoardScreen() {
     <View style={styles.container}>
       {/* Search bar */}
       <View style={styles.searchWrap}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <Ionicons name="search" size={16} color="#aaa" style={{ marginRight: 6 }} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search jobs, area, company…"
@@ -59,7 +60,7 @@ export default function BoardScreen() {
         />
         {search.length > 0 && (
           <TouchableOpacity onPress={() => setSearch('')} style={{ paddingRight: 12 }}>
-            <Text style={{ color: '#999', fontSize: 16 }}>✕</Text>
+            <Ionicons name="close-circle" size={18} color="#bbb" />
           </TouchableOpacity>
         )}
       </View>
@@ -77,9 +78,12 @@ export default function BoardScreen() {
             onPress={() => setCat(c)}
             style={[styles.pill, cat === c && styles.pillActive]}
           >
-            <Text style={[styles.pillText, cat === c && styles.pillTextActive]}>
-              {c !== 'All' ? CAT_ICONS[c] + ' ' : ''}{c}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {c !== 'All' && (
+                <Ionicons name={CAT_ICONS[c]} size={12} color={cat === c ? '#fff' : '#555'} />
+              )}
+              <Text style={[styles.pillText, cat === c && styles.pillTextActive]}>{c}</Text>
+            </View>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -107,7 +111,7 @@ export default function BoardScreen() {
         )}
         ListEmptyComponent={
           <Empty
-            icon="🔍"
+            icon="search"
             title="No jobs found"
             sub={
               search || cat !== 'All'
@@ -136,7 +140,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     paddingLeft: 12,
   },
-  searchIcon:  { fontSize: 15, marginRight: 6 },
   searchInput: { flex: 1, paddingVertical: 11, fontSize: 13, color: '#111' },
   pills: { paddingHorizontal: 12, paddingBottom: 8, gap: 6 },
   pill: {
