@@ -5,30 +5,32 @@ import {
 } from 'react-native';
 import { C } from '../utils/constants';
 
+const ORANGE = '#f97316';
+
 // ── Button ────────────────────────────────────────────────────
 export function Btn({ label, onPress, variant = 'primary', size = 'md', disabled, style, icon }) {
-  const bg = variant === 'primary' ? C.dark
+  const bg = variant === 'primary' ? '#111'
+    : variant === 'orange'  ? ORANGE
     : variant === 'outline' ? 'transparent'
-    : variant === 'gold'    ? C.dark2
-    : variant === 'danger'  ? C.dark2
-    : variant === 'gray'    ? C.grayLight
-    : C.dark;
+    : variant === 'danger'  ? '#ef4444'
+    : variant === 'gray'    ? '#f0f0f0'
+    : '#111';
 
-  const color = variant === 'outline' ? C.dark
-    : variant === 'gray'   ? C.muted
+  const color = variant === 'outline' ? '#111'
+    : variant === 'gray'   ? '#555'
     : '#fff';
 
-  const border = variant === 'outline' ? { borderWidth: 1.5, borderColor: C.dark } : {};
-  const pad = size === 'sm' ? { paddingVertical: 6, paddingHorizontal: 13 }
+  const border = variant === 'outline' ? { borderWidth: 1.5, borderColor: '#ddd' } : {};
+  const pad = size === 'sm' ? { paddingVertical: 7, paddingHorizontal: 14 }
             : size === 'lg' ? { paddingVertical: 14, paddingHorizontal: 24 }
-            : { paddingVertical: 10, paddingHorizontal: 18 };
+            : { paddingVertical: 11, paddingHorizontal: 18 };
   const fsize = size === 'sm' ? 12 : size === 'lg' ? 15 : 13;
 
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
-      style={[{ backgroundColor: bg, borderRadius: 9, alignItems: 'center',
+      style={[{ backgroundColor: bg, borderRadius: 10, alignItems: 'center',
         justifyContent: 'center', flexDirection: 'row', gap: 6,
         opacity: disabled ? 0.45 : 1, ...border, ...pad }, style]}
       activeOpacity={0.8}
@@ -45,11 +47,11 @@ export function Input({ label, error, style, inputStyle, ...props }) {
     <View style={[{ marginBottom: 14 }, style]}>
       {label && <Text style={styles.label}>{label}</Text>}
       <TextInput
-        style={[styles.input, error && { borderColor: '#e55' }, inputStyle]}
-        placeholderTextColor={C.muted}
+        style={[styles.input, error && { borderColor: '#ef4444' }, inputStyle]}
+        placeholderTextColor="#bbb"
         {...props}
       />
-      {error ? <Text style={{ color: '#e55', fontSize: 11, marginTop: 3 }}>{error}</Text> : null}
+      {error ? <Text style={{ color: '#ef4444', fontSize: 11, marginTop: 3 }}>{error}</Text> : null}
     </View>
   );
 }
@@ -65,12 +67,16 @@ export function Card({ children, style, shadow }) {
 
 // ── Chip ──────────────────────────────────────────────────────
 export function Chip({ label, variant = 'gray', style }) {
-  const bg = variant === 'gold' ? '#e8e8e8'
-           : variant === 'blue' ? '#eeeeee'
-           : variant === 'green' ? '#dcfce7'
-           : variant === 'red'  ? '#e8e8e8'
-           : '#f0f0f0';
-  const color = variant === 'green' ? '#166534' : C.text;
+  const bg    = variant === 'orange' ? '#fff7ed'
+             : variant === 'blue'   ? '#eff6ff'
+             : variant === 'green'  ? '#f0fdf4'
+             : variant === 'red'    ? '#fef2f2'
+             : '#f0f0f0';
+  const color = variant === 'orange' ? ORANGE
+             : variant === 'blue'   ? '#1d4ed8'
+             : variant === 'green'  ? '#166534'
+             : variant === 'red'    ? '#dc2626'
+             : '#555';
   return (
     <View style={[{ backgroundColor: bg, borderRadius: 20, paddingVertical: 3,
       paddingHorizontal: 10, alignSelf: 'flex-start' }, style]}>
@@ -80,7 +86,7 @@ export function Chip({ label, variant = 'gray', style }) {
 }
 
 // ── Spinner ───────────────────────────────────────────────────
-export function Spinner({ size = 'large', color = C.dark }) {
+export function Spinner({ size = 'large', color = ORANGE }) {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
       <ActivityIndicator size={size} color={color} />
@@ -93,10 +99,10 @@ export function Empty({ icon = '🔍', title, sub, action, actionLabel }) {
   return (
     <View style={{ alignItems: 'center', padding: 60 }}>
       <Text style={{ fontSize: 40, marginBottom: 12 }}>{icon}</Text>
-      <Text style={{ fontSize: 15, fontWeight: '700', color: '#444', marginBottom: 6 }}>{title}</Text>
-      {sub && <Text style={{ fontSize: 13, color: C.muted, textAlign: 'center' }}>{sub}</Text>}
+      <Text style={{ fontSize: 15, fontWeight: '700', color: '#333', marginBottom: 6 }}>{title}</Text>
+      {sub && <Text style={{ fontSize: 13, color: '#999', textAlign: 'center' }}>{sub}</Text>}
       {action && (
-        <Btn label={actionLabel} onPress={action} style={{ marginTop: 16 }} />
+        <Btn label={actionLabel} onPress={action} variant="orange" style={{ marginTop: 16 }} />
       )}
     </View>
   );
@@ -106,8 +112,8 @@ export function Empty({ icon = '🔍', title, sub, action, actionLabel }) {
 export function SectionTitle({ title, sub, style }) {
   return (
     <View style={style}>
-      <Text style={{ fontSize: 17, fontWeight: '800', color: C.text }}>{title}</Text>
-      {sub && <Text style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{sub}</Text>}
+      <Text style={{ fontSize: 17, fontWeight: '800', color: '#111' }}>{title}</Text>
+      {sub && <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{sub}</Text>}
     </View>
   );
 }
@@ -115,13 +121,13 @@ export function SectionTitle({ title, sub, style }) {
 const styles = StyleSheet.create({
   label: { fontSize: 12, fontWeight: '600', color: '#444', marginBottom: 5, letterSpacing: 0.3 },
   input: {
-    borderWidth: 1.5, borderColor: C.border, borderRadius: 8,
-    paddingVertical: 10, paddingHorizontal: 13, fontSize: 13,
-    backgroundColor: '#fff', color: C.text,
+    borderWidth: 1.5, borderColor: '#e5e5e5', borderRadius: 10,
+    paddingVertical: 11, paddingHorizontal: 14, fontSize: 13,
+    backgroundColor: '#fff', color: '#111',
   },
   card: {
-    backgroundColor: C.card, borderRadius: C.radius,
-    borderWidth: 1, borderColor: C.border,
+    backgroundColor: '#fff', borderRadius: 14,
+    borderWidth: 1, borderColor: '#ebebeb',
     padding: 16,
   },
 });
