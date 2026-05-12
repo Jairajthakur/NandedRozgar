@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { C } from '../utils/constants';
+
+const ORANGE = '#f97316';
 
 export default function HomeScreen() {
   const nav = useNavigation();
@@ -23,7 +26,7 @@ export default function HomeScreen() {
               <Text style={s.brandRozgar}>Rozgar</Text>
             </Text>
             <View style={s.locRow}>
-              <Text style={s.pin}>📍</Text>
+              <Ionicons name="location-sharp" size={13} color="#f97316" />
               <Text style={s.locText}>Nanded, Maharashtra</Text>
             </View>
           </View>
@@ -32,7 +35,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
         <TouchableOpacity style={s.searchBar} activeOpacity={0.8}>
-          <Text style={s.searchIcon}>🔍</Text>
+          <Ionicons name="search" size={15} color="#555" />
           <Text style={s.searchPlaceholder}>Search jobs, cars, rooms…</Text>
         </TouchableOpacity>
       </View>
@@ -41,16 +44,15 @@ export default function HomeScreen() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.filterRow} style={{ maxHeight: 52 }}>
         {[
-          { label: 'All',       icon: '🔷' },
-          { label: 'Jobs',      icon: '💼' },
-          { label: 'Cars',      icon: '🚗' },
-          { label: 'Rooms',     icon: '🏢' },
-          { label: 'Buy & Sell',icon: '🏷️' },
+          { label: 'All',        iconName: 'apps',        lib: 'ion' },
+          { label: 'Jobs',       iconName: 'briefcase',   lib: 'ion' },
+          { label: 'Cars',       iconName: 'car-sport',   lib: 'ion' },
+          { label: 'Rooms',      iconName: 'business',    lib: 'ion' },
+          { label: 'Buy & Sell', iconName: 'pricetag',    lib: 'ion' },
         ].map((f, i) => (
           <TouchableOpacity key={f.label} style={[s.filterChip, i === 0 && s.filterChipActive]} activeOpacity={0.8}>
-            <Text style={[s.filterChipTxt, i === 0 && s.filterChipTxtActive]}>
-              {i === 0 ? f.label : `${f.icon} ${f.label}`}
-            </Text>
+            {i !== 0 && <Ionicons name={f.iconName} size={12} color={i === 0 ? '#fff' : '#555'} style={{ marginRight: 4 }} />}
+            <Text style={[s.filterChipTxt, i === 0 && s.filterChipTxtActive]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -62,7 +64,7 @@ export default function HomeScreen() {
         <TouchableOpacity style={s.card} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
           <View style={s.cardBadgeRow}>
             <View style={[s.cardIcon, { backgroundColor: '#fff3e8' }]}>
-              <Text style={{ fontSize: 22 }}>💼</Text>
+              <Ionicons name="briefcase" size={22} color={ORANGE} />
             </View>
             <View style={[s.liveBadge, { borderColor: '#16a34a', backgroundColor: '#f0fdf4' }]}>
               <View style={s.liveDot} />
@@ -76,7 +78,7 @@ export default function HomeScreen() {
         <TouchableOpacity style={s.card} onPress={() => nav.navigate('Cars')} activeOpacity={0.85}>
           <View style={s.cardBadgeRow}>
             <View style={[s.cardIcon, { backgroundColor: '#e8f4ff' }]}>
-              <Text style={{ fontSize: 22 }}>🚗</Text>
+              <Ionicons name="car-sport" size={22} color="#3b82f6" />
             </View>
           </View>
           <Text style={s.cardTitle}>Car Rental</Text>
@@ -86,7 +88,7 @@ export default function HomeScreen() {
         <TouchableOpacity style={s.card} onPress={() => nav.navigate('Rooms')} activeOpacity={0.85}>
           <View style={s.cardBadgeRow}>
             <View style={[s.cardIcon, { backgroundColor: '#f0f4ff' }]}>
-              <Text style={{ fontSize: 22 }}>🏢</Text>
+              <Ionicons name="business" size={22} color="#6366f1" />
             </View>
           </View>
           <Text style={s.cardTitle}>Rooms & PG</Text>
@@ -96,7 +98,7 @@ export default function HomeScreen() {
         <TouchableOpacity style={s.card} onPress={() => nav.navigate('BuySell')} activeOpacity={0.85}>
           <View style={s.cardBadgeRow}>
             <View style={[s.cardIcon, { backgroundColor: '#fdf0ff' }]}>
-              <Text style={{ fontSize: 22 }}>🏷️</Text>
+              <Ionicons name="pricetag" size={22} color="#9333ea" />
             </View>
             <View style={[s.liveBadge, { borderColor: '#9333ea', backgroundColor: '#fdf4ff' }]}>
               <Text style={[s.liveTxt, { color: '#9333ea' }]}>New</Text>
@@ -111,16 +113,16 @@ export default function HomeScreen() {
       {/* ── Quick access ── */}
       <View style={s.quickRow}>
         <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.85}>
-          <Text style={{ fontSize: 16 }}>✨</Text>
+          <Ionicons name="sparkles" size={16} color={ORANGE} />
           <Text style={s.quickTxt}>AI Job Match</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.85}>
-          <Text style={{ fontSize: 16 }}>👤</Text>
+          <Ionicons name="person" size={16} color="#555" />
           <Text style={s.quickTxt}>My Profile</Text>
         </TouchableOpacity>
         {role === 'admin' && (
           <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('Admin')} activeOpacity={0.85}>
-            <Text style={{ fontSize: 16 }}>⚙️</Text>
+            <Ionicons name="settings" size={16} color="#555" />
             <Text style={s.quickTxt}>Admin</Text>
           </TouchableOpacity>
         )}
@@ -133,52 +135,46 @@ export default function HomeScreen() {
         <TouchableOpacity key={job.id} style={s.jobCard}
           onPress={() => nav.navigate('JobDetail', { job })} activeOpacity={0.85}>
           <View style={s.jobRow}>
-            <View style={s.jobThumb}><Text style={{ fontSize: 20 }}>💼</Text></View>
+            <View style={s.jobThumb}><Ionicons name="briefcase" size={20} color={ORANGE} /></View>
             <View style={{ flex: 1 }}>
               <Text style={s.jobTitle} numberOfLines={1}>{job.title}</Text>
-              <Text style={s.jobSub} numberOfLines={1}>🏢 {job.company} · 📍 {job.location}</Text>
-              <Text style={s.jobTime}>🕐 Just posted</Text>
+              <View style={s.jobSubRow}>
+                <Ionicons name="business" size={11} color="#aaa" />
+                <Text style={s.jobSub} numberOfLines={1}> {job.company} · </Text>
+                <Ionicons name="location-sharp" size={11} color="#aaa" />
+                <Text style={s.jobSub}> {job.location}</Text>
+              </View>
+              <View style={s.jobSubRow}>
+                <Ionicons name="time-outline" size={11} color="#aaa" />
+                <Text style={s.jobTime}> Just posted</Text>
+              </View>
             </View>
             <View style={s.priceBadge}><Text style={s.priceTxt}>{job.salary}</Text></View>
           </View>
         </TouchableOpacity>
       )) : (
         <>
-          <TouchableOpacity style={s.jobCard} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
-            <View style={s.jobRow}>
-              <View style={s.jobThumb}><Text style={{ fontSize: 20 }}>📞</Text></View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.jobTitle}>Telecaller</Text>
-                <Text style={s.jobSub}>🏢 Dhanraj Enterprises · 📍 Nanded</Text>
-                <Text style={s.jobTime}>🕐 Just posted</Text>
+          {[
+            { title: 'Telecaller',    company: 'Dhanraj Enterprises', loc: 'Nanded',       salary: '₹12,000', icon: 'call' },
+            { title: 'Web Developer', company: 'TechSoft Solutions',  loc: 'Nanded',       salary: '₹25,000', icon: 'globe' },
+            { title: 'Shop Assistant',company: 'Reliance Retail',     loc: 'Station Road', salary: '₹12,000', icon: 'storefront' },
+          ].map(job => (
+            <TouchableOpacity key={job.title} style={s.jobCard} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
+              <View style={s.jobRow}>
+                <View style={s.jobThumb}><Ionicons name={job.icon} size={20} color={ORANGE} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.jobTitle}>{job.title}</Text>
+                  <View style={s.jobSubRow}>
+                    <Ionicons name="business" size={11} color="#aaa" />
+                    <Text style={s.jobSub}> {job.company} · </Text>
+                    <Ionicons name="location-sharp" size={11} color="#aaa" />
+                    <Text style={s.jobSub}> {job.loc}</Text>
+                  </View>
+                </View>
+                <View style={s.priceBadge}><Text style={s.priceTxt}>{job.salary}</Text></View>
               </View>
-              <View style={s.priceBadge}><Text style={s.priceTxt}>₹12,000</Text></View>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={s.jobCard} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
-            <View style={s.jobRow}>
-              <View style={s.jobThumb}><Text style={{ fontSize: 20 }}>🌐</Text></View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.jobTitle}>Web Developer</Text>
-                <Text style={s.jobSub}>🏢 TechSoft Solutions · 📍 Nanded</Text>
-                <Text style={s.jobTime}>🕑 2 hours ago</Text>
-              </View>
-              <View style={s.priceBadge}><Text style={s.priceTxt}>₹25,000</Text></View>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={s.jobCard} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
-            <View style={s.jobRow}>
-              <View style={s.jobThumb}><Text style={{ fontSize: 20 }}>🏪</Text></View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.jobTitle}>Shop Assistant</Text>
-                <Text style={s.jobSub}>🏢 Reliance Retail · 📍 Station Road</Text>
-                <Text style={s.jobTime}>🕔 5 hours ago</Text>
-              </View>
-              <View style={s.priceBadge}><Text style={s.priceTxt}>₹12,000</Text></View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
         </>
       )}
 
@@ -198,15 +194,13 @@ const s = StyleSheet.create({
   brandNanded: { color: '#ffffff' },
   brandRozgar: { color: '#f97316' },
   locRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  pin: { fontSize: 12 },
   locText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
   profileBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#f97316', alignItems: 'center', justifyContent: 'center' },
   profileInitial: { color: '#fff', fontSize: 16, fontWeight: '800' },
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#1e1e22', borderRadius: 10, paddingVertical: 11, paddingHorizontal: 14, borderWidth: 0.5, borderColor: '#333' },
-  searchIcon: { fontSize: 13 },
   searchPlaceholder: { fontSize: 13, color: '#555' },
   filterRow: { paddingHorizontal: 14, paddingVertical: 10, gap: 8, alignItems: 'center' },
-  filterChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e0e0e0' },
+  filterChip: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e0e0e0' },
   filterChipActive: { backgroundColor: '#f97316', borderColor: '#f97316' },
   filterChipTxt: { fontSize: 12, fontWeight: '600', color: '#555' },
   filterChipTxtActive: { color: '#fff' },
@@ -227,8 +221,9 @@ const s = StyleSheet.create({
   jobRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   jobThumb: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
   jobTitle: { fontSize: 14, fontWeight: '700', color: '#111' },
-  jobSub: { fontSize: 11, color: '#777', marginTop: 1 },
-  jobTime: { fontSize: 11, color: '#aaa', marginTop: 2 },
+  jobSubRow: { flexDirection: 'row', alignItems: 'center', marginTop: 1 },
+  jobSub: { fontSize: 11, color: '#777' },
+  jobTime: { fontSize: 11, color: '#aaa' },
   priceBadge: { backgroundColor: '#111', borderRadius: 7, paddingVertical: 5, paddingHorizontal: 10 },
   priceTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
   viewAll: { marginHorizontal: 12, marginTop: 4, alignItems: 'center', padding: 10 },
