@@ -77,6 +77,7 @@ export default function BuySellScreen() {
                   </View>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="location-sharp" size={11} color="#aaa" /><Text style={s.cardLoc}> {item.loc} · {item.time}</Text>
+                </View>
               </View>
             </TouchableOpacity>
           ))}
