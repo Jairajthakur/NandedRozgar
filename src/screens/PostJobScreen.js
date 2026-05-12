@@ -52,7 +52,7 @@ export default function PostScreen({ navigation }) {
 
   // Guard: seekers should never reach this screen (tab is hidden),
   // but if they do, show a friendly message.
-  if (role === 'seeker') {
+  if (!role || role === 'unknown') {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
         <Text style={{ fontSize: 40, marginBottom: 16 }}>🎉</Text>
@@ -296,8 +296,8 @@ export default function PostScreen({ navigation }) {
           <Text style={[styles.fieldLabel, { marginBottom: 10 }]}>⚡ Boost Your Post</Text>
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
             {[
-              ['featured', '⭐ Featured', `₹${PRICING.featured}`, '5× more views'],
-              ['urgent',   '🔥 Urgent',   `₹${PRICING.urgent}`,   'Red badge'],
+              ['featured', 'Featured', `₹${PRICING.featured}`, '5× more views'],
+              ['urgent',   'Urgent',   `₹${PRICING.urgent}`,   'Red badge'],
             ].map(([key, label, price, sub]) => (
               <TouchableOpacity
                 key={key}
