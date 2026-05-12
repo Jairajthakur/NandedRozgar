@@ -19,9 +19,9 @@ import PostScreen       from './src/screens/PostScreen';
 import ProfileScreen    from './src/screens/ProfileScreen';
 import AIScreen         from './src/screens/AIScreen';
 import AdminScreen      from './src/screens/AdminScreen';
-import CarsScreen       from './src/screens/CarsScreen';
+import CarScreen       from './src/screens/CarScreen';
 import CarDetailScreen  from './src/screens/CarDetailScreen';
-import RoomsScreen      from './src/screens/RoomsScreen';
+import RoomScreen      from './src/screens/RoomScreen';
 import RoomDetailScreen from './src/screens/RoomDetailScreen';
 import PostCarScreen    from './src/screens/PostCarScreen';
 import PostRoomScreen   from './src/screens/PostRoomScreen';
@@ -91,8 +91,8 @@ function SeekerTabs() {
     <Tab.Navigator screenOptions={TAB_BAR_STYLE}>
       <Tab.Screen name="Home"    component={HomeScreen}    options={{ tabBarLabel: 'Home',    tabBarIcon: icon('🏙️'), headerTitle: 'NandedRozgar 🏙️' }} />
       <Tab.Screen name="Jobs"    component={BoardScreen}   options={{ tabBarLabel: 'Jobs',    tabBarIcon: icon('💼'), headerTitle: 'Find Jobs' }} />
-      <Tab.Screen name="Cars"    component={CarsScreen}    options={{ tabBarLabel: 'Cars',    tabBarIcon: icon('🚗'), headerTitle: 'Car Rental' }} />
-      <Tab.Screen name="Rooms"   component={RoomsScreen}   options={{ tabBarLabel: 'Rooms',   tabBarIcon: icon('🏠'), headerTitle: 'Rooms & PG' }} />
+      <Tab.Screen name="Cars"    component={CarScreen}    options={{ tabBarLabel: 'Cars',    tabBarIcon: icon('🚗'), headerTitle: 'Car Rental' }} />
+      <Tab.Screen name="Rooms"   component={RoomScreen}   options={{ tabBarLabel: 'Rooms',   tabBarIcon: icon('🏠'), headerTitle: 'Rooms & PG' }} />
       <Tab.Screen name="AI"      component={AIScreen}      options={{ tabBarLabel: 'AI Match', tabBarIcon: icon('✨'), headerTitle: 'AI Job Match' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile', tabBarIcon: icon('👤'), headerTitle: 'My Profile' }} />
     </Tab.Navigator>
@@ -104,8 +104,8 @@ function GiverTabs() {
     <Tab.Navigator screenOptions={TAB_BAR_STYLE}>
       <Tab.Screen name="Home"    component={HomeScreen}    options={{ tabBarLabel: 'Home',     tabBarIcon: icon('🏙️'), headerTitle: 'NandedRozgar 🏙️' }} />
       <Tab.Screen name="Jobs"    component={BoardScreen}   options={{ tabBarLabel: 'Jobs',     tabBarIcon: icon('💼'), headerTitle: 'Find Jobs' }} />
-      <Tab.Screen name="Cars"    component={CarsScreen}    options={{ tabBarLabel: 'Cars',     tabBarIcon: icon('🚗'), headerTitle: 'Car Rental' }} />
-      <Tab.Screen name="Rooms"   component={RoomsScreen}   options={{ tabBarLabel: 'Rooms',    tabBarIcon: icon('🏠'), headerTitle: 'Rooms & PG' }} />
+      <Tab.Screen name="Cars"    component={CarScreen}    options={{ tabBarLabel: 'Cars',     tabBarIcon: icon('🚗'), headerTitle: 'Car Rental' }} />
+      <Tab.Screen name="Rooms"   component={RoomScreen}   options={{ tabBarLabel: 'Rooms',    tabBarIcon: icon('🏠'), headerTitle: 'Rooms & PG' }} />
       <Tab.Screen name="Post"    component={PostScreen}    options={{ tabBarLabel: 'Post Job', tabBarIcon: icon('📝'), headerTitle: 'Post a Job' }} />
       <Tab.Screen name="AI"      component={AIScreen}      options={{ tabBarLabel: 'AI Match', tabBarIcon: icon('✨'), headerTitle: 'AI Job Match' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile',  tabBarIcon: icon('👤'), headerTitle: 'My Profile' }} />
@@ -118,8 +118,8 @@ function AdminTabs() {
     <Tab.Navigator screenOptions={TAB_BAR_STYLE}>
       <Tab.Screen name="Home"    component={HomeScreen}    options={{ tabBarLabel: 'Home',     tabBarIcon: icon('🏙️'), headerTitle: 'NandedRozgar 🏙️' }} />
       <Tab.Screen name="Jobs"    component={BoardScreen}   options={{ tabBarLabel: 'Jobs',     tabBarIcon: icon('💼'), headerTitle: 'Find Jobs' }} />
-      <Tab.Screen name="Cars"    component={CarsScreen}    options={{ tabBarLabel: 'Cars',     tabBarIcon: icon('🚗'), headerTitle: 'Car Rental' }} />
-      <Tab.Screen name="Rooms"   component={RoomsScreen}   options={{ tabBarLabel: 'Rooms',    tabBarIcon: icon('🏠'), headerTitle: 'Rooms & PG' }} />
+      <Tab.Screen name="Cars"    component={CarScreen}    options={{ tabBarLabel: 'Cars',     tabBarIcon: icon('🚗'), headerTitle: 'Car Rental' }} />
+      <Tab.Screen name="Rooms"   component={RoomScreen}   options={{ tabBarLabel: 'Rooms',    tabBarIcon: icon('🏠'), headerTitle: 'Rooms & PG' }} />
       <Tab.Screen name="Post"    component={PostScreen}    options={{ tabBarLabel: 'Post Job', tabBarIcon: icon('📝'), headerTitle: 'Post a Job' }} />
       <Tab.Screen name="AI"      component={AIScreen}      options={{ tabBarLabel: 'AI Match', tabBarIcon: icon('✨'), headerTitle: 'AI Job Match' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile',  tabBarIcon: icon('👤'), headerTitle: 'My Profile' }} />
