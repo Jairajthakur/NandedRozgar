@@ -62,15 +62,13 @@ class ErrorBoundary extends React.Component {
 const TAB_BAR_STYLE = {
   tabBarStyle: {
     backgroundColor: '#ffffff',
-    borderTopColor: '#eeeeee',
+    borderTopColor: '#e0e0e0',
     borderTopWidth: 1,
-    height: 62,
+    height: 60,
     paddingBottom: 8,
-    paddingTop: 4,
   },
   tabBarActiveTintColor:   '#111111',
-  tabBarInactiveTintColor: '#cccccc',
-  tabBarLabelStyle: { fontSize: 9, fontWeight: '600', letterSpacing: 0.2 },
+  tabBarInactiveTintColor: '#777777',
   headerStyle:      { backgroundColor: '#111111' },
   headerTintColor:  '#ffffff',
   headerTitleStyle: { fontWeight: '800' },
