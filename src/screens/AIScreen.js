@@ -74,7 +74,7 @@ export default function AIScreen() {
           <TextInput
             style={styles.input}
             placeholder="Ask anything about jobs in Nanded…"
-            placeholderTextColor={C.muted}
+            placeholderTextColor='#bbb'
             value={query}
             onChangeText={setQuery}
             multiline
@@ -118,15 +118,15 @@ export default function AIScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
   hintBtn: {
-    borderWidth: 1.5, borderColor: C.border, borderRadius: 9,
+    borderWidth: 1.5, borderColor: '#ebebeb', borderRadius: 9,
     padding: 10, marginBottom: 8,
   },
   hintText: { fontSize: 12, color: C.muted, fontWeight: '500' },
   inputRow: { marginVertical: 12 },
   input: {
-    borderWidth: 1.5, borderColor: C.border, borderRadius: 8,
+    borderWidth: 1.5, borderColor: '#ebebeb', borderRadius: 8,
     padding: 12, fontSize: 13, color: C.text,
     minHeight: 70, textAlignVertical: 'top',
     backgroundColor: '#fff', marginBottom: 10,
