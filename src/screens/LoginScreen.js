@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { Input, Btn, Spinner } from '../components/UI';
 import { C } from '../utils/constants';
 
+const ORANGE = '#f97316';
+
 export default function LoginScreen() {
   const { login, register } = useAuth();
   const [mode, setMode] = useState('login');
@@ -41,15 +43,19 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.gradient}>
+    <View style={styles.bg}>
       <StatusBar barStyle="light-content" backgroundColor="#111111" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
           <View style={styles.logoWrap}>
             <View style={styles.logoMark}>
-              <Text style={{ fontSize: 26 }}>🏙️</Text>
+              <Text style={{ fontSize: 28 }}>🏙️</Text>
             </View>
-            <Text style={styles.logoText}>NandedRozgar</Text>
+            <Text style={styles.logoText}>
+              <Text style={{ color: '#fff' }}>Nanded</Text>
+              <Text style={{ color: ORANGE }}>Rozgar</Text>
+            </Text>
             <Text style={styles.logoSub}>Local Jobs · Local Life · Nanded</Text>
           </View>
 
@@ -90,7 +96,7 @@ export default function LoginScreen() {
             {loading
               ? <Spinner size="small" />
               : <Btn label={mode === 'login' ? 'Sign In →' : 'Create Account →'}
-                  onPress={handleSubmit} size="lg" style={{ marginTop: 4 }} />
+                  onPress={handleSubmit} variant="orange" size="lg" style={{ marginTop: 4 }} />
             }
 
             <View style={styles.switchRow}>
@@ -112,6 +118,7 @@ export default function LoginScreen() {
               </View>
             ))}
           </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -119,39 +126,41 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  gradient: { flex: 1, backgroundColor: '#111111' },
+  bg: { flex: 1, backgroundColor: '#111111' },
   scroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   logoWrap: { alignItems: 'center', marginBottom: 28 },
   logoMark: {
-    width: 60, height: 60, backgroundColor: '#222', borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+    width: 64, height: 64, backgroundColor: '#1e1e1e', borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+    borderWidth: 1, borderColor: '#333',
   },
-  logoText: { color: '#fff', fontSize: 24, fontWeight: '800', letterSpacing: 0.3 },
-  logoSub:  { color: '#888', fontSize: 12, marginTop: 3 },
+  logoText: { fontSize: 26, fontWeight: '900', letterSpacing: 0.3 },
+  logoSub:  { color: '#666', fontSize: 12, marginTop: 4 },
   box: {
     backgroundColor: '#fff', borderRadius: 20, padding: 24,
     width: '100%', maxWidth: 400,
     shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 20, elevation: 10,
   },
-  modeRow: { flexDirection: 'row', borderRadius: 10, backgroundColor: C.grayLight,
+  modeRow: { flexDirection: 'row', borderRadius: 10, backgroundColor: '#f5f5f5',
     marginBottom: 20, padding: 3 },
   modeBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 8 },
-  modeBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.1,
+  modeBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.08,
     shadowRadius: 4, elevation: 2 },
-  modeBtnText: { fontSize: 13, fontWeight: '600', color: C.muted },
-  modeBtnTextActive: { color: C.text, fontWeight: '700' },
-  error: { color: '#e55', fontSize: 12, fontWeight: '500', marginBottom: 10,
-    backgroundColor: '#fff0f0', padding: 10, borderRadius: 8 },
+  modeBtnText: { fontSize: 13, fontWeight: '600', color: '#999' },
+  modeBtnTextActive: { color: '#111', fontWeight: '700' },
+  error: { color: '#ef4444', fontSize: 12, fontWeight: '500', marginBottom: 10,
+    backgroundColor: '#fef2f2', padding: 10, borderRadius: 8 },
   switchRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 16,
-    paddingTop: 14, borderTopWidth: 1, borderTopColor: C.border },
-  switchText: { fontSize: 12, color: C.muted },
-  switchLink: { fontSize: 12, fontWeight: '700', color: C.dark },
+    paddingTop: 14, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  switchText: { fontSize: 12, color: '#999' },
+  switchLink: { fontSize: 12, fontWeight: '700', color: ORANGE },
   benefits: {
     flexDirection: 'row', marginTop: 20, gap: 8, flexWrap: 'wrap', justifyContent: 'center',
   },
   benefitItem: {
-    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 20,
     paddingVertical: 6, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  benefitText: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '600' },
+  benefitText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' },
 });
