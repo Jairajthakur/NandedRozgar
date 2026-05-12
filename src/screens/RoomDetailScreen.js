@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Linking, Alert,
@@ -120,7 +121,7 @@ export default function RoomDetailScreen() {
           <Text style={{ fontSize: 20 }}>💬</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.ctaIcon} onPress={() => Alert.alert('Saved', 'Added to saved listings.')}>
-          <Text style={{ fontSize: 20 }}>🔖</Text>
+          <Ionicons name="bookmark" size={20} color="#555" />
         </TouchableOpacity>
       </View>
     </View>
