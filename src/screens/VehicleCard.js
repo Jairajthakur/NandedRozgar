@@ -31,7 +31,7 @@ export default function VehicleCard({ vehicle: v, onPress }) {
             />
           ) : (
             <View style={[styles.photo, styles.noPhoto]}>
-              <Text style={{ fontSize: 36 }}>🚗</Text>
+              <Ionicons name="car-sport" size={36} color="#f97316" />
             </View>
           )}
           {/* Photo tabs */}
@@ -64,13 +64,13 @@ export default function VehicleCard({ vehicle: v, onPress }) {
           <View style={styles.chips}>
             {v.area && (
               <View style={styles.chip}>
-                <Text style={styles.chipText}>📍 {v.area}</Text>
+                <><Ionicons name="location-sharp" size={11} color="#555" /><Text style={[styles.chipText, { marginLeft: 3 }]}>{v.area}</Text></>
               </View>
             )}
             {v.rating && (
               <View style={[styles.chip, { backgroundColor: '#fef9c3' }]}>
                 <Text style={[styles.chipText, { color: '#92400e' }]}>
-                  ⭐ {v.rating}
+                  ★ {v.rating}
                   {v.review_count ? ` (${v.review_count})` : ''}
                 </Text>
               </View>
