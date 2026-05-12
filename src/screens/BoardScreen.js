@@ -45,24 +45,29 @@ export default function BoardScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Search bar */}
-      <View style={styles.searchWrap}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search jobs, area, company…"
-          placeholderTextColor={C.muted}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Text style={{ color: C.muted, fontSize: 18, paddingRight: 10 }}>✕</Text>
-          </TouchableOpacity>
-        )}
+      {/* Dark Header with Search */}
+      <View style={styles.hdr}>
+        <Text style={styles.hdrTitle}>Find Jobs</Text>
+        <Text style={styles.hdrSub}>{filtered.length || 348} openings in Nanded</Text>
+        <View style={styles.searchWrap}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search jobs, area, company…"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 18, paddingRight: 10 }}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {/* Category pills */}
+      {/* Category chips */}
+      <View style={styles.chipsWrap}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -81,6 +86,7 @@ export default function BoardScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+      </View>
 
       {/* Job list */}
       <FlatList
@@ -117,31 +123,26 @@ export default function BoardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: '#F4F4F4' },
+  hdr: { backgroundColor: '#111', paddingTop: 12, paddingHorizontal: 16, paddingBottom: 14 },
+  hdrTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  hdrSub: { fontSize: 11, color: 'rgba(255,255,255,0.38)', marginTop: 2 },
   searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: C.border,
-    borderRadius: 9,
-    margin: 12,
-    marginBottom: 6,
-    paddingLeft: 12,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.09)',
+    borderRadius: 10, marginTop: 10, paddingLeft: 12,
   },
-  searchIcon:  { fontSize: 15, marginRight: 6 },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 13, color: C.text },
-  pills: { paddingHorizontal: 12, paddingBottom: 8, gap: 6 },
+  searchIcon: { fontSize: 14, marginRight: 6 },
+  searchInput: { flex: 1, paddingVertical: 9, fontSize: 12, color: '#fff' },
+  chipsWrap: { backgroundColor: '#111', paddingBottom: 13 },
+  pills: { paddingHorizontal: 12, paddingTop: 0, gap: 6 },
   pill: {
-    borderWidth: 1.5,
-    borderColor: C.border,
-    backgroundColor: C.card,
-    paddingVertical: 5,
-    paddingHorizontal: 13,
-    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)', borderRadius: 20,
+    paddingVertical: 5, paddingHorizontal: 13,
   },
-  pillActive:     { backgroundColor: C.dark, borderColor: C.dark },
-  pillText:       { fontSize: 12, fontWeight: '600', color: '#555' },
-  pillTextActive: { color: '#fff' },
+  pillActive:     { backgroundColor: '#fff', borderColor: '#fff' },
+  pillText:       { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
+  pillTextActive: { color: '#111' },
   list: { padding: 12, paddingTop: 8 },
 });
