@@ -125,7 +125,7 @@ export default function PostScreen({ navigation }) {
         style={{ flex: 1 }}
       >
         <ScrollView
-          style={{ flex: 1, backgroundColor: C.bg }}
+          style={{ flex: 1, backgroundColor: '#f5f5f5' }}
           contentContainerStyle={{ padding: 16 }}
         >
           <View style={styles.payHeader}>
@@ -342,19 +342,19 @@ export default function PostScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
   fieldLabel: {
     fontSize: 12, fontWeight: '600', color: '#444',
     marginBottom: 5, letterSpacing: 0.3,
   },
   catBtn: {
-    borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card,
+    borderWidth: 1.5, borderColor: '#ebebeb', backgroundColor: C.card,
     paddingVertical: 6, paddingHorizontal: 13, borderRadius: 20,
   },
-  catBtnActive:  { backgroundColor: C.dark, borderColor: C.dark },
+  catBtnActive:  { backgroundColor: '#111', borderColor: C.dark },
   catBtnText:    { fontSize: 12, fontWeight: '600', color: '#555' },
   boostBtn: {
-    flex: 1, borderWidth: 2, borderColor: C.border,
+    flex: 1, borderWidth: 2, borderColor: '#ebebeb',
     borderRadius: 11, padding: 12, backgroundColor: '#fff',
   },
   boostBtnActive: { borderColor: C.dark, backgroundColor: C.grayLight },
@@ -362,13 +362,13 @@ const styles = StyleSheet.create({
     width: 19, height: 19, borderRadius: 5, borderWidth: 2,
     borderColor: '#ccc', alignItems: 'center', justifyContent: 'center', marginBottom: 6,
   },
-  boostCheckActive: { borderColor: C.dark, backgroundColor: C.dark },
+  boostCheckActive: { borderColor: C.dark, backgroundColor: '#111' },
   bundleBanner: {
     backgroundColor: C.grayLight, borderWidth: 1.5, borderColor: '#ccc',
     borderRadius: 9, padding: 11, marginBottom: 14, gap: 2,
   },
   payHeader: {
-    backgroundColor: C.dark, borderRadius: 14, padding: 20, marginBottom: 16,
+    backgroundColor: '#111', borderRadius: 14, padding: 20, marginBottom: 16,
   },
   payTitle: {
     color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700',
