@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import { http } from '../utils/api';
 import { Card, Btn, Chip, SectionTitle } from '../components/UI';
 import { C, PRICING } from '../utils/constants';
@@ -55,9 +56,9 @@ export default function AdminScreen() {
 
       {/* Stats */}
       <View style={styles.statsGrid}>
-        {[['📋',jobs.length,'Jobs'],['👥',users.length,'Users'],['👁',totalViews,'Views']].map(([i,v,l]) => (
+        {[['clipboard',jobs.length,'Jobs'],['people',users.length,'Users'],['eye',totalViews,'Views']].map(([i,v,l]) => (
           <View key={l} style={styles.statCard}>
-            <Text style={{ fontSize: 20 }}>{i}</Text>
+            <Ionicons name={i} size={20} color="#f97316" />
             <Text style={styles.statVal}>{v}</Text>
             <Text style={styles.statLbl}>{l}</Text>
           </View>
@@ -84,7 +85,7 @@ export default function AdminScreen() {
             <Chip label={j.status} variant={j.status === 'active' ? 'green' : 'red'} />
           </View>
           <View style={styles.rowMeta}>
-            <Text style={styles.metaText}>{j.featured ? '⭐' : ''}{j.urgent ? '🔥' : ''} · 👁{j.views||0} · 👤{j.applicant_count||0}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>{j.featured && <Ionicons name="star" size={12} color="#f97316" />}{j.urgent && <Ionicons name="flame" size={12} color="#ef4444" />}<Ionicons name="eye" size={12} color="#aaa" /><Text style={styles.metaText}>{j.views||0}</Text><Ionicons name="person" size={12} color="#aaa" /><Text style={styles.metaText}>{j.applicant_count||0}</Text></View>
             {j.status === 'active'
               ? <Btn label="Remove" variant="danger" size="sm" onPress={() => toggleJob(j.id, 'inactive')} />
               : <Btn label="Restore" variant="outline" size="sm" onPress={() => toggleJob(j.id, 'active')} />}
@@ -99,7 +100,7 @@ export default function AdminScreen() {
               <Text style={styles.rowTitle}>{u.name}</Text>
               <Text style={styles.rowSub}>{u.email}</Text>
             </View>
-            <Chip label={u.role} variant={u.role === 'admin' ? 'red' : u.role === 'giver' ? 'gold' : 'blue'} />
+            <Chip label={u.role} variant={u.role === 'admin' ? 'red' : u.role === 'user' ? 'gold' : 'blue'} />
           </View>
           <View style={styles.rowMeta}>
             <View style={{ flexDirection: 'row', gap: 6 }}>
