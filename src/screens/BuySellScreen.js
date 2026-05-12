@@ -4,13 +4,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { C } from '../utils/constants';
+import { Ionicons } from '@expo/vector-icons';
 
 const CATEGORIES = [
   { key: 'All', label: 'All 🔷' },
-  { key: 'Electronics', label: '📱 Electronics' },
+  { key: 'Electronics', label: 'Electronics', icon: 'phone-portrait' },
   { key: 'Furniture', label: '🪑 Furniture' },
   { key: 'Vehicles', label: '🛵 Vehicles' },
-  { key: 'Clothes', label: '👕 Clothes' },
+  { key: 'Clothes', label: 'Clothes' },
   { key: 'Books', label: '📚 Books' },
   { key: 'Other', label: '📦 Other' },
 ];
@@ -39,7 +40,7 @@ export default function BuySellScreen() {
     <View style={s.container}>
       {/* Search */}
       <View style={s.searchWrap}>
-        <Text style={s.searchIcon}>🔍</Text>
+        <Ionicons name="search" size={15} color="#aaa" style={{ marginRight: 6 }} />
         <TextInput
           style={s.searchInput}
           placeholder="Search items…"
@@ -65,7 +66,7 @@ export default function BuySellScreen() {
           {filtered.map(item => (
             <TouchableOpacity key={item.id} style={s.card} activeOpacity={0.85}>
               <View style={s.cardImg}>
-                <Text style={{ fontSize: 36 }}>{item.emoji}</Text>
+                <Ionicons name="pricetag" size={36} color="#9333ea" />
               </View>
               <View style={s.cardBody}>
                 <Text style={s.cardTitle} numberOfLines={1}>{item.title}</Text>
@@ -75,7 +76,7 @@ export default function BuySellScreen() {
                     <Text style={s.condTxt}>{item.condition}</Text>
                   </View>
                 </View>
-                <Text style={s.cardLoc}>📍 {item.loc} · {item.time}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="location-sharp" size={11} color="#aaa" /><Text style={s.cardLoc}> {item.loc} · {item.time}</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -83,7 +84,7 @@ export default function BuySellScreen() {
 
         {filtered.length === 0 && (
           <View style={s.empty}>
-            <Text style={{ fontSize: 36, marginBottom: 10 }}>🏷️</Text>
+            <Ionicons name="pricetag" size={36} color="#9333ea" style={{ marginBottom: 10 }} />
             <Text style={s.emptyTxt}>No items found</Text>
             <Text style={s.emptySub}>Try a different category or search</Text>
           </View>
@@ -92,7 +93,7 @@ export default function BuySellScreen() {
 
       {/* Sell button */}
       <TouchableOpacity style={s.sellBtn} activeOpacity={0.9}>
-        <Text style={s.sellBtnTxt}>🏷️ Sell an Item</Text>
+        <Text style={s.sellBtnTxt}>Sell an Item</Text>
       </TouchableOpacity>
     </View>
   );
