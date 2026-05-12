@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import { http, timeAgo } from '../utils/api';
 import { Btn, Chip, Card } from '../components/UI';
 import { C, CAT_ICONS } from '../utils/constants';
@@ -31,7 +32,7 @@ export default function JobDetailScreen({ route, navigation }) {
     const r = await http('POST', `/api/jobs/${job.id}/save`);
     if (r.ok) {
       await loadJobs();
-      Toast.show({ type: 'success', text1: r.saved ? '🔖 Job saved!' : '🔖 Removed from saved' });
+      Toast.show({ type: 'success', text1: r.saved ? 'Job saved!' : 'Removed from saved' });
     }
   }
 
@@ -53,19 +54,19 @@ export default function JobDetailScreen({ route, navigation }) {
     Linking.openURL(`https://wa.me/91${phone}?text=${msg}`);
   }
 
-  const icon = CAT_ICONS[job.category] || '💼';
+  const icon = CAT_ICONS[job.category] || 'briefcase';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       <Card style={{ marginBottom: 12 }}>
         {job.featured && (
           <View style={styles.banner}>
-            <Text style={styles.bannerText}>⭐ Featured Listing — Top Placement</Text>
+            <Text style={styles.bannerText}>Featured Listing — Top Placement</Text>
           </View>
         )}
         {job.urgent && (
           <View style={[styles.banner, { backgroundColor: '#f5f5f5', borderColor: '#555' }]}>
-            <Text style={[styles.bannerText, { color: '#444' }]}>🔥 Urgent Hiring — Apply Immediately</Text>
+            <Text style={[styles.bannerText, { color: '#444' }]}>Urgent Hiring — Apply Immediately</Text>
           </View>
         )}
 
@@ -78,8 +79,8 @@ export default function JobDetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.chips}>
-          <Chip label={`📍 ${job.location}`} style={styles.chip} />
-          <Chip label={`💰 ${job.salary}`}   variant="gold" style={styles.chip} />
+          <Chip label={job.location} iconName="location-sharp" style={styles.chip} />
+          <Chip label={job.salary} iconName="cash" variant="gold" style={styles.chip} />
           <Chip label={`⏰ ${job.type}`}     variant="gray" style={styles.chip} />
           <Chip label={`${icon} ${job.category}`} style={styles.chip} />
         </View>
@@ -91,7 +92,7 @@ export default function JobDetailScreen({ route, navigation }) {
         <View style={styles.divider} />
         <View style={styles.metaRow}>
           <Text style={{ fontSize: 12, color: C.muted }}>
-            Posted {timeAgo(job.timestamp)} · 👁 {job.views || 0} views · 👤 {job.applicant_count || 0} applied
+            Posted {timeAgo(job.timestamp)} · {job.views || 0} views · {job.applicant_count || 0} applied
           </Text>
         </View>
 
@@ -100,19 +101,19 @@ export default function JobDetailScreen({ route, navigation }) {
         {role === 'seeker' ? (
           <>
             <View style={styles.contactBox}>
-              <Text style={styles.contactLabel}>📱 Contact Employer</Text>
+              <Text style={styles.contactLabel}>Contact Employer</Text>
               <Text style={styles.contactPhone}>{job.phone}</Text>
               <Text style={styles.contactSub}>Call or WhatsApp — It's FREE for you!</Text>
             </View>
             <View style={styles.actions}>
               <Btn
-                label={hasApplied ? '✅ Applied' : '✅ Mark Applied'}
+                label={hasApplied ? 'Applied' : 'Mark Applied'}
                 onPress={applyJob}
                 disabled={hasApplied}
                 style={{ flex: 1 }}
               />
               <Btn
-                label={hasSaved ? '🔖 Saved' : '🔖 Save'}
+                label={hasSaved ? 'Saved' : 'Save'}
                 variant="outline"
                 onPress={saveJob}
                 style={{ flex: 1 }}
