@@ -78,7 +78,7 @@ export default function PostRoomScreen() {
         {/* Header */}
         <View style={s.header}>
           <TouchableOpacity style={s.backBtn} onPress={() => nav.goBack()}>
-            <Text style={{ fontSize: 18 }}>‹</Text>
+            <Ionicons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>List Your Room / PG</Text>
         </View>
@@ -236,7 +236,7 @@ const s = StyleSheet.create({
     padding: 14, paddingTop: 52, backgroundColor: '#111',
   },
   backBtn: {
-    width: 30, height: 30, borderRadius: 15,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center', justifyContent: 'center',
   },
