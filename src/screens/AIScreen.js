@@ -14,7 +14,7 @@ export default function AIScreen() {
   const [response, setResponse] = useState('');
   const [loading, setLoading]   = useState(false);
 
-  const isSeeker = role === 'seeker';
+  const isSeeker = false; // All users can use AI match
   const hints = isSeeker
     ? ['Find jobs matching my skills in Nanded','How do I improve my chances of getting hired?',
        'What skills should I learn for better pay?','Which areas in Nanded have most job openings?']
@@ -80,7 +80,7 @@ export default function AIScreen() {
             multiline
           />
         </View>
-        <Btn label={loading ? '⏳ Thinking…' : '✨ Ask AI'}
+        <Btn label={loading ? 'Thinking…' : 'Ask AI'}
           onPress={askAI} disabled={loading || !query.trim()} />
 
         {/* Loading indicator */}
