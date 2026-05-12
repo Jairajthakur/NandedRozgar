@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { C } from '../utils/constants';
+import { Ionicons } from '@expo/vector-icons';
 
 const FILTERS = ['All', 'PG', '1 BHK', '2 BHK', 'Boys', 'Girls'];
 
@@ -20,7 +21,7 @@ export const ROOMS = [
     availableLabel: 'Available',
     photos: 4,
     iconColor: '#1e2a3a',
-    icon: '🏠',
+    icon: 'home',
     specs: { Type: 'PG Single', Deposit: '₹9,000', For: 'Boys', Floor: '2nd floor' },
     amenities: ['WiFi', 'Meals 2x/day', 'CCTV', 'Laundry', '24hr water'],
     owner: { name: 'Sunita Patil', initials: 'SP', area: 'Replies within 1 hr', color: '#0f6e56', bg: '#e1f5ee' },
@@ -38,7 +39,7 @@ export const ROOMS = [
     availableLabel: 'Available',
     photos: 3,
     iconColor: '#1a2e1e',
-    icon: '🏡',
+    icon: 'home',
     specs: { Type: '1 BHK', Deposit: '₹14,000', For: 'Family', Floor: 'Ground' },
     amenities: ['Furnished', 'Parking', 'RO water', 'Power backup'],
     owner: { name: 'Prakash Joshi', initials: 'PJ', area: 'Responds in 2 hrs', color: '#185fa5', bg: '#e6f1fb' },
@@ -56,7 +57,7 @@ export const ROOMS = [
     availableLabel: '2 left',
     photos: 2,
     iconColor: '#2e1a1a',
-    icon: '🏢',
+    icon: 'business',
     specs: { Type: 'PG Shared', Deposit: '₹11,000', For: 'Girls', Floor: '1st floor' },
     amenities: ['Meals 2x/day', 'WiFi', 'CCTV', 'Wardrobe', 'Attached bath'],
     owner: { name: 'Meena Bhosale', initials: 'MB', area: 'Replies within 30 mins', color: '#854f0b', bg: '#faeeda' },
@@ -104,7 +105,7 @@ export default function RoomsScreen() {
           >
             {/* Photo Strip */}
             <View style={[s.imgStrip, { backgroundColor: item.iconColor }]}>
-              <Text style={s.roomIcon}>{item.icon}</Text>
+              <Ionicons name={item.icon} size={36} color="#fff" />
               <View style={s.photoThumbs}>
                 {['Room', 'Kitchen', 'Bath', 'Outside'].slice(0, item.photos).map((lbl, i) => (
                   <View key={i} style={[s.thumb, i === 0 && s.thumbActive]}>
@@ -127,8 +128,8 @@ export default function RoomsScreen() {
               <Text style={s.name}>{item.name}</Text>
               <Text style={s.subtitle}>{item.subtitle}</Text>
               <View style={s.metaRow}>
-                <View style={s.tag}><Text style={s.tagTxt}>📍 {item.location}</Text></View>
-                <View style={s.tag}><Text style={s.tagTxt}>👤 {item.forGender}</Text></View>
+                <View style={s.tag}><Ionicons name="location-sharp" size={11} color="#555" /><Text style={[s.tagTxt, { marginLeft: 3 }]}>{item.location}</Text></View>
+                <View style={s.tag}><Ionicons name="person" size={11} color="#555" /><Text style={[s.tagTxt, { marginLeft: 3 }]}>{item.forGender}</Text></View>
                 <View style={s.priceBadge}><Text style={s.priceTxt}>{item.price}</Text></View>
               </View>
             </View>
@@ -192,7 +193,7 @@ const s = StyleSheet.create({
   name: { fontSize: 14, fontWeight: '700', color: '#111' },
   subtitle: { fontSize: 11, color: '#999', marginTop: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  tag: { backgroundColor: '#f5f5f5', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
+  tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
   tagTxt: { fontSize: 11, color: '#777' },
   priceBadge: { marginLeft: 'auto', backgroundColor: '#111', borderRadius: 7, paddingVertical: 5, paddingHorizontal: 10 },
   priceTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
