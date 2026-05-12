@@ -20,7 +20,7 @@ async function runMigrations() {
         password    VARCHAR(200) NOT NULL,
         phone       VARCHAR(15),
         company     VARCHAR(100),
-        role        VARCHAR(10) DEFAULT 'seeker' CHECK (role IN ('seeker', 'giver', 'admin')),
+        role        VARCHAR(10) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
         premium     BOOLEAN DEFAULT FALSE,
         active      BOOLEAN DEFAULT TRUE,
         created_at  TIMESTAMPTZ DEFAULT NOW()
