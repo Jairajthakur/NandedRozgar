@@ -19,12 +19,13 @@ import PostScreen       from './src/screens/PostScreen';
 import ProfileScreen    from './src/screens/ProfileScreen';
 import AIScreen         from './src/screens/AIScreen';
 import AdminScreen      from './src/screens/AdminScreen';
-import CarScreen       from './src/screens/CarScreen';
+import CarScreen        from './src/screens/CarScreen';
 import CarDetailScreen  from './src/screens/CarDetailScreen';
-import RoomScreen      from './src/screens/RoomScreen';
+import RoomScreen       from './src/screens/RoomScreen';
 import RoomDetailScreen from './src/screens/RoomDetailScreen';
 import PostCarScreen    from './src/screens/PostCarScreen';
 import PostRoomScreen   from './src/screens/PostRoomScreen';
+import BuySellScreen    from './src/screens/BuySellScreen';
 import { C } from './src/utils/constants';
 
 const Stack = createNativeStackNavigator();
@@ -33,13 +34,8 @@ const Tab   = createBottomTabNavigator();
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error, info) {
-    console.error('ErrorBoundary caught:', error, info);
-  }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error('ErrorBoundary caught:', error, info); }
   render() {
     if (this.state.hasError) {
       return (
@@ -58,75 +54,85 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// ─── Shared tab options ───────────────────────────────────────────────────────
-const TAB_BAR_STYLE = {
-  tabBarStyle: {
-    backgroundColor: '#ffffff',
-    borderTopColor: '#e0e0e0',
-    borderTopWidth: 1,
-    height: 60,
-    paddingBottom: 8,
-  },
-  tabBarActiveTintColor:   '#111111',
-  tabBarInactiveTintColor: '#777777',
-  headerStyle:      { backgroundColor: '#111111' },
-  headerTintColor:  '#ffffff',
-  headerTitleStyle: { fontWeight: '800' },
-  headerTitle:      'NandedRozgar 🏙️',
-};
+// ─── Custom Tab Bar ───────────────────────────────────────────────────────────
+function CustomTabBar({ state, descriptors, navigation }) {
+  return (
+    <View style={s.tabBar}>
+      {state.routes.map((route, index) => {
+        const { options } = descriptors[route.key];
+        const isFocused = state.index === index;
+        const isPost = route.name === 'Post';
 
-function icon(emoji) {
-  return ({ focused }) => (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 20 }}>{emoji}</Text>
-      {focused && <View style={{ width: 4, height: 4, borderRadius: 2,
-        backgroundColor: '#111', marginTop: 2 }} />}
+        const onPress = () => {
+          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+          if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
+        };
+
+        if (isPost) {
+          return (
+            <TouchableOpacity key={route.key} onPress={onPress} style={s.postSlot} activeOpacity={0.85}>
+              <View style={s.postBtn}>
+                <Text style={s.postBtnText}>+</Text>
+              </View>
+              <Text style={s.postLabel}>Post</Text>
+            </TouchableOpacity>
+          );
+        }
+
+        const label  = options.tabBarLabel || route.name;
+        const icon   = options.tabBarIcon?.({ focused: isFocused, color: isFocused ? '#f97316' : '#aaa', size: 22 });
+
+        return (
+          <TouchableOpacity key={route.key} onPress={onPress}
+            style={[s.tabItem, isFocused && s.tabItemActive]} activeOpacity={0.8}>
+            {icon}
+            <Text style={[s.tabLabel, isFocused && s.tabLabelActive]}>{label}</Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
 
-// ─── Three separate static navigators — no conditional screens inside one Tab ─
-function SeekerTabs() {
+function TabIcon({ emoji, focused }) {
+  return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>{emoji}</Text>;
+}
+
+const HEADER = {
+  headerStyle:      { backgroundColor: '#111111' },
+  headerTintColor:  '#ffffff',
+  headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+};
+
+// ─── Tab Navigators ───────────────────────────────────────────────────────────
+// Nav: Home | Jobs | [+Post] | Rooms | Cars
+// Profile, AI, Admin accessible via HomeScreen cards / Profile stack screen
+
+function buildTabs(hasPost) {
   return (
-    <Tab.Navigator screenOptions={TAB_BAR_STYLE}>
-      <Tab.Screen name="Home"    component={HomeScreen}    options={{ tabBarLabel: 'Home',    tabBarIcon: icon('🏙️'), headerTitle: 'NandedRozgar 🏙️' }} />
-      <Tab.Screen name="Jobs"    component={BoardScreen}   options={{ tabBarLabel: 'Jobs',    tabBarIcon: icon('💼'), headerTitle: 'Find Jobs' }} />
-      <Tab.Screen name="Cars"    component={CarScreen}    options={{ tabBarLabel: 'Cars',    tabBarIcon: icon('🚗'), headerTitle: 'Car Rental' }} />
-      <Tab.Screen name="Rooms"   component={RoomScreen}   options={{ tabBarLabel: 'Rooms',   tabBarIcon: icon('🏠'), headerTitle: 'Rooms & PG' }} />
-      <Tab.Screen name="AI"      component={AIScreen}      options={{ tabBarLabel: 'AI Match', tabBarIcon: icon('✨'), headerTitle: 'AI Job Match' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile', tabBarIcon: icon('👤'), headerTitle: 'My Profile' }} />
+    <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={HEADER}>
+      <Tab.Screen name="Home"  component={HomeScreen}
+        options={{ headerTitle: 'NandedRozgar', tabBarLabel: 'Home',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🏙️" focused={focused} /> }} />
+      <Tab.Screen name="Jobs"  component={BoardScreen}
+        options={{ headerTitle: 'Find Jobs', tabBarLabel: 'Jobs',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="💼" focused={focused} /> }} />
+      <Tab.Screen name="Post"  component={PostScreen}
+        options={{ headerTitle: 'Post a Job', tabBarLabel: 'Post',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📝" focused={focused} /> }} />
+      <Tab.Screen name="Rooms" component={RoomScreen}
+        options={{ headerTitle: 'Rooms & PG', tabBarLabel: 'Rooms',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }} />
+      <Tab.Screen name="Cars"  component={CarScreen}
+        options={{ headerTitle: 'Car Rental', tabBarLabel: 'Cars',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🚗" focused={focused} /> }} />
     </Tab.Navigator>
   );
 }
 
-function GiverTabs() {
-  return (
-    <Tab.Navigator screenOptions={TAB_BAR_STYLE}>
-      <Tab.Screen name="Home"    component={HomeScreen}    options={{ tabBarLabel: 'Home',     tabBarIcon: icon('🏙️'), headerTitle: 'NandedRozgar 🏙️' }} />
-      <Tab.Screen name="Jobs"    component={BoardScreen}   options={{ tabBarLabel: 'Jobs',     tabBarIcon: icon('💼'), headerTitle: 'Find Jobs' }} />
-      <Tab.Screen name="Cars"    component={CarScreen}    options={{ tabBarLabel: 'Cars',     tabBarIcon: icon('🚗'), headerTitle: 'Car Rental' }} />
-      <Tab.Screen name="Rooms"   component={RoomScreen}   options={{ tabBarLabel: 'Rooms',    tabBarIcon: icon('🏠'), headerTitle: 'Rooms & PG' }} />
-      <Tab.Screen name="Post"    component={PostScreen}    options={{ tabBarLabel: 'Post Job', tabBarIcon: icon('📝'), headerTitle: 'Post a Job' }} />
-      <Tab.Screen name="AI"      component={AIScreen}      options={{ tabBarLabel: 'AI Match', tabBarIcon: icon('✨'), headerTitle: 'AI Job Match' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile',  tabBarIcon: icon('👤'), headerTitle: 'My Profile' }} />
-    </Tab.Navigator>
-  );
-}
-
-function AdminTabs() {
-  return (
-    <Tab.Navigator screenOptions={TAB_BAR_STYLE}>
-      <Tab.Screen name="Home"    component={HomeScreen}    options={{ tabBarLabel: 'Home',     tabBarIcon: icon('🏙️'), headerTitle: 'NandedRozgar 🏙️' }} />
-      <Tab.Screen name="Jobs"    component={BoardScreen}   options={{ tabBarLabel: 'Jobs',     tabBarIcon: icon('💼'), headerTitle: 'Find Jobs' }} />
-      <Tab.Screen name="Cars"    component={CarScreen}    options={{ tabBarLabel: 'Cars',     tabBarIcon: icon('🚗'), headerTitle: 'Car Rental' }} />
-      <Tab.Screen name="Rooms"   component={RoomScreen}   options={{ tabBarLabel: 'Rooms',    tabBarIcon: icon('🏠'), headerTitle: 'Rooms & PG' }} />
-      <Tab.Screen name="Post"    component={PostScreen}    options={{ tabBarLabel: 'Post Job', tabBarIcon: icon('📝'), headerTitle: 'Post a Job' }} />
-      <Tab.Screen name="AI"      component={AIScreen}      options={{ tabBarLabel: 'AI Match', tabBarIcon: icon('✨'), headerTitle: 'AI Job Match' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile',  tabBarIcon: icon('👤'), headerTitle: 'My Profile' }} />
-      <Tab.Screen name="Admin"   component={AdminScreen}   options={{ tabBarLabel: 'Admin',    tabBarIcon: icon('⚙️'), headerTitle: 'Admin Panel' }} />
-    </Tab.Navigator>
-  );
-}
+function SeekerTabs() { return buildTabs(false); }
+function GiverTabs()  { return buildTabs(true);  }
+function AdminTabs()  { return buildTabs(true);  }
 
 function MainTabs() {
   const { role } = useAuth();
@@ -153,45 +159,27 @@ function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!user
-        ? <Stack.Screen name="Login" component={LoginScreen} />
-        : <Stack.Screen name="Main"  component={MainTabs} />
+        ? <Stack.Screen name="Login"   component={LoginScreen} />
+        : <Stack.Screen name="Main"    component={MainTabs} />
       }
-      <Stack.Screen
-        name="JobDetail"
-        component={JobDetailScreen}
-        options={{
-          headerShown: true,
-          headerTitle: 'Job Details',
-          headerStyle: { backgroundColor: '#111111' },
-          headerTintColor: '#ffffff',
-          headerTitleStyle: { fontWeight: '800' },
-        }}
-      />
-      <Stack.Screen
-        name="CarDetail"
-        component={CarDetailScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="RoomDetail"
-        component={RoomDetailScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="PostCar"
-        component={PostCarScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="PostRoom"
-        component={PostRoomScreen}
-        options={{ headerShown: false }}
-      />
+      <Stack.Screen name="JobDetail"  component={JobDetailScreen}
+        options={{ headerShown: true, headerTitle: 'Job Details', ...HEADER }} />
+      <Stack.Screen name="CarDetail"  component={CarDetailScreen}  options={{ headerShown: false }} />
+      <Stack.Screen name="RoomDetail" component={RoomDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="PostCar"    component={PostCarScreen}    options={{ headerShown: false }} />
+      <Stack.Screen name="PostRoom"   component={PostRoomScreen}   options={{ headerShown: false }} />
+      <Stack.Screen name="BuySell"    component={BuySellScreen}
+        options={{ headerShown: true, headerTitle: 'Buy & Sell', ...HEADER }} />
+      <Stack.Screen name="Profile"    component={ProfileScreen}
+        options={{ headerShown: true, headerTitle: 'My Profile', ...HEADER }} />
+      <Stack.Screen name="AIMatch"    component={AIScreen}
+        options={{ headerShown: true, headerTitle: 'AI Job Match', ...HEADER }} />
+      <Stack.Screen name="Admin"      component={AdminScreen}
+        options={{ headerShown: true, headerTitle: 'Admin Panel', ...HEADER }} />
     </Stack.Navigator>
   );
 }
 
-// ─── Root export ──────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -210,19 +198,47 @@ export default function App() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  errBox:   { flex:1, alignItems:'center', justifyContent:'center',
-               backgroundColor:'#111', padding:32 },
-  errEmoji: { fontSize:48, marginBottom:16 },
-  errTitle: { color:'#fff', fontSize:20, fontWeight:'800', marginBottom:12, textAlign:'center' },
-  errMsg:   { color:'#aaa', fontSize:13, textAlign:'center', marginBottom:24, lineHeight:20 },
-  errBtn:   { backgroundColor:'#fff', borderRadius:10, paddingVertical:12, paddingHorizontal:28 },
-  errBtnTxt:{ color:'#111', fontWeight:'700', fontSize:14 },
+  // ── Custom tab bar ──
+  tabBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderTopWidth: 0.5, borderTopColor: '#e5e5e5',
+    height: 64, paddingBottom: 8, paddingHorizontal: 4,
+  },
+  tabItem: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 4, borderRadius: 10, gap: 2,
+  },
+  tabItemActive: { backgroundColor: '#fff7ed' },
+  tabLabel:      { fontSize: 10, fontWeight: '500', color: '#aaa' },
+  tabLabelActive:{ fontSize: 10, fontWeight: '600', color: '#f97316' },
 
+  // ── Post button ──
+  postSlot: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 0 },
+  postBtn: {
+    width: 46, height: 46, borderRadius: 14,
+    backgroundColor: '#f97316',
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: -20,
+    shadowColor: '#f97316',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
+  },
+  postBtnText: { color: '#fff', fontSize: 30, fontWeight: '300', lineHeight: 34, marginTop: -2 },
+  postLabel:   { fontSize: 10, fontWeight: '500', color: '#aaa', marginTop: 3 },
+
+  // ── Error ──
+  errBox:    { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#111', padding:32 },
+  errEmoji:  { fontSize:48, marginBottom:16 },
+  errTitle:  { color:'#fff', fontSize:20, fontWeight:'800', marginBottom:12, textAlign:'center' },
+  errMsg:    { color:'#aaa', fontSize:13, textAlign:'center', marginBottom:24, lineHeight:20 },
+  errBtn:    { backgroundColor:'#fff', borderRadius:10, paddingVertical:12, paddingHorizontal:28 },
+  errBtnTxt: { color:'#111', fontWeight:'700', fontSize:14 },
+
+  // ── Splash ──
   splash:      { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#111' },
-  splashIcon:  { width:80, height:80, backgroundColor:'#222', borderRadius:20,
-                 alignItems:'center', justifyContent:'center', marginBottom:16 },
+  splashIcon:  { width:80, height:80, backgroundColor:'#222', borderRadius:20, alignItems:'center', justifyContent:'center', marginBottom:16 },
   splashTitle: { color:'#fff', fontSize:28, fontWeight:'800', letterSpacing:0.5 },
   splashSub:   { color:'#888', fontSize:13, marginTop:4 },
 });
