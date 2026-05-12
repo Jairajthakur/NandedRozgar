@@ -16,6 +16,7 @@ import HomeScreen       from './src/screens/HomeScreen';
 import BoardScreen      from './src/screens/BoardScreen';
 import JobDetailScreen  from './src/screens/JobDetailScreen';
 import PostScreen       from './src/screens/PostScreen';
+import PostJobScreen    from './src/screens/PostJobScreen';
 import ProfileScreen    from './src/screens/ProfileScreen';
 import AIScreen         from './src/screens/AIScreen';
 import AdminScreen      from './src/screens/AdminScreen';
@@ -26,67 +27,69 @@ import RoomDetailScreen from './src/screens/RoomDetailScreen';
 import PostCarScreen    from './src/screens/PostCarScreen';
 import PostRoomScreen   from './src/screens/PostRoomScreen';
 import BuySellScreen    from './src/screens/BuySellScreen';
-import { C } from './src/utils/constants';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
-
 const ORANGE = '#f97316';
 
-// ─── Error Boundary ───────────────────────────────────────────────────────────
+// ── Error Boundary ────────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
-  static getDerivedStateFromError(error) { return { hasError: true, error }; }
-  componentDidCatch(error, info) { console.error('ErrorBoundary caught:', error, info); }
+  static getDerivedStateFromError(e) { return { hasError: true, error: e }; }
+  componentDidCatch(e, i) { console.error('ErrorBoundary:', e, i); }
   render() {
-    if (this.state.hasError) {
-      return (
-        <View style={s.errBox}>
-          <Text style={s.errEmoji}>⚠️</Text>
-          <Text style={s.errTitle}>Something went wrong</Text>
-          <Text style={s.errMsg}>{this.state.error?.message || 'Unexpected error'}</Text>
-          <TouchableOpacity style={s.errBtn}
-            onPress={() => this.setState({ hasError: false, error: null })}>
-            <Text style={s.errBtnTxt}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
+    if (this.state.hasError) return (
+      <View style={s.errBox}>
+        <Text style={s.errEmoji}>⚠️</Text>
+        <Text style={s.errTitle}>Something went wrong</Text>
+        <Text style={s.errMsg}>{this.state.error?.message || 'Unexpected error'}</Text>
+        <TouchableOpacity style={s.errBtn} onPress={() => this.setState({ hasError: false, error: null })}>
+          <Text style={s.errBtnTxt}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+    );
     return this.props.children;
   }
 }
 
-// ─── Custom Tab Bar ───────────────────────────────────────────────────────────
+// ── Tab Icons (emoji style, matching Image 1) ─────────────────────────────────
+const TAB_ICONS = {
+  Home:  { active: '🏠', inactive: '🏠' },
+  Jobs:  { active: '💼', inactive: '💼' },
+  Rooms: { active: '🏢', inactive: '🏢' },
+  Cars:  { active: '🚗', inactive: '🚗' },
+};
+
+// ── Custom Tab Bar ────────────────────────────────────────────────────────────
 function CustomTabBar({ state, descriptors, navigation }) {
   return (
     <View style={s.tabBar}>
       {state.routes.map((route, index) => {
-        const { options } = descriptors[route.key];
         const isFocused = state.index === index;
-        const isPost = route.name === 'Post';
+        const isPost    = route.name === 'Post';
 
         const onPress = () => {
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
         };
 
-        if (isPost) {
-          return (
-            <TouchableOpacity key={route.key} onPress={onPress} style={s.postSlot} activeOpacity={0.85}>
-              <View style={s.postBtn}>
-                <Text style={s.postBtnText}>+</Text>
-              </View>
-            </TouchableOpacity>
-          );
-        }
+        if (isPost) return (
+          <TouchableOpacity key={route.key} onPress={onPress} style={s.postSlot} activeOpacity={0.85}>
+            <View style={s.postBtn}>
+              <Text style={s.postBtnText}>＋</Text>
+            </View>
+            <Text style={s.postLabel}>Post</Text>
+          </TouchableOpacity>
+        );
 
-        const label = options.tabBarLabel || route.name;
-        const icon  = options.tabBarIcon?.({ focused: isFocused, color: isFocused ? ORANGE : '#999', size: 22 });
+        const icons = TAB_ICONS[route.name] || {};
+        const label = descriptors[route.key].options.tabBarLabel || route.name;
 
         return (
-          <TouchableOpacity key={route.key} onPress={onPress}
-            style={s.tabItem} activeOpacity={0.8}>
-            {icon}
+          <TouchableOpacity key={route.key} onPress={onPress} style={s.tabItem} activeOpacity={0.8}>
+            <Text style={[s.tabIcon, isFocused && s.tabIconActive]}>
+              {isFocused ? icons.active : icons.inactive}
+            </Text>
             <Text style={[s.tabLabel, isFocused && s.tabLabelActive]}>{label}</Text>
           </TouchableOpacity>
         );
@@ -95,81 +98,57 @@ function CustomTabBar({ state, descriptors, navigation }) {
   );
 }
 
-function TabIcon({ emoji, focused }) {
-  return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>{emoji}</Text>;
-}
-
 const HEADER = {
   headerStyle:      { backgroundColor: '#111111' },
   headerTintColor:  '#ffffff',
   headerTitleStyle: { fontWeight: '800', fontSize: 16 },
 };
 
-// ─── Tab Navigators ───────────────────────────────────────────────────────────
-function buildTabs() {
+// ── Tab Navigator ─────────────────────────────────────────────────────────────
+function MainTabs() {
   return (
     <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={HEADER}>
-      <Tab.Screen name="Home"  component={HomeScreen}
-        options={{ headerShown: false, tabBarLabel: 'Home',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }} />
-      <Tab.Screen name="Jobs"  component={BoardScreen}
-        options={{ headerTitle: 'Find Jobs', tabBarLabel: 'Jobs',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💼" focused={focused} /> }} />
-      <Tab.Screen name="Post"  component={PostScreen}
-        options={{ headerTitle: 'Post a Job', tabBarLabel: 'Post',
-          tabBarIcon: () => null }} />
-      <Tab.Screen name="Rooms" component={RoomScreen}
-        options={{ headerTitle: 'Rooms & PG', tabBarLabel: 'Rooms',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏢" focused={focused} /> }} />
-      <Tab.Screen name="Cars"  component={CarScreen}
-        options={{ headerTitle: 'Car Rental', tabBarLabel: 'Cars',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🚗" focused={focused} /> }} />
+      <Tab.Screen name="Home"  component={HomeScreen}  options={{ headerShown: false, tabBarLabel: 'Home' }} />
+      <Tab.Screen name="Jobs"  component={BoardScreen} options={{ headerTitle: 'Find Jobs 💼', tabBarLabel: 'Jobs' }} />
+      <Tab.Screen name="Post"  component={PostScreen}  options={{ headerShown: false, tabBarLabel: 'Post' }} />
+      <Tab.Screen name="Rooms" component={RoomScreen}  options={{ headerTitle: 'Rooms & PG 🏢', tabBarLabel: 'Rooms' }} />
+      <Tab.Screen name="Cars"  component={CarScreen}   options={{ headerTitle: 'Car Rental 🚗', tabBarLabel: 'Cars' }} />
     </Tab.Navigator>
   );
 }
 
-function MainTabs() { return buildTabs(); }
-
-// ─── Root navigator ───────────────────────────────────────────────────────────
+// ── Root Navigator ────────────────────────────────────────────────────────────
 function RootNavigator() {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <View style={s.splash}>
-        <View style={s.splashIcon}>
-          <Text style={{ fontSize: 32 }}>🏙️</Text>
-        </View>
-        <Text style={s.splashTitle}>
-          <Text style={{ color: '#fff' }}>Nanded</Text>
-          <Text style={{ color: ORANGE }}>Rozgar</Text>
-        </Text>
-        <Text style={s.splashSub}>Jobs · Cars · Rooms · Nanded</Text>
-        <ActivityIndicator color={ORANGE} size="large" style={{ marginTop: 40 }} />
-      </View>
-    );
-  }
+  if (loading) return (
+    <View style={s.splash}>
+      <View style={s.splashIcon}><Text style={{ fontSize: 32 }}>🏙️</Text></View>
+      <Text style={s.splashTitle}>
+        <Text style={{ color: '#fff' }}>Nanded</Text>
+        <Text style={{ color: ORANGE }}>Rozgar</Text>
+      </Text>
+      <Text style={s.splashSub}>Jobs · Cars · Rooms · Nanded</Text>
+      <ActivityIndicator color={ORANGE} size="large" style={{ marginTop: 40 }} />
+    </View>
+  );
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!user
-        ? <Stack.Screen name="Login"   component={LoginScreen} />
-        : <Stack.Screen name="Main"    component={MainTabs} />
+        ? <Stack.Screen name="Login" component={LoginScreen} />
+        : <Stack.Screen name="Main"  component={MainTabs} />
       }
-      <Stack.Screen name="JobDetail"  component={JobDetailScreen}
-        options={{ headerShown: true, headerTitle: 'Job Details', ...HEADER }} />
+      <Stack.Screen name="JobDetail"  component={JobDetailScreen}  options={{ headerShown: true, headerTitle: '💼 Job Details', ...HEADER }} />
       <Stack.Screen name="CarDetail"  component={CarDetailScreen}  options={{ headerShown: false }} />
       <Stack.Screen name="RoomDetail" component={RoomDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="PostJob"    component={PostJobScreen}    options={{ headerShown: true, headerTitle: '💼 Post a Job', ...HEADER }} />
       <Stack.Screen name="PostCar"    component={PostCarScreen}    options={{ headerShown: false }} />
       <Stack.Screen name="PostRoom"   component={PostRoomScreen}   options={{ headerShown: false }} />
-      <Stack.Screen name="BuySell"    component={BuySellScreen}
-        options={{ headerShown: true, headerTitle: 'Buy & Sell', ...HEADER }} />
-      <Stack.Screen name="Profile"    component={ProfileScreen}
-        options={{ headerShown: true, headerTitle: 'My Profile', ...HEADER }} />
-      <Stack.Screen name="AIMatch"    component={AIScreen}
-        options={{ headerShown: true, headerTitle: 'AI Job Match', ...HEADER }} />
-      <Stack.Screen name="Admin"      component={AdminScreen}
-        options={{ headerShown: true, headerTitle: 'Admin Panel', ...HEADER }} />
+      <Stack.Screen name="BuySell"    component={BuySellScreen}    options={{ headerShown: true, headerTitle: '🏷️ Buy & Sell', ...HEADER }} />
+      <Stack.Screen name="Profile"    component={ProfileScreen}    options={{ headerShown: true, headerTitle: '👤 My Profile', ...HEADER }} />
+      <Stack.Screen name="AIMatch"    component={AIScreen}         options={{ headerShown: true, headerTitle: '✨ AI Job Match', ...HEADER }} />
+      <Stack.Screen name="Admin"      component={AdminScreen}      options={{ headerShown: true, headerTitle: '⚙️ Admin Panel', ...HEADER }} />
     </Stack.Navigator>
   );
 }
@@ -193,44 +172,41 @@ export default function App() {
 }
 
 const s = StyleSheet.create({
-  // ── Custom tab bar ──
   tabBar: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#ffffff',
     borderTopWidth: 1, borderTopColor: '#ebebeb',
-    height: 66, paddingBottom: 10, paddingHorizontal: 4,
+    height: 70, paddingBottom: 10, paddingHorizontal: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 12,
   },
-  tabItem: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 4, gap: 3,
-  },
-  tabLabel:      { fontSize: 10, fontWeight: '500', color: '#999' },
-  tabLabelActive:{ fontSize: 10, fontWeight: '700', color: ORANGE },
+  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, gap: 2 },
+  tabIcon:       { fontSize: 20, opacity: 0.35 },
+  tabIconActive: { opacity: 1 },
+  tabLabel:       { fontSize: 10, fontWeight: '500', color: '#aaa' },
+  tabLabelActive: { fontSize: 10, fontWeight: '700', color: ORANGE },
 
-  // ── Post button ──
-  postSlot: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 0 },
+  postSlot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   postBtn: {
-    width: 50, height: 50, borderRadius: 25,
+    width: 54, height: 54, borderRadius: 27,
     backgroundColor: ORANGE,
     alignItems: 'center', justifyContent: 'center',
-    marginTop: -18,
-    shadowColor: ORANGE,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
+    marginTop: -22,
+    shadowColor: ORANGE, shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.45, shadowRadius: 12, elevation: 12,
   },
-  postBtnText: { color: '#fff', fontSize: 32, fontWeight: '300', lineHeight: 36, marginTop: -2 },
+  postBtnText: { color: '#fff', fontSize: 26, fontWeight: '400', marginTop: -2 },
+  postLabel:   { fontSize: 10, fontWeight: '700', color: ORANGE, marginTop: 2 },
 
-  // ── Error ──
-  errBox:    { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#111', padding:32 },
-  errEmoji:  { fontSize:48, marginBottom:16 },
-  errTitle:  { color:'#fff', fontSize:20, fontWeight:'800', marginBottom:12, textAlign:'center' },
-  errMsg:    { color:'#aaa', fontSize:13, textAlign:'center', marginBottom:24, lineHeight:20 },
-  errBtn:    { backgroundColor:ORANGE, borderRadius:10, paddingVertical:12, paddingHorizontal:28 },
-  errBtnTxt: { color:'#fff', fontWeight:'700', fontSize:14 },
+  errBox:   { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#111', padding:32 },
+  errEmoji: { fontSize:48, marginBottom:16 },
+  errTitle: { color:'#fff', fontSize:20, fontWeight:'800', marginBottom:12, textAlign:'center' },
+  errMsg:   { color:'#aaa', fontSize:13, textAlign:'center', marginBottom:24, lineHeight:20 },
+  errBtn:   { backgroundColor:ORANGE, borderRadius:10, paddingVertical:12, paddingHorizontal:28 },
+  errBtnTxt:{ color:'#fff', fontWeight:'700', fontSize:14 },
 
-  // ── Splash ──
-  splash:      { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#111' },
-  splashIcon:  { width:80, height:80, backgroundColor:'#222', borderRadius:20, alignItems:'center', justifyContent:'center', marginBottom:16 },
-  splashTitle: { fontSize:28, fontWeight:'900', letterSpacing:0.5 },
-  splashSub:   { color:'#888', fontSize:13, marginTop:4 },
+  splash:     { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#111' },
+  splashIcon: { width:80, height:80, backgroundColor:'#222', borderRadius:20, alignItems:'center', justifyContent:'center', marginBottom:16 },
+  splashTitle:{ fontSize:28, fontWeight:'900', letterSpacing:0.5 },
+  splashSub:  { color:'#888', fontSize:13, marginTop:4 },
 });
