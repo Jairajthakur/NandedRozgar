@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { C } from '../utils/constants';
 
@@ -34,28 +34,7 @@ export default function HomeScreen() {
             <Text style={s.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'N'}</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={s.searchBar} activeOpacity={0.8}>
-          <Ionicons name="search" size={15} color="#555" />
-          <Text style={s.searchPlaceholder}>Search jobs, cars, rooms…</Text>
-        </TouchableOpacity>
       </View>
-
-      {/* ── Filter chips ── */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.filterRow} style={{ maxHeight: 52 }}>
-        {[
-          { label: 'All',        iconName: 'apps',        lib: 'ion' },
-          { label: 'Jobs',       iconName: 'briefcase',   lib: 'ion' },
-          { label: 'Cars',       iconName: 'car-sport',   lib: 'ion' },
-          { label: 'Rooms',      iconName: 'business',    lib: 'ion' },
-          { label: 'Buy & Sell', iconName: 'pricetag',    lib: 'ion' },
-        ].map((f, i) => (
-          <TouchableOpacity key={f.label} style={[s.filterChip, i === 0 && s.filterChipActive]} activeOpacity={0.8}>
-            {i !== 0 && <Ionicons name={f.iconName} size={12} color={i === 0 ? '#fff' : '#555'} style={{ marginRight: 4 }} />}
-            <Text style={[s.filterChipTxt, i === 0 && s.filterChipTxtActive]}>{f.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
 
       {/* ── Services grid ── */}
       <Text style={s.sectionTitle}>OUR SERVICES</Text>
@@ -139,25 +118,26 @@ export default function HomeScreen() {
             <View style={{ flex: 1 }}>
               <Text style={s.jobTitle} numberOfLines={1}>{job.title}</Text>
               <View style={s.jobSubRow}>
-                <Ionicons name="business" size={11} color="#aaa" />
-                <Text style={s.jobSub} numberOfLines={1}> {job.company} · </Text>
-                <Ionicons name="location-sharp" size={11} color="#aaa" />
-                <Text style={s.jobSub}> {job.location}</Text>
+                <Ionicons name="business-outline" size={11} color="#aaa" />
+                <Text style={s.jobSub} numberOfLines={1}> {job.company}</Text>
               </View>
               <View style={s.jobSubRow}>
-                <Ionicons name="time-outline" size={11} color="#aaa" />
-                <Text style={s.jobTime}> Just posted</Text>
+                <Ionicons name="location-outline" size={11} color="#aaa" />
+                <Text style={s.jobSub}> {job.location}</Text>
               </View>
             </View>
-            <View style={s.priceBadge}><Text style={s.priceTxt}>{job.salary}</Text></View>
+            <View style={s.salaryCol}>
+              <View style={s.priceBadge}><Text style={s.priceTxt}>{job.salary}</Text></View>
+              <Text style={s.jobTime}>Just posted</Text>
+            </View>
           </View>
         </TouchableOpacity>
       )) : (
         <>
           {[
-            { title: 'Telecaller',    company: 'Dhanraj Enterprises', loc: 'Nanded',       salary: '₹12,000', icon: 'call' },
-            { title: 'Web Developer', company: 'TechSoft Solutions',  loc: 'Nanded',       salary: '₹25,000', icon: 'globe' },
-            { title: 'Shop Assistant',company: 'Reliance Retail',     loc: 'Station Road', salary: '₹12,000', icon: 'storefront' },
+            { title: 'Telecaller',    company: 'Dhanraj Enterprises', loc: 'Nanded',       salary: '₹12,000', icon: 'call-outline' },
+            { title: 'Web Developer', company: 'TechSoft Solutions',  loc: 'Nanded',       salary: '₹25,000', icon: 'globe-outline' },
+            { title: 'Shop Assistant',company: 'Reliance Retail',     loc: 'Station Road', salary: '₹12,000', icon: 'storefront-outline' },
           ].map(job => (
             <TouchableOpacity key={job.title} style={s.jobCard} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
               <View style={s.jobRow}>
@@ -165,13 +145,18 @@ export default function HomeScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.jobTitle}>{job.title}</Text>
                   <View style={s.jobSubRow}>
-                    <Ionicons name="business" size={11} color="#aaa" />
-                    <Text style={s.jobSub}> {job.company} · </Text>
-                    <Ionicons name="location-sharp" size={11} color="#aaa" />
+                    <Ionicons name="business-outline" size={11} color="#aaa" />
+                    <Text style={s.jobSub}> {job.company}</Text>
+                  </View>
+                  <View style={s.jobSubRow}>
+                    <Ionicons name="location-outline" size={11} color="#aaa" />
                     <Text style={s.jobSub}> {job.loc}</Text>
                   </View>
                 </View>
-                <View style={s.priceBadge}><Text style={s.priceTxt}>{job.salary}</Text></View>
+                <View style={s.salaryCol}>
+                  <View style={s.priceBadge}><Text style={s.priceTxt}>{job.salary}</Text></View>
+                  <Text style={s.jobTime}>Full time</Text>
+                </View>
               </View>
             </TouchableOpacity>
           ))}
@@ -188,8 +173,8 @@ export default function HomeScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  headerBand: { backgroundColor: '#111111', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 18 },
-  headerTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
+  headerBand: { backgroundColor: '#111111', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brandText: { fontSize: 22, fontWeight: '900', letterSpacing: 0.2 },
   brandNanded: { color: '#ffffff' },
   brandRozgar: { color: '#f97316' },
@@ -197,13 +182,6 @@ const s = StyleSheet.create({
   locText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
   profileBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#f97316', alignItems: 'center', justifyContent: 'center' },
   profileInitial: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#1e1e22', borderRadius: 10, paddingVertical: 11, paddingHorizontal: 14, borderWidth: 0.5, borderColor: '#333' },
-  searchPlaceholder: { fontSize: 13, color: '#555' },
-  filterRow: { paddingHorizontal: 14, paddingVertical: 10, gap: 8, alignItems: 'center' },
-  filterChip: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e0e0e0' },
-  filterChipActive: { backgroundColor: '#f97316', borderColor: '#f97316' },
-  filterChipTxt: { fontSize: 12, fontWeight: '600', color: '#555' },
-  filterChipTxtActive: { color: '#fff' },
   sectionTitle: { fontSize: 10, fontWeight: '700', color: '#999', textTransform: 'uppercase', letterSpacing: 0.8, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 10, marginBottom: 4 },
   card: { width: '47%', backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: '#ebebeb', padding: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
@@ -217,14 +195,15 @@ const s = StyleSheet.create({
   quickRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 12, marginTop: 4, marginBottom: 4 },
   quickBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#ffffff', borderRadius: 10, borderWidth: 1, borderColor: '#ebebeb', paddingVertical: 10, paddingHorizontal: 12 },
   quickTxt: { fontSize: 12, fontWeight: '600', color: '#111' },
-  jobCard: { backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#ebebeb', marginHorizontal: 12, marginBottom: 8, padding: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  jobCard: { backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#ebebeb', marginHorizontal: 12, marginBottom: 10, padding: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   jobRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  jobThumb: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
-  jobTitle: { fontSize: 14, fontWeight: '700', color: '#111' },
-  jobSubRow: { flexDirection: 'row', alignItems: 'center', marginTop: 1 },
+  jobThumb: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
+  jobTitle: { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 3 },
+  jobSubRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   jobSub: { fontSize: 11, color: '#777' },
-  jobTime: { fontSize: 11, color: '#aaa' },
-  priceBadge: { backgroundColor: '#111', borderRadius: 7, paddingVertical: 5, paddingHorizontal: 10 },
+  jobTime: { fontSize: 10, color: '#bbb', marginTop: 4, textAlign: 'right' },
+  salaryCol: { alignItems: 'flex-end' },
+  priceBadge: { backgroundColor: '#111', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 },
   priceTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
   viewAll: { marginHorizontal: 12, marginTop: 4, alignItems: 'center', padding: 10 },
   viewAllTxt: { fontSize: 13, color: '#f97316', fontWeight: '700' },
