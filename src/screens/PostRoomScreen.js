@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Alert, KeyboardAvoidingView, Platform,
@@ -94,7 +95,7 @@ export default function PostRoomScreen() {
 
           {uploadedPhotos.length === 0 ? (
             <TouchableOpacity style={s.uploadArea} onPress={simulatePhotoUpload}>
-              <Text style={{ fontSize: 32 }}>🏠</Text>
+              <Ionicons name="home" size={32} color="#6366f1" />
               <Text style={s.uploadMain}>Tap to add room photos</Text>
               <Text style={s.uploadSub}>Bedroom, kitchen, bathroom, outside · JPG or PNG</Text>
             </TouchableOpacity>
@@ -220,7 +221,7 @@ export default function PostRoomScreen() {
             onPress={handleSubmit}
             disabled={loading}
           >
-            <Text style={s.submitTxt}>{loading ? 'Listing…' : 'List My Room 🏠'}</Text>
+            <Text style={s.submitTxt}>{loading ? 'Listing…' : 'List My Room'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
