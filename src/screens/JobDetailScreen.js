@@ -137,7 +137,7 @@ export default function JobDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
   banner: {
     backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#aaa',
     borderRadius: 9, padding: 10, marginBottom: 12,
