@@ -132,7 +132,7 @@ export default function CarDetailScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
   gallery: { height: 200, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   backBtn: {
     position: 'absolute', top: 44, left: 12,
@@ -205,7 +205,7 @@ const s = StyleSheet.create({
     backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border,
   },
   ctaMain: {
-    flex: 1, backgroundColor: C.dark, borderRadius: 10,
+    flex: 1, backgroundColor: '#111', borderRadius: 10,
     paddingVertical: 12, alignItems: 'center',
   },
   ctaMainTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
