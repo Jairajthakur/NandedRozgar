@@ -23,10 +23,11 @@ export const C = {
 
 export const CATS = ['All','Construction','Driver','Domestic Help','Security','Delivery','Shop Assistant','Plumber','Electrician','Carpenter','Painter','Other'];
 
+// Icon names for @expo/vector-icons Ionicons
 export const CAT_ICONS = {
-  Construction:'🏗️', Driver:'🚗', 'Domestic Help':'🏠', Security:'🛡️',
-  Delivery:'📦', 'Shop Assistant':'🛍️', Plumber:'🔧', Electrician:'⚡',
-  Carpenter:'🪚', Painter:'🖌️', Other:'💼',
+  Construction:'construct', Driver:'car', 'Domestic Help':'home', Security:'shield',
+  Delivery:'cube', 'Shop Assistant':'bag-handle', Plumber:'water', Electrician:'flash',
+  Carpenter:'hammer', Painter:'color-palette', Other:'briefcase',
 };
 
 export const PRICING = {
