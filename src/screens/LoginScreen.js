@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform, StatusBar,
 } from 'react-native';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { Input, Btn, Spinner } from '../components/UI';
 import { C } from '../utils/constants';
@@ -13,7 +14,7 @@ export default function LoginScreen() {
   const { login, register } = useAuth();
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({
-    email: '', password: '', name: '', phone: '', company: '',
+    email: '', password: '', name: '', phone: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,8 +35,8 @@ export default function LoginScreen() {
       setLoading(true);
       const r = await register({
         name: form.name, email: form.email, password: form.password,
-        role: 'giver',
-        phone: form.phone, company: form.company,
+        role: 'user',
+        phone: form.phone,
       });
       setLoading(false);
       if (!r.ok) setError(r.error || 'Registration failed');
@@ -50,7 +51,7 @@ export default function LoginScreen() {
 
           <View style={styles.logoWrap}>
             <View style={styles.logoMark}>
-              <Text style={{ fontSize: 28 }}>🏙️</Text>
+              <MaterialIcons name="location-city" size={28} color={ORANGE} />
             </View>
             <Text style={styles.logoText}>
               <Text style={{ color: '#fff' }}>Nanded</Text>
@@ -75,8 +76,6 @@ export default function LoginScreen() {
               <>
                 <Input label="Full Name *" value={form.name}
                   onChangeText={v => set('name', v)} placeholder="Your full name" />
-                <Input label="Company / Business Name" value={form.company}
-                  onChangeText={v => set('company', v)} placeholder="e.g. Patil Builders (optional)" />
                 <Input label="Phone Number" value={form.phone}
                   onChangeText={v => set('phone', v)} placeholder="9XXXXXXXXX"
                   keyboardType="phone-pad" maxLength={10} />
@@ -112,9 +111,14 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.benefits}>
-            {['💼 Post Jobs', '🚗 List Vehicles', '🏠 List Rooms'].map(b => (
-              <View key={b} style={styles.benefitItem}>
-                <Text style={styles.benefitText}>{b}</Text>
+            {[
+              { icon: 'briefcase', label: 'Post Jobs' },
+              { icon: 'directions-car', label: 'List Vehicles' },
+              { icon: 'home', label: 'List Rooms' },
+            ].map(b => (
+              <View key={b.label} style={styles.benefitItem}>
+                <MaterialIcons name={b.icon} size={13} color="rgba(255,255,255,0.7)" style={{ marginRight: 5 }} />
+                <Text style={styles.benefitText}>{b.label}</Text>
               </View>
             ))}
           </View>
@@ -158,6 +162,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', marginTop: 20, gap: 8, flexWrap: 'wrap', justifyContent: 'center',
   },
   benefitItem: {
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 20,
     paddingVertical: 6, paddingHorizontal: 14,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
