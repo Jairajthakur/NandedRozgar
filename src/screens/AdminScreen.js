@@ -150,11 +150,11 @@ export default function AdminScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
   statsGrid: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   statCard: {
     flex: 1, backgroundColor: C.card, borderRadius: 10, borderWidth: 1,
-    borderColor: C.border, padding: 12, alignItems: 'center',
+    borderColor: '#ebebeb', padding: 12, alignItems: 'center',
   },
   statVal: { fontSize: 20, fontWeight: '800', color: C.text, marginTop: 2 },
   statLbl: { fontSize: 10, color: C.muted, marginTop: 2, textTransform: 'uppercase' },
