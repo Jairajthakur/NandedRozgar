@@ -4,6 +4,7 @@ import {
   TextInput, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { C } from '../utils/constants';
 
 const VEHICLE_TYPES = ['Car', 'Bike / Scooter', 'Auto', 'Mini Truck'];
@@ -11,10 +12,10 @@ const FUEL_TYPES = ['Petrol', 'Diesel', 'Electric', 'CNG'];
 const SEAT_OPTIONS = ['2', '4', '5', '7', '8+'];
 
 const PHOTO_SLOTS = [
-  { icon: '🚗', label: 'Front', color: '#2d3a4a' },
+  { icon: 'car-sport', label: 'Front', color: '#2d3a4a' },
   { icon: '🚙', label: 'Side', color: '#1e3a2f' },
   { icon: '🛞', label: 'Interior', color: '#2a1e3a' },
-  { icon: '🚗', label: 'Back', color: '#2e1a1a' },
+  { icon: 'car', label: 'Back', color: '#2e1a1a' },
 ];
 
 export default function PostCarScreen() {
@@ -205,7 +206,7 @@ export default function PostCarScreen() {
             onPress={handleSubmit}
             disabled={loading}
           >
-            <Text style={s.submitTxt}>{loading ? 'Listing…' : 'List My Vehicle 🚗'}</Text>
+            <Text style={s.submitTxt}>{loading ? 'Listing…' : 'List My Vehicle'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
