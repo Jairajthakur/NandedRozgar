@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { C } from '../utils/constants';
+import { useLang } from '../utils/i18n';
 
 const GALLERY_TABS = ['Front', 'Side', 'Interior', 'Back'];
 
@@ -31,6 +32,7 @@ export default function CarDetailScreen() {
   const nav = useNavigation();
   const route = useRoute();
   const car = route.params?.car || PLACEHOLDER_CAR;
+  const { t } = useLang();
 
   const [activeImg, setActiveImg] = useState(0);
   const tabs = GALLERY_TABS.slice(0, car.photos || 4);
@@ -72,7 +74,7 @@ export default function CarDetailScreen() {
             <Text style={s.subtitle}>{car.subtitle}</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={s.price}>{car.price}<Text style={s.perDay}>/day</Text></Text>
+            <Text style={s.price}>{car.price}<Text style={s.perDay}>{t('perDay')}</Text></Text>
             <Text style={s.rating}>★ {car.rating} · {car.reviews} trips</Text>
           </View>
         </View>
@@ -110,7 +112,7 @@ export default function CarDetailScreen() {
           </View>
           {car.verified && (
             <View style={s.verifiedBadge}>
-              <Text style={s.verifiedTxt}>✓ ID verified</Text>
+              <Text style={s.verifiedTxt}>✓ {t('verifiedEmployer').replace('✓ ', '')}</Text>
             </View>
           )}
         </View>
@@ -119,7 +121,7 @@ export default function CarDetailScreen() {
       {/* CTA Bar */}
       <View style={s.ctaBar}>
         <TouchableOpacity style={s.ctaMain} onPress={() => Alert.alert('Booking', 'Contact the owner to book.')}>
-          <Text style={s.ctaMainTxt}>Book This Car</Text>
+          <Text style={s.ctaMainTxt}>{t('bookNow')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.ctaIcon} onPress={openWhatsApp}>
           <Text style={{ fontSize: 20 }}>💬</Text>
