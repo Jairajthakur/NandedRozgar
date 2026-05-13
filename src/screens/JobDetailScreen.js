@@ -9,12 +9,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { http, timeAgo } from '../utils/api';
 import { Btn, Chip, Card } from '../components/UI';
 import { C, CAT_ICONS } from '../utils/constants';
+import { useLang } from '../utils/i18n';
 
 export default function JobDetailScreen({ route, navigation }) {
   const { job: initial } = route.params;
   const [job, setJob] = useState(initial);
   const [showReportModal, setShowReportModal] = useState(false);
   const { user, role, loadJobs } = useAuth();
+  const { t } = useLang();
 
   const hasApplied = job.applicants?.includes(user?.id);
   const hasSaved   = job.saved?.includes(user?.id);
@@ -80,12 +82,12 @@ export default function JobDetailScreen({ route, navigation }) {
       <Card style={{ marginBottom: 12 }}>
         {job.featured && (
           <View style={styles.banner}>
-            <Text style={styles.bannerText}>Featured Listing — Top Placement</Text>
+            <Text style={styles.bannerText}>{t('featured')}</Text>
           </View>
         )}
         {job.urgent && (
           <View style={[styles.banner, { backgroundColor: '#f5f5f5', borderColor: '#555' }]}>
-            <Text style={[styles.bannerText, { color: '#444' }]}>Urgent Hiring — Apply Immediately</Text>
+            <Text style={[styles.bannerText, { color: '#444' }]}>{t('urgent')}</Text>
           </View>
         )}
 
@@ -97,7 +99,7 @@ export default function JobDetailScreen({ route, navigation }) {
               {isVerifiedEmployer && (
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
-                  <Text style={styles.verifiedTxt}>Verified Employer</Text>
+                  <Text style={styles.verifiedTxt}>{t('verifiedEmployer')}</Text>
                 </View>
               )}
             </View>
@@ -113,13 +115,13 @@ export default function JobDetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.divider} />
-        <Text style={styles.sectionHead}>About the Role</Text>
+        <Text style={styles.sectionHead}>{t('aboutRole')}</Text>
         <Text style={styles.desc}>{job.description}</Text>
 
         <View style={styles.divider} />
         <View style={styles.metaRow}>
           <Text style={{ fontSize: 12, color: C.muted }}>
-            Posted {timeAgo(job.timestamp)} · {job.views || 0} views · {job.applicant_count || 0} applied
+            {t('postedAgo')} {timeAgo(job.timestamp)} · {job.views || 0} {t('views')} · {job.applicant_count || 0} applied
           </Text>
         </View>
 
@@ -141,11 +143,11 @@ export default function JobDetailScreen({ route, navigation }) {
         <View style={styles.actionRowTop}>
           <TouchableOpacity style={styles.shareBtn} onPress={shareJob}>
             <Ionicons name="share-social-outline" size={15} color="#555" />
-            <Text style={styles.shareTxt}>Share Job</Text>
+            <Text style={styles.shareTxt}>{t('shareJob')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.reportBtn} onPress={() => setShowReportModal(true)}>
             <Ionicons name="flag-outline" size={15} color="#ef4444" />
-            <Text style={styles.reportTxt}>Report</Text>
+            <Text style={styles.reportTxt}>{t('reportListing')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -154,26 +156,26 @@ export default function JobDetailScreen({ route, navigation }) {
         {role === 'seeker' ? (
           <>
             <View style={styles.contactBox}>
-              <Text style={styles.contactLabel}>Contact Employer</Text>
+              <Text style={styles.contactLabel}>{t('contactEmployer')}</Text>
               <Text style={styles.contactPhone}>{job.phone}</Text>
-              <Text style={styles.contactSub}>Call or WhatsApp — It's FREE for you!</Text>
+              <Text style={styles.contactSub}>{t('callFree')}</Text>
             </View>
             <View style={styles.actions}>
               <Btn
-                label={hasApplied ? 'Applied' : 'Mark Applied'}
+                label={hasApplied ? t('applied') : t('markApplied')}
                 onPress={applyJob}
                 disabled={hasApplied}
                 style={{ flex: 1 }}
               />
               <Btn
-                label={hasSaved ? 'Saved' : 'Save'}
+                label={hasSaved ? t('saved') : t('save')}
                 variant="outline"
                 onPress={saveJob}
                 style={{ flex: 1 }}
               />
             </View>
             <Btn
-              label="💬 WhatsApp"
+              label={t('whatsapp')}
               onPress={whatsapp}
               style={{ backgroundColor: '#25d366', marginTop: 8 }}
             />
@@ -181,7 +183,7 @@ export default function JobDetailScreen({ route, navigation }) {
         ) : (
           <View style={styles.actions}>
             {isOwner && (
-              <Btn label="🗑 Delete Job" variant="danger" onPress={deleteJob} style={{ flex: 1 }} />
+              <Btn label={t('deleteJob')} variant="danger" onPress={deleteJob} style={{ flex: 1 }} />
             )}
           </View>
         )}
@@ -191,15 +193,15 @@ export default function JobDetailScreen({ route, navigation }) {
       {showReportModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Report this Listing</Text>
-            {['Spam', 'Fraud / Scam', 'Inappropriate Content', 'Job Already Filled', 'Other'].map(reason => (
+            <Text style={styles.modalTitle}>{t('reportTitle')}</Text>
+            {[t('reportSpam'), t('reportFraud'), t('reportInappropriate'), 'Job Already Filled', t('reportOther')].map(reason => (
               <TouchableOpacity key={reason} style={styles.reportOption} onPress={() => submitReport(reason)}>
                 <Ionicons name="alert-circle-outline" size={16} color="#ef4444" />
                 <Text style={styles.reportOptionTxt}>{reason}</Text>
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowReportModal(false)}>
-              <Text style={styles.cancelTxt}>Cancel</Text>
+              <Text style={styles.cancelTxt}>{t('reportCancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
