@@ -40,9 +40,9 @@ export default function JobDetailScreen({ route, navigation }) {
   }
 
   async function deleteJob() {
-    Alert.alert('Delete Job', 'Are you sure?', [
-      { text: 'Cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
+    Alert.alert(t('deleteJobTitle'), t('areYouSure'), [
+      { text: t('cancel') },
+      { text: t('delete'), style: 'destructive', onPress: async () => {
         await http('DELETE', `/api/jobs/${job.id}`);
         await loadJobs();
         navigation.goBack();
@@ -121,7 +121,7 @@ export default function JobDetailScreen({ route, navigation }) {
         <View style={styles.divider} />
         <View style={styles.metaRow}>
           <Text style={{ fontSize: 12, color: C.muted }}>
-            {t('postedAgo')} {timeAgo(job.timestamp)} · {job.views || 0} {t('views')} · {job.applicant_count || 0} applied
+            {t('postedAgo')} {timeAgo(job.timestamp)} · {job.views || 0} {t('views')} · {job.applicant_count || 0} {t('appliedCount')}
           </Text>
         </View>
 
@@ -130,10 +130,10 @@ export default function JobDetailScreen({ route, navigation }) {
           <View style={[styles.lastActiveDot, { backgroundColor: job.timestamp && (Date.now() - job.timestamp) < 86400000 ? '#16a34a' : '#f97316' }]} />
           <Text style={styles.lastActiveTxt}>
             {job.timestamp && (Date.now() - job.timestamp) < 3600000
-              ? 'Active just now'
+              ? t('activeJustNow')
               : job.timestamp && (Date.now() - job.timestamp) < 86400000
-              ? `Active today · Posted ${timeAgo(job.timestamp)}`
-              : `Posted ${timeAgo(job.timestamp)}`}
+              ? `${t('activeToday')} · ${t('postedAgo')} ${timeAgo(job.timestamp)}`
+              : `${t('postedAgo')} ${timeAgo(job.timestamp)}`}
           </Text>
         </View>
 
@@ -194,7 +194,7 @@ export default function JobDetailScreen({ route, navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>{t('reportTitle')}</Text>
-            {[t('reportSpam'), t('reportFraud'), t('reportInappropriate'), 'Job Already Filled', t('reportOther')].map(reason => (
+            {[t('reportSpam'), t('reportFraud'), t('reportInappropriate'), t('jobAlreadyFilled'), t('reportOther')].map(reason => (
               <TouchableOpacity key={reason} style={styles.reportOption} onPress={() => submitReport(reason)}>
                 <Ionicons name="alert-circle-outline" size={16} color="#ef4444" />
                 <Text style={styles.reportOptionTxt}>{reason}</Text>
