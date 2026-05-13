@@ -1,3 +1,4 @@
+import { useLang } from '../utils/i18n';
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
