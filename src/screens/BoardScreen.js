@@ -1,3 +1,4 @@
+import { useLang } from '../utils/i18n';
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
@@ -27,6 +28,7 @@ function parseSalary(s = '') {
 
 export default function BoardScreen() {
   const { jobs, loadJobs, role } = useAuth();
+  const { t } = useLang();
   const nav = useNavigation();
   const [search, setSearch]           = useState('');
   const [cat, setCat]                 = useState('All');
@@ -78,7 +80,7 @@ export default function BoardScreen() {
           <Ionicons name="search" size={16} color="#aaa" style={{ marginRight: 6 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search jobs, area, company…"
+            placeholder={t('searchPlaceholder')}
             placeholderTextColor="#aaa"
             value={search}
             onChangeText={setSearch}
@@ -156,7 +158,7 @@ export default function BoardScreen() {
                 : 'Check back later for new listings'
             }
             action={isGiver ? () => nav.navigate('Post') : null}
-            actionLabel="Post a Job"
+            actionLabel={t('postAJob')}
           />
         }
       />
