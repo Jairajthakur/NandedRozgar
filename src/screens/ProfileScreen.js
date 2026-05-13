@@ -1,3 +1,4 @@
+import { useLang } from '../utils/i18n';
 import React from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
@@ -14,6 +15,7 @@ const ORANGE = '#f97316';
 export default function ProfileScreen() {
   const nav = useNavigation();
   const { user, role, jobs, signOut } = useAuth();
+  const { t } = useLang();
   const [tab, setTab] = React.useState('jobs');
 
   if (!user) return null;
@@ -142,7 +144,7 @@ export default function ProfileScreen() {
         <Ionicons name="chevron-forward" size={16} color="#aaa" />
       </TouchableOpacity>
 
-      <Btn label="Sign Out" variant="outline" onPress={signOut} style={{ marginTop: 12, marginBottom: 8 }} />
+      <Btn label={t('signOut')} variant="outline" onPress={signOut} style={{ marginTop: 12, marginBottom: 8 }} />
     </ScrollView>
   );
 }
