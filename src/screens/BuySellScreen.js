@@ -5,6 +5,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { C } from '../utils/constants';
 import { Ionicons } from '@expo/vector-icons';
+import { useLang } from '../utils/i18n';
 
 const CATEGORIES = [
   { key: 'All', label: 'All 🔷' },
@@ -27,6 +28,7 @@ const SAMPLE_ITEMS = [
 
 export default function BuySellScreen() {
   const nav = useNavigation();
+  const { t } = useLang();
   const [activeCat, setActiveCat] = useState('All');
   const [search, setSearch] = useState('');
 
@@ -94,7 +96,7 @@ export default function BuySellScreen() {
 
       {/* Sell button */}
       <TouchableOpacity style={s.sellBtn} activeOpacity={0.9}>
-        <Text style={s.sellBtnTxt}>Sell an Item</Text>
+        <Text style={s.sellBtnTxt}>{t('sellItem')}</Text>
       </TouchableOpacity>
     </View>
   );
