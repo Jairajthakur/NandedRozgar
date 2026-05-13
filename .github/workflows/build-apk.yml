@@ -1,0 +1,47 @@
+name: Build Android APK
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Inject EAS Project ID into app.json
+        run: |
+          jq --arg id "${{ secrets.EXPO_PROJECT_ID }}" \
+            '.expo.extra.eas.projectId = $id' \
+            app.json > app.json.tmp && mv app.json.tmp app.json
+
+      - name: Build APK
+        run: eas build --platform android --profile preview --local --output ./NandedRozgar.apk --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          NODE_ENV: production
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NandedRozgar-APK
+          path: ./NandedRozgar.apk
+          retention-days: 30
