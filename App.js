@@ -133,6 +133,7 @@ function MainTabs() {
 // ── Root Navigator ────────────────────────────────────────────────────────────
 function RootNavigator() {
   const { user, loading } = useAuth();
+  const { t } = useLang();
   const [showOnboarding, setShowOnboarding] = React.useState(null);
 
   React.useEffect(() => {
@@ -175,17 +176,17 @@ function RootNavigator() {
         ? <Stack.Screen name="Login" component={LoginScreen} />
         : <Stack.Screen name="Main"  component={MainTabs} />
       }
-      <Stack.Screen name="JobDetail"  component={JobDetailScreen}  options={{ headerShown: true, headerTitle: 'Job Details', ...HEADER }} />
+      <Stack.Screen name="JobDetail"  component={JobDetailScreen}  options={{ headerShown: true, headerTitle: t('carDetails'), ...HEADER }} />
       <Stack.Screen name="CarDetail"  component={CarDetailScreen}  options={{ headerShown: false }} />
       <Stack.Screen name="RoomDetail" component={RoomDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="PostJob"    component={PostJobScreen}    options={{ headerShown: true, headerTitle: 'Post a Job', ...HEADER }} />
+      <Stack.Screen name="PostJob"    component={PostJobScreen}    options={{ headerShown: true, headerTitle: t('postAJobTitle'), ...HEADER }} />
       <Stack.Screen name="PostCar"    component={PostCarScreen}    options={{ headerShown: false }} />
       <Stack.Screen name="PostRoom"   component={PostRoomScreen}   options={{ headerShown: false }} />
-      <Stack.Screen name="BuySell"    component={BuySellScreen}    options={{ headerShown: true, headerTitle: 'Buy & Sell', ...HEADER }} />
-      <Stack.Screen name="Profile"    component={ProfileScreen}    options={{ headerShown: true, headerTitle: 'My Profile', ...HEADER }} />
-      <Stack.Screen name="AIMatch"    component={AIScreen}         options={{ headerShown: true, headerTitle: 'AI Job Match', ...HEADER }} />
-      <Stack.Screen name="Admin"      component={AdminScreen}      options={{ headerShown: true, headerTitle: 'Admin Panel', ...HEADER }} />
-      <Stack.Screen name="Referral"   component={ReferralScreen}   options={{ headerShown: true, headerTitle: 'Invite & Earn', ...HEADER }} />
+      <Stack.Screen name="BuySell"    component={BuySellScreen}    options={{ headerShown: true, headerTitle: t('buySell'), ...HEADER }} />
+      <Stack.Screen name="Profile"    component={ProfileScreen}    options={{ headerShown: true, headerTitle: t('myProfile'), ...HEADER }} />
+      <Stack.Screen name="AIMatch"    component={AIScreen}         options={{ headerShown: true, headerTitle: t('aiJobMatch'), ...HEADER }} />
+      <Stack.Screen name="Admin"      component={AdminScreen}      options={{ headerShown: true, headerTitle: t('admin'), ...HEADER }} />
+      <Stack.Screen name="Referral"   component={ReferralScreen}   options={{ headerShown: true, headerTitle: t('referralTitle'), ...HEADER }} />
     </Stack.Navigator>
   );
 }
