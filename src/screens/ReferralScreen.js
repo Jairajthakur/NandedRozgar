@@ -10,6 +10,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import Toast from 'react-native-toast-message';
+import { useLang } from '../utils/i18n';
 
 const ORANGE = '#f97316';
 
@@ -21,6 +22,7 @@ function getReferralCode(user) {
 
 export default function ReferralScreen() {
   const { user } = useAuth();
+  const { t } = useLang();
   const code = getReferralCode(user);
   const [copied, setCopied] = useState(false);
 
@@ -31,7 +33,7 @@ export default function ReferralScreen() {
       // fallback — Clipboard may not be available in Expo Go
     }
     setCopied(true);
-    Toast.show({ type: 'success', text1: '✅ Referral code copied!' });
+    Toast.show({ type: 'success', text1: `✅ ${t('codeCopied')}` });
     setTimeout(() => setCopied(false), 2500);
   }
 
@@ -62,14 +64,14 @@ export default function ReferralScreen() {
         <Text style={s.code}>{code}</Text>
         <TouchableOpacity style={s.copyBtn} onPress={copyCode} activeOpacity={0.8}>
           <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color="#fff" />
-          <Text style={s.copyTxt}>{copied ? 'Copied!' : 'Copy Code'}</Text>
+          <Text style={s.copyTxt}>{copied ? t('codeCopied') : t('copyCode')}</Text>
         </TouchableOpacity>
       </View>
 
       {/* WhatsApp share */}
       <TouchableOpacity style={s.waBtn} onPress={shareWhatsApp} activeOpacity={0.85}>
         <Ionicons name="logo-whatsapp" size={20} color="#fff" />
-        <Text style={s.waTxt}>Share via WhatsApp</Text>
+        <Text style={s.waTxt}>{t('shareViaWhatsApp')}</Text>
       </TouchableOpacity>
 
       {/* How it works */}
