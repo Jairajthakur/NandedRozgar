@@ -12,6 +12,7 @@ import Toast from 'react-native-toast-message';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { LangProvider, useLang } from './src/utils/i18n';
 import LoginScreen      from './src/screens/LoginScreen';
 import HomeScreen       from './src/screens/HomeScreen';
 import BoardScreen      from './src/screens/BoardScreen';
@@ -66,6 +67,7 @@ function TabIcon({ name, focused, library = 'ion' }) {
 }
 
 function CustomTabBar({ state, descriptors, navigation }) {
+  const { t } = useLang();
   return (
     <View style={s.tabBar}>
       {state.routes.map((route, index) => {
@@ -86,7 +88,8 @@ function CustomTabBar({ state, descriptors, navigation }) {
           </TouchableOpacity>
         );
 
-        const label = descriptors[route.key].options.tabBarLabel || route.name;
+        const routeKey = route.name.toLowerCase();
+        const label = t(routeKey) || descriptors[route.key].options.tabBarLabel || route.name;
 
         const iconMap = {
           Home:  { name: 'home',    library: 'ion' },
@@ -115,13 +118,14 @@ const HEADER = {
 
 // ── Tab Navigator ─────────────────────────────────────────────────────────────
 function MainTabs() {
+  const { t } = useLang();
   return (
     <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={HEADER}>
-      <Tab.Screen name="Home"  component={HomeScreen}  options={{ headerShown: false, tabBarLabel: 'Home' }} />
-      <Tab.Screen name="Jobs"  component={BoardScreen} options={{ headerTitle: 'Find Jobs', tabBarLabel: 'Jobs' }} />
-      <Tab.Screen name="Post"  component={PostScreen}  options={{ headerShown: false, tabBarLabel: 'Post' }} />
-      <Tab.Screen name="Rooms" component={RoomScreen}  options={{ headerTitle: 'Rooms & PG', tabBarLabel: 'Rooms' }} />
-      <Tab.Screen name="Cars"  component={CarScreen}   options={{ headerTitle: 'Car Rental', tabBarLabel: 'Cars' }} />
+      <Tab.Screen name="Home"  component={HomeScreen}  options={{ headerShown: false, tabBarLabel: t('home') }} />
+      <Tab.Screen name="Jobs"  component={BoardScreen} options={{ headerTitle: t('findJobs'), tabBarLabel: t('jobs') }} />
+      <Tab.Screen name="Post"  component={PostScreen}  options={{ headerShown: false, tabBarLabel: t('post') }} />
+      <Tab.Screen name="Rooms" component={RoomScreen}  options={{ headerTitle: t('roomsPG'), tabBarLabel: t('rooms') }} />
+      <Tab.Screen name="Cars"  component={CarScreen}   options={{ headerTitle: t('carRental'), tabBarLabel: t('cars') }} />
     </Tab.Navigator>
   );
 }
@@ -192,11 +196,13 @@ export default function App() {
       <ErrorBoundary>
         <SafeAreaProvider>
           <AuthProvider>
+            <LangProvider>
             <NavigationContainer>
               <StatusBar barStyle="light-content" backgroundColor="#111111" />
               <RootNavigator />
             </NavigationContainer>
             <Toast />
+          </LangProvider>
           </AuthProvider>
         </SafeAreaProvider>
       </ErrorBoundary>
