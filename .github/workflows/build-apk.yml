@@ -22,7 +22,13 @@ jobs:
           java-version: '17'
 
       - name: Create google-services.json
-        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > google-services.json
+        run: |
+          if [ -z "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            echo "ERROR: GOOGLE_SERVICES_JSON secret is not set."
+            exit 1
+          fi
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
+          echo "google-services.json created successfully."
 
       - name: Install dependencies
         run: npm install
