@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { C } from '../utils/constants';
+import { useLang } from '../utils/i18n';
 
 const ROOM_TYPES = ['PG', '1 BHK', '2 BHK', '3 BHK', 'Studio', 'Hostel'];
 const FOR_OPTIONS = ['Boys', 'Girls', 'Family', 'Any'];
@@ -20,6 +21,7 @@ const PHOTO_SLOTS = [
 
 export default function PostRoomScreen() {
   const nav = useNavigation();
+  const { t } = useLang();
   const [form, setForm] = useState({
     roomType: 'PG',
     forGender: 'Boys',
@@ -231,7 +233,7 @@ export default function PostRoomScreen() {
             onPress={handleSubmit}
             disabled={loading}
           >
-            <Text style={s.submitTxt}>{loading ? 'Listing…' : 'List My Room'}</Text>
+            <Text style={s.submitTxt}>{loading ? t('paying') : t('postRoom')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
