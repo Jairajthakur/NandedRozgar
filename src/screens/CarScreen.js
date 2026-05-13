@@ -8,8 +8,8 @@ import { C } from '../utils/constants';
 import { Ionicons } from '@expo/vector-icons';
 import { useLang } from '../utils/i18n';
 
-const ORANGE = '#f97316';
-const FILTERS = ['All', 'Car', 'Bike', 'Auto', 'SUV'];
+const FILTERS_KEYS = ['all', 'Car', 'Bike', 'Auto', 'SUV'];
+const FILTER_LABELS_EN = { all:'All', Car:'Car', Bike:'Bike', Auto:'Auto', SUV:'SUV' };
 
 const CARS = [
   {
@@ -68,9 +68,9 @@ const CARS = [
 export default function CarsScreen() {
   const nav = useNavigation();
   const { t } = useLang();
-  const [filter, setFilter] = useState('All');
+  const [filter, setFilter] = useState('all');
 
-  const filtered = CARS.filter(c => filter === 'All' || c.type === filter);
+  const filtered = CARS.filter(c => filter === 'all' || c.type === filter);
 
   return (
     <View style={s.container}>
@@ -80,13 +80,13 @@ export default function CarsScreen() {
         contentContainerStyle={s.pills}
         style={{ maxHeight: 52 }}
       >
-        {FILTERS.map(f => (
+        {FILTERS_KEYS.map(f => (
           <TouchableOpacity
             key={f}
             onPress={() => setFilter(f)}
             style={[s.pill, filter === f && s.pillOn]}
           >
-            <Text style={[s.pillTxt, filter === f && s.pillTxtOn]}>{f}</Text>
+            <Text style={[s.pillTxt, filter === f && s.pillTxtOn]}>{FILTER_LABELS_EN[f]}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -105,18 +105,18 @@ export default function CarsScreen() {
             <View style={[s.imgStrip, { backgroundColor: item.iconColor }]}>
               <Ionicons name={item.icon} size={48} color="#fff" style={{ opacity: 0.2, marginBottom: 8 }} />
               <View style={s.photoThumbs}>
-                {['Front', 'Side', 'Inside', 'Back'].slice(0, item.photos).map((lbl, i) => (
+                {['front', 'side', 'inside', 'back'].slice(0, item.photos).map((key, i) => (
                   <View key={i} style={[s.thumb, i === 0 && s.thumbActive]}>
-                    <Text style={[s.thumbTxt, i === 0 && s.thumbTxtActive]}>{lbl}</Text>
+                    <Text style={[s.thumbTxt, i === 0 && s.thumbTxtActive]}>{t(key)}</Text>
                   </View>
                 ))}
               </View>
               <View style={s.photoBadge}>
-                <Text style={s.photoBadgeTxt}>{item.photos} photos</Text>
+                <Text style={s.photoBadgeTxt}>{item.photos} {t('photosLabel')}</Text>
               </View>
               {item.verified && (
                 <View style={s.verifiedBadge}>
-                  <Text style={s.verifiedTxt}>✓ Verified</Text>
+                  <Text style={s.verifiedTxt}>{t('verified')}</Text>
                 </View>
               )}
             </View>
