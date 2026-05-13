@@ -55,6 +55,19 @@ const en = {
   newItem:'New',usedItem:'Used',
   admin:'Admin',allUsers:'All Users',allJobs:'All Jobs',deleteUser:'Delete User',
   aiAssistant:'AI Career Assistant',askAnything:'Ask anything about jobs in Nanded…',send:'Send',
+  // Extra UI strings
+  activeJustNow:'Active just now',activeToday:'Active today',
+  appliedCount:'applied',jobAlreadyFilled:'Job Already Filled',
+  deleteJobTitle:'Delete Job',areYouSure:'Are you sure?',
+  cancel:'Cancel',delete:'Delete',
+  vehicleDetails:'VEHICLE DETAILS',includes:'INCLUDES',owner:'OWNER',
+  roomDetails2:'ROOM DETAILS',amenities:'AMENITIES',ownerLandlord:'OWNER / LANDLORD',
+  verified:'✓ Verified',availableNow:'Available now',limited:'Limited',
+  photosLabel:'photos',respondsFast:'Responds fast',trips:'trips',
+  front:'Front',side:'Side',inside:'Inside',back:'Back',interior:'Interior',
+  room:'Room',kitchen:'Kitchen',bath:'Bath',outside:'Outside',
+  bedroom:'Bedroom',bathroom:'Bathroom',
+  inNanded:'in Nanded',
 };
 
 // ─── Marathi ──────────────────────────────────────────────────────────────────
@@ -108,6 +121,19 @@ const mr = {
   newItem:'नवीन',usedItem:'वापरलेले',
   admin:'प्रशासक',allUsers:'सर्व वापरकर्ते',allJobs:'सर्व नोकऱ्या',deleteUser:'वापरकर्ता हटवा',
   aiAssistant:'AI करिअर सहाय्यक',askAnything:'नांदेडमधील नोकऱ्यांबद्दल काहीही विचारा…',send:'पाठवा',
+  // Extra UI strings
+  activeJustNow:'आत्ता सक्रिय',activeToday:'आज सक्रिय',
+  appliedCount:'अर्ज केले',jobAlreadyFilled:'नोकरी भरली गेली',
+  deleteJobTitle:'नोकरी हटवा',areYouSure:'आपल्याला खात्री आहे का?',
+  cancel:'रद्द करा',delete:'हटवा',
+  vehicleDetails:'वाहनाचे तपशील',includes:'समाविष्ट',owner:'मालक',
+  roomDetails2:'खोलीचे तपशील',amenities:'सुविधा',ownerLandlord:'मालक / घरमालक',
+  verified:'✓ सत्यापित',availableNow:'आत्ता उपलब्ध',limited:'मर्यादित',
+  photosLabel:'फोटो',respondsFast:'लवकर प्रतिसाद देतात',trips:'ट्रिप्स',
+  front:'समोर',side:'बाजू',inside:'आत',back:'मागे',interior:'आतील',
+  room:'खोली',kitchen:'स्वयंपाकघर',bath:'स्नानगृह',outside:'बाहेर',
+  bedroom:'बेडरूम',bathroom:'बाथरूम',
+  inNanded:'नांदेडमध्ये',
 };
 
 // ─── Hindi ────────────────────────────────────────────────────────────────────
@@ -161,6 +187,19 @@ const hi = {
   newItem:'नया',usedItem:'पुराना',
   admin:'व्यवस्थापक',allUsers:'सभी उपयोगकर्ता',allJobs:'सभी नौकरियाँ',deleteUser:'उपयोगकर्ता हटाएं',
   aiAssistant:'AI करियर सहायक',askAnything:'नांदेड में नौकरियों के बारे में कुछ भी पूछें…',send:'भेजें',
+  // Extra UI strings
+  activeJustNow:'अभी सक्रिय',activeToday:'आज सक्रिय',
+  appliedCount:'आवेदित',jobAlreadyFilled:'नौकरी भर गई',
+  deleteJobTitle:'नौकरी हटाएं',areYouSure:'क्या आप सुनिश्चित हैं?',
+  cancel:'रद्द करें',delete:'हटाएं',
+  vehicleDetails:'वाहन विवरण',includes:'शामिल है',owner:'मालिक',
+  roomDetails2:'कमरे का विवरण',amenities:'सुविधाएं',ownerLandlord:'मालिक / मकान मालिक',
+  verified:'✓ सत्यापित',availableNow:'अभी उपलब्ध',limited:'सीमित',
+  photosLabel:'फ़ोटो',respondsFast:'जल्दी जवाब देते हैं',trips:'यात्राएं',
+  front:'सामने',side:'किनारा',inside:'अंदर',back:'पीछे',interior:'आंतरिक',
+  room:'कमरा',kitchen:'रसोई',bath:'स्नानघर',outside:'बाहर',
+  bedroom:'बेडरूम',bathroom:'बाथरूम',
+  inNanded:'नांदेड में',
 };
 
 const strings = { en, mr, hi };
