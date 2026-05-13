@@ -8,7 +8,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { C } from '../utils/constants';
 import { useLang } from '../utils/i18n';
 
-const GALLERY_TABS = ['Front', 'Side', 'Interior', 'Back'];
+const GALLERY_TABS_KEYS = ['front', 'side', 'interior', 'back'];
 
 const PLACEHOLDER_CAR = {
   name: 'Maruti Swift Dzire',
@@ -35,7 +35,7 @@ export default function CarDetailScreen() {
   const { t } = useLang();
 
   const [activeImg, setActiveImg] = useState(0);
-  const tabs = GALLERY_TABS.slice(0, car.photos || 4);
+  const tabs = GALLERY_TABS_KEYS.slice(0, car.photos || 4);
 
   function openWhatsApp() {
     const msg = `Hi, I'm interested in renting your ${car.name} listed on NandedRozgar.`;
@@ -54,13 +54,13 @@ export default function CarDetailScreen() {
         <Ionicons name={GALLERY_ICONS[activeImg]} size={80} color="#fff" style={{ opacity: 0.18 }} />
         {/* Thumbnail Nav */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.galNav} contentContainerStyle={{ gap: 5, padding: 8 }}>
-          {tabs.map((lbl, i) => (
+          {tabs.map((key, i) => (
             <TouchableOpacity
               key={i}
               onPress={() => setActiveImg(i)}
               style={[s.galThumb, i === activeImg && s.galThumbActive]}
             >
-              <Text style={s.galThumbTxt}>{lbl}</Text>
+              <Text style={s.galThumbTxt}>{t(key)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -75,12 +75,12 @@ export default function CarDetailScreen() {
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={s.price}>{car.price}<Text style={s.perDay}>{t('perDay')}</Text></Text>
-            <Text style={s.rating}>★ {car.rating} · {car.reviews} trips</Text>
+            <Text style={s.rating}>★ {car.rating} · {car.reviews} {t('trips')}</Text>
           </View>
         </View>
 
         {/* Specs */}
-        <Text style={s.sectionTitle}>VEHICLE DETAILS</Text>
+        <Text style={s.sectionTitle}>{t('vehicleDetails').toUpperCase()}</Text>
         <View style={s.specGrid}>
           {Object.entries(car.specs || {}).map(([k, v]) => (
             <View key={k} style={s.specItem}>
@@ -91,7 +91,7 @@ export default function CarDetailScreen() {
         </View>
 
         {/* Includes */}
-        <Text style={s.sectionTitle}>INCLUDES</Text>
+        <Text style={s.sectionTitle}>{t('includes').toUpperCase()}</Text>
         <View style={s.tagsWrap}>
           {(car.includes || []).map((t, i) => (
             <View key={i} style={s.tag}><Text style={s.tagTxt}>{t}</Text></View>
@@ -99,7 +99,7 @@ export default function CarDetailScreen() {
         </View>
 
         {/* Owner */}
-        <Text style={s.sectionTitle}>OWNER</Text>
+        <Text style={s.sectionTitle}>{t('owner').toUpperCase()}</Text>
         <View style={s.ownerBox}>
           <View style={[s.ownerAvatar, { backgroundColor: car.owner?.bg || '#eee' }]}>
             <Text style={[s.ownerInitials, { color: car.owner?.color || '#333' }]}>
@@ -112,7 +112,7 @@ export default function CarDetailScreen() {
           </View>
           {car.verified && (
             <View style={s.verifiedBadge}>
-              <Text style={s.verifiedTxt}>✓ {t('verifiedEmployer').replace('✓ ', '')}</Text>
+              <Text style={s.verifiedTxt}>{t('verified')}</Text>
             </View>
           )}
         </View>
