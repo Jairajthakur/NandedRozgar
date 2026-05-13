@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { C } from '../utils/constants';
+import { useLang } from '../utils/i18n';
 
 const GALLERY_COLORS = ['#1e2a3a', '#1a2e1e', '#2e1a1a', '#2a1e3a'];
 const GALLERY_TABS = ['Bedroom', 'Kitchen', 'Bathroom', 'Outside'];
@@ -15,6 +16,7 @@ export default function RoomDetailScreen() {
   const nav = useNavigation();
   const route = useRoute();
   const room = route.params?.room;
+  const { t } = useLang();
 
   const [activeImg, setActiveImg] = useState(0);
   const tabs = GALLERY_TABS.slice(0, room?.photos || 4);
@@ -115,7 +117,7 @@ export default function RoomDetailScreen() {
       {/* CTA Bar */}
       <View style={s.ctaBar}>
         <TouchableOpacity style={s.ctaMain} onPress={() => Alert.alert('Visit', 'We will connect you with the owner to schedule a visit.')}>
-          <Text style={s.ctaMainTxt}>Schedule a Visit</Text>
+          <Text style={s.ctaMainTxt}>{t('contact')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.ctaIcon} onPress={openWhatsApp}>
           <Text style={{ fontSize: 20 }}>💬</Text>
