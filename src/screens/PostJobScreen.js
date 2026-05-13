@@ -14,6 +14,7 @@ const TYPES = ['Full-time', 'Part-time', 'Contract', 'Daily Wage', 'Gig'];
 
 export default function PostScreen({ navigation }) {
   const { user, role, loadJobs } = useAuth();
+  const { t } = useLang();
 
   // ── ALL hooks must come before any conditional return ─────────
   // (React's Rules of Hooks — violating this crashed the app)
@@ -177,7 +178,7 @@ export default function PostScreen({ navigation }) {
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Btn
-              label={loading ? 'Processing…' : `🔒 Pay ₹${total} Securely`}
+              label={loading ? t('paying') : `🔒 Pay ₹${total} Securely`}
               onPress={processPayment}
               disabled={loading}
               size="lg"
@@ -204,27 +205,27 @@ export default function PostScreen({ navigation }) {
     >
       <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
         <SectionTitle
-          title="Post a Job"
+          title={t('postAJobTitle')}
           sub="Reach thousands of local job seekers in Nanded"
           style={{ marginBottom: 16 }}
         />
 
         <Card style={{ marginBottom: 16 }}>
           <Input
-            label="Job Title *"
+            label={`${t('jobTitle')} *`}
             value={form.title}
             onChangeText={v => set('title', v)}
             placeholder="e.g. Security Guard Needed"
           />
           <Input
-            label="Company Name *"
+            label={`${t('company')} *`}
             value={form.company}
             onChangeText={v => set('company', v)}
             placeholder="Your company or name"
           />
 
           {/* Category picker */}
-          <Text style={styles.fieldLabel}>Category *</Text>
+          <Text style={styles.fieldLabel}>{t('category')} *</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -245,7 +246,7 @@ export default function PostScreen({ navigation }) {
           </ScrollView>
 
           {/* Job type */}
-          <Text style={styles.fieldLabel}>Job Type</Text>
+          <Text style={styles.fieldLabel}>{t('jobType')}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -264,19 +265,19 @@ export default function PostScreen({ navigation }) {
           </ScrollView>
 
           <Input
-            label="Location in Nanded *"
+            label={`${t('location')} *`}
             value={form.location}
             onChangeText={v => set('location', v)}
             placeholder="e.g. Cidco, Shivaji Nagar"
           />
           <Input
-            label="Salary / Pay *"
+            label={`${t('salary')} *`}
             value={form.salary}
             onChangeText={v => set('salary', v)}
             placeholder="e.g. ₹12,000/month or ₹600/day"
           />
           <Input
-            label="Contact Phone *"
+            label={`${t('phone')} *`}
             value={form.phone}
             onChangeText={v => set('phone', v)}
             placeholder="10-digit mobile"
@@ -284,7 +285,7 @@ export default function PostScreen({ navigation }) {
             maxLength={10}
           />
           <Input
-            label="Job Description *"
+            label={`${t('description')} *`}
             value={form.description}
             onChangeText={v => set('description', v)}
             placeholder="Describe the job, requirements, timings…"
