@@ -6,6 +6,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../utils/constants';
+import { useLang } from '../utils/i18n';
 
 const VEHICLE_TYPES = ['Car', 'Bike / Scooter', 'Auto', 'Mini Truck'];
 const FUEL_TYPES = ['Petrol', 'Diesel', 'Electric', 'CNG'];
@@ -20,6 +21,7 @@ const PHOTO_SLOTS = [
 
 export default function PostCarScreen() {
   const nav = useNavigation();
+  const { t } = useLang();
   const [form, setForm] = useState({
     vehicleType: 'Car',
     fuelType: 'Petrol',
@@ -206,7 +208,7 @@ export default function PostCarScreen() {
             onPress={handleSubmit}
             disabled={loading}
           >
-            <Text style={s.submitTxt}>{loading ? 'Listing…' : 'List My Vehicle'}</Text>
+            <Text style={s.submitTxt}>{loading ? t('paying') : t('postCar')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
