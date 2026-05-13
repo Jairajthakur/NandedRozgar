@@ -1,15 +1,44 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { C } from '../utils/constants';
-import { setLanguage, getLanguage, t } from '../utils/i18n';
+import { useLang, LANGUAGES } from '../utils/i18n';
 
 const ORANGE = '#f97316';
 
+// ── Language Picker Modal ─────────────────────────────────────────────────────
+function LangModal({ visible, current, onSelect, onClose }) {
+  return (
+    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
+      <TouchableOpacity style={lm.overlay} activeOpacity={1} onPress={onClose}>
+        <View style={lm.sheet}>
+          <Text style={lm.title}>Choose Language</Text>
+          {LANGUAGES.map(l => (
+            <TouchableOpacity
+              key={l.code}
+              style={[lm.row, current === l.code && lm.rowActive]}
+              onPress={() => { onSelect(l.code); onClose(); }}
+              activeOpacity={0.8}
+            >
+              <Text style={[lm.native, current === l.code && lm.nativeActive]}>{l.native}</Text>
+              <Text style={lm.label}>{l.label}</Text>
+              {current === l.code && (
+                <Ionicons name="checkmark-circle" size={18} color={ORANGE} style={{ marginLeft: 'auto' }} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
 // ── AI Prompt Card ────────────────────────────────────────────────────────────
-function AIPromptCard({ onPress }) {
+function AIPromptCard({ onPress, t }) {
   const prompts = [
     'What salary should I ask for a driver in Nanded?',
     'How do I get hired quickly in Nanded?',
@@ -23,7 +52,7 @@ function AIPromptCard({ onPress }) {
           <Ionicons name="sparkles" size={20} color={ORANGE} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.aiTitle}>AI Career Assistant</Text>
+          <Text style={s.aiTitle}>{t('aiAssistant')}</Text>
           <Text style={s.aiPrompt} numberOfLines={2}>"{randomPrompt}"</Text>
         </View>
       </View>
@@ -35,13 +64,12 @@ function AIPromptCard({ onPress }) {
 export default function HomeScreen() {
   const nav = useNavigation();
   const { jobs, user, role } = useAuth();
-  const [lang, setLang] = React.useState(getLanguage());
+  const { lang, changeLang, t } = useLang();
+  const [showLangPicker, setShowLangPicker] = React.useState(false);
 
-  function toggleLang() {
-    const next = lang === 'en' ? 'mr' : 'en';
-    setLanguage(next);
-    setLang(next);
-  }
+  // Find the current language label for the button
+  const currentLang = LANGUAGES.find(l => l.code === lang);
+  const langBtnLabel = currentLang?.native || 'EN';
 
   const activeJobs = jobs?.filter(j => j.status === 'active') || [];
   const recentJobs = activeJobs.slice(0, 3);
@@ -66,18 +94,28 @@ export default function HomeScreen() {
             <Text style={s.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'N'}</Text>
           </TouchableOpacity>
         </View>
-        {/* Language toggle */}
-        <TouchableOpacity style={s.langToggle} onPress={toggleLang} activeOpacity={0.8}>
+
+        {/* Language toggle — tapping opens picker */}
+        <TouchableOpacity style={s.langToggle} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
           <Ionicons name="language" size={13} color="#f97316" />
-          <Text style={s.langToggleTxt}>{lang === 'en' ? 'मराठी' : 'English'}</Text>
+          <Text style={s.langToggleTxt}>{langBtnLabel}</Text>
+          <Ionicons name="chevron-down" size={11} color="#f97316" />
         </TouchableOpacity>
       </View>
 
+      {/* Language picker modal */}
+      <LangModal
+        visible={showLangPicker}
+        current={lang}
+        onSelect={changeLang}
+        onClose={() => setShowLangPicker(false)}
+      />
+
       {/* ── AI Prompt Card ── */}
-      <AIPromptCard onPress={() => nav.navigate('AIMatch')} />
+      <AIPromptCard onPress={() => nav.navigate('AIMatch')} t={t} />
 
       {/* ── Services grid ── */}
-      <Text style={s.sectionTitle}>OUR SERVICES</Text>
+      <Text style={s.sectionTitle}>{t('ourServices')}</Text>
       <View style={s.grid}>
 
         <TouchableOpacity style={s.card} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
@@ -87,11 +125,11 @@ export default function HomeScreen() {
             </View>
             <View style={[s.liveBadge, { borderColor: '#16a34a', backgroundColor: '#f0fdf4' }]}>
               <View style={s.liveDot} />
-              <Text style={[s.liveTxt, { color: '#16a34a' }]}>Live</Text>
+              <Text style={[s.liveTxt, { color: '#16a34a' }]}>{t('live')}</Text>
             </View>
           </View>
-          <Text style={s.cardTitle}>Find Jobs</Text>
-          <Text style={s.cardSub}>{activeJobs.length || 1} opening</Text>
+          <Text style={s.cardTitle}>{t('findJobs')}</Text>
+          <Text style={s.cardSub}>{activeJobs.length || 1} {t('opening')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={s.card} onPress={() => nav.navigate('Cars')} activeOpacity={0.85}>
@@ -100,8 +138,8 @@ export default function HomeScreen() {
               <Ionicons name="car-sport" size={22} color="#3b82f6" />
             </View>
           </View>
-          <Text style={s.cardTitle}>Car Rental</Text>
-          <Text style={s.cardSub}>42 vehicles</Text>
+          <Text style={s.cardTitle}>{t('carRental')}</Text>
+          <Text style={s.cardSub}>42 {t('vehicles')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={s.card} onPress={() => nav.navigate('Rooms')} activeOpacity={0.85}>
@@ -110,8 +148,8 @@ export default function HomeScreen() {
               <Ionicons name="business" size={22} color="#6366f1" />
             </View>
           </View>
-          <Text style={s.cardTitle}>Rooms & PG</Text>
-          <Text style={s.cardSub}>120 listings</Text>
+          <Text style={s.cardTitle}>{t('roomsPG')}</Text>
+          <Text style={s.cardSub}>120 {t('listings')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={s.card} onPress={() => nav.navigate('BuySell')} activeOpacity={0.85}>
@@ -120,11 +158,11 @@ export default function HomeScreen() {
               <Ionicons name="pricetag" size={22} color="#9333ea" />
             </View>
             <View style={[s.liveBadge, { borderColor: '#9333ea', backgroundColor: '#fdf4ff' }]}>
-              <Text style={[s.liveTxt, { color: '#9333ea' }]}>New</Text>
+              <Text style={[s.liveTxt, { color: '#9333ea' }]}>{t('newBadge')}</Text>
             </View>
           </View>
-          <Text style={s.cardTitle}>Buy & Sell</Text>
-          <Text style={s.cardSub}>New & used items</Text>
+          <Text style={s.cardTitle}>{t('buySell')}</Text>
+          <Text style={s.cardSub}>{lang === 'en' ? 'New & used items' : lang === 'mr' ? 'नवीन आणि जुन्या वस्तू' : 'नई और पुरानी चीजें'}</Text>
         </TouchableOpacity>
 
       </View>
@@ -133,22 +171,22 @@ export default function HomeScreen() {
       <View style={s.quickRow}>
         <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.85}>
           <Ionicons name="sparkles" size={16} color={ORANGE} />
-          <Text style={s.quickTxt}>AI Job Match</Text>
+          <Text style={s.quickTxt}>{t('aiJobMatch')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.85}>
           <Ionicons name="person" size={16} color="#555" />
-          <Text style={s.quickTxt}>My Profile</Text>
+          <Text style={s.quickTxt}>{t('myProfile')}</Text>
         </TouchableOpacity>
         {role === 'admin' && (
           <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('Admin')} activeOpacity={0.85}>
             <Ionicons name="settings" size={16} color="#555" />
-            <Text style={s.quickTxt}>Admin</Text>
+            <Text style={s.quickTxt}>{t('admin')}</Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* ── Recent Jobs ── */}
-      <Text style={s.sectionTitle}>RECENT JOBS</Text>
+      <Text style={s.sectionTitle}>{t('recentJobs')}</Text>
 
       {recentJobs.length > 0 ? recentJobs.map(job => (
         <TouchableOpacity key={job.id} style={s.jobCard}
@@ -168,7 +206,7 @@ export default function HomeScreen() {
             </View>
             <View style={s.salaryCol}>
               <View style={s.priceBadge}><Text style={s.priceTxt}>{job.salary}</Text></View>
-              <Text style={s.jobTime}>Just posted</Text>
+              <Text style={s.jobTime}>{t('justNow')}</Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -195,7 +233,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={s.salaryCol}>
                   <View style={s.priceBadge}><Text style={s.priceTxt}>{job.salary}</Text></View>
-                  <Text style={s.jobTime}>Full time</Text>
+                  <Text style={s.jobTime}>{lang === 'en' ? 'Full time' : lang === 'mr' ? 'पूर्ण वेळ' : 'फुल टाइम'}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -204,13 +242,14 @@ export default function HomeScreen() {
       )}
 
       <TouchableOpacity onPress={() => nav.navigate('Jobs')} style={s.viewAll}>
-        <Text style={s.viewAllTxt}>View all jobs →</Text>
+        <Text style={s.viewAllTxt}>{t('viewAllJobs')}</Text>
       </TouchableOpacity>
 
     </ScrollView>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   headerBand: { backgroundColor: '#111111', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 },
@@ -222,8 +261,8 @@ const s = StyleSheet.create({
   locText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
   profileBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#f97316', alignItems: 'center', justifyContent: 'center' },
   profileInitial: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  langToggle: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, alignSelf: 'flex-end', backgroundColor: '#1e1e1e', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 },
-  langToggleTxt: { color: '#f97316', fontSize: 11, fontWeight: '700' },
+  langToggle: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, alignSelf: 'flex-end', backgroundColor: '#1e1e1e', borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12, borderWidth: 1, borderColor: '#f97316' },
+  langToggleTxt: { color: '#f97316', fontSize: 12, fontWeight: '700' },
   // AI Card
   aiCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 12, marginTop: 10, borderRadius: 14, borderWidth: 1.5, borderColor: '#f97316', padding: 14, shadowColor: ORANGE, shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   aiLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -255,4 +294,16 @@ const s = StyleSheet.create({
   priceTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
   viewAll: { marginHorizontal: 12, marginTop: 4, alignItems: 'center', padding: 10 },
   viewAllTxt: { fontSize: 13, color: '#f97316', fontWeight: '700' },
+});
+
+// ── Lang modal styles ─────────────────────────────────────────────────────────
+const lm = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36 },
+  title: { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, marginBottom: 8, backgroundColor: '#f8f8f8', borderWidth: 1.5, borderColor: 'transparent' },
+  rowActive: { borderColor: ORANGE, backgroundColor: '#fff8f3' },
+  native: { fontSize: 17, fontWeight: '700', color: '#111', minWidth: 60 },
+  nativeActive: { color: ORANGE },
+  label: { fontSize: 13, color: '#888', fontWeight: '500' },
 });
