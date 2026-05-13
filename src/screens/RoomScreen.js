@@ -20,10 +20,6 @@ export const ROOMS = [
     type: 'PG',
     available: true,
     availableLabel: 'Available',
-    photos: 4,
-    iconColor: '#1e2a3a',
-    icon: 'home',
-    specs: { Type: 'PG Single', Deposit: '₹9,000', For: 'Boys', Floor: '2nd floor' },
     amenities: ['WiFi', 'Meals 2x/day', 'CCTV', 'Laundry', '24hr water'],
     owner: { name: 'Sunita Patil', initials: 'SP', area: 'Replies within 1 hr', color: '#0f6e56', bg: '#e1f5ee' },
     verified: true,
@@ -38,8 +34,6 @@ export const ROOMS = [
     type: '1 BHK',
     available: true,
     availableLabel: 'Available',
-    photos: 3,
-    iconColor: '#1a2e1e',
     icon: 'home',
     specs: { Type: '1 BHK', Deposit: '₹14,000', For: 'Family', Floor: 'Ground' },
     amenities: ['Furnished', 'Parking', 'RO water', 'Power backup'],
@@ -109,21 +103,21 @@ export default function RoomsScreen() {
             <View style={[s.imgStrip, { backgroundColor: item.iconColor }]}>
               <Ionicons name={item.icon} size={36} color="#fff" />
               <View style={s.photoThumbs}>
-                {['Room', 'Kitchen', 'Bath', 'Outside'].slice(0, item.photos).map((lbl, i) => (
+                {['room', 'kitchen', 'bath', 'outside'].slice(0, item.photos).map((key, i) => (
                   <View key={i} style={[s.thumb, i === 0 && s.thumbActive]}>
-                    <Text style={[s.thumbTxt, i === 0 && s.thumbTxtActive]}>{lbl}</Text>
+                    <Text style={[s.thumbTxt, i === 0 && s.thumbTxtActive]}>{t(key)}</Text>
                   </View>
                 ))}
               </View>
               <View style={s.photoBadge}>
-                <Text style={s.photoBadgeTxt}>{item.photos} photos</Text>
+                <Text style={s.photoBadgeTxt}>{item.photos} {t('photosLabel')}</Text>
               </View>
               <View style={[s.availBadge, {
                 backgroundColor: item.available
                   ? 'rgba(22,163,74,0.88)'
                   : 'rgba(234,88,12,0.88)'
               }]}>
-                <Text style={s.availBadgeTxt}>{item.availableLabel}</Text>
+                <Text style={s.availBadgeTxt}>{item.availableLabel === 'Available' ? t('available') : item.availableLabel}</Text>
               </View>
             </View>
             <View style={s.body}>
@@ -139,7 +133,7 @@ export default function RoomsScreen() {
         )}
         ListHeaderComponent={
           <View style={{ paddingBottom: 4 }}>
-            <Text style={{ fontSize: 11, color: '#999', fontWeight: '500' }}>{filtered.length} {t('listings')} in Nanded</Text>
+            <Text style={{ fontSize: 11, color: '#999', fontWeight: '500' }}>{filtered.length} {t('listings')} {t('inNanded')}</Text>
           </View>
         }
       />
