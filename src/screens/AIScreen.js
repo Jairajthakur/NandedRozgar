@@ -7,9 +7,11 @@ import { useAuth } from '../context/AuthContext';
 import { Card, Btn, SectionTitle } from '../components/UI';
 import { C, BASE_URL } from '../utils/constants';
 import { getToken } from '../utils/api';
+import { useLang } from '../utils/i18n';
 
 export default function AIScreen() {
   const { user, role, jobs } = useAuth();
+  const { t } = useLang();
   const [query, setQuery]       = useState('');
   const [response, setResponse] = useState('');
   const [loading, setLoading]   = useState(false);
@@ -54,7 +56,7 @@ export default function AIScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       <SectionTitle
-        title="AI Career Assistant"
+        title={t('aiAssistant')}
         sub={isSeeker
           ? 'Get smart job recommendations based on your skills'
           : 'Get hiring insights and salary benchmarks for Nanded'}
@@ -73,14 +75,14 @@ export default function AIScreen() {
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
-            placeholder="Ask anything about jobs in Nanded…"
+            placeholder={t('askAnything')}
             placeholderTextColor='#bbb'
             value={query}
             onChangeText={setQuery}
             multiline
           />
         </View>
-        <Btn label={loading ? 'Thinking…' : 'Ask AI'}
+        <Btn label={loading ? 'Thinking…' : t('send')}
           onPress={askAI} disabled={loading || !query.trim()} />
 
         {/* Loading indicator */}
