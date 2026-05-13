@@ -9,7 +9,7 @@ import { C } from '../utils/constants';
 import { useLang } from '../utils/i18n';
 
 const GALLERY_COLORS = ['#1e2a3a', '#1a2e1e', '#2e1a1a', '#2a1e3a'];
-const GALLERY_TABS = ['Bedroom', 'Kitchen', 'Bathroom', 'Outside'];
+const GALLERY_TABS_KEYS = ['bedroom', 'kitchen', 'bathroom', 'outside'];
 const GALLERY_ICONS = ['🛏️', '🍳', '🚿', '🌳'];
 
 export default function RoomDetailScreen() {
@@ -19,7 +19,7 @@ export default function RoomDetailScreen() {
   const { t } = useLang();
 
   const [activeImg, setActiveImg] = useState(0);
-  const tabs = GALLERY_TABS.slice(0, room?.photos || 4);
+  const tabs = GALLERY_TABS_KEYS.slice(0, room?.photos || 4);
 
   if (!room) {
     return (
@@ -45,13 +45,13 @@ export default function RoomDetailScreen() {
         </TouchableOpacity>
         <Text style={s.galleryIcon}>{GALLERY_ICONS[activeImg]}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.galNav} contentContainerStyle={{ gap: 5, padding: 8 }}>
-          {tabs.map((lbl, i) => (
+          {tabs.map((key, i) => (
             <TouchableOpacity
               key={i}
               onPress={() => setActiveImg(i)}
               style={[s.galThumb, i === activeImg && s.galThumbActive]}
             >
-              <Text style={s.galThumbTxt}>{lbl}</Text>
+              <Text style={s.galThumbTxt}>{t(key)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -69,14 +69,14 @@ export default function RoomDetailScreen() {
             <View style={s.availRow}>
               <View style={[s.availDot, { backgroundColor: room.available ? '#1d9e75' : '#c4881a' }]} />
               <Text style={[s.availTxt, { color: room.available ? '#0f6e56' : '#9a6200' }]}>
-                {room.availableLabel || (room.available ? 'Available now' : 'Limited')}
+                {room.availableLabel || (room.available ? t('availableNow') : t('limited'))}
               </Text>
             </View>
           </View>
         </View>
 
         {/* Specs */}
-        <Text style={s.sectionTitle}>ROOM DETAILS</Text>
+        <Text style={s.sectionTitle}>{t('roomDetails2').toUpperCase()}</Text>
         <View style={s.specGrid}>
           {Object.entries(room.specs || {}).map(([k, v]) => (
             <View key={k} style={s.specItem}>
@@ -87,7 +87,7 @@ export default function RoomDetailScreen() {
         </View>
 
         {/* Amenities */}
-        <Text style={s.sectionTitle}>AMENITIES</Text>
+        <Text style={s.sectionTitle}>{t('amenities').toUpperCase()}</Text>
         <View style={s.tagsWrap}>
           {(room.amenities || []).map((t, i) => (
             <View key={i} style={s.tag}><Text style={s.tagTxt}>{t}</Text></View>
@@ -95,7 +95,7 @@ export default function RoomDetailScreen() {
         </View>
 
         {/* Owner */}
-        <Text style={s.sectionTitle}>OWNER / LANDLORD</Text>
+        <Text style={s.sectionTitle}>{t('ownerLandlord').toUpperCase()}</Text>
         <View style={s.ownerBox}>
           <View style={[s.ownerAvatar, { backgroundColor: room.owner?.bg || '#eee' }]}>
             <Text style={[s.ownerInitials, { color: room.owner?.color || '#333' }]}>
@@ -108,7 +108,7 @@ export default function RoomDetailScreen() {
           </View>
           {room.verified && (
             <View style={s.verifiedBadge}>
-              <Text style={s.verifiedTxt}>✓ Verified</Text>
+              <Text style={s.verifiedTxt}>{t('verified')}</Text>
             </View>
           )}
         </View>
