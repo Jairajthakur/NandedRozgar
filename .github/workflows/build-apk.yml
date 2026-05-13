@@ -21,6 +21,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Create google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > google-services.json
+
       - name: Install dependencies
         run: npm install
 
