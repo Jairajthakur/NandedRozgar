@@ -11,10 +11,11 @@
     "server:dev": "nodemon src/index.js"
   },
   "dependencies": {
-    "expo-notifications": "~0.29.0",
-    "expo-localization": "~16.0.0",
-    "expo-clipboard": "~7.0.0",
     "expo": "~53.0.0",
+    "expo-notifications": "~0.31.5",
+    "expo-localization": "~16.1.6",
+    "expo-clipboard": "~7.1.5",
+    "expo-font": "~13.3.1",
     "@expo/vector-icons": "^14.0.0",
     "react": "19.0.0",
     "react-native": "0.79.6",
