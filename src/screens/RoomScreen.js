@@ -5,6 +5,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { C } from '../utils/constants';
 import { Ionicons } from '@expo/vector-icons';
+import { useLang } from '../utils/i18n';
 
 const FILTERS = ['All', 'PG', '1 BHK', '2 BHK', 'Boys', 'Girls'];
 
@@ -67,6 +68,7 @@ export const ROOMS = [
 
 export default function RoomsScreen() {
   const nav = useNavigation();
+  const { t } = useLang();
   const [filter, setFilter] = useState('All');
 
   const filtered = ROOMS.filter(r =>
@@ -137,7 +139,7 @@ export default function RoomsScreen() {
         )}
         ListHeaderComponent={
           <View style={{ paddingBottom: 4 }}>
-            <Text style={{ fontSize: 11, color: '#999', fontWeight: '500' }}>{filtered.length} listings in Nanded</Text>
+            <Text style={{ fontSize: 11, color: '#999', fontWeight: '500' }}>{filtered.length} {t('listings')} in Nanded</Text>
           </View>
         }
       />
