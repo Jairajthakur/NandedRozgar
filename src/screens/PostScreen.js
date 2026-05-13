@@ -3,18 +3,20 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-nati
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLang } from '../utils/i18n';
 
 const ORANGE = '#f97316';
 
-const OPTIONS = [
-  { iconName: 'briefcase',   lib: 'ion',      label: 'Post a Job',          sub: 'Hire for your business',   color: '#fff8f3', border: '#fde8d5', iconColor: ORANGE,    route: 'PostJob'  },
-  { iconName: 'business',    lib: 'ion',      label: 'Post a Room / PG',    sub: 'List your property',       color: '#f3f8ff', border: '#d5e8fd', iconColor: '#3b82f6', route: 'PostRoom' },
-  { iconName: 'car-sport',   lib: 'ion',      label: 'Post a Car / Vehicle', sub: 'Rent out your vehicle',   color: '#f3fff6', border: '#d5fde4', iconColor: '#16a34a', route: 'PostCar'  },
-  { iconName: 'pricetag',    lib: 'ion',      label: 'Buy & Sell',           sub: 'New or used items',       color: '#fdf3ff', border: '#ead5fd', iconColor: '#9333ea', route: 'BuySell'  },
-];
-
 export default function PostScreen() {
   const nav = useNavigation();
+  const { t } = useLang();
+
+  const OPTIONS = [
+    { iconName: 'briefcase',   lib: 'ion', label: t('postAJob'),        sub: 'Hire for your business',   color: '#fff8f3', border: '#fde8d5', iconColor: ORANGE,    route: 'PostJob'  },
+    { iconName: 'business',    lib: 'ion', label: t('postRoom') + ' / PG', sub: 'List your property',    color: '#f3f8ff', border: '#d5e8fd', iconColor: '#3b82f6', route: 'PostRoom' },
+    { iconName: 'car-sport',   lib: 'ion', label: t('postCar') + ' / Vehicle', sub: 'Rent out your vehicle', color: '#f3fff6', border: '#d5fde4', iconColor: '#16a34a', route: 'PostCar'  },
+    { iconName: 'pricetag',    lib: 'ion', label: t('buySell'),          sub: 'New or used items',       color: '#fdf3ff', border: '#ead5fd', iconColor: '#9333ea', route: 'BuySell'  },
+  ];
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
