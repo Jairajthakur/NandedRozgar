@@ -6,6 +6,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { C } from '../utils/constants';
 import { Ionicons } from '@expo/vector-icons';
+import { useLang } from '../utils/i18n';
 
 const ORANGE = '#f97316';
 const FILTERS = ['All', 'Car', 'Bike', 'Auto', 'SUV'];
@@ -66,6 +67,7 @@ const CARS = [
 
 export default function CarsScreen() {
   const nav = useNavigation();
+  const { t } = useLang();
   const [filter, setFilter] = useState('All');
 
   const filtered = CARS.filter(c => filter === 'All' || c.type === filter);
@@ -134,7 +136,7 @@ export default function CarsScreen() {
         )}
         ListHeaderComponent={
           <View style={{ paddingBottom: 4 }}>
-            <Text style={{ fontSize: 11, color: '#999', fontWeight: '500' }}>{filtered.length} vehicles available</Text>
+            <Text style={{ fontSize: 11, color: '#999', fontWeight: '500' }}>{filtered.length} {t('vehicles')}</Text>
           </View>
         }
       />
