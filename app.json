@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#111111"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.nandedrozgar.app"
@@ -23,7 +25,17 @@
         "backgroundColor": "#111111"
       },
       "package": "com.nandedrozgar.app",
-      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE", "RECEIVE_BOOT_COMPLETED", "VIBRATE", "POST_NOTIFICATIONS"],
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS",
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
@@ -44,6 +56,13 @@
             "enableProguardInReleaseBuilds": true,
             "minSdkVersion": 24
           }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow NandedRozgar to access your photos.",
+          "cameraPermission": "Allow NandedRozgar to use your camera."
         }
       ]
     ],
