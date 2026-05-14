@@ -189,7 +189,7 @@ function RootNavigator() {
       <Stack.Screen name="BuySellDetail" component={BuySellDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Profile"    component={ProfileScreen}    options={{ headerShown: true, headerTitle: t('myProfile'), ...HEADER }} />
       <Stack.Screen name="AIMatch"    component={AIScreen}         options={{ headerShown: true, headerTitle: t('aiJobMatch'), ...HEADER }} />
-      <Stack.Screen name="Admin"      component={AdminScreen}      options={{ headerShown: true, headerTitle: t('admin'), ...HEADER }} />
+      <Stack.Screen name="AdminPanel"  component={AdminScreen}      options={{ headerShown: true, headerTitle: t('admin'), ...HEADER }} />
       <Stack.Screen name="Referral"   component={ReferralScreen}   options={{ headerShown: true, headerTitle: t('referralTitle'), ...HEADER }} />
     </Stack.Navigator>
   );
