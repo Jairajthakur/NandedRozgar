@@ -7,6 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { C } from '../utils/constants';
 import { useLang, LANGUAGES } from '../utils/i18n';
+import { CARS } from './CarScreen';
+import { ROOMS } from './RoomScreen';
+import { SAMPLE_ITEMS } from './BuySellScreen';
 
 const ORANGE = '#f97316';
 
@@ -73,6 +76,9 @@ export default function HomeScreen() {
 
   const activeJobs = jobs?.filter(j => j.status === 'active') || [];
   const recentJobs = activeJobs.slice(0, 3);
+  const carCount = CARS?.length || 0;
+  const roomCount = ROOMS?.length || 0;
+  const buySellCount = SAMPLE_ITEMS?.length || 0;
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 32 }}>
@@ -114,76 +120,71 @@ export default function HomeScreen() {
       {/* ── AI Prompt Card ── */}
       <AIPromptCard onPress={() => nav.navigate('AIMatch')} t={t} />
 
-      {/* ── Services grid ── */}
+      {/* ── Services grid (LocalMarket style) ── */}
       <Text style={s.sectionTitle}>{t('ourServices')}</Text>
       <View style={s.grid}>
 
-        <TouchableOpacity style={s.card} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
-          <View style={s.cardBadgeRow}>
-            <View style={[s.cardIcon, { backgroundColor: '#fff3e8' }]}>
-              <Ionicons name="briefcase" size={22} color={ORANGE} />
-            </View>
-            <View style={[s.liveBadge, { borderColor: '#16a34a', backgroundColor: '#f0fdf4' }]}>
-              <View style={s.liveDot} />
-              <Text style={[s.liveTxt, { color: '#16a34a' }]}>{t('live')}</Text>
-            </View>
-          </View>
-          <Text style={s.cardTitle}>{t('findJobs')}</Text>
-          <Text style={s.cardSub}>{activeJobs.length || 1} {t('opening')}</Text>
-        </TouchableOpacity>
+        {/* Top row: large featured card (Jobs) + two stacked cards */}
+        <View style={s.gridTopRow}>
 
-        <TouchableOpacity style={s.card} onPress={() => nav.navigate('Cars')} activeOpacity={0.85}>
-          <View style={s.cardBadgeRow}>
-            <View style={[s.cardIcon, { backgroundColor: '#e8f4ff' }]}>
-              <Ionicons name="car-sport" size={22} color="#3b82f6" />
+          {/* Featured tall card — Jobs */}
+          <TouchableOpacity style={s.featuredCard} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
+            {/* Watermark icon */}
+            <Ionicons name="briefcase" size={80} color="rgba(255,255,255,0.08)" style={s.featuredWatermark} />
+            <View style={s.featuredContent}>
+              <View style={s.featuredIconWrap}>
+                <Ionicons name="briefcase" size={26} color="#fff" />
+              </View>
+              <Text style={s.featuredTitle}>{t('findJobs')}</Text>
+              <Text style={s.featuredSub}>{activeJobs.length} {t('opening')}</Text>
             </View>
-          </View>
-          <Text style={s.cardTitle}>{t('carRental')}</Text>
-          <Text style={s.cardSub}>42 {t('vehicles')}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.card} onPress={() => nav.navigate('Rooms')} activeOpacity={0.85}>
-          <View style={s.cardBadgeRow}>
-            <View style={[s.cardIcon, { backgroundColor: '#f0f4ff' }]}>
-              <Ionicons name="business" size={22} color="#6366f1" />
-            </View>
-          </View>
-          <Text style={s.cardTitle}>{t('roomsPG')}</Text>
-          <Text style={s.cardSub}>120 {t('listings')}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.card} onPress={() => nav.navigate('BuySell')} activeOpacity={0.85}>
-          <View style={s.cardBadgeRow}>
-            <View style={[s.cardIcon, { backgroundColor: '#fdf0ff' }]}>
-              <Ionicons name="pricetag" size={22} color="#9333ea" />
-            </View>
-            <View style={[s.liveBadge, { borderColor: '#9333ea', backgroundColor: '#fdf4ff' }]}>
-              <Text style={[s.liveTxt, { color: '#9333ea' }]}>{t('newBadge')}</Text>
-            </View>
-          </View>
-          <Text style={s.cardTitle}>{t('buySell')}</Text>
-          <Text style={s.cardSub}>{lang === 'en' ? 'New & used items' : lang === 'mr' ? 'नवीन आणि जुन्या वस्तू' : 'नई और पुरानी चीजें'}</Text>
-        </TouchableOpacity>
-
-      </View>
-
-      {/* ── Quick access ── */}
-      <View style={s.quickRow}>
-        <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.85}>
-          <Ionicons name="sparkles" size={16} color={ORANGE} />
-          <Text style={s.quickTxt}>{t('aiJobMatch')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.85}>
-          <Ionicons name="person" size={16} color="#555" />
-          <Text style={s.quickTxt}>{t('myProfile')}</Text>
-        </TouchableOpacity>
-        {role === 'admin' && (
-          <TouchableOpacity style={s.quickBtn} onPress={() => nav.navigate('Admin')} activeOpacity={0.85}>
-            <Ionicons name="settings" size={16} color="#555" />
-            <Text style={s.quickTxt}>{t('admin')}</Text>
           </TouchableOpacity>
-        )}
+
+          {/* Right column: Cars + Rooms stacked */}
+          <View style={s.gridRightCol}>
+
+            <TouchableOpacity style={s.smallCard} onPress={() => nav.navigate('Cars')} activeOpacity={0.85}>
+              <View style={s.smallCardInner}>
+                <View>
+                  <Text style={s.smallCardTitle}>{t('carRental')}</Text>
+                  <Text style={s.smallCardSub}>{carCount} {t('vehicles')}</Text>
+                </View>
+                <View style={[s.smallCardIcon, { backgroundColor: '#e8f4ff' }]}>
+                  <Ionicons name="car-sport" size={20} color="#3b82f6" />
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.smallCard} onPress={() => nav.navigate('Rooms')} activeOpacity={0.85}>
+              <View style={s.smallCardInner}>
+                <View>
+                  <Text style={s.smallCardTitle}>{t('roomsPG')}</Text>
+                  <Text style={s.smallCardSub}>{roomCount} {t('listings')}</Text>
+                </View>
+                <View style={[s.smallCardIcon, { backgroundColor: '#f0f4ff' }]}>
+                  <Ionicons name="business" size={20} color="#6366f1" />
+                </View>
+              </View>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+
+        {/* Bottom full-width card — Buy & Sell */}
+        <TouchableOpacity style={s.wideCard} onPress={() => nav.navigate('BuySell')} activeOpacity={0.85}>
+          <View style={[s.smallCardIcon, { backgroundColor: '#fdf0ff' }]}>
+            <Ionicons name="pricetag" size={22} color="#9333ea" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.wideCardTitle}>{t('buySell')}</Text>
+            <Text style={s.wideCardSub}>{lang === 'en' ? 'Furniture, Electronics, Hobby' : lang === 'mr' ? 'फर्निचर, इलेक्ट्रॉनिक्स, छंद' : 'फर्नीचर, इलेक्ट्रॉनिक्स, शौक'}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#9333ea" />
+        </TouchableOpacity>
+
       </View>
+
+
 
       {/* ── Recent Jobs ── */}
       <Text style={s.sectionTitle}>{t('recentJobs')}</Text>
@@ -270,13 +271,35 @@ const s = StyleSheet.create({
   aiTitle: { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 3 },
   aiPrompt: { fontSize: 11, color: '#888', fontStyle: 'italic', lineHeight: 16 },
   sectionTitle: { fontSize: 10, fontWeight: '700', color: '#999', textTransform: 'uppercase', letterSpacing: 0.8, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 10, marginBottom: 4 },
-  card: { width: '47%', backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: '#ebebeb', padding: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  cardBadgeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  cardIcon: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  // ── Services grid (LocalMarket layout) ──
+  grid: { paddingHorizontal: 12, gap: 10, marginBottom: 4 },
+  gridTopRow: { flexDirection: 'row', gap: 10, height: 180 },
+  // Featured tall card (Jobs)
+  featuredCard: { flex: 1, backgroundColor: '#f97316', borderRadius: 16, overflow: 'hidden', padding: 14, justifyContent: 'flex-end', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  featuredWatermark: { position: 'absolute', bottom: -10, right: -10 },
+  featuredContent: { flex: 1, justifyContent: 'flex-end', gap: 6 },
+  featuredIconWrap: { width: 46, height: 46, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  featuredTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  featuredSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: '500' },
+  // Right column stacked small cards
+  gridRightCol: { flex: 1, gap: 10 },
+  smallCard: { flex: 1, backgroundColor: '#e8eeff', borderRadius: 14, padding: 14, justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  smallCardInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  smallCardTitle: { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
+  smallCardSub: { fontSize: 11, color: '#555' },
+  smallCardIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  // Wide full-row card (Buy & Sell / Marketplace)
+  wideCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#f5f5f5', borderRadius: 14, borderWidth: 1, borderColor: '#e0e0e0', padding: 16, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  wideCardTitle: { fontSize: 15, fontWeight: '700', color: '#111' },
+  wideCardSub: { fontSize: 11, color: '#777', marginTop: 2 },
+  // Shared badge styles
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderRadius: 20, paddingVertical: 3, paddingHorizontal: 8 },
   liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#16a34a' },
   liveTxt: { fontSize: 10, fontWeight: '700' },
+  // Legacy (kept for any remaining references)
+  card: { width: '47%', backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: '#ebebeb', padding: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  cardBadgeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  cardIcon: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: 14, fontWeight: '700', color: '#111' },
   cardSub: { fontSize: 11, color: '#888', marginTop: 2 },
   quickRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 12, marginTop: 4, marginBottom: 4 },
