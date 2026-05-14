@@ -17,7 +17,7 @@ const CATEGORIES = [
   { key: 'Other', label: '📦 Other' },
 ];
 
-const SAMPLE_ITEMS = [
+export const SAMPLE_ITEMS = [
   { id: 1, title: 'Samsung TV 42"', price: '₹8,500', cat: 'Electronics', loc: 'Cidco', time: '2h ago', emoji: '📺', condition: 'Good' },
   { id: 2, title: 'Wooden Study Table', price: '₹2,200', cat: 'Furniture', loc: 'Vazirabad', time: '5h ago', emoji: '🪑', condition: 'Like new' },
   { id: 3, title: 'Honda Activa 2019', price: '₹45,000', cat: 'Vehicles', loc: 'Station Road', time: '1d ago', emoji: '🛵', condition: 'Good' },
