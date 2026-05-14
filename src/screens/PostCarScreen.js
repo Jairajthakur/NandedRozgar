@@ -5,8 +5,40 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { C } from '../utils/constants';
+import { C, CAR_PLANS, PRICING } from '../utils/constants';
 import { useLang } from '../utils/i18n';
+
+// ─── Plan card component ───────────────────────────────────────────────────────
+function PlanCard({ plan, selected, onSelect }) {
+  return (
+    <TouchableOpacity
+      onPress={() => onSelect(plan)}
+      style={[pc.card, selected && pc.cardSelected]}
+      activeOpacity={0.8}
+    >
+      {plan.popular && (
+        <View style={pc.popularBadge}>
+          <Text style={pc.popularTxt}>MOST POPULAR</Text>
+        </View>
+      )}
+      <View style={pc.top}>
+        <Text style={[pc.label, selected && { color: '#fff' }]}>{plan.label}</Text>
+        <Text style={[pc.price, selected && { color: '#fff' }]}>₹{plan.price}</Text>
+      </View>
+      <View style={pc.meta}>
+        <Ionicons name="time-outline" size={12} color={selected ? 'rgba(255,255,255,0.75)' : '#999'} />
+        <Text style={[pc.days, selected && { color: 'rgba(255,255,255,0.75)' }]}>
+          Active for {plan.days} days
+        </Text>
+      </View>
+      {selected && (
+        <View style={pc.check}>
+          <Ionicons name="checkmark-circle" size={20} color="#fff" />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
 
 const VEHICLE_TYPES  = ['Car', 'Bike / Scooter', 'Auto', 'Mini Truck', 'Bus / Tempo', 'Tractor'];
 const FUEL_TYPES     = ['Petrol', 'Diesel', 'Electric', 'CNG'];
@@ -57,6 +89,9 @@ export default function PostCarScreen() {
 
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(
+    CAR_PLANS.find(p => p.popular) || CAR_PLANS[0]
+  );
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -89,13 +124,29 @@ export default function PostCarScreen() {
       Alert.alert('Add photos', 'Please add at least 1 vehicle photo for better visibility.');
       return;
     }
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      Alert.alert('Listed!', 'Your vehicle has been listed successfully.', [
-        { text: 'View Listings', onPress: () => nav.navigate('Cars') },
-      ]);
-    }, 1200);
+    if (!selectedPlan) {
+      Alert.alert('Select a plan', 'Please select a listing plan to continue.');
+      return;
+    }
+    Alert.alert(
+      'Confirm & Pay',
+      `List your vehicle for ₹${selectedPlan.price}?\n\nPlan: ${selectedPlan.label} (${selectedPlan.days} days)\n\nYour listing will be automatically removed after ${selectedPlan.days} days.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Pay ₹${selectedPlan.price}`,
+          onPress: () => {
+            setLoading(true);
+            setTimeout(() => {
+              setLoading(false);
+              Alert.alert('Listed!', `Your vehicle has been listed successfully for ${selectedPlan.days} days.`, [
+                { text: 'View Listings', onPress: () => nav.navigate('Cars') },
+              ]);
+            }, 1200);
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -315,8 +366,46 @@ export default function PostCarScreen() {
             onChangeText={v => set('description', v)}
           />
 
+          {/* LISTING PLAN */}
+          <Text style={s.sectionHead}>📅 Choose Your Listing Plan</Text>
+          <View style={s.planNotice}>
+            <Text style={s.planNoticeTxt}>Your listing is automatically removed after the plan period ends. One flat fee covers your full vehicle listing.</Text>
+          </View>
+          <View style={s.plansGrid}>
+            {CAR_PLANS.map(plan => (
+              <PlanCard
+                key={plan.days}
+                plan={plan}
+                selected={selectedPlan?.days === plan.days}
+                onSelect={setSelectedPlan}
+              />
+            ))}
+          </View>
+          {selectedPlan && (
+            <View style={s.planSelectedNote}>
+              <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+              <Text style={s.planSelectedNoteTxt}>
+                Selected: <Text style={{ fontWeight: '800' }}>{selectedPlan.label}</Text> · ₹{selectedPlan.price} · Active for {selectedPlan.days} days
+              </Text>
+            </View>
+          )}
+
+          {/* PAYMENT SUMMARY */}
+          <View style={s.totalBox}>
+            <View style={s.totalRow}>
+              <Text style={s.totalLabel}>Listing plan ({selectedPlan?.label})</Text>
+              <Text style={s.totalVal}>₹{selectedPlan?.price || 0}</Text>
+            </View>
+            <View style={s.totalDivider} />
+            <View style={s.totalRow}>
+              <Text style={s.grandLabel}>Total</Text>
+              <Text style={s.grandVal}>₹{selectedPlan?.price || 0}</Text>
+            </View>
+          </View>
+          <Text style={s.sslNote}>🔒 256-bit SSL · Powered by Razorpay · PCI DSS</Text>
+
           <TouchableOpacity style={[s.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
-            <Text style={s.submitTxt}>{loading ? 'Listing...' : '🚗 List My Vehicle'}</Text>
+            <Text style={s.submitTxt}>{loading ? 'Processing...' : `🚗 List My Vehicle · Pay ₹${selectedPlan?.price || 0}`}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -353,4 +442,30 @@ const s = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#ebebeb', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12, fontSize: 13, color: C.text, backgroundColor: '#fff', marginBottom: 14 },
   submitBtn: { backgroundColor: '#111', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   submitTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  planNotice: { backgroundColor: '#f0f0f0', borderRadius: 9, padding: 11, marginBottom: 12 },
+  planNoticeTxt: { fontSize: 12, color: '#555', lineHeight: 18 },
+  plansGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  planSelectedNote: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#86efac', borderRadius: 9, padding: 10, marginBottom: 14 },
+  planSelectedNoteTxt: { fontSize: 12, color: '#166534', flex: 1 },
+  totalBox: { backgroundColor: '#f8f8f8', borderRadius: 10, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#ebebeb' },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  totalLabel: { fontSize: 13, color: '#555' },
+  totalVal: { fontSize: 13, color: '#111', fontWeight: '600' },
+  totalDivider: { height: 1, backgroundColor: '#ebebeb', marginVertical: 8 },
+  grandLabel: { fontSize: 15, fontWeight: '800', color: '#111' },
+  grandVal: { fontSize: 18, fontWeight: '900', color: '#111' },
+  sslNote: { fontSize: 11, color: '#aaa', textAlign: 'center', marginBottom: 12 },
+});
+
+const pc = StyleSheet.create({
+  card: { borderWidth: 2, borderColor: '#ebebeb', borderRadius: 12, padding: 14, backgroundColor: '#fff', position: 'relative', minWidth: '47%', flex: 1 },
+  cardSelected: { borderColor: '#111', backgroundColor: '#111' },
+  popularBadge: { position: 'absolute', top: -1, right: 10, backgroundColor: '#f97316', borderRadius: 6, paddingVertical: 2, paddingHorizontal: 8 },
+  popularTxt: { fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
+  top: { gap: 2, marginBottom: 6 },
+  label: { fontSize: 13, fontWeight: '700', color: '#111' },
+  price: { fontSize: 20, fontWeight: '900', color: '#111' },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  days: { fontSize: 11, color: '#999' },
+  check: { position: 'absolute', top: 10, right: 10 },
 });
