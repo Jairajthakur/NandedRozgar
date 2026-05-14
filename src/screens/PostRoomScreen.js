@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Alert, KeyboardAvoidingView, Platform,
+  TextInput, Alert, KeyboardAvoidingView, Platform, Image,
+  Modal, Pressable,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import { C, ROOM_PLANS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
 
-// ─── Plan card component ───────────────────────────────────────────────────────
+// ─── Plan card ────────────────────────────────────────────────────────────────
 function PlanCard({ plan, selected, onSelect }) {
   return (
     <TouchableOpacity
@@ -21,22 +23,113 @@ function PlanCard({ plan, selected, onSelect }) {
           <Text style={pc.popularTxt}>MOST POPULAR</Text>
         </View>
       )}
-      <View style={pc.top}>
-        <Text style={[pc.label, selected && { color: '#fff' }]}>{plan.label}</Text>
-        <Text style={[pc.price, selected && { color: '#fff' }]}>₹{plan.price}</Text>
-      </View>
+      <Text style={[pc.planLabel, selected && { color: '#fff' }]}>{plan.label}</Text>
+      <Text style={[pc.planPrice, selected && { color: '#fff' }]}>₹{plan.price}</Text>
       <View style={pc.meta}>
-        <Ionicons name="time-outline" size={12} color={selected ? 'rgba(255,255,255,0.75)' : '#999'} />
-        <Text style={[pc.days, selected && { color: 'rgba(255,255,255,0.75)' }]}>
-          Active for {plan.days} days
-        </Text>
+        <Ionicons name="time-outline" size={12} color={selected ? 'rgba(255,255,255,0.7)' : '#999'} />
+        <Text style={[pc.days, selected && { color: 'rgba(255,255,255,0.7)' }]}>{plan.days} days</Text>
       </View>
       {selected && (
         <View style={pc.check}>
-          <Ionicons name="checkmark-circle" size={20} color="#fff" />
+          <Ionicons name="checkmark-circle" size={18} color="#fff" />
         </View>
       )}
     </TouchableOpacity>
+  );
+}
+
+// ─── Section card wrapper ─────────────────────────────────────────────────────
+function Section({ emoji, title, children }) {
+  return (
+    <View style={sc.card}>
+      <View style={sc.header}>
+        <Text style={sc.emoji}>{emoji}</Text>
+        <Text style={sc.title}>{title}</Text>
+      </View>
+      <View style={sc.body}>{children}</View>
+    </View>
+  );
+}
+
+// ─── Chip row ─────────────────────────────────────────────────────────────────
+function ChipRow({ options, value, onSelect, multi = false }) {
+  return (
+    <View style={s.pillRow}>
+      {options.map(opt => {
+        const active = multi ? value.includes(opt) : value === opt;
+        return (
+          <TouchableOpacity key={opt} onPress={() => onSelect(opt)} style={[s.chip, active && s.chipOn]}>
+            <Text style={[s.chipTxt, active && { color: '#fff' }]}>{opt}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Vacancy stepper ──────────────────────────────────────────────────────────
+function BedStepper({ value, onChange }) {
+  return (
+    <View style={bs.wrap}>
+      <TouchableOpacity
+        style={[bs.btn, value <= 1 && { opacity: 0.35 }]}
+        onPress={() => onChange(Math.max(1, value - 1))}
+        disabled={value <= 1}
+      >
+        <Text style={bs.btnTxt}>−</Text>
+      </TouchableOpacity>
+      <View style={bs.mid}>
+        <Text style={bs.num}>{value}</Text>
+        <Text style={bs.lbl}>{value === 1 ? 'bed / room' : 'beds / rooms'}</Text>
+      </View>
+      <TouchableOpacity
+        style={[bs.btn, value >= 50 && { opacity: 0.35 }]}
+        onPress={() => onChange(Math.min(50, value + 1))}
+        disabled={value >= 50}
+      >
+        <Text style={bs.btnTxt}>+</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─── Photo Picker bottom sheet ────────────────────────────────────────────────
+function PhotoPickerModal({ visible, onClose, onCamera, onGallery }) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={pm.overlay} onPress={onClose}>
+        <Pressable style={pm.sheet}>
+          <View style={pm.handle} />
+          <Text style={pm.title}>Add Room Photo</Text>
+
+          <TouchableOpacity style={pm.option} onPress={onCamera} activeOpacity={0.8}>
+            <View style={[pm.iconWrap, { backgroundColor: '#eff6ff' }]}>
+              <Ionicons name="camera" size={22} color="#2563eb" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={pm.optionTitle}>Take a Photo</Text>
+              <Text style={pm.optionSub}>Open camera to capture</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={pm.option} onPress={onGallery} activeOpacity={0.8}>
+            <View style={[pm.iconWrap, { backgroundColor: '#f0fdf4' }]}>
+              <Ionicons name="images" size={22} color="#16a34a" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={pm.optionTitle}>Choose from Gallery</Text>
+              <Text style={pm.optionSub}>Select multiple photos at once</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={pm.cancelBtn} onPress={onClose}>
+            <Text style={pm.cancelTxt}>Cancel</Text>
+          </TouchableOpacity>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -50,97 +143,89 @@ const RULES_LIST     = ['No smoking', 'No alcohol', 'No non-veg', 'No pets', 'No
 const AVAIL_OPTS     = ['Immediately', 'Within 1 week', 'Within 1 month', 'From specific date'];
 const TENANT_PREFS   = ['Students', 'Working professionals', 'Couples', 'Bachelors', 'Any'];
 
-// Vacancy stepper for PG / hostel beds
-function BedStepper({ value, onChange }) {
-  return (
-    <View style={bs.wrap}>
-      <TouchableOpacity style={[bs.btn, value <= 1 && { opacity: 0.35 }]} onPress={() => onChange(Math.max(1, value - 1))} disabled={value <= 1}>
-        <Text style={bs.btnTxt}>−</Text>
-      </TouchableOpacity>
-      <View style={bs.mid}>
-        <Text style={bs.num}>{value}</Text>
-        <Text style={bs.lbl}>{value === 1 ? 'bed / room' : 'beds / rooms'}</Text>
-      </View>
-      <TouchableOpacity style={[bs.btn, value >= 50 && { opacity: 0.35 }]} onPress={() => onChange(Math.min(50, value + 1))} disabled={value >= 50}>
-        <Text style={bs.btnTxt}>+</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-const PHOTO_SLOTS = [
-  { icon: '🛏️', label: 'Bedroom',  color: '#1e2a3a' },
-  { icon: '🍳', label: 'Kitchen',  color: '#1a2e1e' },
-  { icon: '🚿', label: 'Bathroom', color: '#2e1a1a' },
-  { icon: '🌳', label: 'Outside',  color: '#2a1e3a' },
-  { icon: '🛋️', label: 'Hall',     color: '#2a2a1e' },
-  { icon: '🪟', label: 'View',     color: '#1e2e2a' },
-];
-
 export default function PostRoomScreen() {
   const nav = useNavigation();
   const { t } = useLang();
 
   const [form, setForm] = useState({
-    roomType:      'PG',
-    forGender:     'Boys',
-    furnished:     'Semi-furnished',
-    floor:         '',
-    facing:        '',
-    totalFloors:   '',
-    bhkSize:       '',
-    rent:          '',
-    deposit:       '',
-    maintenance:   '',
-    brokerFree:    true,
-    area:          '',
-    address:       '',
-    landmark:      '',
-    whatsapp:      '',
-    ownerName:     '',
-    description:   '',
-    availableFrom: 'Immediately',
-    tenantPref:    'Any',
-    vacancies:     1,
-    rules:         [],
+    roomType: 'PG', forGender: 'Boys', furnished: 'Semi-furnished',
+    floor: '', facing: '', totalFloors: '', bhkSize: '',
+    rent: '', deposit: '', maintenance: '', brokerFree: true,
+    area: '', address: '', landmark: '', whatsapp: '', ownerName: '',
+    description: '', availableFrom: 'Immediately', tenantPref: 'Any', vacancies: 1,
+    rules: [],
   });
 
   const [selectedAmenities, setSelectedAmenities] = useState([]);
-  const [uploadedPhotos, setUploadedPhotos] = useState([]);
+  const [photos, setPhotos] = useState([]);
+  const [pickerVisible, setPickerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(
     ROOM_PLANS.find(p => p.popular) || ROOM_PLANS[0]
   );
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const toggleAmenity = a => setSelectedAmenities(p => p.includes(a) ? p.filter(x => x !== a) : [...p, a]);
+  const toggleRule = r => setForm(f => ({ ...f, rules: f.rules.includes(r) ? f.rules.filter(x => x !== r) : [...f.rules, r] }));
 
-  function toggleAmenity(a) {
-    setSelectedAmenities(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
-  }
-  function toggleRule(r) {
-    setForm(f => ({ ...f, rules: f.rules.includes(r) ? f.rules.filter(x => x !== r) : [...f.rules, r] }));
+  const isPG = ['PG', 'Hostel', 'Shared room'].includes(form.roomType);
+
+  // ── Image picker ──────────────────────────────────────────────────────────
+  async function openCamera() {
+    setPickerVisible(false);
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow camera access in your device Settings.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.82,
+    });
+    if (!result.canceled && result.assets?.length) {
+      if (photos.length >= 10) { Alert.alert('Limit reached', 'You can upload up to 10 photos.'); return; }
+      setPhotos(p => [...p, result.assets[0].uri]);
+    }
   }
 
-  function simulatePhotoUpload() {
-    if (uploadedPhotos.length >= 10) { Alert.alert('Limit reached', 'You can upload up to 10 photos.'); return; }
-    const next = PHOTO_SLOTS[uploadedPhotos.length % PHOTO_SLOTS.length];
-    setUploadedPhotos(p => [...p, next]);
+  async function openGallery() {
+    setPickerVisible(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow photo library access in your device Settings.');
+      return;
+    }
+    const remaining = 10 - photos.length;
+    if (remaining <= 0) { Alert.alert('Limit reached', 'You can upload up to 10 photos.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      quality: 0.82,
+    });
+    if (!result.canceled && result.assets?.length) {
+      setPhotos(p => [...p, ...result.assets.map(a => a.uri)].slice(0, 10));
+    }
   }
-  function removePhoto(i) { setUploadedPhotos(p => p.filter((_, idx) => idx !== i)); }
+
+  function removePhoto(i) {
+    setPhotos(p => p.filter((_, idx) => idx !== i));
+  }
 
   function handleSubmit() {
     if (!form.rent || !form.area || !form.whatsapp) {
-      Alert.alert('Missing fields', 'Please fill rent, area and WhatsApp number.'); return;
+      Alert.alert('Missing fields', 'Please fill monthly rent, area and WhatsApp number.');
+      return;
     }
-    if (uploadedPhotos.length === 0) {
-      Alert.alert('Add photos', 'Listings with real room photos get 5× more enquiries!'); return;
-    }
-    if (!selectedPlan) {
-      Alert.alert('Select a plan', 'Please select a listing plan to continue.'); return;
+    if (photos.length === 0) {
+      Alert.alert('Add photos', 'Listings with real room photos get 5× more enquiries!');
+      return;
     }
     Alert.alert(
       'Confirm & Pay',
-      `List your ${form.roomType} for ₹${selectedPlan.price}?\n\nPlan: ${selectedPlan.label} (${selectedPlan.days} days)\n\nYour listing will be automatically removed after ${selectedPlan.days} days.`,
+      `List your ${form.roomType} for ₹${selectedPlan.price}?\n\nPlan: ${selectedPlan.label} (${selectedPlan.days} days)`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -149,7 +234,7 @@ export default function PostRoomScreen() {
             setLoading(true);
             setTimeout(() => {
               setLoading(false);
-              Alert.alert('Listed!', `Your ${form.roomType} has been listed for ${selectedPlan.days} days.`, [
+              Alert.alert('Listed! 🎉', `Your ${form.roomType} has been listed for ${selectedPlan.days} days.`, [
                 { text: 'View Listings', onPress: () => nav.navigate('Rooms') },
               ]);
             }, 1200);
@@ -159,280 +244,258 @@ export default function PostRoomScreen() {
     );
   }
 
-  const isPG = form.roomType === 'PG' || form.roomType === 'Hostel' || form.roomType === 'Shared room';
-
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Header */}
+      <PhotoPickerModal
+        visible={pickerVisible}
+        onClose={() => setPickerVisible(false)}
+        onCamera={openCamera}
+        onGallery={openGallery}
+      />
+
+      <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
+        {/* ── Header ── */}
         <View style={s.header}>
           <TouchableOpacity style={s.backBtn} onPress={() => nav.goBack()}>
-            <Text style={{ fontSize: 18 }}>‹</Text>
+            <Ionicons name="arrow-back" size={18} color="#fff" />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>List Your Room / PG</Text>
+          <View>
+            <Text style={s.headerTitle}>List Your Room / PG</Text>
+            <Text style={s.headerSub}>Reach thousands of house seekers</Text>
+          </View>
         </View>
 
         <View style={s.body}>
-          {/* Notice */}
-          <View style={s.notice}>
-            <Text style={s.noticeIcon}>ℹ️</Text>
-            <Text style={s.noticeTxt}>Listings with real room photos get <Text style={{ fontWeight: '700' }}>5× more enquiries</Text>. Add kitchen, bathroom too.</Text>
-          </View>
 
-          {/* PHOTOS */}
-          <Text style={s.sectionHead}>📷 Room Photos</Text>
-          <View style={s.photoTipsBox}>
-            <Text style={s.photoTipsTitle}>📸 Photo Tips for Better Results</Text>
-            {['Use natural light — open curtains/windows', 'Show the full room, not just a corner', 'Add kitchen, bathroom & outside photos', 'Avoid blurry or dark photos'].map((tip, i) => (
-              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                <Text style={{ color: '#16a34a', fontSize: 12 }}>✓</Text>
-                <Text style={{ fontSize: 12, color: '#555' }}>{tip}</Text>
-              </View>
-            ))}
-          </View>
+          {/* ── SECTION 1: Photos ── */}
+          <Section emoji="📷" title="Room Photos">
+            <View style={s.tipBox}>
+              <Ionicons name="information-circle" size={15} color="#2563eb" />
+              <Text style={s.tipTxt}>Listings with real photos get <Text style={{ fontWeight: '800' }}>5× more enquiries</Text>. Add bedroom, kitchen &amp; bathroom.</Text>
+            </View>
 
-          <Text style={s.label}>Room photos <Text style={s.labelSub}>(up to 10 images)</Text></Text>
-          {uploadedPhotos.length === 0 ? (
-            <TouchableOpacity style={s.uploadArea} onPress={simulatePhotoUpload}>
-              <Ionicons name="home" size={32} color="#6366f1" />
-              <Text style={s.uploadMain}>Tap to add room photos</Text>
-              <Text style={s.uploadSub}>Bedroom, kitchen, bathroom, outside · JPG or PNG</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={s.photoGrid}>
-              {uploadedPhotos.map((p, i) => (
-                <View key={i} style={[s.photoBox, { backgroundColor: p.color }]}>
-                  <Text style={s.photoIcon}>{p.icon}</Text>
-                  <Text style={s.photoLabel}>{p.label}</Text>
-                  <TouchableOpacity style={s.removeBtn} onPress={() => removePhoto(i)}>
-                    <Text style={{ color: '#fff', fontSize: 10 }}>✕</Text>
-                  </TouchableOpacity>
+            {/* Photo tips */}
+            <View style={s.photoTipsBox}>
+              <Text style={s.photoTipsTitle}>📸 Photo Tips for Better Results</Text>
+              {[
+                'Use natural light — open curtains/windows',
+                'Show the full room, not just a corner',
+                'Add kitchen, bathroom & outside photos',
+                'Avoid blurry or dark photos',
+              ].map((tip, i) => (
+                <View key={i} style={s.tipRow}>
+                  <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                  <Text style={s.tipItem}>{tip}</Text>
                 </View>
               ))}
-              {uploadedPhotos.length < 10 && (
-                <TouchableOpacity style={s.addMoreBox} onPress={simulatePhotoUpload}>
-                  <Text style={{ fontSize: 22, color: '#aaa' }}>+</Text>
-                </TouchableOpacity>
-              )}
             </View>
-          )}
 
-          {/* PROPERTY DETAILS */}
-          <Text style={s.sectionHead}>🏠 Property Details</Text>
-
-          <Text style={s.label}>Room / Property type *</Text>
-          <View style={s.pillRow}>
-            {ROOM_TYPES.map(tp => (
-              <TouchableOpacity key={tp} onPress={() => set('roomType', tp)} style={[s.chip, form.roomType === tp && s.chipOn]}>
-                <Text style={[s.chipTxt, form.roomType === tp && { color: '#fff' }]}>{tp}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={s.label}>Suitable for</Text>
-          <View style={s.pillRow}>
-            {FOR_OPTIONS.map(o => (
-              <TouchableOpacity key={o} onPress={() => set('forGender', o)} style={[s.chip, form.forGender === o && s.chipOn]}>
-                <Text style={[s.chipTxt, form.forGender === o && { color: '#fff' }]}>{o}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={s.label}>Furnishing</Text>
-          <View style={s.pillRow}>
-            {FURNISH_OPTS.map(f => (
-              <TouchableOpacity key={f} onPress={() => set('furnished', f)} style={[s.chip, form.furnished === f && s.chipOn]}>
-                <Text style={[s.chipTxt, form.furnished === f && { color: '#fff' }]}>{f}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={s.row2}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.label}>Floor</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
-                {FLOOR_OPTS.map(f => (
-                  <TouchableOpacity key={f} onPress={() => set('floor', f)} style={[s.chip, form.floor === f && s.chipOn]}>
-                    <Text style={[s.chipTxt, form.floor === f && { color: '#fff' }]}>{f}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-          <View style={{ height: 14 }} />
-
-          <View style={s.row2}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.label}>Total floors in building</Text>
-              <TextInput style={s.input} placeholder="e.g. 4" placeholderTextColor='#bbb' keyboardType="numeric" value={form.totalFloors} onChangeText={v => set('totalFloors', v)} />
-            </View>
-            <View style={{ width: 12 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.label}>Carpet area (sq ft)</Text>
-              <TextInput style={s.input} placeholder="e.g. 450" placeholderTextColor='#bbb' keyboardType="numeric" value={form.bhkSize} onChangeText={v => set('bhkSize', v)} />
-            </View>
-          </View>
-
-          <Text style={s.label}>Facing direction</Text>
-          <View style={s.pillRow}>
-            {FACING_OPTS.map(f => (
-              <TouchableOpacity key={f} onPress={() => set('facing', f)} style={[s.chip, form.facing === f && s.chipOn]}>
-                <Text style={[s.chipTxt, form.facing === f && { color: '#fff' }]}>{f}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* VACANCIES (especially useful for PG/Hostel) */}
-          <Text style={s.sectionHead}>🛏️ {isPG ? 'Available Beds / Rooms' : 'Vacancies'}</Text>
-          <Text style={s.fieldSub}>How many {isPG ? 'beds or rooms' : 'units'} are currently available?</Text>
-          <BedStepper value={form.vacancies} onChange={v => set('vacancies', v)} />
-          {form.vacancies > 1 && (
-            <View style={s.vacancyNote}>
-              <Text style={s.vacancyNoteTxt}>🎉 Listing will show "{form.vacancies} {isPG ? 'beds' : 'units'} available"</Text>
-            </View>
-          )}
-          <View style={{ height: 14 }} />
-
-          {/* PRICING */}
-          <Text style={s.sectionHead}>💰 Pricing</Text>
-
-          <View style={s.row2}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.label}>Monthly rent (₹) *</Text>
-              <TextInput style={s.input} placeholder="4500" placeholderTextColor='#bbb' keyboardType="numeric" value={form.rent} onChangeText={v => set('rent', v)} />
-            </View>
-            <View style={{ width: 12 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.label}>Deposit (₹)</Text>
-              <TextInput style={s.input} placeholder="9000" placeholderTextColor='#bbb' keyboardType="numeric" value={form.deposit} onChangeText={v => set('deposit', v)} />
-            </View>
-          </View>
-
-          <View style={s.row2}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.label}>Maintenance (₹/mo)</Text>
-              <TextInput style={s.input} placeholder="0" placeholderTextColor='#bbb' keyboardType="numeric" value={form.maintenance} onChangeText={v => set('maintenance', v)} />
-            </View>
-            <View style={{ width: 12 }} />
-            <View style={{ flex: 1, justifyContent: 'center', paddingTop: 18 }}>
-              <TouchableOpacity onPress={() => set('brokerFree', !form.brokerFree)} style={s.checkRow}>
-                <View style={[s.checkbox, form.brokerFree && s.checkboxOn]}>
-                  {form.brokerFree && <Text style={{ color: '#fff', fontSize: 11 }}>✓</Text>}
+            {photos.length === 0 ? (
+              <TouchableOpacity style={s.uploadArea} onPress={() => setPickerVisible(true)} activeOpacity={0.8}>
+                <View style={s.uploadIconWrap}>
+                  <Ionicons name="home-outline" size={30} color="#6366f1" />
                 </View>
-                <Text style={s.checkLabel}>Broker-free</Text>
+                <Text style={s.uploadMain}>Tap to add room photos</Text>
+                <Text style={s.uploadSub}>Bedroom · Kitchen · Bathroom · Outside</Text>
+                <View style={s.uploadBadges}>
+                  <View style={s.badge}><Ionicons name="camera" size={11} color="#2563eb" /><Text style={s.badgeTxt}> Camera</Text></View>
+                  <View style={s.badge}><Ionicons name="images" size={11} color="#16a34a" /><Text style={s.badgeTxt}> Gallery</Text></View>
+                </View>
               </TouchableOpacity>
+            ) : (
+              <>
+                <View style={s.photoGrid}>
+                  {photos.map((uri, i) => (
+                    <View key={i} style={s.photoThumb}>
+                      <Image source={{ uri }} style={s.photoImg} />
+                      <TouchableOpacity style={s.removeBtn} onPress={() => removePhoto(i)}>
+                        <Ionicons name="close" size={11} color="#fff" />
+                      </TouchableOpacity>
+                      {i === 0 && <View style={s.mainBadge}><Text style={s.mainBadgeTxt}>Cover</Text></View>}
+                    </View>
+                  ))}
+                  {photos.length < 10 && (
+                    <TouchableOpacity style={s.addMoreBox} onPress={() => setPickerVisible(true)}>
+                      <Ionicons name="add" size={22} color="#9ca3af" />
+                      <Text style={s.addMoreTxt}>{10 - photos.length} more</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <Text style={s.photoCount}>{photos.length} / 10 photos added</Text>
+              </>
+            )}
+          </Section>
+
+          {/* ── SECTION 2: Property Details ── */}
+          <Section emoji="🏠" title="Property Details">
+            <Text style={s.label}>Room / Property type <Text style={s.req}>*</Text></Text>
+            <ChipRow options={ROOM_TYPES} value={form.roomType} onSelect={v => set('roomType', v)} />
+
+            <Text style={s.label}>Suitable for</Text>
+            <ChipRow options={FOR_OPTIONS} value={form.forGender} onSelect={v => set('forGender', v)} />
+
+            <Text style={s.label}>Furnishing</Text>
+            <ChipRow options={FURNISH_OPTS} value={form.furnished} onSelect={v => set('furnished', v)} />
+
+            <Text style={s.label}>Floor</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7, paddingBottom: 14 }}>
+              {FLOOR_OPTS.map(f => (
+                <TouchableOpacity key={f} onPress={() => set('floor', f)} style={[s.chip, form.floor === f && s.chipOn]}>
+                  <Text style={[s.chipTxt, form.floor === f && { color: '#fff' }]}>{f}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View style={s.twoCol}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.label}>Total floors in building</Text>
+                <TextInput style={s.input} placeholder="e.g. 4" placeholderTextColor="#bbb" keyboardType="numeric" value={form.totalFloors} onChangeText={v => set('totalFloors', v)} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={s.label}>Carpet area (sq ft)</Text>
+                <TextInput style={s.input} placeholder="e.g. 450" placeholderTextColor="#bbb" keyboardType="numeric" value={form.bhkSize} onChangeText={v => set('bhkSize', v)} />
+              </View>
             </View>
-          </View>
 
-          {/* AVAILABILITY */}
-          <Text style={s.sectionHead}>📅 Availability & Tenant</Text>
+            <Text style={s.label}>Facing direction</Text>
+            <ChipRow options={FACING_OPTS} value={form.facing} onSelect={v => set('facing', v)} />
+          </Section>
 
-          <Text style={s.label}>Available from</Text>
-          <View style={s.pillRow}>
-            {AVAIL_OPTS.map(a => (
-              <TouchableOpacity key={a} onPress={() => set('availableFrom', a)} style={[s.chip, form.availableFrom === a && s.chipOn]}>
-                <Text style={[s.chipTxt, form.availableFrom === a && { color: '#fff' }]}>{a}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {/* ── SECTION 3: Vacancies ── */}
+          <Section emoji="🛏️" title={isPG ? 'Available Beds / Rooms' : 'Vacancies'}>
+            <Text style={s.fieldSub}>How many {isPG ? 'beds or rooms' : 'units'} are currently available?</Text>
+            <BedStepper value={form.vacancies} onChange={v => set('vacancies', v)} />
+            {form.vacancies > 1 && (
+              <View style={s.vacancyNote}>
+                <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                <Text style={s.vacancyNoteTxt}>Will show "{form.vacancies} {isPG ? 'beds' : 'units'} available"</Text>
+              </View>
+            )}
+          </Section>
 
-          <Text style={s.label}>Preferred tenant</Text>
-          <View style={s.pillRow}>
-            {TENANT_PREFS.map(tp => (
-              <TouchableOpacity key={tp} onPress={() => set('tenantPref', tp)} style={[s.chip, form.tenantPref === tp && s.chipOn]}>
-                <Text style={[s.chipTxt, form.tenantPref === tp && { color: '#fff' }]}>{tp}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* AMENITIES */}
-          <Text style={s.sectionHead}>✨ Amenities</Text>
-          <View style={s.pillRow}>
-            {AMENITIES_LIST.map(a => (
-              <TouchableOpacity key={a} onPress={() => toggleAmenity(a)} style={[s.chip, selectedAmenities.includes(a) && s.chipOn]}>
-                <Text style={[s.chipTxt, selectedAmenities.includes(a) && { color: '#fff' }]}>{a}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* RULES */}
-          <Text style={s.sectionHead}>📜 House Rules</Text>
-          <View style={s.pillRow}>
-            {RULES_LIST.map(r => (
-              <TouchableOpacity key={r} onPress={() => toggleRule(r)} style={[s.chip, form.rules.includes(r) && s.chipOn]}>
-                <Text style={[s.chipTxt, form.rules.includes(r) && { color: '#fff' }]}>{r}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* LOCATION */}
-          <Text style={s.sectionHead}>📍 Location & Contact</Text>
-
-          <Text style={s.label}>Your area in Nanded *</Text>
-          <TextInput style={s.input} placeholder="e.g. Station Road, Cidco…" placeholderTextColor='#bbb' value={form.area} onChangeText={v => set('area', v)} />
-
-          <Text style={s.label}>Full address</Text>
-          <TextInput style={s.input} placeholder="e.g. Plot No 12, Behind SBI Bank" placeholderTextColor='#bbb' value={form.address} onChangeText={v => set('address', v)} />
-
-          <Text style={s.label}>Nearby landmark</Text>
-          <TextInput style={s.input} placeholder="e.g. Near Rajiv Gandhi Chowk" placeholderTextColor='#bbb' value={form.landmark} onChangeText={v => set('landmark', v)} />
-
-          <Text style={s.label}>Owner / contact name</Text>
-          <TextInput style={s.input} placeholder="Your name" placeholderTextColor='#bbb' value={form.ownerName} onChangeText={v => set('ownerName', v)} />
-
-          <Text style={s.label}>WhatsApp number *</Text>
-          <TextInput style={s.input} placeholder="9876543210" placeholderTextColor='#bbb' keyboardType="phone-pad" value={form.whatsapp} onChangeText={v => set('whatsapp', v)} />
-
-          <Text style={s.label}>Description <Text style={s.labelSub}>(optional)</Text></Text>
-          <TextInput
-            style={[s.input, { height: 90, textAlignVertical: 'top' }]}
-            placeholder="Describe the room, nearby transport, special features, rules…"
-            placeholderTextColor='#bbb'
-            multiline
-            value={form.description}
-            onChangeText={v => set('description', v)}
-          />
-
-          {/* LISTING PLAN */}
-          <Text style={s.sectionHead}>📅 Choose Your Listing Plan</Text>
-          <View style={s.planNotice}>
-            <Text style={s.planNoticeTxt}>Your listing is automatically removed after the plan period ends. One flat fee covers your full room/PG listing.</Text>
-          </View>
-          <View style={s.plansGrid}>
-            {ROOM_PLANS.map(plan => (
-              <PlanCard
-                key={plan.days}
-                plan={plan}
-                selected={selectedPlan?.days === plan.days}
-                onSelect={setSelectedPlan}
-              />
-            ))}
-          </View>
-          {selectedPlan && (
-            <View style={s.planSelectedNote}>
-              <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
-              <Text style={s.planSelectedNoteTxt}>
-                Selected: <Text style={{ fontWeight: '800' }}>{selectedPlan.label}</Text> · ₹{selectedPlan.price} · Active for {selectedPlan.days} days
-              </Text>
+          {/* ── SECTION 4: Pricing ── */}
+          <Section emoji="💰" title="Pricing">
+            <View style={s.twoCol}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.label}>Monthly rent (₹) <Text style={s.req}>*</Text></Text>
+                <TextInput style={s.input} placeholder="4500" placeholderTextColor="#bbb" keyboardType="numeric" value={form.rent} onChangeText={v => set('rent', v)} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={s.label}>Security deposit (₹)</Text>
+                <TextInput style={s.input} placeholder="9000" placeholderTextColor="#bbb" keyboardType="numeric" value={form.deposit} onChangeText={v => set('deposit', v)} />
+              </View>
             </View>
-          )}
 
-          {/* PAYMENT SUMMARY */}
+            <View style={s.twoCol}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.label}>Maintenance (₹/mo)</Text>
+                <TextInput style={s.input} placeholder="0" placeholderTextColor="#bbb" keyboardType="numeric" value={form.maintenance} onChangeText={v => set('maintenance', v)} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 10, justifyContent: 'flex-end', paddingBottom: 14 }}>
+                <TouchableOpacity onPress={() => set('brokerFree', !form.brokerFree)} style={s.checkRow}>
+                  <View style={[s.checkbox, form.brokerFree && s.checkboxOn]}>
+                    {form.brokerFree && <Ionicons name="checkmark" size={12} color="#fff" />}
+                  </View>
+                  <Text style={s.checkLabel}>Broker-free</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Section>
+
+          {/* ── SECTION 5: Availability & Tenant ── */}
+          <Section emoji="📅" title="Availability & Tenant">
+            <Text style={s.label}>Available from</Text>
+            <ChipRow options={AVAIL_OPTS} value={form.availableFrom} onSelect={v => set('availableFrom', v)} />
+
+            <Text style={s.label}>Preferred tenant</Text>
+            <ChipRow options={TENANT_PREFS} value={form.tenantPref} onSelect={v => set('tenantPref', v)} />
+          </Section>
+
+          {/* ── SECTION 6: Amenities ── */}
+          <Section emoji="✨" title="Amenities">
+            <ChipRow options={AMENITIES_LIST} value={selectedAmenities} onSelect={toggleAmenity} multi />
+          </Section>
+
+          {/* ── SECTION 7: House Rules ── */}
+          <Section emoji="📜" title="House Rules">
+            <ChipRow options={RULES_LIST} value={form.rules} onSelect={toggleRule} multi />
+          </Section>
+
+          {/* ── SECTION 8: Location & Contact ── */}
+          <Section emoji="📍" title="Location & Contact">
+            <Text style={s.label}>Your area in Nanded <Text style={s.req}>*</Text></Text>
+            <TextInput style={s.input} placeholder="e.g. Station Road, Cidco…" placeholderTextColor="#bbb" value={form.area} onChangeText={v => set('area', v)} />
+
+            <Text style={s.label}>Full address</Text>
+            <TextInput style={s.input} placeholder="e.g. Plot No 12, Behind SBI Bank" placeholderTextColor="#bbb" value={form.address} onChangeText={v => set('address', v)} />
+
+            <Text style={s.label}>Nearby landmark</Text>
+            <TextInput style={s.input} placeholder="e.g. Near Rajiv Gandhi Chowk" placeholderTextColor="#bbb" value={form.landmark} onChangeText={v => set('landmark', v)} />
+
+            <View style={s.twoCol}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.label}>Owner / contact name</Text>
+                <TextInput style={s.input} placeholder="Your name" placeholderTextColor="#bbb" value={form.ownerName} onChangeText={v => set('ownerName', v)} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={s.label}>WhatsApp number <Text style={s.req}>*</Text></Text>
+                <TextInput style={s.input} placeholder="9876543210" placeholderTextColor="#bbb" keyboardType="phone-pad" value={form.whatsapp} onChangeText={v => set('whatsapp', v)} />
+              </View>
+            </View>
+
+            <Text style={s.label}>Description <Text style={s.labelSub}>(optional)</Text></Text>
+            <TextInput
+              style={[s.input, { height: 90, textAlignVertical: 'top' }]}
+              placeholder="Nearby transport, special features, extra rules…"
+              placeholderTextColor="#bbb"
+              multiline
+              value={form.description}
+              onChangeText={v => set('description', v)}
+            />
+          </Section>
+
+          {/* ── SECTION 9: Listing Plan ── */}
+          <Section emoji="📋" title="Choose Listing Plan">
+            <Text style={s.planNote}>Listing auto-expires after the plan period. One flat fee covers everything.</Text>
+            <View style={s.plansGrid}>
+              {ROOM_PLANS.map(plan => (
+                <PlanCard key={plan.days} plan={plan} selected={selectedPlan?.days === plan.days} onSelect={setSelectedPlan} />
+              ))}
+            </View>
+            {selectedPlan && (
+              <View style={s.planChosen}>
+                <Ionicons name="checkmark-circle" size={15} color="#16a34a" />
+                <Text style={s.planChosenTxt}>
+                  <Text style={{ fontWeight: '800' }}>{selectedPlan.label}</Text> · ₹{selectedPlan.price} · {selectedPlan.days} days active
+                </Text>
+              </View>
+            )}
+          </Section>
+
+          {/* ── Payment summary ── */}
           <View style={s.totalBox}>
             <View style={s.totalRow}>
               <Text style={s.totalLabel}>Listing plan ({selectedPlan?.label})</Text>
               <Text style={s.totalVal}>₹{selectedPlan?.price || 0}</Text>
             </View>
-            <View style={s.totalDivider} />
+            <View style={s.divider} />
             <View style={s.totalRow}>
-              <Text style={s.grandLabel}>Total</Text>
+              <Text style={s.grandLabel}>Total payable</Text>
               <Text style={s.grandVal}>₹{selectedPlan?.price || 0}</Text>
             </View>
           </View>
-          <Text style={s.sslNote}>🔒 256-bit SSL · Powered by Razorpay · PCI DSS</Text>
+          <Text style={s.sslNote}>🔒 Secured by Razorpay · 256-bit SSL · PCI DSS</Text>
 
-          <TouchableOpacity style={[s.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
-            <Text style={s.submitTxt}>{loading ? 'Processing...' : `🏠 List ${form.vacancies > 1 ? `${form.vacancies} Rooms` : 'My Room'} · Pay ₹${selectedPlan?.price || 0}`}</Text>
+          <TouchableOpacity
+            style={[s.submitBtn, loading && { opacity: 0.6 }]}
+            onPress={handleSubmit}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            <Text style={s.submitTxt}>
+              {loading ? 'Processing…' : `🏠  List ${form.vacancies > 1 ? `${form.vacancies} Rooms` : 'My Room'}`}
+            </Text>
+            {!loading && <Text style={s.submitSub}>Pay ₹{selectedPlan?.price || 0}</Text>}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -440,77 +503,119 @@ export default function PostRoomScreen() {
   );
 }
 
-const bs = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  btn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#111', alignItems: 'center', justifyContent: 'center' },
-  btnTxt: { color: '#fff', fontSize: 22, fontWeight: '700', lineHeight: 26 },
-  mid: { paddingHorizontal: 24, alignItems: 'center' },
-  num: { fontSize: 30, fontWeight: '900', color: '#111' },
-  lbl: { fontSize: 11, color: '#888', fontWeight: '500' },
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f0f0f5' },
+
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, paddingTop: 52, backgroundColor: '#111' },
+  backBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 1 },
+
+  body: { padding: 14, gap: 12 },
+
+  tipBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#eff6ff', borderRadius: 10, padding: 11, marginBottom: 12 },
+  tipTxt: { fontSize: 12, color: '#1d4ed8', flex: 1, lineHeight: 18 },
+
+  photoTipsBox: { backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0', borderRadius: 10, padding: 12, marginBottom: 14 },
+  photoTipsTitle: { fontSize: 12, fontWeight: '800', color: '#15803d', marginBottom: 8 },
+  tipRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 5 },
+  tipItem: { fontSize: 12, color: '#374151', flex: 1 },
+
+  uploadArea: { borderWidth: 1.5, borderColor: '#d1d5db', borderStyle: 'dashed', borderRadius: 14, padding: 28, alignItems: 'center', backgroundColor: '#fafafa', gap: 6 },
+  uploadIconWrap: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  uploadMain: { fontSize: 14, fontWeight: '700', color: '#374151' },
+  uploadSub: { fontSize: 12, color: '#9ca3af' },
+  uploadBadges: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  badge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f3f4f6', borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12, borderWidth: 1, borderColor: '#e5e7eb' },
+  badgeTxt: { fontSize: 12, color: '#374151', fontWeight: '600' },
+
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  photoThumb: { width: '30%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', position: 'relative' },
+  photoImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  removeBtn: { position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' },
+  mainBadge: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)', paddingVertical: 3, alignItems: 'center' },
+  mainBadgeTxt: { fontSize: 9, color: '#fff', fontWeight: '700', letterSpacing: 0.5 },
+  addMoreBox: { width: '30%', aspectRatio: 1, borderRadius: 10, borderWidth: 1.5, borderColor: '#d1d5db', borderStyle: 'dashed', backgroundColor: '#f9fafb', alignItems: 'center', justifyContent: 'center', gap: 3 },
+  addMoreTxt: { fontSize: 10, color: '#9ca3af', fontWeight: '600' },
+  photoCount: { fontSize: 11, color: '#9ca3af', marginTop: 8, textAlign: 'right' },
+
+  label: { fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 6, marginTop: 2 },
+  labelSub: { fontWeight: '400', color: '#9ca3af' },
+  req: { color: '#ef4444' },
+  fieldSub: { fontSize: 12, color: '#6b7280', marginBottom: 14, marginTop: -2 },
+  input: { borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 11, paddingHorizontal: 13, fontSize: 13, color: '#111', backgroundColor: '#fff', marginBottom: 14 },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 14 },
+  chip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1.5, borderColor: '#e5e7eb' },
+  chipOn: { backgroundColor: '#111', borderColor: '#111' },
+  chipTxt: { fontSize: 12, fontWeight: '600', color: '#555' },
+  twoCol: { flexDirection: 'row' },
+
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center' },
+  checkboxOn: { backgroundColor: '#111', borderColor: '#111' },
+  checkLabel: { fontSize: 13, fontWeight: '600', color: '#374151' },
+
+  vacancyNote: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#86efac', borderRadius: 10, padding: 10, marginTop: 12 },
+  vacancyNoteTxt: { fontSize: 12, color: '#15803d', fontWeight: '600', flex: 1 },
+
+  planNote: { fontSize: 12, color: '#6b7280', lineHeight: 18, marginBottom: 14 },
+  plansGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  planChosen: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#86efac', borderRadius: 10, padding: 10 },
+  planChosenTxt: { fontSize: 12, color: '#166534', flex: 1 },
+
+  totalBox: { backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1.5, borderColor: '#e5e7eb' },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  totalLabel: { fontSize: 13, color: '#6b7280' },
+  totalVal: { fontSize: 13, color: '#111', fontWeight: '600' },
+  divider: { height: 1, backgroundColor: '#f3f4f6', marginVertical: 10 },
+  grandLabel: { fontSize: 15, fontWeight: '800', color: '#111' },
+  grandVal: { fontSize: 20, fontWeight: '900', color: '#111' },
+  sslNote: { fontSize: 11, color: '#9ca3af', textAlign: 'center', marginVertical: 10 },
+
+  submitBtn: { backgroundColor: '#111', borderRadius: 14, paddingVertical: 16, alignItems: 'center', gap: 2 },
+  submitTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  submitSub: { color: 'rgba(255,255,255,0.55)', fontSize: 12 },
 });
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, paddingTop: 52, backgroundColor: '#111' },
-  backBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  body: { padding: 14 },
-  notice: { flexDirection: 'row', gap: 8, backgroundColor: '#f0f0f0', borderRadius: 9, padding: 11, marginBottom: 14, alignItems: 'flex-start' },
-  noticeIcon: { fontSize: 15 },
-  noticeTxt: { flex: 1, fontSize: 12, color: '#555', lineHeight: 18 },
-  sectionHead: { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 8, marginTop: 8 },
-  label: { fontSize: 12, fontWeight: '600', color: '#444', marginBottom: 6, letterSpacing: 0.2 },
-  labelSub: { fontWeight: '400', color: C.muted },
-  fieldSub: { fontSize: 11, color: '#888', marginBottom: 8, marginTop: -4 },
-  uploadArea: { borderWidth: 1.5, borderColor: '#ebebeb', borderStyle: 'dashed', borderRadius: 10, padding: 22, alignItems: 'center', backgroundColor: '#f8f8f8', marginBottom: 14, gap: 5 },
-  uploadMain: { fontSize: 13, fontWeight: '600', color: '#555' },
-  uploadSub: { fontSize: 11, color: C.muted },
-  photoTipsBox: { backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#86efac', borderRadius: 10, padding: 12, marginBottom: 10 },
-  photoTipsTitle: { fontSize: 12, fontWeight: '700', color: '#15803d', marginBottom: 4 },
-  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 14 },
-  photoBox: { width: '30%', aspectRatio: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  photoIcon: { fontSize: 22, opacity: 0.5 },
-  photoLabel: { fontSize: 9, color: 'rgba(255,255,255,0.8)', marginTop: 3, fontWeight: '500' },
-  removeBtn: { position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
-  addMoreBox: { width: '30%', aspectRatio: 1, borderRadius: 8, borderWidth: 1.5, borderColor: '#ebebeb', borderStyle: 'dashed', backgroundColor: '#f0f0f0', alignItems: 'center', justifyContent: 'center' },
-  row2: { flexDirection: 'row', alignItems: 'flex-start' },
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 },
-  chip: { paddingVertical: 5, paddingHorizontal: 11, borderRadius: 20, backgroundColor: '#f0f0f0', borderWidth: 1, borderColor: '#ebebeb' },
-  chipOn: { backgroundColor: '#111', borderColor: C.dark },
-  chipTxt: { fontSize: 11, fontWeight: '600', color: '#555' },
-  input: { borderWidth: 1, borderColor: '#ebebeb', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12, fontSize: 13, color: C.text, backgroundColor: '#fff', marginBottom: 14 },
-  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: '#ccc', alignItems: 'center', justifyContent: 'center' },
-  checkboxOn: { backgroundColor: '#111', borderColor: '#111' },
-  checkLabel: { fontSize: 12, fontWeight: '600', color: '#444' },
-  vacancyNote: { backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#86efac', borderRadius: 10, padding: 10, marginBottom: 4 },
-  vacancyNoteTxt: { fontSize: 12, color: '#15803d', fontWeight: '600' },
-  submitBtn: { backgroundColor: '#111', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
-  submitTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  planNotice: { backgroundColor: '#f0f0f0', borderRadius: 9, padding: 11, marginBottom: 12 },
-  planNoticeTxt: { fontSize: 12, color: '#555', lineHeight: 18 },
-  plansGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-  planSelectedNote: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#86efac', borderRadius: 9, padding: 10, marginBottom: 14 },
-  planSelectedNoteTxt: { fontSize: 12, color: '#166534', flex: 1 },
-  totalBox: { backgroundColor: '#f8f8f8', borderRadius: 10, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#ebebeb' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  totalLabel: { fontSize: 13, color: '#555' },
-  totalVal: { fontSize: 13, color: '#111', fontWeight: '600' },
-  totalDivider: { height: 1, backgroundColor: '#ebebeb', marginVertical: 8 },
-  grandLabel: { fontSize: 15, fontWeight: '800', color: '#111' },
-  grandVal: { fontSize: 18, fontWeight: '900', color: '#111' },
-  sslNote: { fontSize: 11, color: '#aaa', textAlign: 'center', marginBottom: 12 },
+const sc = StyleSheet.create({
+  card: { backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', borderWidth: 1.5, borderColor: '#e5e7eb' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fafafa' },
+  emoji: { fontSize: 16 },
+  title: { fontSize: 14, fontWeight: '800', color: '#111' },
+  body: { padding: 16 },
 });
 
 const pc = StyleSheet.create({
-  card: { borderWidth: 2, borderColor: '#ebebeb', borderRadius: 12, padding: 14, backgroundColor: '#fff', position: 'relative', minWidth: '47%', flex: 1 },
+  card: { borderWidth: 2, borderColor: '#e5e7eb', borderRadius: 12, padding: 14, backgroundColor: '#fff', position: 'relative', flex: 1 },
   cardSelected: { borderColor: '#111', backgroundColor: '#111' },
-  popularBadge: { position: 'absolute', top: -1, right: 10, backgroundColor: '#f97316', borderRadius: 6, paddingVertical: 2, paddingHorizontal: 8 },
-  popularTxt: { fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
-  top: { gap: 2, marginBottom: 6 },
-  label: { fontSize: 13, fontWeight: '700', color: '#111' },
-  price: { fontSize: 20, fontWeight: '900', color: '#111' },
+  popularBadge: { position: 'absolute', top: -1, right: 8, backgroundColor: '#f97316', borderRadius: 6, paddingVertical: 2, paddingHorizontal: 8 },
+  popularTxt: { fontSize: 9, fontWeight: '800', color: '#fff' },
+  planLabel: { fontSize: 12, fontWeight: '700', color: '#111', marginBottom: 2 },
+  planPrice: { fontSize: 22, fontWeight: '900', color: '#111', marginBottom: 4 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   days: { fontSize: 11, color: '#999' },
   check: { position: 'absolute', top: 10, right: 10 },
+});
+
+const bs = StyleSheet.create({
+  wrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 8 },
+  btn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#111', alignItems: 'center', justifyContent: 'center' },
+  btnTxt: { color: '#fff', fontSize: 24, fontWeight: '700', lineHeight: 28 },
+  mid: { paddingHorizontal: 28, alignItems: 'center' },
+  num: { fontSize: 32, fontWeight: '900', color: '#111' },
+  lbl: { fontSize: 11, color: '#9ca3af', fontWeight: '500', marginTop: 1 },
+});
+
+const pm = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 38 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 20 },
+  title: { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 20 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  iconWrap: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  optionTitle: { fontSize: 14, fontWeight: '700', color: '#111' },
+  optionSub: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  cancelBtn: { marginTop: 18, backgroundColor: '#f3f4f6', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  cancelTxt: { fontSize: 14, fontWeight: '700', color: '#374151' },
 });
