@@ -130,10 +130,10 @@ export default function HomeScreen() {
           {/* Featured tall card — Jobs */}
           <TouchableOpacity style={s.featuredCard} onPress={() => nav.navigate('Jobs')} activeOpacity={0.85}>
             {/* Watermark icon */}
-            <Ionicons name="briefcase" size={80} color="rgba(255,255,255,0.08)" style={s.featuredWatermark} />
+            <Ionicons name="briefcase" size={80} color="rgba(249,115,22,0.12)" style={s.featuredWatermark} />
             <View style={s.featuredContent}>
               <View style={s.featuredIconWrap}>
-                <Ionicons name="briefcase" size={26} color="#fff" />
+                <Ionicons name="briefcase" size={26} color="#f97316" />
               </View>
               <Text style={s.featuredTitle}>{t('findJobs')}</Text>
               <Text style={s.featuredSub}>{activeJobs.length} {t('opening')}</Text>
@@ -275,12 +275,12 @@ const s = StyleSheet.create({
   grid: { paddingHorizontal: 12, gap: 10, marginBottom: 4 },
   gridTopRow: { flexDirection: 'row', gap: 10, height: 180 },
   // Featured tall card (Jobs)
-  featuredCard: { flex: 1, backgroundColor: '#f97316', borderRadius: 16, overflow: 'hidden', padding: 14, justifyContent: 'flex-end', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  featuredCard: { flex: 1, backgroundColor: '#ffedd5', borderRadius: 16, overflow: 'hidden', padding: 14, justifyContent: 'flex-end', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   featuredWatermark: { position: 'absolute', bottom: -10, right: -10 },
   featuredContent: { flex: 1, justifyContent: 'flex-end', gap: 6 },
-  featuredIconWrap: { width: 46, height: 46, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  featuredTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
-  featuredSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: '500' },
+  featuredIconWrap: { width: 46, height: 46, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  featuredTitle: { fontSize: 17, fontWeight: '800', color: '#c2410c' },
+  featuredSub: { fontSize: 12, color: '#ea580c', fontWeight: '500' },
   // Right column stacked small cards
   gridRightCol: { flex: 1, gap: 10 },
   smallCard: { flex: 1, backgroundColor: '#e8eeff', borderRadius: 14, padding: 14, justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
