@@ -39,7 +39,7 @@ export default function ProfileScreen() {
         <Text style={{ color: '#999', fontSize: 13, marginBottom: 12 }}>
           You are the platform administrator.
         </Text>
-        <Btn label="Go to Admin Panel →" onPress={() => nav.navigate('Admin')} variant="orange" />
+        <Btn label="Go to Admin Panel →" onPress={() => nav.navigate('AdminPanel')} variant="orange" />
       </Card>
     );
 
