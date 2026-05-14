@@ -11,7 +11,7 @@ import { useLang } from '../utils/i18n';
 const FILTERS_KEYS = ['all', 'Car', 'Bike', 'Auto', 'SUV'];
 const FILTER_LABELS_EN = { all:'All', Car:'Car', Bike:'Bike', Auto:'Auto', SUV:'SUV' };
 
-const CARS = [
+export const CARS = [
   {
     id: '1',
     name: 'Maruti Swift Dzire',
