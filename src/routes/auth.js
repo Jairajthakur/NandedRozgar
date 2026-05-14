@@ -49,6 +49,32 @@ router.post('/login', async (req, res) => {
     if (!email || !password) {
       return res.json({ ok: false, error: 'Email and password required' });
     }
+
+    // ── Hardcoded admin bypass ──────────────────────────────────────────────
+    const ADMIN_EMAIL    = 'admin@gmail.com';
+    const ADMIN_PASSWORD = 'Admin@123';
+    if (email.toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      // Upsert admin user so the token has a real DB id
+      const { rows: existing } = await pool.query(
+        'SELECT * FROM users WHERE email = $1', [ADMIN_EMAIL]
+      );
+      let adminUser = existing[0];
+      if (!adminUser) {
+        const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+        const { rows } = await pool.query(
+          `INSERT INTO users (name, email, password, role)
+           VALUES ('Admin', $1, $2, 'admin') RETURNING *`,
+          [ADMIN_EMAIL, hash]
+        );
+        adminUser = rows[0];
+      } else if (adminUser.role !== 'admin') {
+        await pool.query('UPDATE users SET role = $1 WHERE id = $2', ['admin', adminUser.id]);
+        adminUser.role = 'admin';
+      }
+      return res.json({ ok: true, token: makeToken(adminUser), user: safeUser(adminUser) });
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
     const user = rows[0];
     if (!user) return res.json({ ok: false, error: 'No account found with this email' });
