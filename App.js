@@ -175,7 +175,9 @@ function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!user
         ? <Stack.Screen name="Login" component={LoginScreen} />
-        : <Stack.Screen name="Main"  component={MainTabs} />
+        : user.role === 'admin'
+          ? <Stack.Screen name="Admin" component={AdminScreen} options={{ headerShown: true, headerTitle: 'Admin Panel', ...HEADER }} />
+          : <Stack.Screen name="Main"  component={MainTabs} />
       }
       <Stack.Screen name="JobDetail"  component={JobDetailScreen}  options={{ headerShown: true, headerTitle: t('carDetails'), ...HEADER }} />
       <Stack.Screen name="CarDetail"  component={CarDetailScreen}  options={{ headerShown: false }} />
