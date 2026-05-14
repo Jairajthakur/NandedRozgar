@@ -30,6 +30,32 @@ export const CAT_ICONS = {
   Carpenter:'hammer', Painter:'color-palette', Other:'briefcase',
 };
 
+// ─── Duration-based listing plans ────────────────────────────────────────────
+// Each plan: { days, price, label, popular? }
+// After `days` the listing is automatically deleted from the app.
+export const JOB_PLANS = [
+  { days: 7,  price: 49,  label: '7 Days',   popular: false },
+  { days: 15, price: 79,  label: '15 Days',  popular: true  },
+  { days: 30, price: 119, label: '30 Days',  popular: false },
+];
+export const CAR_PLANS = [
+  { days: 15, price: 69,  label: '15 Days',  popular: false },
+  { days: 30, price: 99,  label: '1 Month',  popular: true  },
+  { days: 60, price: 169, label: '2 Months', popular: false },
+  { days: 90, price: 229, label: '3 Months', popular: false },
+];
+export const ROOM_PLANS = [
+  { days: 15, price: 69,  label: '15 Days',  popular: false },
+  { days: 30, price: 99,  label: '1 Month',  popular: true  },
+  { days: 60, price: 169, label: '2 Months', popular: false },
+  { days: 90, price: 229, label: '3 Months', popular: false },
+];
+export const BUYSELL_PLANS = [
+  { days: 7,  price: 39,  label: '7 Days',   popular: false },
+  { days: 15, price: 59,  label: '15 Days',  popular: true  },
+  { days: 30, price: 89,  label: '30 Days',  popular: false },
+];
+
 export const PRICING = {
   basic: 49,
   featured: 49,
