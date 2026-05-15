@@ -98,7 +98,7 @@ async function runMigrations() {
     `);
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Seed default admin — wrapped so a seed failure never crashes the server
+    // Seed default admin
     try {
       const bcrypt = require('bcryptjs');
       const adminPass = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10);
@@ -107,17 +107,22 @@ async function runMigrations() {
         VALUES ('Admin', $1, $2, 'admin')
         ON CONFLICT (email) DO NOTHING;
       `, [process.env.ADMIN_EMAIL || 'admin@nandedrozgar.com', adminPass]);
+    } catch (e) {
+      console.warn('⚠️  Admin seed warning (non-fatal):', e.message);
+    }
 
-      // ── Seed a free test user (can post without payment) ───────────────────
+    // Seed free test user (can post without payment)
+    try {
+      const bcrypt = require('bcryptjs');
       const testPass = await bcrypt.hash('test@123', 10);
       await client.query(`
         INSERT INTO users (name, email, password, role, premium, phone)
         VALUES ('Test User', 'test@nandedrozgar.com', $1, 'user', TRUE, '9999999999')
         ON CONFLICT (email) DO UPDATE SET premium = TRUE;
       `, [testPass]);
-      // ───────────────────────────────────────────────────────────────────────
-    } catch (seedErr) {
-      console.warn('⚠️  Seed warning (non-fatal):', seedErr.message);
+      console.log('✅ Test user ready: test@nandedrozgar.com / test@123');
+    } catch (e) {
+      console.warn('⚠️  Test user seed warning (non-fatal):', e.message);
     }
 
     console.log('✅ Database migrations complete. All tables ready!');
