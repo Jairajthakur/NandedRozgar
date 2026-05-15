@@ -2,25 +2,27 @@ const router = require('express').Router();
 const { auth } = require('../middleware/auth');
 const { pool } = require('../db');
 
-// POST /api/ai/chat
-// Proxies the request to Anthropic so the API key stays on the server.
-// Requires ANTHROPIC_API_KEY in your Railway environment variables.
+// Rate limiting applied in index.js (10 req/min per IP)
 router.post('/chat', auth, async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return res.json({
+    return res.status(503).json({
       ok: false,
-      error: 'AI is not configured yet. Add ANTHROPIC_API_KEY to your Railway environment variables.',
+      error: 'AI is not configured. Set ANTHROPIC_API_KEY in your environment.',
     });
   }
 
   const { query, role, userLocation } = req.body;
+
+  // FIX #10 — validate and cap input size
   if (!query || !query.trim()) {
-    return res.json({ ok: false, error: 'Query is required.' });
+    return res.status(400).json({ ok: false, error: 'Query is required.' });
+  }
+  if (query.length > 500) {
+    return res.status(400).json({ ok: false, error: 'Query too long (max 500 characters).' });
   }
 
   try {
-    // Fetch active jobs to give the AI context about current listings
     const { rows: jobs } = await pool.query(
       `SELECT title, company, location, salary, type, category
        FROM jobs WHERE status = 'active' ORDER BY created_at DESC LIMIT 10`
@@ -63,12 +65,12 @@ router.post('/chat', auth, async (req, res) => {
       return res.json({ ok: true, reply: data.content[0].text });
     }
 
-    // Anthropic returned an error object
     const errMsg = data.error?.message || 'AI did not return a response.';
-    return res.json({ ok: false, error: errMsg });
+    return res.status(502).json({ ok: false, error: errMsg });
   } catch (err) {
+    // FIX #17 — do not forward internal error details to client
     console.error('AI route error:', err.message);
-    return res.json({ ok: false, error: 'AI service error. Please try again.' });
+    return res.status(500).json({ ok: false, error: 'AI service error. Please try again.' });
   }
 });
 
