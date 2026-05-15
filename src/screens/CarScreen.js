@@ -1,76 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, ScrollView, TouchableOpacity,
-  StyleSheet,
+  StyleSheet, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { C } from '../utils/constants';
 import { Ionicons } from '@expo/vector-icons';
 import { useLang } from '../utils/i18n';
+import { http } from '../utils/api';
 
 const FILTERS_KEYS = ['all', 'Car', 'Bike', 'Auto', 'SUV'];
 const FILTER_LABELS_EN = { all:'All', Car:'Car', Bike:'Bike', Auto:'Auto', SUV:'SUV' };
 
-export const CARS = [
-  {
-    id: '1',
-    name: 'Maruti Swift Dzire',
-    subtitle: 'White · 2020 · AC · Petrol · 5 seats',
-    price: '₹600/day',
-    location: 'Shivaji Nagar',
-    rating: '4.8',
-    reviews: '38',
-    photos: 4,
-    type: 'Car',
-    specs: { Fuel: 'Petrol', Transmission: 'Manual', Seats: '5 persons', Year: '2020' },
-    includes: ['AC', 'Music system', 'GPS', '100 km/day', 'Fuel not included'],
-    owner: { name: 'Mahesh Kulkarni', initials: 'MK', area: 'Shivaji Nagar · Responds fast', color: '#185fa5', bg: '#e6f1fb' },
-    verified: true,
-    iconColor: '#1a2a3a',
-    icon: 'car-sport',
-  },
-  {
-    id: '2',
-    name: 'Toyota Innova Crysta',
-    subtitle: 'Silver · 2019 · AC · Diesel · 7 seats',
-    price: '₹1,200/day',
-    location: 'Cidco',
-    rating: '4.6',
-    reviews: '21',
-    photos: 3,
-    type: 'SUV',
-    specs: { Fuel: 'Diesel', Transmission: 'Automatic', Seats: '7 persons', Year: '2019' },
-    includes: ['AC', 'GPS', 'Music system', '150 km/day', 'Driver available'],
-    owner: { name: 'Ramesh Sharma', initials: 'RS', area: 'Cidco · Member since 2022', color: '#854f0b', bg: '#faeeda' },
-    verified: true,
-    iconColor: '#1e3a2f',
-    icon: 'car',
-  },
-  {
-    id: '3',
-    name: 'Honda Activa 6G',
-    subtitle: 'Blue · 2022 · Petrol · 60 km/l',
-    price: '₹300/day',
-    location: 'Sadar Bazar',
-    rating: '4.9',
-    reviews: '62',
-    photos: 2,
-    type: 'Bike',
-    specs: { Fuel: 'Petrol', Type: 'Scooter', Mileage: '60 km/l', Year: '2022' },
-    includes: ['Helmet included', 'Full tank', 'Lock & key'],
-    owner: { name: 'Anil Deshmukh', initials: 'AD', area: 'Sadar · Responds fast', color: '#0f6e56', bg: '#e1f5ee' },
-    verified: false,
-    iconColor: '#2a1e3a',
-    icon: 'bicycle',
-  },
-];
+// Kept as fallback/demo if API is unavailable
+export const CARS = [];
 
 export default function CarsScreen() {
   const nav = useNavigation();
   const { t } = useLang();
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter]       = useState('all');
+  const [cars, setCars]           = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const filtered = CARS.filter(c => filter === 'all' || c.type === filter);
+  const fetchCars = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    try {
+      const res = await http('GET', '/api/vehicles');
+      if (res.ok && res.vehicles) {
+        // Map DB fields to the shape the card expects
+        const mapped = res.vehicles.map(v => ({
+          id: String(v.id),
+          name: v.name,
+          subtitle: [v.color, v.year, v.ac_type, v.fuel_type, v.seats ? `${v.seats} seats` : ''].filter(Boolean).join(' · '),
+          price: v.daily_rate ? `₹${v.daily_rate}/day` : 'Price on request',
+          location: v.area || 'Nanded',
+          type: v.vehicle_type || 'Car',
+          photos: (v.photos || []).length || 0,
+          whatsapp: v.whatsapp,
+          owner: {
+            name: v.owner_name || v.poster_name || 'Owner',
+            area: v.area || 'Nanded',
+          },
+          icon: v.vehicle_type === 'Bike / Scooter' ? 'bicycle' : 'car-sport',
+          iconColor: '#1a2a3a',
+          verified: false,
+          expiresAt: v.expires_at,
+          daysLeft: v.expires_at
+            ? Math.max(0, Math.ceil((new Date(v.expires_at) - Date.now()) / 86400000))
+            : null,
+        }));
+        setCars(mapped);
+      }
+    } catch (e) {
+      // silently keep existing data
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchCars(); }, [fetchCars]);
+
+  const filtered = cars.filter(c => filter === 'all' || c.type === filter);
+
+  if (loading) {
+    return (
+      <View style={[s.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#111" />
+        <Text style={{ marginTop: 12, color: '#888', fontSize: 13 }}>Loading vehicles…</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={s.container}>
@@ -95,6 +96,14 @@ export default function CarsScreen() {
         data={filtered}
         keyExtractor={c => c.id}
         contentContainerStyle={{ padding: 12, paddingTop: 4 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchCars(true)} tintColor="#111" />}
+        ListEmptyComponent={
+          <View style={{ alignItems: 'center', paddingTop: 60 }}>
+            <Ionicons name="car-outline" size={48} color="#d1d5db" />
+            <Text style={{ color: '#9ca3af', fontSize: 14, marginTop: 12, fontWeight: '600' }}>No vehicles listed yet</Text>
+            <Text style={{ color: '#d1d5db', fontSize: 12, marginTop: 4 }}>Be the first to list your vehicle!</Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={s.card}
@@ -126,9 +135,14 @@ export default function CarsScreen() {
               <Text style={s.subtitle}>{item.subtitle}</Text>
               <View style={s.metaRow}>
                 <View style={s.tag}><Ionicons name="location-sharp" size={11} color="#555" /><Text style={[s.tagTxt, { marginLeft: 3 }]}>{item.location}</Text></View>
-                <View style={s.ratingWrap}>
-                  <Text style={s.ratingTxt}>★ {item.rating} ({item.reviews})</Text>
-                </View>
+                {item.daysLeft !== null && (
+                  <View style={[s.tag, { backgroundColor: item.daysLeft <= 3 ? '#fef2f2' : '#f0fdf4' }]}>
+                    <Ionicons name="time-outline" size={11} color={item.daysLeft <= 3 ? '#ef4444' : '#16a34a'} />
+                    <Text style={[s.tagTxt, { marginLeft: 3, color: item.daysLeft <= 3 ? '#ef4444' : '#16a34a' }]}>
+                      {item.daysLeft}d left
+                    </Text>
+                  </View>
+                )}
                 <View style={s.priceBadge}><Text style={s.priceTxt}>{item.price}</Text></View>
               </View>
             </View>
