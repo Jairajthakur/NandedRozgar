@@ -1,18 +1,17 @@
 const { Pool } = require('pg');
 
+// FIX #9 — rejectUnauthorized TRUE in production to prevent MITM on DB connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
 });
 
-// ✅ Auto-creates all tables on server start
 async function runMigrations() {
   const client = await pool.connect();
   try {
-    console.log('⚙️  Running database migrations...');
+    console.log('Running database migrations...');
 
     await client.query(`
-      -- USERS table
       CREATE TABLE IF NOT EXISTS users (
         id          SERIAL PRIMARY KEY,
         name        VARCHAR(100),
@@ -28,7 +27,6 @@ async function runMigrations() {
     `);
 
     await client.query(`
-      -- JOBS table
       CREATE TABLE IF NOT EXISTS jobs (
         id               SERIAL PRIMARY KEY,
         posted_by        INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -51,7 +49,6 @@ async function runMigrations() {
     `);
 
     await client.query(`
-      -- JOB APPLICATIONS table
       CREATE TABLE IF NOT EXISTS applications (
         id         SERIAL PRIMARY KEY,
         job_id     INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
@@ -62,7 +59,6 @@ async function runMigrations() {
     `);
 
     await client.query(`
-      -- SAVED JOBS table
       CREATE TABLE IF NOT EXISTS saved_jobs (
         id         SERIAL PRIMARY KEY,
         job_id     INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
@@ -73,19 +69,18 @@ async function runMigrations() {
     `);
 
     await client.query(`
-      -- PAYMENTS table
       CREATE TABLE IF NOT EXISTS payments (
         id          SERIAL PRIMARY KEY,
         user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
         job_id      INTEGER REFERENCES jobs(id) ON DELETE SET NULL,
         amount      INTEGER NOT NULL,
         plan        VARCHAR(50),
-        status      VARCHAR(20) DEFAULT 'paid',
+        status      VARCHAR(20) DEFAULT 'pending',
+        gateway_ref VARCHAR(200),
         created_at  TIMESTAMPTZ DEFAULT NOW()
       );
     `);
 
-    // ── VEHICLES table ────────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS vehicles (
         id            SERIAL PRIMARY KEY,
@@ -122,7 +117,6 @@ async function runMigrations() {
       );
     `);
 
-    // ── ROOMS table ───────────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS rooms (
         id            SERIAL PRIMARY KEY,
@@ -159,7 +153,21 @@ async function runMigrations() {
       );
     `);
 
-    // Indexes for performance
+    // FIX #14 — Durable audit log table for all admin actions
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id          SERIAL PRIMARY KEY,
+        admin_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        action      VARCHAR(100) NOT NULL,
+        target_type VARCHAR(50),
+        target_id   VARCHAR(50),
+        detail      JSONB,
+        ip_address  VARCHAR(45),
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // Indexes
     await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_status      ON jobs(status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_category    ON jobs(category);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_posted_by   ON jobs(posted_by);`);
@@ -169,49 +177,35 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_vehicles_expires ON vehicles(expires_at);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_rooms_status     ON rooms(status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_rooms_expires    ON rooms(expires_at);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_admin_id   ON audit_log(admin_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_log(created_at);`);
 
-    // ── Fix legacy DB issues safely ───────────────────────────────────────────
-    // 1. Add premium column if missing
+    // Fix legacy DB issues
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN DEFAULT FALSE;`);
-
-    // 2. Fix any rows with invalid role values (old schema may have used 'employer'/'seeker')
     await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');`);
-
-    // 3. Drop and recreate role constraint cleanly
     await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`);
     await client.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'));`);
-    // ─────────────────────────────────────────────────────────────────────────
 
-    // Seed default admin
-    try {
+    // FIX #2 — Seed admin from env vars only. No hardcoded credentials.
+    // FIX #13 — Never log credentials.
+    if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
       const bcrypt = require('bcryptjs');
-      const adminPass = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10);
+      const adminPass = await bcrypt.hash(process.env.ADMIN_PASSWORD, 12);
       await client.query(`
         INSERT INTO users (name, email, password, role)
         VALUES ('Admin', $1, $2, 'admin')
         ON CONFLICT (email) DO NOTHING;
-      `, [process.env.ADMIN_EMAIL || 'admin@nandedrozgar.com', adminPass]);
-    } catch (e) {
-      console.warn('⚠️  Admin seed warning (non-fatal):', e.message);
+      `, [process.env.ADMIN_EMAIL, adminPass]);
+      console.log('Admin account ready.');
+    } else {
+      console.warn('ADMIN_EMAIL / ADMIN_PASSWORD not set — skipping admin seed.');
     }
 
-    // Seed free test user (can post without payment)
-    try {
-      const bcrypt = require('bcryptjs');
-      const testPass = await bcrypt.hash('test@123', 10);
-      await client.query(`
-        INSERT INTO users (name, email, password, role, premium, phone)
-        VALUES ('Test User', 'test@nandedrozgar.com', $1, 'user', TRUE, '9999999999')
-        ON CONFLICT (email) DO UPDATE SET premium = TRUE;
-      `, [testPass]);
-      console.log('✅ Test user ready: test@nandedrozgar.com / test@123');
-    } catch (e) {
-      console.warn('⚠️  Test user seed warning (non-fatal):', e.message);
-    }
+    // FIX #2 — Removed hardcoded test user entirely.
 
-    console.log('✅ Database migrations complete. All tables ready!');
+    console.log('Database migrations complete. All tables ready.');
   } catch (err) {
-    console.error('❌ Migration error:', err.message);
+    console.error('Migration error:', err.message);
     throw err;
   } finally {
     client.release();
