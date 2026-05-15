@@ -179,7 +179,7 @@ function RootNavigator() {
           ? <Stack.Screen name="Admin" component={AdminScreen} options={{ headerShown: true, headerTitle: 'Admin Panel', ...HEADER }} />
           : <Stack.Screen name="Main"  component={MainTabs} />
       }
-      <Stack.Screen name="JobDetail"  component={JobDetailScreen}  options={{ headerShown: true, headerTitle: t('carDetails'), ...HEADER }} />
+      <Stack.Screen name="JobDetail"  component={JobDetailScreen}  options={{ headerShown: true, headerTitle: t('jobDetails'), ...HEADER }} />
       <Stack.Screen name="CarDetail"  component={CarDetailScreen}  options={{ headerShown: false }} />
       <Stack.Screen name="RoomDetail" component={RoomDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="PostJob"    component={PostJobScreen}    options={{ headerShown: true, headerTitle: t('postAJobTitle'), ...HEADER }} />
