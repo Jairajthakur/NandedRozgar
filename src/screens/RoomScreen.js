@@ -1,75 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, ScrollView, TouchableOpacity, StyleSheet,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { C } from '../utils/constants';
 import { Ionicons } from '@expo/vector-icons';
 import { useLang } from '../utils/i18n';
+import { http } from '../utils/api';
 
 const FILTERS = ['All', 'PG', '1 BHK', '2 BHK', 'Boys', 'Girls'];
 
-export const ROOMS = [
-  {
-    id: '1',
-    name: 'Boys PG Near Station',
-    subtitle: 'Single occupancy · Meals included · WiFi',
-    price: '₹4,500/mo',
-    location: 'Station Road',
-    forGender: 'Boys',
-    type: 'PG',
-    available: true,
-    availableLabel: 'Available',
-    amenities: ['WiFi', 'Meals 2x/day', 'CCTV', 'Laundry', '24hr water'],
-    owner: { name: 'Sunita Patil', initials: 'SP', area: 'Replies within 1 hr', color: '#0f6e56', bg: '#e1f5ee' },
-    verified: true,
-  },
-  {
-    id: '2',
-    name: '1 BHK Furnished Flat',
-    subtitle: 'Fully furnished · Cidco Colony · Ground floor',
-    price: '₹7,000/mo',
-    location: 'Cidco',
-    forGender: 'Family/Single',
-    type: '1 BHK',
-    available: true,
-    availableLabel: 'Available',
-    icon: 'home',
-    specs: { Type: '1 BHK', Deposit: '₹14,000', For: 'Family', Floor: 'Ground' },
-    amenities: ['Furnished', 'Parking', 'RO water', 'Power backup'],
-    owner: { name: 'Prakash Joshi', initials: 'PJ', area: 'Responds in 2 hrs', color: '#185fa5', bg: '#e6f1fb' },
-    verified: true,
-  },
-  {
-    id: '3',
-    name: 'Girls PG with Meals',
-    subtitle: '2 meals/day · WiFi · CCTV · Shivaji Nagar',
-    price: '₹5,500/mo',
-    location: 'Shivaji Nagar',
-    forGender: 'Girls',
-    type: 'PG',
-    available: false,
-    availableLabel: '2 left',
-    photos: 2,
-    iconColor: '#2e1a1a',
-    icon: 'business',
-    specs: { Type: 'PG Shared', Deposit: '₹11,000', For: 'Girls', Floor: '1st floor' },
-    amenities: ['Meals 2x/day', 'WiFi', 'CCTV', 'Wardrobe', 'Attached bath'],
-    owner: { name: 'Meena Bhosale', initials: 'MB', area: 'Replies within 30 mins', color: '#854f0b', bg: '#faeeda' },
-    verified: false,
-  },
-];
+export const ROOMS = [];
 
 export default function RoomsScreen() {
   const nav = useNavigation();
   const { t } = useLang();
-  const [filter, setFilter] = useState('All');
+  const [filter, setFilter]         = useState('All');
+  const [rooms, setRooms]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const filtered = ROOMS.filter(r =>
+  const fetchRooms = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    try {
+      const res = await http('GET', '/api/rooms');
+      if (res.ok && res.rooms) {
+        const mapped = res.rooms.map(r => ({
+          id: String(r.id),
+          name: `${r.room_type || 'Room'} — ${r.area || 'Nanded'}`,
+          subtitle: [r.furnished, r.floor ? `${r.floor} floor` : '', r.area].filter(Boolean).join(' · '),
+          price: r.rent ? `₹${r.rent}/mo` : 'Price on request',
+          location: r.area || 'Nanded',
+          forGender: r.for_gender || 'Any',
+          type: r.room_type || 'PG',
+          available: true,
+          availableLabel: r.vacancies > 1 ? `${r.vacancies} left` : 'Available',
+          photos: (r.photos || []).length || 0,
+          iconColor: '#1a2a3a',
+          icon: 'home',
+          amenities: r.amenities || [],
+          owner: {
+            name: r.owner_name || r.poster_name || 'Owner',
+            area: r.area || 'Nanded',
+          },
+          whatsapp: r.whatsapp,
+          expiresAt: r.expires_at,
+          daysLeft: r.expires_at
+            ? Math.max(0, Math.ceil((new Date(r.expires_at) - Date.now()) / 86400000))
+            : null,
+        }));
+        setRooms(mapped);
+      }
+    } catch (e) {
+      // silently keep existing data
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchRooms(); }, [fetchRooms]);
+
+  const filtered = rooms.filter(r =>
     filter === 'All' ||
     r.type === filter ||
     r.forGender === filter
   );
+
+  if (loading) {
+    return (
+      <View style={[s.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#111" />
+        <Text style={{ marginTop: 12, color: '#888', fontSize: 13 }}>Loading rooms…</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={s.container}>
@@ -93,6 +99,14 @@ export default function RoomsScreen() {
         data={filtered}
         keyExtractor={r => r.id}
         contentContainerStyle={{ padding: 12, paddingTop: 4 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchRooms(true)} tintColor="#111" />}
+        ListEmptyComponent={
+          <View style={{ alignItems: 'center', paddingTop: 60 }}>
+            <Ionicons name="home-outline" size={48} color="#d1d5db" />
+            <Text style={{ color: '#9ca3af', fontSize: 14, marginTop: 12, fontWeight: '600' }}>No rooms listed yet</Text>
+            <Text style={{ color: '#d1d5db', fontSize: 12, marginTop: 4 }}>Be the first to list your room!</Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={s.card}
@@ -100,8 +114,8 @@ export default function RoomsScreen() {
             onPress={() => nav.navigate('RoomDetail', { room: item })}
           >
             {/* Photo Strip */}
-            <View style={[s.imgStrip, { backgroundColor: item.iconColor }]}>
-              <Ionicons name={item.icon} size={36} color="#fff" />
+            <View style={[s.imgStrip, { backgroundColor: item.iconColor || '#2e3a4a' }]}>
+              <Ionicons name={item.icon || 'home'} size={36} color="#fff" />
               <View style={s.photoThumbs}>
                 {['room', 'kitchen', 'bath', 'outside'].slice(0, item.photos).map((key, i) => (
                   <View key={i} style={[s.thumb, i === 0 && s.thumbActive]}>
@@ -126,6 +140,14 @@ export default function RoomsScreen() {
               <View style={s.metaRow}>
                 <View style={s.tag}><Ionicons name="location-sharp" size={11} color="#555" /><Text style={[s.tagTxt, { marginLeft: 3 }]}>{item.location}</Text></View>
                 <View style={s.tag}><Ionicons name="person" size={11} color="#555" /><Text style={[s.tagTxt, { marginLeft: 3 }]}>{item.forGender}</Text></View>
+                {item.daysLeft !== null && (
+                  <View style={[s.tag, { backgroundColor: item.daysLeft <= 3 ? '#fef2f2' : '#f0fdf4' }]}>
+                    <Ionicons name="time-outline" size={11} color={item.daysLeft <= 3 ? '#ef4444' : '#16a34a'} />
+                    <Text style={[s.tagTxt, { marginLeft: 3, color: item.daysLeft <= 3 ? '#ef4444' : '#16a34a' }]}>
+                      {item.daysLeft}d left
+                    </Text>
+                  </View>
+                )}
                 <View style={s.priceBadge}><Text style={s.priceTxt}>{item.price}</Text></View>
               </View>
             </View>
