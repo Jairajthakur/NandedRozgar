@@ -92,6 +92,15 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_job_id    ON applications(job_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_user_id   ON applications(user_id);`);
 
+    // ── Fix role check constraint (in case live DB has wrong values) ──────────
+    await client.query(`
+      ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+    `);
+    await client.query(`
+      ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'));
+    `);
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── Add premium column if it doesn't exist yet (safe for existing DBs) ───
     await client.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN DEFAULT FALSE;
