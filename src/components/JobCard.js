@@ -7,35 +7,20 @@ import { timeAgo } from '../utils/api';
 const ORANGE = '#f97316';
 
 export default function JobCard({ job, onPress }) {
-  const iconName = CAT_ICONS[job.category] || 'briefcase';
+  const iconName = CAT_ICONS[job.category] || 'briefcase-outline';
 
-  // Freshness: green if < 24h, orange if < 7 days, gray otherwise
-  const ageDays = (Date.now() - (job.timestamp || 0)) / 86400000;
+  // Use created_at from DB
+  const createdAt = job.created_at ? new Date(job.created_at).getTime() : Date.now();
+  const ageDays = (Date.now() - createdAt) / 86400000;
   const freshnessColor = ageDays < 1 ? '#16a34a' : ageDays < 7 ? ORANGE : '#bbb';
-  const freshnessLabel = ageDays < 1 ? 'Today' : ageDays < 7 ? `${Math.floor(ageDays)}d ago` : timeAgo(job.timestamp);
-
-  // Applicant fill percentage (when slots defined)
-  const slots = job.slots || 0;
+  const freshnessLabel = ageDays < 1 ? 'Today' : ageDays < 7 ? `${Math.floor(ageDays)}d ago` : timeAgo(createdAt);
   const applicants = job.applicant_count || 0;
-  const fillPct = slots > 0 ? Math.min((applicants / slots) * 100, 100) : 0;
-  const showFillBar = slots > 0 && applicants > 0;
-  const slotsLeft = Math.max(slots - applicants, 0);
-
-  // Skills — show first 3 tags
-  const skills = Array.isArray(job.skills) ? job.skills.slice(0, 3) : [];
-
-  // Experience chip label
-  const expLabel = job.experience
-    ? job.experience
-    : job.fresher_ok
-    ? 'Fresher OK'
-    : null;
 
   async function shareJob(e) {
     e.stopPropagation?.();
     try {
       await Share.share({
-        message: `🔥 Job Opening: ${job.title} at ${job.company}\n📍 ${job.location} | 💰 ${job.salary}\n\nApply on NandedRozgar!`,
+        message: `Job Opening: ${job.title}${job.company ? ` at ${job.company}` : ''}\n${job.location || 'Nanded'}${job.salary ? ` | Rs.${job.salary}` : ''}\n\nApply on NandedRozgar!`,
       });
     } catch {}
   }
@@ -43,11 +28,7 @@ export default function JobCard({ job, onPress }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[
-        styles.card,
-        job.featured && styles.featured,
-        job.urgent   && styles.urgent,
-      ]}
+      style={[styles.card, job.featured && styles.featured, job.urgent && styles.urgent]}
       activeOpacity={0.85}
     >
       {job.featured && (
@@ -69,58 +50,27 @@ export default function JobCard({ job, onPress }) {
         </View>
 
         <View style={{ flex: 1, marginLeft: 10 }}>
-          {/* Title + verified */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.title} numberOfLines={1}>{job.title}</Text>
-            {job.verified_employer && (
-              <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
-            )}
-          </View>
+          <Text style={styles.title} numberOfLines={1}>{job.title}</Text>
 
-          <Text style={styles.company} numberOfLines={1}>{job.company}</Text>
-
-          {/* Chips row: location, salary, type, experience */}
-          <View style={styles.chips}>
-            <Chip iconName="location-sharp">{job.location}</Chip>
-            <Chip variant="orange" iconName="cash">{job.salary}</Chip>
-            <Chip variant="gray">{job.type}</Chip>
-            {expLabel && <Chip variant="green">{expLabel}</Chip>}
-          </View>
-
-          {/* Skill tags */}
-          {skills.length > 0 && (
-            <View style={styles.skillsRow}>
-              {skills.map((sk, i) => (
-                <View key={i} style={styles.skillTag}>
-                  <Text style={styles.skillTagTxt}>{sk}</Text>
-                </View>
-              ))}
+          {!!job.company && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 }}>
+              <Ionicons name="business-outline" size={11} color="#aaa" />
+              <Text style={styles.company} numberOfLines={1}>{job.company}</Text>
             </View>
           )}
 
-          {/* Applicant fill bar */}
-          {showFillBar && (
-            <View style={styles.fillBarWrap}>
-              <View style={styles.fillBarLabelRow}>
-                <Text style={styles.fillBarLabel}>Slots filling</Text>
-                <Text style={[
-                  styles.fillBarCount,
-                  fillPct >= 80 && { color: '#ef4444' },
-                ]}>
-                  {applicants}/{slots} applied
-                </Text>
-              </View>
-              <View style={styles.fillBarTrack}>
-                <View style={[styles.fillBarFill, { width: `${fillPct}%` }]} />
-              </View>
-              {slotsLeft <= 2 && slotsLeft > 0 && (
-                <Text style={styles.fillBarUrgent}>⚠ Only {slotsLeft} slot{slotsLeft === 1 ? '' : 's'} left!</Text>
-              )}
-            </View>
+          <View style={styles.chips}>
+            {!!job.location && <Chip iconName="location-sharp">{job.location}</Chip>}
+            {!!job.salary   && <Chip variant="orange" iconName="cash">Rs.{job.salary}</Chip>}
+            {!!job.type     && <Chip variant="gray">{job.type}</Chip>}
+            {!!job.category && <Chip variant="blue">{job.category}</Chip>}
+          </View>
+
+          {!!job.description && (
+            <Text style={styles.descPreview} numberOfLines={2}>{job.description}</Text>
           )}
         </View>
 
-        {/* Right meta column */}
         <View style={styles.meta}>
           <View style={styles.freshnessRow}>
             <View style={[styles.freshnessDot, { backgroundColor: freshnessColor }]} />
@@ -148,77 +98,32 @@ export default function JobCard({ job, onPress }) {
 }
 
 function Chip({ children, variant, iconName }) {
-  const bg    = variant === 'orange' ? '#fff7ed'
-              : variant === 'gray'   ? '#f0f0f0'
-              : variant === 'green'  ? '#f0fdf4'
-              : '#f5f5f5';
-  const color = variant === 'orange' ? ORANGE
-              : variant === 'green'  ? '#15803d'
-              : '#555';
+  const bg    = variant === 'orange' ? '#fff7ed' : variant === 'gray' ? '#f0f0f0' : variant === 'blue' ? '#eff6ff' : '#f5f5f5';
+  const color = variant === 'orange' ? ORANGE : variant === 'blue' ? '#2563eb' : '#555';
   return (
-    <View style={{
-      flexDirection: 'row', alignItems: 'center',
-      backgroundColor: bg, borderRadius: 20,
-      paddingVertical: 3, paddingHorizontal: 9,
-      marginRight: 5, marginTop: 5,
-    }}>
-      {iconName && <Ionicons name={iconName} size={10} color={color} />}
+    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: bg, borderRadius: 20, paddingVertical: 3, paddingHorizontal: 9, marginRight: 5, marginTop: 5 }}>
+      {iconName && <Ionicons name={iconName} size={10} color={color} style={{ marginRight: 3 }} />}
       <Text style={{ fontSize: 11, fontWeight: '600', color }}>{children}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#ebebeb',
-    padding: 14,
-    marginBottom: 8,
-    position: 'relative',
-    shadowColor: '#000', shadowOpacity: 0.03,
-    shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1,
-  },
+  card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#ebebeb', padding: 14, marginBottom: 8, position: 'relative', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   featured: { borderColor: '#f97316', borderLeftWidth: 3 },
   urgent:   { borderLeftWidth: 3, borderLeftColor: '#ef4444' },
-  featBadge: {
-    position: 'absolute', top: 0, right: 14,
-    backgroundColor: '#f97316',
-    borderBottomLeftRadius: 6, borderBottomRightRadius: 6,
-    paddingVertical: 2, paddingHorizontal: 9, zIndex: 10,
-    flexDirection: 'row', alignItems: 'center',
-  },
+  featBadge: { position: 'absolute', top: 0, right: 14, backgroundColor: '#f97316', borderBottomLeftRadius: 6, borderBottomRightRadius: 6, paddingVertical: 2, paddingHorizontal: 9, zIndex: 10, flexDirection: 'row', alignItems: 'center' },
   badgeText: { color: '#fff', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
   row: { flexDirection: 'row', alignItems: 'flex-start' },
   iconWrap: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 14, fontWeight: '700', color: '#111' },
-  company: { fontSize: 12, color: '#888', marginTop: 1 },
+  company: { fontSize: 12, color: '#888' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 2 },
-  // Skill tags
-  skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
-  skillTag: {
-    backgroundColor: '#f8f8f8',
-    borderWidth: 0.5,
-    borderColor: '#e5e5e5',
-    borderRadius: 4,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-  },
-  skillTagTxt: { fontSize: 10, color: '#666', fontWeight: '500' },
-  // Fill bar
-  fillBarWrap: { marginTop: 8 },
-  fillBarLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 },
-  fillBarLabel: { fontSize: 9, color: '#aaa', fontWeight: '500' },
-  fillBarCount: { fontSize: 9, color: '#888', fontWeight: '600' },
-  fillBarTrack: { height: 4, backgroundColor: '#f0f0f0', borderRadius: 2, overflow: 'hidden' },
-  fillBarFill: { height: '100%', backgroundColor: ORANGE, borderRadius: 2 },
-  fillBarUrgent: { fontSize: 9, color: '#ef4444', fontWeight: '700', marginTop: 3 },
-  // Meta
+  descPreview: { fontSize: 12, color: '#888', marginTop: 5, lineHeight: 17 },
   meta: { alignItems: 'flex-end', marginLeft: 8 },
   freshnessRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   freshnessDot: { width: 6, height: 6, borderRadius: 3 },
-  metaTime: { fontSize: 10, color: '#bbb', fontWeight: '500' },
+  metaTime: { fontSize: 10, fontWeight: '500' },
   metaText: { fontSize: 10, color: '#aaa' },
   shareBtn: { marginTop: 6, padding: 2 },
 });
