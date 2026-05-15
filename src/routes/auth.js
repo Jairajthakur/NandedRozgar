@@ -4,8 +4,14 @@ const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 const { auth } = require('../middleware/auth');
 
+const MIN_PASSWORD_LEN = 8; // FIX #18 — raised from 6 to 8
+
 function makeToken(user) {
-  return jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
+  return jwt.sign(
+    { id: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '1d' } // FIX #7 — reduced from 30d to 1d
+  );
 }
 
 function safeUser(u) {
@@ -16,29 +22,36 @@ function safeUser(u) {
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, phone, company } = req.body;
+    const { name, email, password, phone, company } = req.body;
+
     if (!name || !email || !password) {
-      return res.json({ ok: false, error: 'Name, email and password are required' });
+      return res.status(400).json({ ok: false, error: 'Name, email and password are required' });
     }
-    if (password.length < 6) {
-      return res.json({ ok: false, error: 'Password must be at least 6 characters' });
+    if (password.length < MIN_PASSWORD_LEN) {
+      return res.status(400).json({ ok: false, error: `Password must be at least ${MIN_PASSWORD_LEN} characters` });
     }
-    const userRole = ['user', 'admin'].includes(role) ? role : 'user';
-    const hash = await bcrypt.hash(password, 10);
+    if (name.length > 100 || email.length > 200) {
+      return res.status(400).json({ ok: false, error: 'Input too long' });
+    }
+
+    // FIX #3 — role is ALWAYS 'user'; never trust client-supplied role
+    const userRole = 'user';
+
+    const hash = await bcrypt.hash(password, 12); // FIX #18 — stronger bcrypt rounds
     const { rows } = await pool.query(
       `INSERT INTO users (name, email, password, role, phone, company)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [name, email.toLowerCase(), hash, userRole, phone || null, company || null]
+      [name.trim(), email.toLowerCase().trim(), hash, userRole, phone || null, company || null]
     );
     const user = rows[0];
     res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
   } catch (err) {
     if (err.code === '23505') {
-      return res.json({ ok: false, error: 'Email already registered' });
+      return res.status(409).json({ ok: false, error: 'Email already registered' });
     }
-    console.error(err);
-    res.json({ ok: false, error: 'Registration failed' });
+    console.error('register error:', err.message);
+    res.status(500).json({ ok: false, error: 'Registration failed' });
   }
 });
 
@@ -47,44 +60,36 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.json({ ok: false, error: 'Email and password required' });
+      return res.status(400).json({ ok: false, error: 'Email and password required' });
     }
 
-    // ── Hardcoded admin bypass ──────────────────────────────────────────────
-    const ADMIN_EMAIL    = 'admin@gmail.com';
-    const ADMIN_PASSWORD = 'Admin@123';
-    if (email.toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      // Upsert admin user so the token has a real DB id
-      const { rows: existing } = await pool.query(
-        'SELECT * FROM users WHERE email = $1', [ADMIN_EMAIL]
-      );
-      let adminUser = existing[0];
-      if (!adminUser) {
-        const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
-        const { rows } = await pool.query(
-          `INSERT INTO users (name, email, password, role)
-           VALUES ('Admin', $1, $2, 'admin') RETURNING *`,
-          [ADMIN_EMAIL, hash]
-        );
-        adminUser = rows[0];
-      } else if (adminUser.role !== 'admin') {
-        await pool.query('UPDATE users SET role = $1 WHERE id = $2', ['admin', adminUser.id]);
-        adminUser.role = 'admin';
-      }
-      return res.json({ ok: true, token: makeToken(adminUser), user: safeUser(adminUser) });
-    }
-    // ────────────────────────────────────────────────────────────────────────
+    // FIX #1 — Hardcoded admin bypass REMOVED entirely.
 
-    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    const { rows } = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email.toLowerCase().trim()]
+    );
     const user = rows[0];
-    if (!user) return res.json({ ok: false, error: 'No account found with this email' });
-    if (!user.active) return res.json({ ok: false, error: 'Account is banned' });
+
+    // FIX #19 — Single generic error to prevent email enumeration
+    const GENERIC_ERR = 'Invalid email or password';
+
+    if (!user) {
+      // Dummy compare keeps response time constant (prevents timing-based enumeration)
+      await bcrypt.compare(password, '$2a$12$dummyhashfortimingprotectiononly000000000000000000000000');
+      return res.status(401).json({ ok: false, error: GENERIC_ERR });
+    }
+    if (!user.active) {
+      return res.status(403).json({ ok: false, error: 'Account is suspended' });
+    }
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.json({ ok: false, error: 'Incorrect password' });
+    if (!match) {
+      return res.status(401).json({ ok: false, error: GENERIC_ERR });
+    }
     res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
   } catch (err) {
-    console.error(err);
-    res.json({ ok: false, error: 'Login failed' });
+    console.error('login error:', err.message);
+    res.status(500).json({ ok: false, error: 'Login failed' });
   }
 });
 
