@@ -25,9 +25,9 @@ export const CATS = ['All','Construction','Driver','Domestic Help','Security','D
 
 // Icon names for @expo/vector-icons Ionicons
 export const CAT_ICONS = {
-  Construction:'construct', Driver:'car', 'Domestic Help':'home', Security:'shield',
-  Delivery:'cube', 'Shop Assistant':'bag-handle', Plumber:'water', Electrician:'flash',
-  Carpenter:'hammer', Painter:'color-palette', Other:'briefcase',
+  Construction:'construct-outline', Driver:'car-outline', 'Domestic Help':'home-outline', Security:'shield-checkmark-outline',
+  Delivery:'cube-outline', 'Shop Assistant':'bag-handle-outline', Plumber:'water-outline', Electrician:'flash-outline',
+  Carpenter:'hammer-outline', Painter:'color-palette-outline', Other:'briefcase-outline',
 };
 
 // ─── Duration-based listing plans ────────────────────────────────────────────
