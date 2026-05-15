@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Linking, Alert,
+  Linking, Alert, Image,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { C } from '../utils/constants';
@@ -22,6 +22,7 @@ const PLACEHOLDER_CAR = {
   verified: true,
   iconColor: '#2d3a4a',
   icon: 'car-sport',
+  photoUrls: [],
   photos: 4,
 };
 
@@ -35,23 +36,31 @@ export default function CarDetailScreen() {
   const { t } = useLang();
 
   const [activeImg, setActiveImg] = useState(0);
-  const tabs = GALLERY_TABS_KEYS.slice(0, car.photos || 4);
+  const photoUrls = car.photoUrls || [];
+  const tabs = GALLERY_TABS_KEYS.slice(0, Math.max(car.photos || 0, photoUrls.length) || 4);
 
   function openWhatsApp() {
+    const phone = car.whatsapp || 'XXXXXXXXXX';
     const msg = `Hi, I'm interested in renting your ${car.name} listed on NandedRozgar.`;
-    Linking.openURL(`https://wa.me/91XXXXXXXXXX?text=${encodeURIComponent(msg)}`).catch(() =>
+    Linking.openURL(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`).catch(() =>
       Alert.alert('WhatsApp not installed', 'Please contact via call.')
     );
   }
 
+  const activePhotoUrl = photoUrls[activeImg];
+
   return (
     <View style={s.container}>
       {/* Gallery */}
-      <View style={[s.gallery, { backgroundColor: GALLERY_COLORS[activeImg] }]}>
+      <View style={[s.gallery, { backgroundColor: GALLERY_COLORS[activeImg % GALLERY_COLORS.length] }]}>
         <TouchableOpacity style={s.backBtn} onPress={() => nav.goBack()}>
           <Text style={{ color: '#fff', fontSize: 18 }}>‹</Text>
         </TouchableOpacity>
-        <Ionicons name={GALLERY_ICONS[activeImg]} size={80} color="#fff" style={{ opacity: 0.18 }} />
+        {activePhotoUrl ? (
+          <Image source={{ uri: activePhotoUrl }} style={s.galleryImage} resizeMode="cover" />
+        ) : (
+          <Ionicons name={GALLERY_ICONS[activeImg % GALLERY_ICONS.length]} size={80} color="#fff" style={{ opacity: 0.18 }} />
+        )}
         {/* Thumbnail Nav */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.galNav} contentContainerStyle={{ gap: 5, padding: 8 }}>
           {tabs.map((key, i) => (
@@ -60,7 +69,10 @@ export default function CarDetailScreen() {
               onPress={() => setActiveImg(i)}
               style={[s.galThumb, i === activeImg && s.galThumbActive]}
             >
-              <Text style={s.galThumbTxt}>{t(key)}</Text>
+              {photoUrls[i] ? (
+                <Image source={{ uri: photoUrls[i] }} style={s.thumbImg} resizeMode="cover" />
+              ) : null}
+              <Text style={s.galThumbTxt}>{t(key) || key}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -74,8 +86,10 @@ export default function CarDetailScreen() {
             <Text style={s.subtitle}>{car.subtitle}</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={s.price}>{car.price}<Text style={s.perDay}>{t('perDay')}</Text></Text>
-            <Text style={s.rating}>★ {car.rating} · {car.reviews} {t('trips')}</Text>
+            <Text style={s.price}>{car.price}<Text style={s.perDay}>/day</Text></Text>
+            {car.rating ? (
+              <Text style={s.rating}>★ {car.rating} · {car.reviews} {t('trips')}</Text>
+            ) : null}
           </View>
         </View>
 
@@ -137,6 +151,8 @@ export default function CarDetailScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   gallery: { height: 200, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  galleryImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+  thumbImg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', borderRadius: 5, opacity: 0.7 },
   backBtn: {
     position: 'absolute', top: 44, left: 12,
     width: 32, height: 32, borderRadius: 16,
