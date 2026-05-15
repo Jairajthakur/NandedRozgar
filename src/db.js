@@ -92,19 +92,16 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_job_id    ON applications(job_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_user_id   ON applications(user_id);`);
 
-    // ── Fix role check constraint (in case live DB has wrong values) ──────────
-    await client.query(`
-      ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
-    `);
-    await client.query(`
-      ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'));
-    `);
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Fix legacy DB issues safely ───────────────────────────────────────────
+    // 1. Add premium column if missing
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN DEFAULT FALSE;`);
 
-    // ── Add premium column if it doesn't exist yet (safe for existing DBs) ───
-    await client.query(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN DEFAULT FALSE;
-    `);
+    // 2. Fix any rows with invalid role values (old schema may have used 'employer'/'seeker')
+    await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');`);
+
+    // 3. Drop and recreate role constraint cleanly
+    await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`);
+    await client.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'));`);
     // ─────────────────────────────────────────────────────────────────────────
 
     // Seed default admin
