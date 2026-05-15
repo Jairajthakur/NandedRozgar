@@ -22,11 +22,11 @@ const AVAIL_OPTIONS = ['Available now', 'Weekends only', 'Weekdays only', 'By ap
 const INCLUDE_OPTS  = ['Fuel included', 'GPS', 'Music system', 'First aid kit', 'Child seat', 'Insurance'];
 
 const STEPS = [
-  { id: 1, emoji: '📷', label: 'Photos' },
-  { id: 2, emoji: '🚗', label: 'Vehicle' },
-  { id: 3, emoji: '💰', label: 'Pricing' },
-  { id: 4, emoji: '📍', label: 'Location' },
-  { id: 5, emoji: '📅', label: 'Plan' },
+  { id: 1, icon: 'camera',    label: 'Photos' },
+  { id: 2, icon: 'car',       label: 'Vehicle' },
+  { id: 3, icon: 'cash',      label: 'Pricing' },
+  { id: 4, icon: 'location',  label: 'Location' },
+  { id: 5, icon: 'calendar',  label: 'Plan' },
 ];
 
 function StepIndicator({ current }) {
@@ -41,7 +41,7 @@ function StepIndicator({ current }) {
               <View style={[si.circle, done && si.circleDone, active && si.circleActive]}>
                 {done
                   ? <Ionicons name="checkmark" size={13} color="#fff" />
-                  : <Text style={si.circleNum}>{step.emoji}</Text>}
+                  : <Ionicons name={step.icon} size={13} color={active ? '#fff' : '#888'} />}
               </View>
               <Text style={[si.stepLbl, active && { color: '#111', fontWeight: '800' }]} numberOfLines={1}>
                 {step.label}
@@ -117,10 +117,10 @@ function PhotoPickerModal({ visible, onClose, onCamera, onGallery }) {
   );
 }
 
-function SectionTitle({ emoji, title, subtitle }) {
+function SectionTitle({ icon, title, subtitle }) {
   return (
     <View style={s.sectionTitle}>
-      <Text style={s.sectionEmoji}>{emoji}</Text>
+      <Ionicons name={icon} size={20} color="#111" style={{ marginRight: 8, marginTop: 1 }} />
       <View style={{ flex: 1 }}>
         <Text style={s.sectionTitleTxt}>{title}</Text>
         {subtitle ? <Text style={s.sectionSubtitle}>{subtitle}</Text> : null}
@@ -204,7 +204,7 @@ export default function PostCarScreen() {
     switch (step) {
       case 1: return (
         <>
-          <SectionTitle emoji="📷" title="Vehicle Photos" subtitle="Listings with 3+ photos get 4× more bookings" />
+          <SectionTitle icon="camera" title="Vehicle Photos" subtitle="Listings with 3+ photos get 4× more bookings" />
           <View style={s.tipBox}>
             <Ionicons name="information-circle" size={15} color="#2563eb" />
             <Text style={s.tipTxt}>Add front, side, interior &amp; back views for best results.</Text>
@@ -244,7 +244,7 @@ export default function PostCarScreen() {
 
       case 2: return (
         <>
-          <SectionTitle emoji="🚗" title="Vehicle Details" />
+          <SectionTitle icon="car" title="Vehicle Details" />
           <Text style={s.label}>Vehicle type <Text style={s.req}>*</Text></Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7, paddingBottom: 14 }}>
             {VEHICLE_TYPES.map(tp => (
@@ -284,7 +284,7 @@ export default function PostCarScreen() {
 
       case 3: return (
         <>
-          <SectionTitle emoji="💰" title="Pricing & Booking" />
+          <SectionTitle icon="cash" title="Pricing & Booking" />
           <Text style={s.label}>Purpose of listing</Text>
           <ChipRow options={PURPOSE_OPTS} value={form.purpose} onSelect={v => toggle('purpose', v)} multi />
           <View style={s.twoCol}>
@@ -326,7 +326,7 @@ export default function PostCarScreen() {
 
       case 4: return (
         <>
-          <SectionTitle emoji="📍" title="Location & Contact" />
+          <SectionTitle icon="location" title="Location & Contact" />
           <Text style={s.label}>Your area in Nanded <Text style={s.req}>*</Text></Text>
           <TextInput style={s.input} placeholder="e.g. Shivaji Nagar, Cidco…" placeholderTextColor="#bbb" value={form.area} onChangeText={v => set('area', v)} />
           <Text style={s.label}>Full pickup address</Text>
@@ -348,7 +348,7 @@ export default function PostCarScreen() {
 
       case 5: return (
         <>
-          <SectionTitle emoji="📅" title="Choose Listing Plan" subtitle="One flat fee, auto-expires after plan period" />
+          <SectionTitle icon="calendar" title="Choose Listing Plan" subtitle="One flat fee, auto-expires after plan period" />
           <View style={s.plansGrid}>
             {CAR_PLANS.map(plan => (
               <PlanCard key={plan.days} plan={plan} selected={selectedPlan?.days === plan.days} onSelect={setSelectedPlan} />
