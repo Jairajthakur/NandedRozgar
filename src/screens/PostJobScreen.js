@@ -9,7 +9,7 @@ import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
 import { http } from '../utils/api';
 import { Input, Btn, Card, SectionTitle } from '../components/UI';
-import { C, CATS, CAT_ICONS, PRICING, JOB_PLANS } from '../utils/constants';
+import { C, CATS, CAT_ICONS, PRICING, JOB_PLANS, FREE_TEST_PLAN } from '../utils/constants';
 
 const TYPES        = ['Full-time', 'Part-time', 'Contract', 'Daily Wage', 'Gig'];
 const SHIFTS       = ['Day (6am–2pm)', 'Evening (2pm–10pm)', 'Night (10pm–6am)', 'Flexible', 'Rotational'];
@@ -145,7 +145,11 @@ export default function PostJobScreen({ navigation }) {
     age_min: '', age_max: '', languages: [], skills: '',
     perks: '', interview_mode: '', address: '', last_date: '',
   });
-  const [selectedPlan, setSelectedPlan] = useState(JOB_PLANS.find(p => p.popular) || JOB_PLANS[0]);
+  const isFreeUser = user?.premium === true || user?.role === 'admin';
+  const availablePlans = isFreeUser ? [FREE_TEST_PLAN, ...JOB_PLANS] : JOB_PLANS;
+  const [selectedPlan, setSelectedPlan] = useState(
+    isFreeUser ? FREE_TEST_PLAN : (JOB_PLANS.find(p => p.popular) || JOB_PLANS[0])
+  );
   const [error, setError]   = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -219,8 +223,24 @@ export default function PostJobScreen({ navigation }) {
 
   async function processPayment() {
     setLoading(true);
-    const boostLabel = form.featured && form.urgent ? ' + Featured + Urgent' : form.featured ? ' + Featured' : form.urgent ? ' + Urgent' : '';
     const jobsPayload = roles.map(r => ({ ...form, title: r.title, vacancies: r.vacancies }));
+
+    // ── Free bypass for premium / test users ─────────────────────────────────
+    if (isFreeUser || selectedPlan.free) {
+      const r = await http('POST', '/api/jobs', { ...jobsPayload[0] });
+      setLoading(false);
+      if (r.ok) {
+        await loadJobs();
+        navigation.navigate('Main', { screen: 'Jobs' });
+        Toast.show({ type: 'success', text1: `✅ Job posted for free (test mode)! Live for ${selectedPlan.days} days.` });
+      } else {
+        setError(r.error || 'Failed to post. Try again.');
+      }
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const boostLabel = form.featured && form.urgent ? ' + Featured + Urgent' : form.featured ? ' + Featured' : form.urgent ? ' + Urgent' : '';
     const r = await http('POST', '/api/payments', {
       plan: selectedPlan.label, days: selectedPlan.days, amount: grandTotal,
       description: `Post Job${boostLabel} – ${selectedPlan.label}`,
@@ -375,7 +395,7 @@ export default function PostJobScreen({ navigation }) {
               <Text style={styles.sectionHead}>📅 Choose Your Listing Plan</Text>
               <Text style={styles.fieldSub}>Your listing is automatically removed after the plan period ends. One flat fee covers all roles in this post.</Text>
               <View style={ss.plansWrap}>
-                {JOB_PLANS.map(plan => (
+                {availablePlans.map(plan => (
                   <PlanCard key={plan.days} plan={plan} selected={selectedPlan?.days === plan.days} onSelect={setSelectedPlan} boostPrice={boostPrice} />
                 ))}
               </View>
