@@ -2,19 +2,40 @@ const router = require('express').Router();
 const { pool } = require('../db');
 const { auth } = require('../middleware/auth');
 
-// POST /api/payments — record payment and create job
+// FIX #4 — Server-side plan price catalog. Client NEVER controls the amount.
+const PLAN_CATALOG = {
+  job:     { 7: 49,  15: 79,  30: 119 },
+  car:     { 15: 69, 30: 99,  60: 169, 90: 229 },
+  room:    { 15: 69, 30: 99,  60: 169, 90: 229 },
+  buysell: { 7: 39,  15: 59,  30: 89 },
+};
+
+function lookupPrice(type, days) {
+  const catalog = PLAN_CATALOG[type];
+  if (!catalog) return null;
+  const price = catalog[parseInt(days)];
+  return price !== undefined ? price : null;
+}
+
 router.post('/', auth, async (req, res) => {
   try {
-    const { job, plan, days, amount } = req.body;
+    const { job, planType, days, gatewayRef } = req.body;
 
-    // 1. Save payment record
+    // FIX #4 — Reject unknown plans; look up authoritative price server-side
+    const resolvedType = planType || 'job';
+    const serverAmount = lookupPrice(resolvedType, days);
+    if (serverAmount === null) {
+      return res.status(400).json({ ok: false, error: 'Invalid plan selection' });
+    }
+
+    // FIX #4 — Record as 'pending'; mark 'paid' only after gateway webhook confirms
     const payment = await pool.query(
-      `INSERT INTO payments (user_id, amount, plan, status) VALUES ($1, $2, $3, 'paid') RETURNING *`,
-      [req.user.id, amount, plan]
+      `INSERT INTO payments (user_id, amount, plan, status, gateway_ref)
+       VALUES ($1, $2, $3, 'pending', $4) RETURNING *`,
+      [req.user.id, serverAmount, resolvedType, gatewayRef || null]
     );
 
-    // 2. Create the job — use the plan's actual days, NOT hardcoded 30
-    const planDays = parseInt(days) || 30;
+    const planDays = Math.min(Math.max(parseInt(days) || 30, 1), 365);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
 
@@ -26,16 +47,15 @@ router.post('/', auth, async (req, res) => {
       req.user.id,
       job.title, job.company, job.category, job.type || 'Full-time',
       job.location, job.salary, job.phone, job.description,
-      !!job.featured, !!job.urgent, expiresAt
+      !!job.featured, !!job.urgent, expiresAt,
     ]);
 
-    // 3. Link payment to job
     await pool.query('UPDATE payments SET job_id = $1 WHERE id = $2', [rows[0].id, payment.rows[0].id]);
 
     res.json({ ok: true, job: rows[0] });
   } catch (err) {
-    console.error(err);
-    res.json({ ok: false, error: 'Payment processing failed' });
+    console.error('payments error:', err.message);
+    res.status(500).json({ ok: false, error: 'Payment processing failed' });
   }
 });
 
