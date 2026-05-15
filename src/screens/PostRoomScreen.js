@@ -21,12 +21,12 @@ const AVAIL_OPTS     = ['Immediately', 'Within 1 week', 'Within 1 month', 'From 
 const TENANT_PREFS   = ['Students', 'Working professionals', 'Couples', 'Bachelors', 'Any'];
 
 const STEPS = [
-  { id: 1, emoji: '📷', label: 'Photos' },
-  { id: 2, emoji: '🏠', label: 'Property' },
-  { id: 3, emoji: '💰', label: 'Pricing' },
-  { id: 4, emoji: '✨', label: 'Amenities' },
-  { id: 5, emoji: '📍', label: 'Location' },
-  { id: 6, emoji: '📋', label: 'Plan' },
+  { id: 1, icon: 'camera',        label: 'Photos' },
+  { id: 2, icon: 'home',          label: 'Property' },
+  { id: 3, icon: 'cash',          label: 'Pricing' },
+  { id: 4, icon: 'star',          label: 'Amenities' },
+  { id: 5, icon: 'location',      label: 'Location' },
+  { id: 6, icon: 'clipboard',     label: 'Plan' },
 ];
 
 function StepIndicator({ current }) {
@@ -41,7 +41,7 @@ function StepIndicator({ current }) {
               <View style={[si.circle, done && si.circleDone, active && si.circleActive]}>
                 {done
                   ? <Ionicons name="checkmark" size={12} color="#fff" />
-                  : <Text style={si.circleNum}>{step.emoji}</Text>}
+                  : <Ionicons name={step.icon} size={13} color={active ? '#fff' : '#888'} />}
               </View>
               <Text style={[si.stepLbl, active && { color: '#111', fontWeight: '800' }]} numberOfLines={1}>
                 {step.label}
@@ -134,10 +134,10 @@ function PhotoPickerModal({ visible, onClose, onCamera, onGallery }) {
   );
 }
 
-function SectionTitle({ emoji, title, subtitle }) {
+function SectionTitle({ icon, title, subtitle }) {
   return (
     <View style={s.sectionTitle}>
-      <Text style={s.sectionEmoji}>{emoji}</Text>
+      <Ionicons name={icon} size={20} color="#111" style={{ marginRight: 8, marginTop: 1 }} />
       <View style={{ flex: 1 }}>
         <Text style={s.sectionTitleTxt}>{title}</Text>
         {subtitle ? <Text style={s.sectionSubtitle}>{subtitle}</Text> : null}
@@ -223,19 +223,10 @@ export default function PostRoomScreen() {
       // ── STEP 1: Photos ──────────────────────────────────────────────────
       case 1: return (
         <>
-          <SectionTitle emoji="📷" title="Room Photos" subtitle="Listings with photos get 5× more enquiries" />
+          <SectionTitle icon="camera" title="Room Photos" subtitle="Listings with photos get 5× more enquiries" />
           <View style={s.tipBox}>
             <Ionicons name="information-circle" size={15} color="#2563eb" />
             <Text style={s.tipTxt}>Add bedroom, kitchen, bathroom &amp; outside views for best results.</Text>
-          </View>
-          <View style={s.photoTipsBox}>
-            <Text style={s.photoTipsTitle}>📸 Photo Tips for Better Results</Text>
-            {['Use natural light — open curtains/windows', 'Show the full room, not just a corner', 'Add kitchen, bathroom & outside photos', 'Avoid blurry or dark photos'].map((tip, i) => (
-              <View key={i} style={s.tipRow}>
-                <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
-                <Text style={s.tipItem}>{tip}</Text>
-              </View>
-            ))}
           </View>
           {photos.length === 0 ? (
             <TouchableOpacity style={s.uploadArea} onPress={() => setPickerVisible(true)} activeOpacity={0.8}>
@@ -273,7 +264,7 @@ export default function PostRoomScreen() {
       // ── STEP 2: Property Details ─────────────────────────────────────────
       case 2: return (
         <>
-          <SectionTitle emoji="🏠" title="Property Details" />
+          <SectionTitle icon="home" title="Property Details" />
           <Text style={s.label}>Room / Property type <Text style={s.req}>*</Text></Text>
           <ChipRow options={ROOM_TYPES} value={form.roomType} onSelect={v => set('roomType', v)} />
           <Text style={s.label}>Suitable for</Text>
@@ -321,7 +312,7 @@ export default function PostRoomScreen() {
       // ── STEP 3: Pricing ──────────────────────────────────────────────────
       case 3: return (
         <>
-          <SectionTitle emoji="💰" title="Pricing" />
+          <SectionTitle icon="cash" title="Pricing" />
           <View style={s.twoCol}>
             <View style={{ flex: 1 }}>
               <Text style={s.label}>Monthly rent (₹) <Text style={s.req}>*</Text></Text>
@@ -352,7 +343,7 @@ export default function PostRoomScreen() {
       // ── STEP 4: Amenities & Rules ────────────────────────────────────────
       case 4: return (
         <>
-          <SectionTitle emoji="✨" title="Amenities & House Rules" />
+          <SectionTitle icon="star" title="Amenities & House Rules" />
           <Text style={s.label}>Amenities available</Text>
           <ChipRow options={AMENITIES_LIST} value={selectedAmenities} onSelect={toggleAmenity} multi />
           <Text style={[s.label, { marginTop: 8 }]}>House Rules</Text>
@@ -363,7 +354,7 @@ export default function PostRoomScreen() {
       // ── STEP 5: Location & Contact ──────────────────────────────────────
       case 5: return (
         <>
-          <SectionTitle emoji="📍" title="Location & Contact" />
+          <SectionTitle icon="location" title="Location & Contact" />
           <Text style={s.label}>Your area in Nanded <Text style={s.req}>*</Text></Text>
           <TextInput style={s.input} placeholder="e.g. Station Road, Cidco…" placeholderTextColor="#bbb" value={form.area} onChangeText={v => set('area', v)} />
           <Text style={s.label}>Full address</Text>
@@ -388,7 +379,7 @@ export default function PostRoomScreen() {
       // ── STEP 6: Listing Plan ─────────────────────────────────────────────
       case 6: return (
         <>
-          <SectionTitle emoji="📋" title="Choose Listing Plan" subtitle="One flat fee, auto-expires after plan period" />
+          <SectionTitle icon="clipboard" title="Choose Listing Plan" subtitle="One flat fee, auto-expires after plan period" />
           <View style={s.plansGrid}>
             {ROOM_PLANS.map(plan => (
               <PlanCard key={plan.days} plan={plan} selected={selectedPlan?.days === plan.days} onSelect={setSelectedPlan} />
