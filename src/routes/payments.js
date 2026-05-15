@@ -5,7 +5,7 @@ const { auth } = require('../middleware/auth');
 // POST /api/payments — record payment and create job
 router.post('/', auth, async (req, res) => {
   try {
-    const { job, plan, amount } = req.body;
+    const { job, plan, days, amount } = req.body;
 
     // 1. Save payment record
     const payment = await pool.query(
@@ -13,9 +13,10 @@ router.post('/', auth, async (req, res) => {
       [req.user.id, amount, plan]
     );
 
-    // 2. Create the job
+    // 2. Create the job — use the plan's actual days, NOT hardcoded 30
+    const planDays = parseInt(days) || 30;
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + planDays);
 
     const { rows } = await pool.query(`
       INSERT INTO jobs (posted_by, title, company, category, type, location, salary, phone, description, featured, urgent, expires_at)
