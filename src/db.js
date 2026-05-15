@@ -85,12 +85,90 @@ async function runMigrations() {
       );
     `);
 
+    // ── VEHICLES table ────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS vehicles (
+        id            SERIAL PRIMARY KEY,
+        posted_by     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        vehicle_type  VARCHAR(50),
+        name          VARCHAR(200) NOT NULL,
+        year          VARCHAR(10),
+        color         VARCHAR(50),
+        fuel_type     VARCHAR(30),
+        transmission  VARCHAR(30),
+        ac_type       VARCHAR(20),
+        seats         VARCHAR(10),
+        daily_rate    VARCHAR(20),
+        hourly_rate   VARCHAR(20),
+        km_limit      VARCHAR(20),
+        extra_km_rate VARCHAR(20),
+        min_booking   VARCHAR(20),
+        advance_amt   VARCHAR(20),
+        purpose       JSONB    DEFAULT '[]',
+        includes      JSONB    DEFAULT '[]',
+        availability  VARCHAR(50),
+        area          VARCHAR(100),
+        address       VARCHAR(200),
+        owner_name    VARCHAR(100),
+        whatsapp      VARCHAR(15),
+        description   TEXT,
+        photos        JSONB    DEFAULT '[]',
+        plan_days     INTEGER  DEFAULT 30,
+        plan_label    VARCHAR(30),
+        plan_price    INTEGER,
+        status        VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','inactive','deleted')),
+        expires_at    TIMESTAMPTZ,
+        created_at    TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // ── ROOMS table ───────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS rooms (
+        id            SERIAL PRIMARY KEY,
+        posted_by     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        room_type     VARCHAR(50),
+        for_gender    VARCHAR(20),
+        furnished     VARCHAR(30),
+        floor         VARCHAR(20),
+        total_floors  VARCHAR(10),
+        bhk_size      VARCHAR(20),
+        facing        VARCHAR(30),
+        vacancies     INTEGER DEFAULT 1,
+        rent          VARCHAR(20),
+        deposit       VARCHAR(20),
+        maintenance   VARCHAR(20),
+        broker_free   BOOLEAN DEFAULT TRUE,
+        amenities     JSONB   DEFAULT '[]',
+        rules         JSONB   DEFAULT '[]',
+        available_from VARCHAR(50),
+        tenant_pref   VARCHAR(30),
+        area          VARCHAR(100),
+        address       VARCHAR(200),
+        landmark      VARCHAR(200),
+        owner_name    VARCHAR(100),
+        whatsapp      VARCHAR(15),
+        description   TEXT,
+        photos        JSONB   DEFAULT '[]',
+        plan_days     INTEGER DEFAULT 30,
+        plan_label    VARCHAR(30),
+        plan_price    INTEGER,
+        status        VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','inactive','deleted')),
+        expires_at    TIMESTAMPTZ,
+        created_at    TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     // Indexes for performance
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_status    ON jobs(status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_category  ON jobs(category);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_posted_by ON jobs(posted_by);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_job_id    ON applications(job_id);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_user_id   ON applications(user_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_status      ON jobs(status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_category    ON jobs(category);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_posted_by   ON jobs(posted_by);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_job_id      ON applications(job_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_user_id     ON applications(user_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_vehicles_status  ON vehicles(status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_vehicles_expires ON vehicles(expires_at);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_rooms_status     ON rooms(status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_rooms_expires    ON rooms(expires_at);`);
 
     // ── Fix legacy DB issues safely ───────────────────────────────────────────
     // 1. Add premium column if missing
