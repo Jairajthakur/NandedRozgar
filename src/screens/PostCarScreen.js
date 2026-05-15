@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { C, CAR_PLANS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
+import { http } from '../utils/api';
 
 const VEHICLE_TYPES = ['Car', 'Bike / Scooter', 'Auto', 'Mini Truck', 'Bus / Tempo', 'Tractor'];
 const FUEL_TYPES    = ['Petrol', 'Diesel', 'Electric', 'CNG'];
@@ -57,7 +58,11 @@ function StepIndicator({ current }) {
 
 function PlanCard({ plan, selected, onSelect }) {
   return (
-    <TouchableOpacity onPress={() => onSelect(plan)} style={[pc.card, selected && pc.cardSelected]} activeOpacity={0.8}>
+    <TouchableOpacity
+      onPress={() => onSelect(plan)}
+      style={[pc.card, selected && pc.cardSelected, plan.popular && pc.cardWithBadge]}
+      activeOpacity={0.8}
+    >
       {plan.popular && (
         <View style={pc.popularBadge}><Text style={pc.popularTxt}>MOST POPULAR</Text></View>
       )}
@@ -184,17 +189,53 @@ export default function PostCarScreen() {
   function goNext() { if (!validateStep()) return; setStep(s => Math.min(s + 1, STEPS.length)); }
   function goBack() { setStep(s => Math.max(s - 1, 1)); }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     Alert.alert('Confirm & Pay', `List your vehicle for ₹${selectedPlan.price}?\n\nPlan: ${selectedPlan.label} (${selectedPlan.days} days)`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: `Pay ₹${selectedPlan.price}`, onPress: () => {
+      {
+        text: `Pay ₹${selectedPlan.price}`, onPress: async () => {
           setLoading(true);
-          setTimeout(() => {
+          try {
+            const res = await http('POST', '/api/vehicles', {
+              vehicleType: form.vehicleType,
+              name: form.name,
+              year: form.year,
+              color: form.color,
+              fuelType: form.fuelType,
+              transmission: form.transmission,
+              acType: form.acType,
+              seats: form.seats,
+              dailyRate: form.dailyRate,
+              hourlyRate: form.hourlyRate,
+              kmLimit: form.kmLimit,
+              extraKmRate: form.extraKmRate,
+              minBooking: form.minBooking,
+              advanceAmt: form.advanceAmt,
+              purpose: form.purpose,
+              includes: form.includes,
+              availability: form.availability,
+              area: form.area,
+              address: form.address,
+              ownerName: form.ownerName,
+              whatsapp: form.whatsapp,
+              description: form.description,
+              photos,
+              planDays: selectedPlan.days,
+              planLabel: selectedPlan.label,
+              planPrice: selectedPlan.price,
+            });
+            if (res.ok) {
+              Alert.alert('Listed! 🎉', `Your vehicle is live for ${selectedPlan.days} days. It will be auto-removed after the plan expires.`, [
+                { text: 'View Listings', onPress: () => nav.navigate('Cars') },
+              ]);
+            } else {
+              Alert.alert('Error', res.error || 'Failed to post listing. Please try again.');
+            }
+          } catch (e) {
+            Alert.alert('Error', 'Network error. Please check your connection.');
+          } finally {
             setLoading(false);
-            Alert.alert('Listed! 🎉', `Vehicle listed for ${selectedPlan.days} days.`, [
-              { text: 'View Listings', onPress: () => nav.navigate('Cars') },
-            ]);
-          }, 1200);
+          }
         },
       },
     ]);
@@ -497,15 +538,25 @@ const si = StyleSheet.create({
 });
 
 const pc = StyleSheet.create({
-  card: { borderWidth: 2, borderColor: '#e5e7eb', borderRadius: 12, padding: 14, backgroundColor: '#fff', position: 'relative', flex: 1 },
+  card: {
+    borderWidth: 2, borderColor: '#e5e7eb', borderRadius: 12, padding: 14,
+    backgroundColor: '#fff', position: 'relative',
+    width: '48%',
+    minHeight: 100,
+  },
   cardSelected: { borderColor: '#111', backgroundColor: '#111' },
-  popularBadge: { position: 'absolute', top: -1, right: 8, backgroundColor: '#f97316', borderRadius: 6, paddingVertical: 2, paddingHorizontal: 8 },
-  popularTxt: { fontSize: 9, fontWeight: '800', color: '#fff' },
+  cardWithBadge: { paddingTop: 26 },
+  popularBadge: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    backgroundColor: '#f97316', borderTopLeftRadius: 10, borderTopRightRadius: 10,
+    paddingVertical: 3, alignItems: 'center',
+  },
+  popularTxt: { fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
   planLabel: { fontSize: 12, fontWeight: '700', color: '#111', marginBottom: 2 },
-  planPrice: { fontSize: 22, fontWeight: '900', color: '#111', marginBottom: 4 },
+  planPrice: { fontSize: 20, fontWeight: '900', color: '#111', marginBottom: 4 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   days: { fontSize: 11, color: '#999' },
-  check: { position: 'absolute', top: 10, right: 10 },
+  check: { position: 'absolute', bottom: 8, right: 8 },
 });
 
 const pm = StyleSheet.create({
