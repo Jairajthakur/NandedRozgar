@@ -92,23 +92,33 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_job_id    ON applications(job_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_user_id   ON applications(user_id);`);
 
-    // Seed default admin (change email/password as needed)
-    const bcrypt = require('bcryptjs');
-    const adminPass = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10);
+    // ── Add premium column if it doesn't exist yet (safe for existing DBs) ───
     await client.query(`
-      INSERT INTO users (name, email, password, role)
-      VALUES ('Admin', $1, $2, 'admin')
-      ON CONFLICT (email) DO NOTHING;
-    `, [process.env.ADMIN_EMAIL || 'admin@nandedrozgar.com', adminPass]);
-
-    // ── Seed a free test user (can post without payment) ─────────────────────
-    const testPass = await bcrypt.hash('test@123', 10);
-    await client.query(`
-      INSERT INTO users (name, email, password, role, premium, phone)
-      VALUES ('Test User', 'test@nandedrozgar.com', $1, 'user', TRUE, '9999999999')
-      ON CONFLICT (email) DO NOTHING;
-    `, [testPass]);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN DEFAULT FALSE;
+    `);
     // ─────────────────────────────────────────────────────────────────────────
+
+    // Seed default admin — wrapped so a seed failure never crashes the server
+    try {
+      const bcrypt = require('bcryptjs');
+      const adminPass = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10);
+      await client.query(`
+        INSERT INTO users (name, email, password, role)
+        VALUES ('Admin', $1, $2, 'admin')
+        ON CONFLICT (email) DO NOTHING;
+      `, [process.env.ADMIN_EMAIL || 'admin@nandedrozgar.com', adminPass]);
+
+      // ── Seed a free test user (can post without payment) ───────────────────
+      const testPass = await bcrypt.hash('test@123', 10);
+      await client.query(`
+        INSERT INTO users (name, email, password, role, premium, phone)
+        VALUES ('Test User', 'test@nandedrozgar.com', $1, 'user', TRUE, '9999999999')
+        ON CONFLICT (email) DO UPDATE SET premium = TRUE;
+      `, [testPass]);
+      // ───────────────────────────────────────────────────────────────────────
+    } catch (seedErr) {
+      console.warn('⚠️  Seed warning (non-fatal):', seedErr.message);
+    }
 
     console.log('✅ Database migrations complete. All tables ready!');
   } catch (err) {
