@@ -31,13 +31,16 @@ export const CAT_ICONS = {
 };
 
 // ─── Duration-based listing plans ────────────────────────────────────────────
-// Each plan: { days, price, label, popular? }
+// Each plan: { days, price, label, popular?, free? }
 // After `days` the listing is automatically deleted from the app.
 export const JOB_PLANS = [
   { days: 7,  price: 49,  label: '7 Days',   popular: false },
   { days: 15, price: 79,  label: '15 Days',  popular: true  },
   { days: 30, price: 119, label: '30 Days',  popular: false },
 ];
+
+// ─── Free test plan (shown only to premium/test users) ───────────────────────
+export const FREE_TEST_PLAN = { days: 30, price: 0, label: 'Free Test', popular: false, free: true };
 export const CAR_PLANS = [
   { days: 15, price: 69,  label: '15 Days',  popular: false },
   { days: 30, price: 99,  label: '1 Month',  popular: true  },
