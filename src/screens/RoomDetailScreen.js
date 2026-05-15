@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Linking, Alert,
+  Linking, Alert, Image,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { C } from '../utils/constants';
@@ -19,7 +19,8 @@ export default function RoomDetailScreen() {
   const { t } = useLang();
 
   const [activeImg, setActiveImg] = useState(0);
-  const tabs = GALLERY_TABS_KEYS.slice(0, room?.photos || 4);
+  const photoUrls = room?.photoUrls || [];
+  const tabs = GALLERY_TABS_KEYS.slice(0, Math.max(room?.photos || 0, photoUrls.length) || 4);
 
   if (!room) {
     return (
@@ -30,11 +31,14 @@ export default function RoomDetailScreen() {
   }
 
   function openWhatsApp() {
+    const phone = room.whatsapp || 'XXXXXXXXXX';
     const msg = `Hi, I'm interested in the room "${room.name}" on NandedRozgar.`;
-    Linking.openURL(`https://wa.me/91XXXXXXXXXX?text=${encodeURIComponent(msg)}`).catch(() =>
+    Linking.openURL(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`).catch(() =>
       Alert.alert('WhatsApp not installed', 'Please contact via call.')
     );
   }
+
+  const activePhotoUrl = photoUrls[activeImg];
 
   return (
     <View style={s.container}>
@@ -43,7 +47,11 @@ export default function RoomDetailScreen() {
         <TouchableOpacity style={s.backBtn} onPress={() => nav.goBack()}>
           <Text style={{ color: '#fff', fontSize: 18 }}>‹</Text>
         </TouchableOpacity>
-        <Text style={s.galleryIcon}>{GALLERY_ICONS[activeImg]}</Text>
+        {activePhotoUrl ? (
+          <Image source={{ uri: activePhotoUrl }} style={s.galleryImage} resizeMode="cover" />
+        ) : (
+          <Text style={s.galleryIcon}>{GALLERY_ICONS[activeImg % GALLERY_ICONS.length]}</Text>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.galNav} contentContainerStyle={{ gap: 5, padding: 8 }}>
           {tabs.map((key, i) => (
             <TouchableOpacity
@@ -51,7 +59,10 @@ export default function RoomDetailScreen() {
               onPress={() => setActiveImg(i)}
               style={[s.galThumb, i === activeImg && s.galThumbActive]}
             >
-              <Text style={s.galThumbTxt}>{t(key)}</Text>
+              {photoUrls[i] ? (
+                <Image source={{ uri: photoUrls[i] }} style={s.thumbImg} resizeMode="cover" />
+              ) : null}
+              <Text style={s.galThumbTxt}>{t(key) || key}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -133,6 +144,8 @@ export default function RoomDetailScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   gallery: { height: 200, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  galleryImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+  thumbImg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', borderRadius: 5, opacity: 0.7 },
   backBtn: {
     position: 'absolute', top: 44, left: 12,
     width: 32, height: 32, borderRadius: 16,
