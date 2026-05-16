@@ -29,11 +29,28 @@ export async function http(method, path, body) {
       headers,
       body: body ? JSON.stringify(body) : undefined,
     });
-    const data = await res.json();
-    return { ...data, ok: res.ok };
+
+    // Safely parse JSON — server may return HTML/text on error or cold start
+    const text = await res.text();
+    let data = {};
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.warn('Non-JSON response from server:', text.slice(0, 200));
+      // If server is waking up or returned HTML, give a friendly message
+      return {
+        ok: false,
+        error: res.status === 503 || res.status === 502
+          ? 'Server is starting up, please try again in a moment.'
+          : 'Server error. Please try again.',
+      };
+    }
+
+    return { ...data, ok: data.ok ?? res.ok };
   } catch (e) {
     console.warn('http error:', e.message);
-    return { ok: false, error: e.message };
+    // Network-level failure (no internet, server unreachable)
+    return { ok: false, error: 'Unable to connect. Check your internet connection.' };
   }
 }
 
