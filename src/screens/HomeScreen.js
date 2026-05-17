@@ -515,26 +515,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </FadeSlide>
 
-        {/* ── Recent Jobs ── */}
-        <FadeSlide delay={340}>
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Recent Jobs</Text>
-            <TouchableOpacity onPress={() => nav.navigate('Jobs')}>
-              <Text style={s.seeAllBtn}>See all ›</Text>
-            </TouchableOpacity>
-          </View>
-        </FadeSlide>
-
-        {displayJobs.map((job, index) => (
-          <RecentJobCard key={job.id || job.title} job={job} index={index}
-            onPress={() => job.status === 'active' ? nav.navigate('JobDetail', { job }) : nav.navigate('Jobs')} />
-        ))}
-
-        <FadeSlide delay={500}>
-          <TouchableOpacity onPress={() => nav.navigate('Jobs')} style={s.viewAll}>
-            <Text style={s.viewAllTxt}>{t('viewAllJobs')}</Text>
-          </TouchableOpacity>
-        </FadeSlide>
       </ScrollView>
     </View>
   );
@@ -601,7 +581,7 @@ const s = StyleSheet.create({
   // Stats
   statsRow: {
     flexDirection: 'row', backgroundColor: '#fff',
-    marginHorizontal: 16, marginTop: -1,
+    marginHorizontal: 16, marginTop: 16,
     borderRadius: 14, paddingVertical: 14, paddingHorizontal: 4,
     alignItems: 'center',
     shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8,
@@ -644,24 +624,24 @@ const s = StyleSheet.create({
   exploreCircle2: { position: 'absolute', width: 60, height: 60, borderRadius: 30, bottom: 20, right: 40 },
 
   // Ticker
-  ticker: { backgroundColor: '#111', height: 36, justifyContent: 'center', overflow: 'hidden', marginTop: 16 },
-  tickerText: { color: '#fff', fontSize: 12, fontWeight: '600', letterSpacing: 0.5 },
+  ticker: { backgroundColor: ORANGE, height: 38, justifyContent: 'center', overflow: 'hidden', marginTop: 16 },
+  tickerText: { color: '#fff', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
 
   // Featured Jobs (horizontal)
   featJobCard: {
-    width: 180, backgroundColor: '#fff', borderRadius: 14,
-    padding: 14, marginBottom: 4,
-    shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    width: 200, backgroundColor: '#fff', borderRadius: 14,
+    padding: 16, marginBottom: 4,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }, elevation: 4,
     borderWidth: 1, borderColor: '#f0f0f0',
   },
-  featJobTop:    { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  featJobIcon:   { width: 38, height: 38, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
+  featJobTop:    { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  featJobIcon:   { width: 40, height: 40, borderRadius: 11, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
   featJobTitle:  { fontSize: 13, fontWeight: '700', color: '#111' },
-  featJobCompany:{ fontSize: 11, color: '#777', marginTop: 2 },
-  featJobSalary: { fontSize: 13, fontWeight: '800', color: ORANGE, marginBottom: 10 },
-  applyBtn:      { backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 7, alignItems: 'center' },
-  applyBtnTxt:   { color: '#fff', fontSize: 12, fontWeight: '700' },
+  featJobCompany:{ fontSize: 11, color: '#888', marginTop: 2 },
+  featJobSalary: { fontSize: 14, fontWeight: '800', color: ORANGE, marginBottom: 12 },
+  applyBtn:      { backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
+  applyBtnTxt:   { color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // Room Cards
   roomCard: {
