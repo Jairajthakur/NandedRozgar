@@ -39,7 +39,14 @@ async function runMigrations() {
         location         VARCHAR(200),
         salary           VARCHAR(100),
         phone            VARCHAR(15),
+        whatsapp         VARCHAR(15),
         description      TEXT,
+        skills           TEXT[],
+        requirements     TEXT[],
+        education        VARCHAR(100),
+        experience       VARCHAR(50),
+        hours            VARCHAR(50),
+        openings         VARCHAR(10) DEFAULT '1',
         featured         BOOLEAN DEFAULT FALSE,
         urgent           BOOLEAN DEFAULT FALSE,
         status           VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'deleted')),
@@ -176,6 +183,21 @@ async function runMigrations() {
 
     // 2. Fix any rows with invalid role values (old schema may have used 'employer'/'seeker')
     await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');`);
+
+    // ── Add missing jobs columns (safe for existing tables) ─────────────────
+    const jobCols = [
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(15)`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS skills TEXT[]`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS requirements TEXT[]`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS education VARCHAR(100)`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS experience VARCHAR(50)`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS hours VARCHAR(50)`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS openings VARCHAR(10) DEFAULT '1'`,
+    ];
+    for (const sql of jobCols) {
+      try { await client.query(sql); } catch (e) { console.warn('Col warn:', e.message); }
+    }
+    // ──────────────────────────────────────────────────────────────────────────
 
     // 3. Drop and recreate role constraint cleanly
     await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`);
