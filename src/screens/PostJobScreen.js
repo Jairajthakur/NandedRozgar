@@ -256,10 +256,11 @@ export default function PostJobScreen() {
   const [workHours,  setWorkHours]  = useState('9 AM – 6 PM');
 
   // Step 3
-  const [skills,      setSkills]      = useState([]);
-  const [description, setDescription] = useState('');
-  const [whatsapp,    setWhatsapp]    = useState(user?.phone || '');
-  const [email,       setEmail]       = useState('');
+  const [skills,        setSkills]        = useState([]);
+  const [description,   setDescription]   = useState('');
+  const [requirements,  setRequirements]  = useState('');
+  const [whatsapp,      setWhatsapp]      = useState(user?.phone || '');
+  const [email,         setEmail]         = useState('');
 
   // Step 4
   const [plan, setPlan] = useState('15days');
@@ -315,6 +316,7 @@ export default function PostJobScreen() {
         email:       email.trim(),
         description: description.trim(),
         skills:      skills.join(', '),
+        requirements: requirements.trim(),
         experience,
         education:   EDUCATION_OPTIONS.find(e => e.id === education)?.label || '',
         workHours,
@@ -503,6 +505,10 @@ export default function PostJobScreen() {
             <View style={{ height: 20 }} />
             <SectionLabel text="JOB DESCRIPTION" required />
             <StyledInput value={description} onChangeText={setDescription} placeholder="Describe responsibilities, daily tasks, shift timings, perks, any other requirements..." multiline numberOfLines={5} maxLength={1000} />
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="REQUIREMENTS (one per line, optional)" />
+            <StyledInput value={requirements} onChangeText={setRequirements} placeholder={"e.g.\nMinimum 10th pass or above\nGood communication skills\nSmartphone required"} multiline numberOfLines={4} maxLength={800} />
 
             <View style={{ height: 18 }} />
             <SectionLabel text="WHATSAPP NUMBER" required />
