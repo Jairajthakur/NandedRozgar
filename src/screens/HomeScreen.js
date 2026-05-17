@@ -129,58 +129,39 @@ const TICKER_ITEMS = [
 function TickerBanner() {
   const anim1 = useRef(new Animated.Value(0)).current;
   const anim2 = useRef(new Animated.Value(0)).current;
+  // Slide-in from left on mount
+  const slideIn = useRef(new Animated.Value(-40)).current;
+  const fadeIn  = useRef(new Animated.Value(0)).current;
 
   const fullText  = TICKER_ITEMS.join('   •   ') + '   •   ';
-  // Rough pixel width of one block of text at fontSize 12
-  const textWidth = fullText.length * 8.2;
-  const duration  = textWidth * 22; // keep speed consistent regardless of text length
+  const textWidth = fullText.length * 7.8;
+  const duration  = textWidth * 20;
 
   useEffect(() => {
-    // Strip 1 starts at x=0, strip 2 starts just after strip 1 (offset by textWidth)
+    // Entrance animation
+    Animated.parallel([
+      Animated.timing(fadeIn,  { toValue: 1, duration: 500, delay: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(slideIn, { toValue: 0, duration: 400, delay: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
+
     anim1.setValue(0);
     anim2.setValue(textWidth);
-
-    // Both strips scroll left independently in an infinite loop.
-    // When a strip scrolls out completely to the left (-textWidth),
-    // the loop resets it back to 0 (start) which is seamlessly
-    // behind the other strip — no gap ever appears.
-    const loop1 = Animated.loop(
-      Animated.timing(anim1, {
-        toValue: -textWidth,
-        duration,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    const loop2 = Animated.loop(
-      Animated.timing(anim2, {
-        toValue: -textWidth,
-        duration,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-
+    const loop1 = Animated.loop(Animated.timing(anim1, { toValue: -textWidth, duration, easing: Easing.linear, useNativeDriver: true }));
+    const loop2 = Animated.loop(Animated.timing(anim2, { toValue: -textWidth, duration, easing: Easing.linear, useNativeDriver: true }));
     loop1.start();
     loop2.start();
     return () => { loop1.stop(); loop2.stop(); };
   }, []);
 
   return (
-    <View style={s.ticker}>
-      <Animated.Text
-        style={[s.tickerText, { transform: [{ translateX: anim1 }] }]}
-        numberOfLines={1}
-      >
+    <Animated.View style={[s.ticker, { opacity: fadeIn, transform: [{ translateY: slideIn }] }]}>
+      <Animated.Text style={[s.tickerText, { transform: [{ translateX: anim1 }] }]} numberOfLines={1}>
         {fullText}
       </Animated.Text>
-      <Animated.Text
-        style={[s.tickerText, { transform: [{ translateX: anim2 }] }]}
-        numberOfLines={1}
-      >
+      <Animated.Text style={[s.tickerText, { transform: [{ translateX: anim2 }] }]} numberOfLines={1}>
         {fullText}
       </Animated.Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -526,10 +507,8 @@ export default function HomeScreen() {
           </View>
         </FadeSlide>
 
-        {/* ── Ticker — seamless, dark background, correct spellings ── */}
-        <FadeSlide delay={160}>
-          <TickerBanner />
-        </FadeSlide>
+        {/* ── Ticker — seamless, dark navy, entrance animation built-in ── */}
+        <TickerBanner />
 
         {/* ── Featured Jobs (horizontal scroll) — live from backend ── */}
         <FadeSlide delay={200}>
@@ -694,20 +673,25 @@ const s = StyleSheet.create({
   exploreCircle1: { position: 'absolute', width: 90, height: 90, borderRadius: 45, bottom: -20, right: -20 },
   exploreCircle2: { position: 'absolute', width: 60, height: 60, borderRadius: 30, bottom: 20, right: 40 },
 
-  // ── Ticker — dark background (#1a1a2e), seamless dual-strip ──────────────
+  // ── Ticker — white background, dark text, orange accents ───────────────
   ticker: {
-    backgroundColor: TICKER_BG,
-    height: 40,
+    backgroundColor: '#ffffff',
+    height: 38,
     overflow: 'hidden',
-    marginTop: 16,
+    marginTop: 12,
+    marginHorizontal: 0,
+    position: 'relative',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#f0f0f0',
   },
   tickerText: {
     position: 'absolute',
-    top: 12,                   // vertically centred inside height:40
-    color: '#ffffff',
+    top: 10,
+    color: '#333333',
     fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontWeight: '600',
+    letterSpacing: 0.4,
   },
 
   // Featured Jobs (horizontal)
