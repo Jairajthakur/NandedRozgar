@@ -45,7 +45,7 @@ function ActionBtn({ label, icon, color, onPress, outline = false }) {
         style={[
           s.actionBtn,
           outline
-            ? { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e5e5e5' }
+            ? { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e5e5' }
             : { backgroundColor: color },
         ]}
       >
@@ -56,11 +56,11 @@ function ActionBtn({ label, icon, color, onPress, outline = false }) {
   );
 }
 
-// ── Skill chip ────────────────────────────────────────────────────────────────
+// ── Skill chip — star icon matching the screenshot ────────────────────────────
 function SkillChip({ label }) {
   return (
     <View style={s.skillChip}>
-      <Ionicons name="checkmark-circle-outline" size={13} color={ORANGE} />
+      <Ionicons name="star-outline" size={13} color={ORANGE} />
       <Text style={s.skillTxt}>{label}</Text>
     </View>
   );
@@ -136,7 +136,7 @@ export default function JobDetailScreen({ route, navigation }) {
     Toast.show({ type: 'success', text1: 'Report submitted.' });
   }
 
-  // Parse skills array or string
+  // Parse skills
   const skills = Array.isArray(job.skills)
     ? job.skills
     : typeof job.skills === 'string' && job.skills
@@ -156,7 +156,6 @@ export default function JobDetailScreen({ route, navigation }) {
 
       {/* ── Orange Hero Header ── */}
       <View style={[s.hero, { paddingTop: insets.top + 12 }]}>
-        {/* Back + Favourite buttons */}
         <View style={s.heroNav}>
           <Animated.View style={{ transform: [{ scale: backScale }] }}>
             <TouchableOpacity style={s.navBtn} onPress={handleBack} activeOpacity={1}>
@@ -168,9 +167,9 @@ export default function JobDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Centered icon */}
+        {/* Briefcase icon — matching screenshot */}
         <Animated.View style={[s.heroIconWrap, { transform: [{ scale: iconScale }] }]}>
-          <Ionicons name={icon} size={36} color={ORANGE} />
+          <Ionicons name={icon} size={32} color={ORANGE} />
         </Animated.View>
       </View>
 
@@ -186,6 +185,8 @@ export default function JobDetailScreen({ route, navigation }) {
               <Text style={s.title}>{job.title}</Text>
               {!!job.salary && <Text style={s.salaryBig}>₹{job.salary}</Text>}
             </View>
+
+            {/* Location row */}
             {(!!job.company || !!job.location) && (
               <View style={s.locationRow}>
                 <Ionicons name="location-outline" size={13} color="#aaa" />
@@ -195,7 +196,7 @@ export default function JobDetailScreen({ route, navigation }) {
               </View>
             )}
 
-            {/* Badges row */}
+            {/* Type + Applied badges — pill style matching screenshot */}
             <View style={s.badgesRow}>
               {!!job.type && (
                 <View style={s.infoBadge}>
@@ -330,41 +331,53 @@ export default function JobDetailScreen({ route, navigation }) {
 }
 
 const s = StyleSheet.create({
-  // Hero
+  // ── Hero ──
   hero: {
     backgroundColor: ORANGE,
     paddingHorizontal: 16,
-    paddingBottom: 36,
+    paddingBottom: 32,
     alignItems: 'center',
   },
   heroNav: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    width: '100%', marginBottom: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
   },
   navBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center', justifyContent: 'center',
   },
+  // Icon container — white rounded square matching screenshot
   heroIconWrap: {
-    width: 72, height: 72, borderRadius: 20,
-    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 }, elevation: 6,
+    width: 64, height: 64, borderRadius: 18,
+    backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
   },
 
-  // Title block
+  // ── Title block ──
   titleBlock: {
-    backgroundColor: '#fff', marginHorizontal: 0,
-    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16,
-    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  titleRow:  { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
   title:     { fontSize: 22, fontWeight: '800', color: '#111', flex: 1, marginRight: 10, lineHeight: 28 },
-  salaryBig: { fontSize: 16, fontWeight: '800', color: ORANGE, flexShrink: 0, marginTop: 4 },
+  salaryBig: { fontSize: 15, fontWeight: '800', color: ORANGE, flexShrink: 0, marginTop: 4 },
+
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 14 },
   locationTxt: { fontSize: 13, color: '#888', fontWeight: '500' },
-  badgesRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   infoBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: '#f5f5f5', borderRadius: 20,
@@ -373,11 +386,15 @@ const s = StyleSheet.create({
   },
   infoBadgeTxt: { fontSize: 12, color: '#555', fontWeight: '600' },
 
-  // Sections
+  // ── Sections ──
   section: {
-    backgroundColor: '#fff', marginTop: 10,
-    paddingHorizontal: 20, paddingVertical: 18,
-    borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#f0f0f0',
+    backgroundColor: '#fff',
+    marginTop: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#f0f0f0',
   },
   sectionHead: {
     fontSize: 11, fontWeight: '800', color: '#999',
@@ -385,25 +402,26 @@ const s = StyleSheet.create({
   },
   descText: { fontSize: 14, lineHeight: 23, color: '#444' },
 
-  // Skills
+  // ── Skills ──
   skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   skillChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     borderWidth: 1, borderColor: '#e5e5e5', borderRadius: 20,
     paddingVertical: 6, paddingHorizontal: 14,
     backgroundColor: '#fff',
   },
   skillTxt: { fontSize: 12, fontWeight: '600', color: '#333' },
 
-  // Requirements
+  // ── Requirements ──
   requirementRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
-  bulletDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#ccc', marginTop: 8, flexShrink: 0 },
+  bulletDot: {
+    width: 5, height: 5, borderRadius: 3,
+    backgroundColor: '#ccc', marginTop: 8, flexShrink: 0,
+  },
   requirementTxt: { fontSize: 14, color: '#444', lineHeight: 22, flex: 1 },
 
-  // Company card
-  companyCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-  },
+  // ── Company card ──
+  companyCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   companyIcon: {
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center',
@@ -412,7 +430,7 @@ const s = StyleSheet.create({
   companyName: { fontSize: 15, fontWeight: '700', color: '#111' },
   companyLoc:  { fontSize: 12, color: '#888', marginTop: 2 },
 
-  // Action buttons
+  // ── Action buttons ──
   actionsBlock: { paddingHorizontal: 16, paddingTop: 16, gap: 10 },
   actionBtnWrap: {},
   actionBtn: {
@@ -421,14 +439,19 @@ const s = StyleSheet.create({
   },
   actionBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
-  // Report modal
+  // ── Report modal ──
   reportOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center', zIndex: 100,
   },
   reportBox:   { backgroundColor: '#fff', borderRadius: 20, padding: 20, width: '85%' },
   reportTitle: { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 14, textAlign: 'center' },
-  reportOption:    { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#f5e5e5', backgroundColor: '#fff5f5', marginBottom: 8 },
+  reportOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    padding: 12, borderRadius: 10,
+    borderWidth: 1, borderColor: '#f5e5e5', backgroundColor: '#fff5f5', marginBottom: 8,
+  },
   reportOptionTxt: { fontSize: 13, fontWeight: '600', color: '#333' },
   cancelBtn: { marginTop: 4, alignItems: 'center', padding: 12 },
   cancelTxt: { fontSize: 13, fontWeight: '600', color: '#999' },
