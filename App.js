@@ -112,9 +112,9 @@ function CustomTabBar({ state, descriptors, navigation }) {
 }
 
 const HEADER = {
-  headerStyle:      { backgroundColor: '#111111' },
-  headerTintColor:  '#ffffff',
-  headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+  headerStyle:      { backgroundColor: '#ffffff' },
+  headerTintColor:  '#111111',
+  headerTitleStyle: { fontWeight: '800', fontSize: 16, color: '#111111' },
 };
 
 // ── Tab Navigator ─────────────────────────────────────────────────────────────
@@ -203,7 +203,7 @@ export default function App() {
           <AuthProvider>
             <LangProvider>
             <NavigationContainer>
-              <StatusBar barStyle="light-content" backgroundColor="#111111" />
+              <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
               <RootNavigator />
             </NavigationContainer>
             <Toast />
@@ -219,10 +219,10 @@ const s = StyleSheet.create({
   tabBar: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderTopWidth: 1, borderTopColor: '#ebebeb',
-    height: 70, paddingBottom: 10, paddingHorizontal: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 12,
+    borderTopWidth: 1, borderTopColor: '#f0f0f0',
+    height: 72, paddingBottom: 10, paddingHorizontal: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08, shadowRadius: 10, elevation: 16,
   },
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, gap: 2 },
   tabLabel:       { fontSize: 10, fontWeight: '500', color: '#aaa' },
