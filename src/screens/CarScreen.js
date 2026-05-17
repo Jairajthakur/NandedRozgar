@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator, RefreshControl, Animated, Easing,
+  StyleSheet, ActivityIndicator, RefreshControl, Animated, Easing, TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -112,10 +112,11 @@ function VehicleCard({ item, index, onPress }) {
 }
 
 /* ─── Main Screen ─── */
-export default function CarsScreen() {
+export default function CarsScreen({ route }) {
   const nav = useNavigation();
   const { t } = useLang();
   const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState(route?.params?.searchQuery || '');
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -159,7 +160,11 @@ export default function CarsScreen() {
 
   useEffect(() => { fetchCars(); }, [fetchCars]);
 
-  const filtered = cars.filter(c => filter === 'all' || c.type === filter);
+  const filtered = cars.filter(c => {
+    const matchFilter = filter === 'all' || c.type === filter;
+    const matchSearch = search === '' || c.title?.toLowerCase().includes(search.toLowerCase()) || c.location?.toLowerCase().includes(search.toLowerCase());
+    return matchFilter && matchSearch;
+  });
 
   if (loading) {
     return (
@@ -178,7 +183,19 @@ export default function CarsScreen() {
         {/* Search */}
         <View style={s.searchWrap}>
           <Ionicons name="search" size={15} color="#bbb" />
-          <Text style={s.searchPlaceholder}>Search car model, area...</Text>
+          <TextInput
+            style={{ flex: 1, fontSize: 13, color: '#333', marginLeft: 6 }}
+            placeholder="Search car model, area..."
+            placeholderTextColor="#bbb"
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} style={{ paddingRight: 4 }}>
+              <Ionicons name="close-circle" size={16} color="#bbb" />
+            </TouchableOpacity>
+          )}
         </View>
         {/* Filter Pills */}
         <ScrollView
