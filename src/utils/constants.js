@@ -12,7 +12,7 @@ export const C = {
   },
 };
 
-export const BASE_URL = 'https://nandedrozgar-api.onrender.com';
+export const BASE_URL = 'https://nandedrozgar-production.up.railway.app';
 
 export const CATS = [
   'All',
