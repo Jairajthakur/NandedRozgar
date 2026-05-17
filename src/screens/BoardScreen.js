@@ -13,7 +13,7 @@ import { Empty } from '../components/UI';
 import { CAT_ICONS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
 
-const ORANGE  = '#f97316';
+const ORANGE    = '#f97316';
 const JOB_TYPES = ['All', 'Full-time', 'Part-time', 'Fresher', 'Work from Home'];
 const SALARY_RANGES = [
   { label: 'Any',         min: 0,     max: Infinity },
@@ -28,14 +28,14 @@ function parseSalary(s = '') {
   return isNaN(n) ? 0 : n;
 }
 
-// ── Fade-in header ─────────────────────────────────────────────────────────────
+// ── Fade-in wrapper ────────────────────────────────────────────────────────────
 function FadeIn({ children, delay = 0 }) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const ty      = useRef(new Animated.Value(12)).current;
+  const ty      = useRef(new Animated.Value(10)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(ty,      { toValue: 0, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 320, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(ty,      { toValue: 0, duration: 320, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
     ]).start();
   }, []);
   return <Animated.View style={{ opacity, transform: [{ translateY: ty }] }}>{children}</Animated.View>;
@@ -47,15 +47,16 @@ function HiringBanner({ onPress }) {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.08, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1,    duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1.12, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1,    duration: 800, useNativeDriver: true }),
       ])
     ).start();
   }, []);
   return (
     <TouchableOpacity style={s.hiringBanner} onPress={onPress} activeOpacity={0.85}>
+      <View style={s.hiringAccent} />
       <Animated.View style={[s.hiringIconWrap, { transform: [{ scale: pulse }] }]}>
-        <Ionicons name="trending-up" size={18} color={ORANGE} />
+        <Ionicons name="trending-up" size={20} color={ORANGE} />
       </Animated.View>
       <View style={{ flex: 1 }}>
         <Text style={s.hiringTitle}>Top Hiring This Week</Text>
@@ -69,7 +70,7 @@ function HiringBanner({ onPress }) {
 export default function BoardScreen({ route }) {
   const { jobs, loadJobs, role } = useAuth();
   const { t } = useLang();
-  const nav   = useNavigation();
+  const nav    = useNavigation();
   const insets = useSafeAreaInsets();
 
   const [search,      setSearch]      = useState(route?.params?.searchQuery || '');
@@ -109,18 +110,17 @@ export default function BoardScreen({ route }) {
     setRefreshing(false);
   }
 
-  // Filter sheet slide animation
-  const sheetY = useRef(new Animated.Value(400)).current;
+  const sheetY = useRef(new Animated.Value(500)).current;
   useEffect(() => {
     Animated.timing(sheetY, {
-      toValue: showFilters ? 0 : 400,
-      duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      toValue: showFilters ? 0 : 500,
+      duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true,
     }).start();
   }, [showFilters]);
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#f7f7f7" />
 
       {/* ── Page Header ── */}
       <FadeIn delay={0}>
@@ -133,7 +133,7 @@ export default function BoardScreen({ route }) {
             style={[s.filterIconBtn, activeFiltersCount > 0 && s.filterIconBtnActive]}
             onPress={() => setShowFilters(true)}
           >
-            <Ionicons name="options-outline" size={20} color={activeFiltersCount > 0 ? '#fff' : '#555'} />
+            <Ionicons name="options-outline" size={20} color={activeFiltersCount > 0 ? '#fff' : '#444'} />
             {activeFiltersCount > 0 && (
               <View style={s.filterBadge}>
                 <Text style={s.filterBadgeTxt}>{activeFiltersCount}</Text>
@@ -146,21 +146,22 @@ export default function BoardScreen({ route }) {
       {/* ── Search Bar ── */}
       <FadeIn delay={60}>
         <View style={s.searchWrap}>
-          <Ionicons name="search-outline" size={17} color="#aaa" style={{ marginLeft: 12 }} />
+          <Ionicons name="search-outline" size={18} color="#bbb" style={{ marginLeft: 14 }} />
           <TextInput
             style={s.searchInput}
             placeholder="Search job title, company..."
             placeholderTextColor="#bbb"
             value={search}
             onChangeText={setSearch}
+            returnKeyType="search"
           />
           {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} style={{ paddingRight: 12 }}>
+            <TouchableOpacity onPress={() => setSearch('')} style={{ paddingHorizontal: 8 }}>
               <Ionicons name="close-circle" size={18} color="#ccc" />
             </TouchableOpacity>
           )}
           <TouchableOpacity style={s.searchFilterBtn} onPress={() => setShowFilters(true)}>
-            <Ionicons name="options-outline" size={17} color="#555" />
+            <Ionicons name="filter-outline" size={18} color="#888" />
           </TouchableOpacity>
         </View>
       </FadeIn>
@@ -171,7 +172,7 @@ export default function BoardScreen({ route }) {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={s.pillsRow}
-          style={{ maxHeight: 50 }}
+          style={{ maxHeight: 52 }}
         >
           {JOB_TYPES.map(jt => (
             <TouchableOpacity
@@ -266,23 +267,24 @@ export default function BoardScreen({ route }) {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#fff' },
+  root: { flex: 1, backgroundColor: '#f7f7f7' },
 
   // Header
   pageHeader: {
     flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 18, paddingBottom: 6, backgroundColor: '#fff',
+    paddingHorizontal: 18, paddingTop: 20, paddingBottom: 6,
+    backgroundColor: '#f7f7f7',
   },
-  pageTitle:  { fontSize: 24, fontWeight: '800', color: '#111', letterSpacing: -0.3 },
-  pageCount:  { fontSize: 12, color: '#999', fontWeight: '500', marginTop: 3 },
+  pageTitle: { fontSize: 26, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  pageCount: { fontSize: 13, color: '#999', fontWeight: '500', marginTop: 2 },
   filterIconBtn: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: '#f5f5f5', borderWidth: 0,
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: '#ececec',
     alignItems: 'center', justifyContent: 'center', position: 'relative',
   },
   filterIconBtnActive: { backgroundColor: '#111' },
   filterBadge: {
-    position: 'absolute', top: -3, right: -3,
+    position: 'absolute', top: -2, right: -2,
     width: 16, height: 16, borderRadius: 8,
     backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center',
   },
@@ -291,64 +293,75 @@ const s = StyleSheet.create({
   // Search
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderRadius: 14,
+    backgroundColor: '#fff', borderRadius: 16,
     borderWidth: 1, borderColor: '#e8e8e8',
-    marginHorizontal: 16, marginTop: 8, marginBottom: 12,
+    marginHorizontal: 16, marginTop: 6, marginBottom: 14,
+    height: 52,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  searchInput: { flex: 1, paddingVertical: 13, paddingHorizontal: 8, fontSize: 14, color: '#111' },
+  searchInput: { flex: 1, paddingHorizontal: 10, fontSize: 14, color: '#111' },
   searchFilterBtn: {
-    width: 46, height: 46, alignItems: 'center', justifyContent: 'center',
-    borderLeftWidth: 1, borderLeftColor: '#f0f0f0',
+    width: 48, height: 52,
+    alignItems: 'center', justifyContent: 'center',
+    borderLeftWidth: 1, borderLeftColor: '#ececec',
   },
 
   // Pills
-  pillsRow: { paddingHorizontal: 16, paddingBottom: 12, gap: 8, alignItems: 'center' },
+  pillsRow: { paddingHorizontal: 16, paddingBottom: 14, gap: 8, alignItems: 'center' },
   pill: {
-    borderWidth: 1.5, borderColor: '#e0e0e0',
-    backgroundColor: '#fff', paddingVertical: 8, paddingHorizontal: 18, borderRadius: 24,
+    borderWidth: 1.5, borderColor: '#d8d8d8',
+    backgroundColor: '#fff', paddingVertical: 7, paddingHorizontal: 18, borderRadius: 24,
   },
-  pillActive:   { backgroundColor: '#111', borderColor: '#111' },
-  pillTxt:      { fontSize: 13, fontWeight: '600', color: '#555' },
-  pillTxtActive:{ color: '#fff', fontWeight: '700' },
+  pillActive:    { backgroundColor: '#111', borderColor: '#111' },
+  pillTxt:       { fontSize: 13, fontWeight: '600', color: '#555' },
+  pillTxtActive: { color: '#fff', fontWeight: '700' },
 
   // Hiring Banner
   hiringBanner: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff8f3', borderRadius: 14, borderWidth: 1, borderColor: '#fed7aa',
-    padding: 14, marginBottom: 12, gap: 12,
+    backgroundColor: '#fff9f3', borderRadius: 14,
+    borderWidth: 1, borderColor: '#fddcb5',
+    marginBottom: 12, gap: 12, overflow: 'hidden',
+    paddingVertical: 14, paddingRight: 14,
+  },
+  hiringAccent: {
+    width: 5, alignSelf: 'stretch',
+    backgroundColor: ORANGE,
+    borderTopLeftRadius: 14, borderBottomLeftRadius: 14,
+    marginRight: 2,
   },
   hiringIconWrap: {
-    width: 38, height: 38, borderRadius: 10,
-    backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center',
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: '#fff3e0',
+    alignItems: 'center', justifyContent: 'center',
   },
-  hiringTitle: { fontSize: 14, fontWeight: '700', color: '#111' },
+  hiringTitle: { fontSize: 14, fontWeight: '800', color: ORANGE },
   hiringSub:   { fontSize: 12, color: '#999', marginTop: 2 },
 
   // List
-  list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
+  list: { paddingHorizontal: 14, paddingTop: 2, paddingBottom: 40 },
 
   // Filter Modal
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   filterSheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 20, paddingBottom: 40,
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20,
-    shadowOffset: { width: 0, height: -4 }, elevation: 20,
+    backgroundColor: '#fff', borderTopLeftRadius: 26, borderTopRightRadius: 26,
+    padding: 22, paddingBottom: 44,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 24,
+    shadowOffset: { width: 0, height: -4 }, elevation: 24,
   },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e0e0e0', alignSelf: 'center', marginBottom: 16 },
-  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#e0e0e0', alignSelf: 'center', marginBottom: 18 },
+  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   sheetTitle:  { fontSize: 18, fontWeight: '800', color: '#111' },
   resetTxt:    { fontSize: 13, fontWeight: '700', color: ORANGE },
-  filterLabel: { fontSize: 11, fontWeight: '700', color: '#999', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
-  rangeRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#ebebeb', marginBottom: 8 },
+  filterLabel: { fontSize: 11, fontWeight: '700', color: '#aaa', textTransform: 'uppercase', letterSpacing: 0.9, marginBottom: 12 },
+  rangeRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#ececec', marginBottom: 8 },
   rangeActive: { borderColor: ORANGE, backgroundColor: '#fff8f3' },
-  rangeTxt:    { fontSize: 13, fontWeight: '600', color: '#333' },
-  applyFilterBtn: { backgroundColor: '#111', borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 10 },
-  applyFilterTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  rangeTxt:    { fontSize: 14, fontWeight: '600', color: '#333' },
+  applyFilterBtn: { backgroundColor: '#111', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 12 },
+  applyFilterTxt: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
 });
