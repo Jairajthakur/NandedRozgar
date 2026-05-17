@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, ScrollView, Animated, Easing,
-  RefreshControl, ActivityIndicator,
+  RefreshControl, ActivityIndicator, TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -170,9 +170,10 @@ function RoomCard({ item, index, onPress }) {
 }
 
 /* ─── Main Screen ─── */
-export default function RoomScreen() {
+export default function RoomScreen({ route }) {
   const nav = useNavigation();
   const [type, setType] = useState('All');
+  const [search, setSearch] = useState(route?.params?.searchQuery || '');
   const [rooms, setRooms] = useState(ROOMS);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -215,7 +216,11 @@ export default function RoomScreen() {
     }
   }, []);
 
-  const filtered = rooms.filter(r => type === 'All' || r.type === type || r.for === type);
+  const filtered = rooms.filter(r => {
+    const matchType = type === 'All' || r.type === type || r.for === type;
+    const matchSearch = search === '' || r.title?.toLowerCase().includes(search.toLowerCase()) || r.location?.toLowerCase().includes(search.toLowerCase()) || r.type?.toLowerCase().includes(search.toLowerCase());
+    return matchType && matchSearch;
+  });
 
   return (
     <View style={s.container}>
@@ -225,7 +230,19 @@ export default function RoomScreen() {
         {/* Search bar */}
         <View style={s.searchWrap}>
           <Ionicons name="search" size={15} color="#bbb" />
-          <Text style={s.searchPlaceholder}>Search area, type...</Text>
+          <TextInput
+            style={{ flex: 1, fontSize: 13, color: '#333', marginLeft: 6 }}
+            placeholder="Search area, type..."
+            placeholderTextColor="#bbb"
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} style={{ paddingRight: 4 }}>
+              <Ionicons name="close-circle" size={16} color="#bbb" />
+            </TouchableOpacity>
+          )}
         </View>
         {/* Type pills */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pills}>
