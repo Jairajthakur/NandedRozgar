@@ -722,9 +722,9 @@ const s = StyleSheet.create({
   featJobIcon:    { width: 38, height: 38, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
   featJobTitle:   { fontSize: 13, fontWeight: '700', color: '#111' },
   featJobCompany: { fontSize: 11, color: '#aaa', marginTop: 2 },
-  featJobBottom:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  featJobSalary:  { fontSize: 14, fontWeight: '800', color: ORANGE },
-  applyBtn:       { backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 7, paddingHorizontal: 18, alignItems: 'center' },
+  featJobBottom:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  featJobSalary:  { fontSize: 13, fontWeight: '800', color: ORANGE, flex: 1, flexWrap: 'wrap' },
+  applyBtn:       { backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignItems: 'center', flexShrink: 0 },
   applyBtnTxt:    { color: '#fff', fontSize: 12, fontWeight: '700' },
 
   // Room Cards
