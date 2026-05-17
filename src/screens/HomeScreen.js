@@ -408,7 +408,28 @@ export default function HomeScreen() {
   const displayFeatured = activeJobs.length > 0  ? activeJobs.slice(0,4): featuredDemoJobs;
   const displayRooms    = rooms.length > 0        ? rooms.slice(0, 3)    : demoRooms;
 
-  const handleSearch = () => { if (searchText.trim()) nav.navigate('Jobs'); };
+  const handleSearch = () => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return;
+
+    // Room / PG keywords
+    const roomKw = ['room', 'rooms', 'flat', 'pg', 'hostel', 'rent', 'bhk', 'house', 'accommodation', 'paying guest', '1bhk', '2bhk'];
+    // Car / vehicle keywords
+    const carKw  = ['car', 'cars', 'vehicle', 'vehicles', 'bike', 'scooter', 'rent car', 'auto', 'tempo', 'truck', 'cab', 'taxi'];
+    // Buy & Sell keywords
+    const sellKw = ['buy', 'sell', 'item', 'items', 'product', 'second hand', 'used', 'sale', 'shop', 'market', 'electronics', 'furniture', 'mobile'];
+
+    if (roomKw.some(k => q.includes(k))) {
+      nav.navigate('Rooms', { searchQuery: searchText.trim() });
+    } else if (carKw.some(k => q.includes(k))) {
+      nav.navigate('Cars', { searchQuery: searchText.trim() });
+    } else if (sellKw.some(k => q.includes(k))) {
+      nav.navigate('BuySell', { searchQuery: searchText.trim() });
+    } else {
+      // Default → Jobs (covers job, work, salary, hiring, telecaller, etc.)
+      nav.navigate('Jobs', { searchQuery: searchText.trim() });
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
