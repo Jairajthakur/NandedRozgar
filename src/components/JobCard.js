@@ -22,11 +22,11 @@ export default function JobCard({ job, onPress, index = 0 }) {
   const applicants = job.applicant_count || 0;
   const views      = job.views || 0;
   const isFeatured = !!job.featured;
-  const isUrgent   = !!job.urgent && !job.featured;
+  const isUrgent   = !!job.urgent;
 
-  // Left border only for featured cards
-  const borderLeftColor = isFeatured ? ORANGE : 'transparent';
-  const borderLeftWidth = isFeatured ? 3 : 0;
+  // Orange left border for both urgent and featured (matches Image 1)
+  const borderLeftColor = (isFeatured || isUrgent) ? ORANGE : 'transparent';
+  const borderLeftWidth = (isFeatured || isUrgent) ? 4 : 0;
 
   const scale = useRef(new Animated.Value(1)).current;
   const handlePress = () => {
@@ -110,16 +110,16 @@ export default function JobCard({ job, onPress, index = 0 }) {
 const s = StyleSheet.create({
   card: {
     backgroundColor: '#fff',
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ebebeb',
+    borderColor: '#f0f0f0',
     padding: 16,
-    marginBottom: 10,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   badge: {
     flexDirection: 'row',
@@ -161,13 +161,12 @@ const s = StyleSheet.create({
   metaApplied: { fontSize: 11, fontWeight: '600', color: ORANGE },
   metaViews:   { fontSize: 11, color: '#bbb', fontWeight: '400' },
 
-  // Pill-shaped Apply button — per screenshot
+  // Filled orange Apply button — per Image 1
   applyBtn: {
-    borderWidth: 1.5,
-    borderColor: ORANGE,
+    backgroundColor: ORANGE,
     borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 18,
+    paddingVertical: 7,
+    paddingHorizontal: 20,
   },
-  applyTxt: { color: ORANGE, fontSize: 13, fontWeight: '700' },
+  applyTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
 });
