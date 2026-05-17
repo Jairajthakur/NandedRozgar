@@ -1,236 +1,427 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Linking, Alert, Image,
+  Linking, Alert, Image, Animated, Easing, Share,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../utils/constants';
 import { useLang } from '../utils/i18n';
 
-const GALLERY_TABS_KEYS = ['front', 'side', 'interior', 'back'];
+const ORANGE = '#f97316';
+const DARK_NAVY = '#1a2a3a';
+const GREEN_WA = '#25d366';
 
 const PLACEHOLDER_CAR = {
-  name: 'Maruti Swift Dzire',
-  subtitle: 'White · 2020 · Petrol · 5 seats',
-  price: '₹600',
-  rating: '4.8',
-  reviews: '38',
-  specs: { Fuel: 'Petrol', Transmission: 'Manual', Seats: '5 persons', Year: '2020' },
-  includes: ['AC', 'Music system', 'GPS', '100 km/day', 'Fuel not included'],
-  owner: { name: 'Mahesh Kulkarni', initials: 'MK', area: 'Shivaji Nagar · Responds fast', color: '#185fa5', bg: '#e6f1fb' },
-  verified: true,
-  iconColor: '#2d3a4a',
-  icon: 'car-sport',
+  name: 'Maruti Swift 2020',
+  subtitle: 'White · Petrol · AC · 4 seats',
+  price: '₹800',
+  deposit: '₹2k',
+  location: 'CIDCO',
+  listedDaysAgo: 8,
+  type: 'Car',
+  available: true,
+  features: ['White', 'Petrol', 'AC', '4 seats'],
+  rentalTerms: [
+    'Valid Driving License required',
+    'Aadhar/Voter ID original for deposit',
+    'Fuel to be paid by renter',
+    'Limit: 250km/day (Extra ₹8/km)',
+  ],
+  owner: {
+    name: 'Nanded Travels',
+    initials: 'NT',
+    isAgency: true,
+    verified: true,
+    color: '#1a2a3a',
+    bg: '#e8edf2',
+  },
+  whatsapp: '',
   photoUrls: [],
-  photos: 4,
+  photos: 5,
 };
 
-const GALLERY_COLORS = ['#2d3a4a', '#1e3a2f', '#2a1e3a', '#2e1a1a'];
-const GALLERY_ICONS = ['car-sport', 'car', 'car-sport', 'car'];
+/* ─── Feature Chip ─── */
+function FeatureChip({ label, delay }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, delay, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, delay, useNativeDriver: true, speed: 14 }),
+    ]).start();
+  }, []);
+  return (
+    <Animated.View style={[s.featureChip, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
+      <Ionicons name="checkmark-circle" size={14} color="#22c55e" style={{ marginRight: 4 }} />
+      <Text style={s.featureChipTxt}>{label}</Text>
+    </Animated.View>
+  );
+}
 
+/* ─── CTA Button ─── */
+function CTAButton({ label, onPress, color, icon, delay }) {
+  const slideAnim = useRef(new Animated.Value(40)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, { toValue: 0, duration: 400, delay, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, delay, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const pressIn = () => Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true, speed: 30 }).start();
+  const pressOut = () => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+
+  return (
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }, { scale: scaleAnim }] }}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        onPress={onPress}
+        style={[s.ctaBtn, { backgroundColor: color }]}
+      >
+        {icon && <Ionicons name={icon} size={18} color="#fff" style={{ marginRight: 8 }} />}
+        <Text style={s.ctaBtnTxt}>{label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+/* ─── Share Button ─── */
+function ShareButton({ onPress, delay }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 350, delay, useNativeDriver: true }).start();
+  }, []);
+  return (
+    <Animated.View style={{ opacity: fadeAnim }}>
+      <TouchableOpacity onPress={onPress} style={s.shareBtn}>
+        <Ionicons name="share-social-outline" size={16} color="#555" style={{ marginRight: 6 }} />
+        <Text style={s.shareBtnTxt}>Share Vehicle</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+/* ─── Main Screen ─── */
 export default function CarDetailScreen() {
   const nav = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const car = route.params?.car || PLACEHOLDER_CAR;
   const { t } = useLang();
 
-  const [activeImg, setActiveImg] = useState(0);
-  const photoUrls = car.photoUrls || [];
-  const tabs = GALLERY_TABS_KEYS.slice(0, Math.max(car.photos || 0, photoUrls.length) || 4);
+  const [saved, setSaved] = useState(false);
+  const savedScale = useRef(new Animated.Value(1)).current;
 
-  function openWhatsApp() {
-    const phone = car.whatsapp || 'XXXXXXXXXX';
-    const msg = `Hi, I'm interested in renting your ${car.name} listed on NandedRozgar.`;
-    Linking.openURL(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`).catch(() =>
-      Alert.alert('WhatsApp not installed', 'Please contact via call.')
-    );
+  // Content fade-in
+  const contentAnim = useRef(new Animated.Value(0)).current;
+  const contentSlide = useRef(new Animated.Value(20)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(contentAnim, { toValue: 1, duration: 450, delay: 100, useNativeDriver: true }),
+      Animated.timing(contentSlide, { toValue: 0, duration: 400, delay: 100, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  function toggleSaved() {
+    setSaved(v => !v);
+    Animated.sequence([
+      Animated.spring(savedScale, { toValue: 1.35, useNativeDriver: true, speed: 25 }),
+      Animated.spring(savedScale, { toValue: 1, useNativeDriver: true, speed: 25 }),
+    ]).start();
   }
 
-  const activePhotoUrl = photoUrls[activeImg];
+  function callOwner() {
+    const phone = car.whatsapp || car.phone || '';
+    if (phone) Linking.openURL(`tel:${phone}`);
+    else Alert.alert('Contact', 'Please contact via WhatsApp.');
+  }
+
+  function openWhatsApp() {
+    const phone = car.whatsapp || car.phone || '';
+    const msg = `Hi, I'm interested in renting your ${car.name} listed on NandedRozgar.`;
+    if (phone)
+      Linking.openURL(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`).catch(() =>
+        Alert.alert('WhatsApp not installed', 'Please contact via call.')
+      );
+    else Alert.alert('Contact', 'WhatsApp number not available.');
+  }
+
+  async function shareVehicle() {
+    try {
+      await Share.share({
+        message: `Check out this vehicle on NandedRozgar!\n${car.name} - ${car.price}/day\nLocation: ${car.location || 'Nanded'}`,
+      });
+    } catch {}
+  }
+
+  const features = car.features || [
+    ...(car.subtitle || '').split(' · ').filter(Boolean),
+  ];
+  const rentalTerms = car.rentalTerms || [];
+
+  const photoCount = car.photos || car.photoUrls?.length || 0;
 
   return (
     <View style={s.container}>
       {/* Gallery */}
-      <View style={[s.gallery, { backgroundColor: GALLERY_COLORS[activeImg % GALLERY_COLORS.length] }]}>
-        <TouchableOpacity style={s.backBtn} onPress={() => nav.goBack()}>
-          <Text style={{ color: '#fff', fontSize: 18 }}>‹</Text>
-        </TouchableOpacity>
-        {activePhotoUrl ? (
-          <Image source={{ uri: activePhotoUrl }} style={s.galleryImage} resizeMode="cover" />
-        ) : (
-          <Ionicons name={GALLERY_ICONS[activeImg % GALLERY_ICONS.length]} size={80} color="#fff" style={{ opacity: 0.18 }} />
+      <View style={[s.gallery, { backgroundColor: DARK_NAVY }]}>
+        <Ionicons name="car-sport" size={80} color="#fff" style={{ opacity: 0.14 }} />
+
+        {/* Photo count badge */}
+        {photoCount > 0 && (
+          <View style={s.photoBadge}>
+            <Text style={s.photoBadgeTxt}>1/{photoCount} Photos</Text>
+          </View>
         )}
-        {/* Thumbnail Nav */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.galNav} contentContainerStyle={{ gap: 5, padding: 8 }}>
-          {tabs.map((key, i) => (
-            <TouchableOpacity
-              key={i}
-              onPress={() => setActiveImg(i)}
-              style={[s.galThumb, i === activeImg && s.galThumbActive]}
-            >
-              {photoUrls[i] ? (
-                <Image source={{ uri: photoUrls[i] }} style={s.thumbImg} resizeMode="cover" />
-              ) : null}
-              <Text style={s.galThumbTxt}>{t(key) || key}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+
+        {/* Back button */}
+        <TouchableOpacity
+          style={[s.backBtn, { top: (insets.top || 0) + 10 }]}
+          onPress={() => nav.goBack()}
+        >
+          <Ionicons name="arrow-back" size={18} color="#fff" />
+        </TouchableOpacity>
+
+        {/* Save button */}
+        <Animated.View style={[s.saveBtn, { top: (insets.top || 0) + 10, transform: [{ scale: savedScale }] }]}>
+          <TouchableOpacity onPress={toggleSaved}>
+            <Ionicons
+              name={saved ? 'heart' : 'heart-outline'}
+              size={20}
+              color={saved ? '#ef4444' : '#fff'}
+            />
+          </TouchableOpacity>
+        </Animated.View>
       </View>
 
-      <ScrollView style={s.body} contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Title + Price */}
-        <View style={s.titleRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.name}>{car.name}</Text>
-            <Text style={s.subtitle}>{car.subtitle}</Text>
-          </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={s.price}>{car.price}<Text style={s.perDay}>/day</Text></Text>
-            {car.rating ? (
-              <Text style={s.rating}>★ {car.rating} · {car.reviews} {t('trips')}</Text>
-            ) : null}
-          </View>
-        </View>
-
-        {/* Specs */}
-        <Text style={s.sectionTitle}>{t('vehicleDetails').toUpperCase()}</Text>
-        <View style={s.specGrid}>
-          {Object.entries(car.specs || {}).map(([k, v]) => (
-            <View key={k} style={s.specItem}>
-              <Text style={s.specLabel}>{k}</Text>
-              <Text style={s.specVal}>{v}</Text>
+      <ScrollView
+        style={s.scrollView}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View style={{ opacity: contentAnim, transform: [{ translateY: contentSlide }] }}>
+          {/* Title + Price */}
+          <View style={s.titleSection}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.name}>{car.name}</Text>
+              <View style={s.locationRow}>
+                <Ionicons name="location-outline" size={12} color="#888" />
+                <Text style={s.locationTxt}>
+                  {car.location || 'Nanded'}{car.listedDaysAgo ? ` · Listed ${car.listedDaysAgo} days ago` : ''}
+                </Text>
+              </View>
             </View>
-          ))}
-        </View>
-
-        {/* Includes */}
-        <Text style={s.sectionTitle}>{t('includes').toUpperCase()}</Text>
-        <View style={s.tagsWrap}>
-          {(car.includes || []).map((t, i) => (
-            <View key={i} style={s.tag}><Text style={s.tagTxt}>{t}</Text></View>
-          ))}
-        </View>
-
-        {/* Owner */}
-        <Text style={s.sectionTitle}>{t('owner').toUpperCase()}</Text>
-        <View style={s.ownerBox}>
-          <View style={[s.ownerAvatar, { backgroundColor: car.owner?.bg || '#eee' }]}>
-            <Text style={[s.ownerInitials, { color: car.owner?.color || '#333' }]}>
-              {car.owner?.initials || '??'}
-            </Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.ownerName}>{car.owner?.name || 'Owner'}</Text>
-            <Text style={s.ownerSub}>{car.owner?.area || ''}</Text>
-          </View>
-          {car.verified && (
-            <View style={s.verifiedBadge}>
-              <Text style={s.verifiedTxt}>{t('verified')}</Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={s.price}>{car.price}<Text style={s.perDay}>/day</Text></Text>
+              {car.deposit && <Text style={s.deposit}>Deposit: {car.deposit}</Text>}
             </View>
+          </View>
+
+          {/* Tags row */}
+          <View style={s.chipRow}>
+            {car.type && <View style={s.typeChip}><Text style={s.typeChipTxt}>{car.type}</Text></View>}
+            {car.available !== false && (
+              <View style={s.availChip}>
+                <Ionicons name="checkmark-circle" size={12} color="#16a34a" style={{ marginRight: 3 }} />
+                <Text style={s.availChipTxt}>Available</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Features */}
+          {features.length > 0 && (
+            <>
+              <Text style={s.sectionTitle}>FEATURES</Text>
+              <View style={s.featuresGrid}>
+                {features.map((f, i) => (
+                  <FeatureChip key={i} label={f} delay={i * 60} />
+                ))}
+              </View>
+            </>
           )}
-        </View>
-      </ScrollView>
 
-      {/* CTA Bar */}
-      <View style={s.ctaBar}>
-        <TouchableOpacity style={s.ctaMain} onPress={() => Alert.alert('Booking', 'Contact the owner to book.')}>
-          <Text style={s.ctaMainTxt}>{t('bookNow')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.ctaIcon} onPress={openWhatsApp}>
-          <Text style={{ fontSize: 20 }}>💬</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.ctaIcon} onPress={() => Alert.alert('Saved', 'Added to your saved listings.')}>
-          <Ionicons name="bookmark" size={20} color="#555" />
-        </TouchableOpacity>
-      </View>
+          {/* Rental Terms */}
+          {rentalTerms.length > 0 && (
+            <>
+              <Text style={s.sectionTitle}>RENTAL TERMS</Text>
+              <View style={s.termsBox}>
+                {rentalTerms.map((term, i) => (
+                  <Text key={i} style={s.termTxt}>{term}</Text>
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* Owner */}
+          <View style={s.ownerCard}>
+            <View style={[s.ownerAvatar, { backgroundColor: car.owner?.bg || '#e8edf2' }]}>
+              <Ionicons name="person" size={20} color={car.owner?.color || '#555'} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.ownerName}>{car.owner?.name || 'Owner'}</Text>
+              {car.owner?.verified && (
+                <View style={s.verifiedRow}>
+                  <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
+                  <Text style={s.verifiedTxt}>
+                    {car.owner?.isAgency ? 'Verified Agency' : 'Verified Owner'}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* CTA Buttons */}
+          <View style={s.ctaSection}>
+            <CTAButton
+              label="Call Owner"
+              onPress={callOwner}
+              color={DARK_NAVY}
+              icon="call"
+              delay={0}
+            />
+            <CTAButton
+              label="WhatsApp"
+              onPress={openWhatsApp}
+              color={GREEN_WA}
+              icon="logo-whatsapp"
+              delay={80}
+            />
+            <ShareButton onPress={shareVehicle} delay={160} />
+          </View>
+        </Animated.View>
+      </ScrollView>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  gallery: { height: 200, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  galleryImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
-  thumbImg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', borderRadius: 5, opacity: 0.7 },
+
+  /* Gallery */
+  gallery: {
+    height: 220, alignItems: 'center', justifyContent: 'center',
+    position: 'relative',
+  },
+  photoBadge: {
+    position: 'absolute', bottom: 12, right: 12,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 7, paddingVertical: 4, paddingHorizontal: 10,
+  },
+  photoBadgeTxt: { color: '#fff', fontSize: 11, fontWeight: '600' },
   backBtn: {
-    position: 'absolute', top: 44, left: 12,
-    width: 32, height: 32, borderRadius: 16,
+    position: 'absolute', left: 14,
+    width: 34, height: 34, borderRadius: 17,
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center', justifyContent: 'center', zIndex: 10,
   },
-  galleryIcon: { fontSize: 60, opacity: 0.25 },
-  galNav: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+  saveBtn: {
+    position: 'absolute', right: 14,
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center', justifyContent: 'center', zIndex: 10,
   },
-  galThumb: {
-    width: 56, height: 36, borderRadius: 5,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: 'transparent',
-  },
-  galThumbActive: { borderColor: '#fff' },
-  galThumbTxt: { fontSize: 10, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
 
-  body: { flex: 1 },
-  titleRow: {
+  /* Scroll */
+  scrollView: { flex: 1 },
+
+  /* Title section */
+  titleSection: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'flex-start', padding: 14, paddingBottom: 8,
+    alignItems: 'flex-start',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
-  name: { fontSize: 17, fontWeight: '700', color: C.text },
-  subtitle: { fontSize: 12, color: C.muted, marginTop: 2 },
-  price: { fontSize: 17, fontWeight: '700', color: C.text },
-  perDay: { fontSize: 11, fontWeight: '400', color: C.muted },
-  rating: { fontSize: 11, color: '#9a6200', marginTop: 2, fontWeight: '600' },
+  name: { fontSize: 19, fontWeight: '800', color: '#111' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
+  locationTxt: { fontSize: 11, color: '#888' },
+  price: { fontSize: 18, fontWeight: '800', color: '#111' },
+  perDay: { fontSize: 12, fontWeight: '400', color: '#888' },
+  deposit: { fontSize: 11, color: '#888', marginTop: 2 },
 
+  /* Tags */
+  chipRow: {
+    flexDirection: 'row', gap: 8,
+    backgroundColor: '#fff', paddingHorizontal: 16, paddingBottom: 14,
+  },
+  typeChip: {
+    borderRadius: 6, borderWidth: 1, borderColor: '#e5e5e5',
+    paddingVertical: 4, paddingHorizontal: 10,
+  },
+  typeChipTxt: { fontSize: 12, color: '#555', fontWeight: '500' },
+  availChip: {
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: 6, borderWidth: 1, borderColor: '#bbf7d0',
+    paddingVertical: 4, paddingHorizontal: 10,
+    backgroundColor: '#f0fdf4',
+  },
+  availChipTxt: { fontSize: 12, color: '#16a34a', fontWeight: '600' },
+
+  /* Section title */
   sectionTitle: {
-    fontSize: 9, fontWeight: '600', color: C.muted,
-    textTransform: 'uppercase', letterSpacing: 0.5,
-    paddingHorizontal: 14, paddingTop: 12, paddingBottom: 7,
+    fontSize: 10, fontWeight: '700', color: '#999',
+    letterSpacing: 0.8, paddingHorizontal: 16,
+    paddingTop: 18, paddingBottom: 10,
+    backgroundColor: '#f5f5f5',
   },
-  specGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 7,
-    paddingHorizontal: 14,
-  },
-  specItem: {
-    backgroundColor: '#f0f0f0', borderRadius: 8,
-    padding: 10, width: '47%',
-  },
-  specLabel: { fontSize: 9, color: C.muted, marginBottom: 2 },
-  specVal: { fontSize: 13, fontWeight: '700', color: C.text },
 
-  tagsWrap: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 5,
-    paddingHorizontal: 14,
+  /* Features */
+  featuresGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    paddingHorizontal: 16, gap: 0,
+    backgroundColor: '#fff', paddingVertical: 12,
   },
-  tag: { backgroundColor: '#f0f0f0', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 9 },
-  tagTxt: { fontSize: 11, color: '#555' },
+  featureChip: {
+    flexDirection: 'row', alignItems: 'center',
+    width: '50%', paddingVertical: 5,
+  },
+  featureChipTxt: { fontSize: 13, color: '#111', fontWeight: '500' },
 
-  ownerBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#f0f0f0', borderRadius: 10,
-    padding: 11, marginHorizontal: 14,
+  /* Rental terms */
+  termsBox: {
+    backgroundColor: '#fff', marginHorizontal: 14,
+    borderRadius: 10, padding: 14,
+    borderWidth: 1, borderColor: '#ebebeb', gap: 5,
   },
-  ownerAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  ownerInitials: { fontSize: 13, fontWeight: '700' },
-  ownerName: { fontSize: 13, fontWeight: '700', color: C.text },
-  ownerSub: { fontSize: 10, color: C.muted, marginTop: 1 },
-  verifiedBadge: { backgroundColor: '#e1f5ee', borderRadius: 5, paddingVertical: 3, paddingHorizontal: 7 },
-  verifiedTxt: { fontSize: 10, color: '#0f6e56', fontWeight: '600' },
+  termTxt: { fontSize: 12, color: '#444', lineHeight: 20 },
 
-  ctaBar: {
-    flexDirection: 'row', gap: 7, padding: 12,
-    backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border,
+  /* Owner */
+  ownerCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#fff', marginHorizontal: 14, marginTop: 14,
+    borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: '#ebebeb',
   },
-  ctaMain: {
-    flex: 1, backgroundColor: '#111', borderRadius: 10,
-    paddingVertical: 12, alignItems: 'center',
-  },
-  ctaMainTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  ctaIcon: {
-    backgroundColor: '#f0f0f0', borderRadius: 10,
-    paddingVertical: 12, paddingHorizontal: 14,
+  ownerAvatar: {
+    width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
   },
+  ownerName: { fontSize: 14, fontWeight: '700', color: '#111' },
+  verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  verifiedTxt: { fontSize: 11, color: '#16a34a', fontWeight: '500' },
+
+  /* CTA section */
+  ctaSection: {
+    paddingHorizontal: 14, paddingTop: 18, gap: 10,
+  },
+  ctaBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    borderRadius: 12, paddingVertical: 15,
+  },
+  ctaBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
+
+  shareBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    borderRadius: 12, paddingVertical: 14,
+    borderWidth: 1, borderColor: '#e5e5e5',
+    backgroundColor: '#fff',
+  },
+  shareBtnTxt: { fontSize: 13, fontWeight: '600', color: '#555' },
 });
