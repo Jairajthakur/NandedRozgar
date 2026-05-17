@@ -19,12 +19,14 @@ function AnimCard({ children, delay = 0, style }) {
 }
 
 export default function JobCard({ job, onPress, index = 0 }) {
-  const iconName   = CAT_ICONS[job.category] || 'briefcase-outline';
   const applicants = job.applicant_count || 0;
   const views      = job.views || 0;
   const isFeatured = !!job.featured;
   const isUrgent   = !!job.urgent && !job.featured;
-  const borderLeft = isFeatured ? ORANGE : isUrgent ? '#ef4444' : 'transparent';
+
+  // Left border only for featured cards
+  const borderLeftColor = isFeatured ? ORANGE : 'transparent';
+  const borderLeftWidth = isFeatured ? 3 : 0;
 
   const scale = useRef(new Animated.Value(1)).current;
   const handlePress = () => {
@@ -35,23 +37,33 @@ export default function JobCard({ job, onPress, index = 0 }) {
     onPress?.();
   };
 
+  // Parse skills (array or comma-string)
+  const skills = Array.isArray(job.skills)
+    ? job.skills
+    : typeof job.skills === 'string' && job.skills
+    ? job.skills.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+
   return (
     <AnimCard delay={index * 80}>
       <Animated.View style={{ transform: [{ scale }] }}>
         <TouchableOpacity
           onPress={handlePress}
           activeOpacity={1}
-          style={[s.card, borderLeft !== 'transparent' && { borderLeftColor: borderLeft, borderLeftWidth: 3 }]}
+          style={[s.card, { borderLeftColor, borderLeftWidth }]}
         >
-          {/* Badge: URGENT / FEATURED */}
+          {/* Badge: URGENT or FEATURED */}
           {(isFeatured || isUrgent) && (
             <View style={[s.badge, { backgroundColor: isFeatured ? ORANGE : '#ef4444' }]}>
-              <Ionicons name={isFeatured ? 'star' : 'flame'} size={9} color="#fff" />
+              {isFeatured
+                ? <Ionicons name="star" size={9} color="#fff" />
+                : <Ionicons name="flame" size={9} color="#fff" />
+              }
               <Text style={s.badgeTxt}>{isFeatured ? 'FEATURED' : 'URGENT'}</Text>
             </View>
           )}
 
-          {/* Title row */}
+          {/* Title + Salary */}
           <View style={s.titleRow}>
             <Text style={s.title} numberOfLines={1}>{job.title}</Text>
             {!!job.salary && <Text style={s.salary}>₹{job.salary}</Text>}
@@ -65,9 +77,9 @@ export default function JobCard({ job, onPress, index = 0 }) {
           )}
 
           {/* Skill chips */}
-          {Array.isArray(job.skills) && job.skills.length > 0 && (
+          {skills.length > 0 && (
             <View style={s.chipsRow}>
-              {job.skills.slice(0, 4).map((sk, i) => (
+              {skills.slice(0, 4).map((sk, i) => (
                 <View key={i} style={s.chip}>
                   <Text style={s.chipTxt}>{sk}</Text>
                 </View>
@@ -75,20 +87,14 @@ export default function JobCard({ job, onPress, index = 0 }) {
             </View>
           )}
 
-          {/* Footer: meta + Apply */}
+          {/* Footer: applied/views + Apply button */}
           <View style={s.footer}>
             <View style={s.metaRow}>
               {applicants > 0 && (
-                <View style={s.metaItem}>
-                  <Ionicons name="people-outline" size={11} color="#aaa" />
-                  <Text style={s.metaTxt}>{applicants} applied</Text>
-                </View>
+                <Text style={s.metaApplied}>{applicants} applied</Text>
               )}
               {views > 0 && (
-                <View style={s.metaItem}>
-                  <Ionicons name="eye-outline" size={11} color="#aaa" />
-                  <Text style={s.metaTxt}>{views} views</Text>
-                </View>
+                <Text style={s.metaViews}>{views} views</Text>
               )}
             </View>
             <TouchableOpacity style={s.applyBtn} onPress={handlePress} activeOpacity={0.8}>
@@ -103,29 +109,65 @@ export default function JobCard({ job, onPress, index = 0 }) {
 
 const s = StyleSheet.create({
   card: {
-    backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: '#ebebeb',
-    padding: 16, marginBottom: 10,
-    shadowColor: '#000', shadowOpacity: 0.05,
-    shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#ebebeb',
+    padding: 16,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   badge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    alignSelf: 'flex-start', borderRadius: 5,
-    paddingVertical: 3, paddingHorizontal: 9, marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    borderRadius: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginBottom: 10,
   },
   badgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
-  title:    { fontSize: 16, fontWeight: '700', color: '#111', flex: 1, marginRight: 8 },
-  salary:   { fontSize: 14, fontWeight: '700', color: ORANGE, flexShrink: 0 },
+
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 3,
+  },
+  title:  { fontSize: 16, fontWeight: '700', color: '#111', flex: 1, marginRight: 8 },
+  salary: { fontSize: 13, fontWeight: '700', color: ORANGE, flexShrink: 0 },
+
   subtitle: { fontSize: 12, color: '#888', fontWeight: '500', marginBottom: 10 },
+
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
-  chip:     { borderWidth: 1, borderColor: '#e5e5e5', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 11 },
-  chipTxt:  { fontSize: 11, fontWeight: '600', color: '#555' },
-  footer:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
-  metaRow:  { flexDirection: 'row', gap: 12 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  metaTxt:  { fontSize: 11, color: '#aaa', fontWeight: '500' },
-  applyBtn: { borderWidth: 1.5, borderColor: ORANGE, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 18 },
+  chip: {
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 20,
+    paddingVertical: 4,
+    paddingHorizontal: 11,
+  },
+  chipTxt: { fontSize: 11, fontWeight: '500', color: '#555' },
+
+  footer:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+
+  // Applied count = orange, views = light gray — per screenshot
+  metaApplied: { fontSize: 11, fontWeight: '600', color: ORANGE },
+  metaViews:   { fontSize: 11, color: '#bbb', fontWeight: '400' },
+
+  // Pill-shaped Apply button — per screenshot
+  applyBtn: {
+    borderWidth: 1.5,
+    borderColor: ORANGE,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 18,
+  },
   applyTxt: { color: ORANGE, fontSize: 13, fontWeight: '700' },
 });
