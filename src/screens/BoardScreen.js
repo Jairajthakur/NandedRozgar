@@ -66,13 +66,13 @@ function HiringBanner({ onPress }) {
   );
 }
 
-export default function BoardScreen() {
+export default function BoardScreen({ route }) {
   const { jobs, loadJobs, role } = useAuth();
   const { t } = useLang();
   const nav   = useNavigation();
   const insets = useSafeAreaInsets();
 
-  const [search,      setSearch]      = useState('');
+  const [search,      setSearch]      = useState(route?.params?.searchQuery || '');
   const [jobType,     setJobType]     = useState('All');
   const [salaryRange, setSalaryRange] = useState(SALARY_RANGES[0]);
   const [showFilters, setShowFilters] = useState(false);
