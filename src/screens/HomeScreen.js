@@ -113,54 +113,71 @@ function LangModal({ visible, current, onSelect, onClose }) {
   );
 }
 
-// ── Scrolling Ticker — seamless dual-strip, never shows empty gap ─────────────
-// Spellings corrected throughout
+// ── One-by-One Ticker — items animate in/out individually, no scrolling gap ───
 const TICKER_ITEMS = [
-  '🟢 HIRING NOW',
-  '🚚 DELIVERY JOBS',
-  '🏠 ROOMS AVAILABLE',
-  '🚗 CARS FOR RENT',
-  '📦 BUY & SELL ITEMS',
-  '📞 TELECALLER JOBS',
-  '🔒 SECURITY GUARD',
-  '🏗️ CONSTRUCTION WORK',
+  { icon: 'checkmark-circle',   text: 'HIRING NOW — Nanded' },
+  { icon: 'bicycle-outline',    text: 'DELIVERY JOBS AVAILABLE' },
+  { icon: 'home-outline',       text: 'ROOMS FOR RENT IN NANDED' },
+  { icon: 'car-outline',        text: 'CARS & VEHICLES FOR HIRE' },
+  { icon: 'cube-outline',       text: 'BUY & SELL 580+ ITEMS' },
+  { icon: 'call-outline',       text: 'TELECALLER JOBS — APPLY NOW' },
+  { icon: 'shield-outline',     text: 'SECURITY GUARD VACANCIES' },
+  { icon: 'construct-outline',  text: 'CONSTRUCTION WORK AVAILABLE' },
+  { icon: 'briefcase-outline',  text: 'DATA ENTRY & OFFICE JOBS' },
+  { icon: 'storefront-outline', text: 'LOCAL MARKETPLACE — NANDED' },
 ];
 
 function TickerBanner() {
-  const anim1 = useRef(new Animated.Value(0)).current;
-  const anim2 = useRef(new Animated.Value(0)).current;
-  // Slide-in from left on mount
-  const slideIn = useRef(new Animated.Value(-40)).current;
-  const fadeIn  = useRef(new Animated.Value(0)).current;
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const opacity    = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(12)).current;
 
-  const fullText  = TICKER_ITEMS.join('   •   ') + '   •   ';
-  const textWidth = fullText.length * 7.8;
-  const duration  = textWidth * 20;
+  const bannerFadeIn  = useRef(new Animated.Value(0)).current;
+  const bannerSlideIn = useRef(new Animated.Value(-8)).current;
 
   useEffect(() => {
-    // Entrance animation
+    // Banner entrance
     Animated.parallel([
-      Animated.timing(fadeIn,  { toValue: 1, duration: 500, delay: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(slideIn, { toValue: 0, duration: 400, delay: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(bannerFadeIn,  { toValue: 1, duration: 500, delay: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(bannerSlideIn, { toValue: 0, duration: 400, delay: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
     ]).start();
 
-    anim1.setValue(0);
-    anim2.setValue(textWidth);
-    const loop1 = Animated.loop(Animated.timing(anim1, { toValue: -textWidth, duration, easing: Easing.linear, useNativeDriver: true }));
-    const loop2 = Animated.loop(Animated.timing(anim2, { toValue: -textWidth, duration, easing: Easing.linear, useNativeDriver: true }));
-    loop1.start();
-    loop2.start();
-    return () => { loop1.stop(); loop2.stop(); };
+    // Cycle through items one by one
+    const showItem = () => {
+      opacity.setValue(0);
+      translateY.setValue(12);
+      Animated.parallel([
+        Animated.timing(opacity,    { toValue: 1, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      ]).start();
+    };
+
+    showItem();
+    const interval = setInterval(() => {
+      // Fade out current
+      Animated.parallel([
+        Animated.timing(opacity,    { toValue: 0, duration: 280, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: -10, duration: 280, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      ]).start(() => {
+        setCurrentIndex(prev => (prev + 1) % TICKER_ITEMS.length);
+        translateY.setValue(12);
+        Animated.parallel([
+          Animated.timing(opacity,    { toValue: 1, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(translateY, { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        ]).start();
+      });
+    }, 2800);
+
+    return () => clearInterval(interval);
   }, []);
 
+  const item = TICKER_ITEMS[currentIndex];
   return (
-    <Animated.View style={[s.ticker, { opacity: fadeIn, transform: [{ translateY: slideIn }] }]}>
-      <Animated.Text style={[s.tickerText, { transform: [{ translateX: anim1 }] }]} numberOfLines={1}>
-        {fullText}
-      </Animated.Text>
-      <Animated.Text style={[s.tickerText, { transform: [{ translateX: anim2 }] }]} numberOfLines={1}>
-        {fullText}
-      </Animated.Text>
+    <Animated.View style={[s.ticker, { opacity: bannerFadeIn, transform: [{ translateY: bannerSlideIn }] }]}>
+      <Animated.View style={[s.tickerRow, { opacity, transform: [{ translateY }] }]}>
+        <Ionicons name={item.icon} size={14} color="#f97316" style={{ marginRight: 7 }} />
+        <Text style={s.tickerText} numberOfLines={1}>{item.text}</Text>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -673,25 +690,27 @@ const s = StyleSheet.create({
   exploreCircle1: { position: 'absolute', width: 90, height: 90, borderRadius: 45, bottom: -20, right: -20 },
   exploreCircle2: { position: 'absolute', width: 60, height: 60, borderRadius: 30, bottom: 20, right: 40 },
 
-  // ── Ticker — white background, dark text, orange accents ───────────────
+  // ── Ticker — dark navy background, centered one-by-one animation ──────
   ticker: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1a1a2e',
     height: 38,
     overflow: 'hidden',
     marginTop: 12,
     marginHorizontal: 0,
-    position: 'relative',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
   tickerText: {
-    position: 'absolute',
-    top: 10,
-    color: '#333333',
+    color: '#ffffff',
     fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.4,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
 
   // Featured Jobs (horizontal)
