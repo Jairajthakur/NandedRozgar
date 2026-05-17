@@ -225,6 +225,28 @@ export default function PostJobScreen() {
   const [jobType,     setJobType]     = useState('Full-time');
   const [openings,    setOpenings]    = useState('1');
 
+  // Multiple positions list (used when multiplePos === true)
+  const [positions, setPositions] = useState([
+    { id: 1, title: '', vacancies: '1' },
+  ]);
+  const addPosition = () =>
+    setPositions(p => [...p, { id: Date.now(), title: '', vacancies: '1' }]);
+  const removePosition = id =>
+    setPositions(p => p.filter(x => x.id !== id));
+  const updatePosition = (id, key, val) =>
+    setPositions(p => p.map(x => x.id === id ? { ...x, [key]: val } : x));
+
+  const handleMultiToggle = val => {
+    setMultiplePos(val);
+    // seed with current single title if switching on
+    if (val && title.trim()) {
+      setPositions([{ id: Date.now(), title: title.trim(), vacancies: openings }]);
+    } else if (!val) {
+      // restore first position back to single fields
+      if (positions[0]) { setTitle(positions[0].title); setOpenings(positions[0].vacancies); }
+    }
+  };
+
   // Step 2
   const [location,   setLocation]   = useState('Nanded City');
   const [salaryMin,  setSalaryMin]  = useState('');
@@ -254,7 +276,12 @@ export default function PostJobScreen() {
     if (step === 1) {
       if (!company.trim()) return Alert.alert('Required', 'Please enter company / employer name.');
       if (!industry)        return Alert.alert('Required', 'Please select an industry / category.');
-      if (!title.trim())    return Alert.alert('Required', 'Please enter a job title.');
+      if (multiplePos) {
+        const empty = positions.find(p => !p.title.trim());
+        if (empty) return Alert.alert('Required', 'Please enter a job title for every position.');
+      } else {
+        if (!title.trim()) return Alert.alert('Required', 'Please enter a job title.');
+      }
     }
     if (step === 3) {
       if (!description.trim()) return Alert.alert('Required', 'Please add a job description.');
@@ -276,8 +303,8 @@ export default function PostJobScreen() {
       const salaryStr = salaryMin
         ? salaryMax ? `₹${salaryMin}–₹${salaryMax}/mo` : `₹${salaryMin}/mo`
         : '';
-      const res = await http('POST', '/api/jobs', {
-        title:       title.trim(),
+
+      const basePayload = {
         company:     company.trim(),
         category:    INDUSTRY_TO_CAT[industry] || 'Other',
         type:        jobType,
@@ -290,21 +317,29 @@ export default function PostJobScreen() {
         skills:      skills.join(', '),
         experience,
         education:   EDUCATION_OPTIONS.find(e => e.id === education)?.label || '',
-        openings,
         workHours,
         featured:    false,
         urgent:      false,
         planDays:    selectedPlan ? parseInt(selectedPlan.days) : 15,
         planLabel:   selectedPlan?.days || '15 Days',
         planPrice:   selectedPlan?.price || 79,
-      });
+      };
 
-      if (res?.ok) {
+      const jobs = multiplePos
+        ? positions.map(p => ({ title: p.title.trim(), openings: p.vacancies }))
+        : [{ title: title.trim(), openings }];
+
+      let allOk = true;
+      for (const job of jobs) {
+        const res = await http('POST', '/api/jobs', { ...basePayload, title: job.title, openings: job.openings });
+        if (!res?.ok) { allOk = false; Alert.alert('Error', res?.error || 'Failed to post job.'); break; }
+      }
+
+      if (allOk) {
         await loadJobs?.();
-        Toast.show({ type: 'success', text1: '✅ Job posted!', text2: 'Your listing is now live.' });
+        const count = jobs.length;
+        Toast.show({ type: 'success', text1: count > 1 ? `✅ ${count} jobs posted!` : '✅ Job posted!', text2: 'Your listing is now live.' });
         nav.goBack();
-      } else {
-        Alert.alert('Error', res?.error || 'Failed to post job. Please try again.');
       }
     } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -345,7 +380,7 @@ export default function PostJobScreen() {
               </View>
               <Switch
                 value={multiplePos}
-                onValueChange={setMultiplePos}
+                onValueChange={handleMultiToggle}
                 trackColor={{ false: '#e0e0e0', true: '#fed7aa' }}
                 thumbColor={multiplePos ? ORANGE : '#ddd'}
               />
@@ -359,19 +394,62 @@ export default function PostJobScreen() {
             <SectionLabel text="INDUSTRY / CATEGORY" required />
             <Dropdown value={industry} options={INDUSTRIES} placeholder="Select Category" onSelect={setIndustry} />
 
-            <View style={{ height: 18 }} />
-            <SectionLabel text="JOB TITLE" required />
-            <StyledInput value={title} onChangeText={setTitle} placeholder="e.g. Delivery Executive, Telecaller" maxLength={100} />
+            {/* ── Single position ── */}
+            {!multiplePos && <>
+              <View style={{ height: 18 }} />
+              <SectionLabel text="JOB TITLE" required />
+              <StyledInput value={title} onChangeText={setTitle} placeholder="e.g. Delivery Executive, Telecaller" maxLength={100} />
+
+              <View style={{ height: 18 }} />
+              <SectionLabel text="NUMBER OF OPENINGS" />
+              <Dropdown value={openings} options={OPENINGS_OPTIONS} placeholder="Select openings" onSelect={setOpenings} />
+            </>}
+
+            {/* ── Multiple positions ── */}
+            {multiplePos && <>
+              <View style={{ height: 18 }} />
+              <SectionLabel text="POSITIONS (JOB TITLE + VACANCIES)" required />
+              {positions.map((pos, idx) => (
+                <View key={pos.id} style={s.posCard}>
+                  <View style={s.posHeader}>
+                    <Text style={s.posIndex}>Position {idx + 1}</Text>
+                    {positions.length > 1 && (
+                      <TouchableOpacity onPress={() => removePosition(pos.id)} style={s.posRemove}>
+                        <Ionicons name="close-circle" size={20} color="#f87171" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <StyledInput
+                    value={pos.title}
+                    onChangeText={v => updatePosition(pos.id, 'title', v)}
+                    placeholder="e.g. Delivery Executive, Telecaller"
+                    maxLength={100}
+                  />
+                  <View style={{ height: 10 }} />
+                  <Text style={s.posVacLbl}>VACANCIES</Text>
+                  <View style={s.posVacRow}>
+                    {OPENINGS_OPTIONS.map(n => (
+                      <TouchableOpacity
+                        key={n}
+                        style={[s.posVacBtn, pos.vacancies === n && s.posVacBtnOn]}
+                        onPress={() => updatePosition(pos.id, 'vacancies', n)}>
+                        <Text style={[s.posVacTxt, pos.vacancies === n && s.posVacTxtOn]}>{n}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
+              <TouchableOpacity style={s.addPosBtn} onPress={addPosition}>
+                <Ionicons name="add-circle-outline" size={20} color={ORANGE} />
+                <Text style={s.addPosTxt}>Add Another Position</Text>
+              </TouchableOpacity>
+            </>}
 
             <View style={{ height: 18 }} />
             <SectionLabel text="JOB TYPE" />
             {JOB_TYPES.map(jt => (
               <RadioRow key={jt.id} label={jt.label} sub={jt.sub} active={jobType === jt.id} onPress={() => setJobType(jt.id)} />
             ))}
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="NUMBER OF OPENINGS" />
-            <Dropdown value={openings} options={OPENINGS_OPTIONS} placeholder="Select openings" onSelect={setOpenings} />
           </View>
         </>}
 
@@ -487,11 +565,18 @@ export default function PostJobScreen() {
             <Text style={s.revHead}>Review your job listing before going live:</Text>
 
             <View style={s.revGroup}>
-              <ReviewRow label="TITLE"    value={title    || 'Not set'} />
               <ReviewRow label="COMPANY"  value={company  || 'Not set'} />
               <ReviewRow label="CATEGORY" value={industry || 'Not set'} />
               <ReviewRow label="TYPE"     value={jobType} />
-              <ReviewRow label="OPENINGS" value={openings} />
+              {multiplePos
+                ? positions.map((p, i) => (
+                    <ReviewRow key={p.id} label={`POSITION ${i+1}`} value={`${p.title || 'Untitled'} — ${p.vacancies} opening${p.vacancies === '1' ? '' : 's'}`} />
+                  ))
+                : <>
+                    <ReviewRow label="TITLE"    value={title    || 'Not set'} />
+                    <ReviewRow label="OPENINGS" value={openings} />
+                  </>
+              }
             </View>
 
             <View style={[s.revGroup, { marginTop: 12 }]}>
@@ -705,4 +790,18 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 }, elevation: 5,
   },
   continueTxt: { fontSize: 16, fontWeight: '800', color: '#fff' },
+
+  // Multiple positions
+  posCard:    { backgroundColor: '#fafafa', borderWidth: 1.5, borderColor: '#ececec', borderRadius: 14, padding: 14, marginBottom: 12 },
+  posHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  posIndex:   { fontSize: 12, fontWeight: '800', color: ORANGE, letterSpacing: 0.5, textTransform: 'uppercase' },
+  posRemove:  { padding: 2 },
+  posVacLbl:  { fontSize: 11, fontWeight: '700', color: '#aaa', letterSpacing: 0.6, marginBottom: 8 },
+  posVacRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  posVacBtn:  { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: '#f0f0f0', borderWidth: 1.5, borderColor: '#e0e0e0' },
+  posVacBtnOn:{ backgroundColor: '#fff7ed', borderColor: ORANGE },
+  posVacTxt:  { fontSize: 13, fontWeight: '700', color: '#666' },
+  posVacTxtOn:{ color: ORANGE },
+  addPosBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 4, justifyContent: 'center', borderWidth: 1.5, borderColor: ORANGE, borderStyle: 'dashed', borderRadius: 12, marginTop: 2, backgroundColor: '#fff8f3' },
+  addPosTxt:  { fontSize: 14, fontWeight: '700', color: ORANGE },
 });
