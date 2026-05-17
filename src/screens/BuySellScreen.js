@@ -26,11 +26,11 @@ export const SAMPLE_ITEMS = [
   { id: 6, title: 'Single Bed with Mattress', price: '₹3,500', cat: 'Furniture', loc: 'Cidco', time: '2d ago', emoji: '🛏️', condition: 'Used' },
 ];
 
-export default function BuySellScreen() {
+export default function BuySellScreen({ route }) {
   const nav = useNavigation();
   const { t } = useLang();
   const [activeCat, setActiveCat] = useState('All');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(route?.params?.searchQuery || '');
 
   const filtered = SAMPLE_ITEMS.filter(item => {
     const matchCat = activeCat === 'All' || item.cat === activeCat;
