@@ -266,21 +266,21 @@ export default function BoardScreen({ route }) {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f5f5f5' },
+  root: { flex: 1, backgroundColor: '#fff' },
 
   // Header
   pageHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, backgroundColor: '#f5f5f5',
+    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingTop: 18, paddingBottom: 6, backgroundColor: '#fff',
   },
-  pageTitle:  { fontSize: 22, fontWeight: '800', color: '#111' },
-  pageCount:  { fontSize: 12, color: '#aaa', fontWeight: '500', marginTop: 2 },
+  pageTitle:  { fontSize: 24, fontWeight: '800', color: '#111', letterSpacing: -0.3 },
+  pageCount:  { fontSize: 12, color: '#999', fontWeight: '500', marginTop: 3 },
   filterIconBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e5e5',
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: '#f5f5f5', borderWidth: 0,
     alignItems: 'center', justifyContent: 'center', position: 'relative',
   },
-  filterIconBtnActive: { backgroundColor: '#111', borderColor: '#111' },
+  filterIconBtnActive: { backgroundColor: '#111' },
   filterBadge: {
     position: 'absolute', top: -3, right: -3,
     width: 16, height: 16, borderRadius: 8,
@@ -291,43 +291,43 @@ const s = StyleSheet.create({
   // Search
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderRadius: 12,
-    borderWidth: 1, borderColor: '#ebebeb',
-    marginHorizontal: 16, marginVertical: 10,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 }, elevation: 1,
+    backgroundColor: '#fff', borderRadius: 14,
+    borderWidth: 1, borderColor: '#e8e8e8',
+    marginHorizontal: 16, marginTop: 8, marginBottom: 12,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  searchInput: { flex: 1, paddingVertical: 12, paddingHorizontal: 10, fontSize: 13, color: '#111' },
+  searchInput: { flex: 1, paddingVertical: 13, paddingHorizontal: 8, fontSize: 14, color: '#111' },
   searchFilterBtn: {
-    width: 44, height: 44, alignItems: 'center', justifyContent: 'center',
-    borderLeftWidth: 1, borderLeftColor: '#ebebeb',
+    width: 46, height: 46, alignItems: 'center', justifyContent: 'center',
+    borderLeftWidth: 1, borderLeftColor: '#f0f0f0',
   },
 
   // Pills
-  pillsRow: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
+  pillsRow: { paddingHorizontal: 16, paddingBottom: 12, gap: 8, alignItems: 'center' },
   pill: {
-    borderWidth: 1, borderColor: '#e0e0e0',
-    backgroundColor: '#fff', paddingVertical: 7, paddingHorizontal: 16, borderRadius: 20,
+    borderWidth: 1.5, borderColor: '#e0e0e0',
+    backgroundColor: '#fff', paddingVertical: 8, paddingHorizontal: 18, borderRadius: 24,
   },
   pillActive:   { backgroundColor: '#111', borderColor: '#111' },
-  pillTxt:      { fontSize: 12, fontWeight: '600', color: '#555' },
-  pillTxtActive:{ color: '#fff' },
+  pillTxt:      { fontSize: 13, fontWeight: '600', color: '#555' },
+  pillTxtActive:{ color: '#fff', fontWeight: '700' },
 
   // Hiring Banner
   hiringBanner: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#fff8f3', borderRadius: 14, borderWidth: 1, borderColor: '#fed7aa',
-    padding: 14, marginBottom: 12, gap: 10,
+    padding: 14, marginBottom: 12, gap: 12,
   },
   hiringIconWrap: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 38, height: 38, borderRadius: 10,
     backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center',
   },
-  hiringTitle: { fontSize: 13, fontWeight: '700', color: '#111' },
-  hiringSub:   { fontSize: 11, color: '#888', marginTop: 2 },
+  hiringTitle: { fontSize: 14, fontWeight: '700', color: '#111' },
+  hiringSub:   { fontSize: 12, color: '#999', marginTop: 2 },
 
   // List
-  list: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32 },
+  list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
 
   // Filter Modal
   overlay: {
