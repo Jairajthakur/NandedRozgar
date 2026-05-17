@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Easing, StatusBar, TextInput, Modal,
@@ -10,14 +10,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { C, CAT_ICONS } from '../utils/constants';
 import { useLang, LANGUAGES } from '../utils/i18n';
-import { timeAgo } from '../utils/api';
-import { CARS } from './CarScreen';
-import { ROOMS } from './RoomScreen';
-import { SAMPLE_ITEMS } from './BuySellScreen';
+import { timeAgo, http } from '../utils/api';
 
-const ORANGE = '#f97316';
-const TEAL   = '#0d9488';
-const PURPLE = '#7c3aed';
+const ORANGE    = '#f97316';
+const TEAL      = '#0d9488';
+const PURPLE    = '#7c3aed';
+// Dark ticker colour matching Image 3 reference design
+const TICKER_BG = '#1a1a2e';
 const { width: SCREEN_W } = Dimensions.get('window');
 
 // ── Animated Pressable ────────────────────────────────────────────────────────
@@ -71,12 +70,13 @@ function AnimatedStat({ value, label, delay = 0 }) {
   const anim = useRef(new Animated.Value(0)).current;
   const [display, setDisplay] = useState(0);
   useEffect(() => {
+    anim.setValue(0);
     const timer = setTimeout(() => {
       Animated.timing(anim, { toValue: value, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
     }, delay);
     const id = anim.addListener(({ value: v }) => setDisplay(Math.round(v)));
     return () => { clearTimeout(timer); anim.removeListener(id); };
-  }, []);
+  }, [value]);
   return (
     <View style={s.statItem}>
       <Text style={s.statNum}>{display}+</Text>
@@ -113,7 +113,8 @@ function LangModal({ visible, current, onSelect, onClose }) {
   );
 }
 
-// ── Scrolling Ticker ──────────────────────────────────────────────────────────
+// ── Scrolling Ticker — seamless dual-strip, never shows empty gap ─────────────
+// Spellings corrected throughout
 const TICKER_ITEMS = [
   '🟢 HIRING NOW',
   '🚚 DELIVERY JOBS',
@@ -126,34 +127,55 @@ const TICKER_ITEMS = [
 ];
 
 function TickerBanner() {
-  const translateX = useRef(new Animated.Value(SCREEN_W)).current;
-  const fullText = TICKER_ITEMS.join('   •   ');
+  const anim1 = useRef(new Animated.Value(0)).current;
+  const anim2 = useRef(new Animated.Value(0)).current;
+
+  const fullText  = TICKER_ITEMS.join('   •   ') + '   •   ';
+  // Rough pixel width of one block of text at fontSize 12
+  const textWidth = fullText.length * 8.2;
+  const duration  = textWidth * 22; // keep speed consistent regardless of text length
 
   useEffect(() => {
-    const totalDist = SCREEN_W + fullText.length * 8.2;
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateX, {
-          toValue: -fullText.length * 8.2,
-          duration: totalDist * 22,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateX, {
-          toValue: SCREEN_W,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ])
+    // Strip 1 starts at x=0, strip 2 starts just after strip 1 (offset by textWidth)
+    anim1.setValue(0);
+    anim2.setValue(textWidth);
+
+    // Both strips scroll left independently in an infinite loop.
+    // When a strip scrolls out completely to the left (-textWidth),
+    // the loop resets it back to 0 (start) which is seamlessly
+    // behind the other strip — no gap ever appears.
+    const loop1 = Animated.loop(
+      Animated.timing(anim1, {
+        toValue: -textWidth,
+        duration,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
     );
-    anim.start();
-    return () => anim.stop();
+    const loop2 = Animated.loop(
+      Animated.timing(anim2, {
+        toValue: -textWidth,
+        duration,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+
+    loop1.start();
+    loop2.start();
+    return () => { loop1.stop(); loop2.stop(); };
   }, []);
 
   return (
     <View style={s.ticker}>
       <Animated.Text
-        style={[s.tickerText, { transform: [{ translateX }] }]}
+        style={[s.tickerText, { transform: [{ translateX: anim1 }] }]}
+        numberOfLines={1}
+      >
+        {fullText}
+      </Animated.Text>
+      <Animated.Text
+        style={[s.tickerText, { transform: [{ translateX: anim2 }] }]}
         numberOfLines={1}
       >
         {fullText}
@@ -186,7 +208,6 @@ function ExploreCard({ icon, title, subtitle, color, onPress, style }) {
 function FeaturedJobCard({ job, onPress }) {
   return (
     <AnimatedPress style={s.featJobCard} onPress={onPress}>
-      {/* Icon + Title row */}
       <View style={s.featJobTop}>
         <View style={s.featJobIcon}>
           <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={18} color={ORANGE} />
@@ -196,7 +217,6 @@ function FeaturedJobCard({ job, onPress }) {
           <Text style={s.featJobCompany} numberOfLines={1}>{job.company}</Text>
         </View>
       </View>
-      {/* Salary + Apply on same row */}
       <View style={s.featJobBottom}>
         <Text style={s.featJobSalary}>{job.salary}</Text>
         <TouchableOpacity style={s.applyBtn} onPress={onPress} activeOpacity={0.85}>
@@ -207,30 +227,38 @@ function FeaturedJobCard({ job, onPress }) {
   );
 }
 
-// ── Recent Room Card ──────────────────────────────────────────────────────────
+// ── Recent Room Card — supports both DB shape and local shape ─────────────────
 function RecentRoomCard({ room, onPress }) {
+  const title    = room.title    || (room.bhk_size ? `${room.bhk_size} – ${room.area}` : room.area || 'Room');
+  const location = room.location || room.area || 'Nanded';
+  const type     = room.type     || room.room_type || room.bhk_size || 'Room';
+  const rent     = room.rent
+    ? (String(room.rent).startsWith('₹') ? room.rent : `₹${room.rent}/mo`)
+    : 'Price on request';
+  const available = room.available !== undefined ? room.available : room.status === 'active';
+
   return (
     <AnimatedPress style={s.roomCard} onPress={onPress}>
       <View style={s.roomImgPlaceholder}>
         <Ionicons name="home-outline" size={36} color="rgba(255,255,255,0.4)" />
-        {room.available && (
+        {available && (
           <View style={s.availBadge}>
             <Text style={s.availTxt}>Available</Text>
           </View>
         )}
       </View>
       <View style={s.roomInfo}>
-        <Text style={s.roomTitle} numberOfLines={1}>{room.title}</Text>
+        <Text style={s.roomTitle} numberOfLines={1}>{title}</Text>
         <View style={s.roomMeta}>
           <View style={s.roomChip}>
             <Ionicons name="location-outline" size={11} color="#777" />
-            <Text style={s.roomChipTxt}>{room.location}</Text>
+            <Text style={s.roomChipTxt}>{location}</Text>
           </View>
           <View style={s.roomChip}>
-            <Text style={s.roomChipTxt}>{room.type}</Text>
+            <Text style={s.roomChipTxt}>{type}</Text>
           </View>
         </View>
-        <Text style={s.roomRent}>{room.rent}</Text>
+        <Text style={s.roomRent}>{rent}</Text>
       </View>
     </AnimatedPress>
   );
@@ -311,43 +339,78 @@ function RecentJobCard({ job, onPress, index = 0 }) {
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const nav = useNavigation();
-  const { jobs, user, role } = useAuth();
-  const { lang, changeLang, t } = useLang();
+  const { jobs, user } = useAuth();
+  const { lang, changeLang } = useLang();
   const insets = useSafeAreaInsets();
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [searchText, setSearchText] = useState('');
 
-  const currentLang = LANGUAGES.find(l => l.code === lang);
-  const langBtnLabel = currentLang?.native || 'EN';
-  const activeJobs = jobs?.filter(j => j.status === 'active') || [];
-  const recentJobs = activeJobs
+  // ── Live data state ───────────────────────────────────────────────────────
+  const [rooms,    setRooms]    = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [stats,    setStats]    = useState({ jobs: 842, rooms: 324, vehicles: 156, items: 580 });
+
+  // ── Fetch rooms + vehicles from backend ───────────────────────────────────
+  const fetchHomeData = useCallback(async () => {
+    try {
+      const [roomRes, vehicleRes] = await Promise.all([
+        http('GET', '/api/rooms'),
+        http('GET', '/api/vehicles'),
+      ]);
+      if (roomRes?.ok && Array.isArray(roomRes.rooms))       setRooms(roomRes.rooms);
+      if (vehicleRes?.ok && Array.isArray(vehicleRes.vehicles)) setVehicles(vehicleRes.vehicles);
+
+      // Update stats from live counts
+      const liveJobs    = jobs?.filter(j => j.status === 'active').length || 0;
+      const liveRooms   = roomRes?.rooms?.length    || 0;
+      const liveVehicles= vehicleRes?.vehicles?.length || 0;
+      setStats(prev => ({
+        jobs:     liveJobs     > 0 ? liveJobs      : prev.jobs,
+        rooms:    liveRooms    > 0 ? liveRooms      : prev.rooms,
+        vehicles: liveVehicles > 0 ? liveVehicles   : prev.vehicles,
+        items:    prev.items,
+      }));
+    } catch {}
+  }, [jobs]);
+
+  useEffect(() => { fetchHomeData(); }, []);
+
+  // ── Derived display data ──────────────────────────────────────────────────
+  const currentLang    = LANGUAGES.find(l => l.code === lang);
+  const langBtnLabel   = currentLang?.native || 'EN';
+  const activeJobs     = jobs?.filter(j => j.status === 'active') || [];
+  const recentJobs     = activeJobs
     .sort((a, b) =>
-      ((b.featured ? 2 : 0) + (b.urgent ? 1 : 0)) - ((a.featured ? 2 : 0) + (a.urgent ? 1 : 0)) ||
+      ((b.featured ? 2 : 0) + (b.urgent ? 1 : 0)) -
+      ((a.featured ? 2 : 0) + (a.urgent ? 1 : 0)) ||
       b.timestamp - a.timestamp)
     .slice(0, 3);
 
-  const carCount  = CARS?.length || 156;
-  const roomCount = ROOMS?.length || 324;
-
+  // ── Fallback demo data (shown only when database is empty) ────────────────
   const featuredDemoJobs = [
-    { id: 'f1', title: 'Delivery Executive', company: 'Swiggy Instamart', salary: '₹15k-20k/mo', category: 'Delivery', status: 'active', location: 'Nanded', timestamp: Date.now() - 3600000 * 2 },
-    { id: 'f2', title: 'Data Entry Operator', company: 'TechSoft Solutions', salary: '₹10k-12k/mo', category: 'Data Entry', status: 'active', location: 'Nanded', timestamp: Date.now() - 86400000, verified_employer: true },
-    { id: 'f3', title: 'Security Guard', company: 'Cybex Solution', salary: '₹10,000/mo', category: 'Security', status: 'active', location: 'Kabra Nagar', timestamp: Date.now() - 86400000 },
-    { id: 'f4', title: 'Telecaller', company: 'Dhanraj Enterprises', salary: '₹12,000/mo', category: 'TeleCaller', status: 'active', location: 'Maharana Pratap Chowk', timestamp: Date.now() - 86400000 * 5, fresher_ok: true },
+    { id: 'f1', title: 'Delivery Executive',  company: 'Swiggy Instamart',    salary: '₹15k–20k/mo', category: 'Delivery',   status: 'active', location: 'Nanded',               timestamp: Date.now() - 3600000 * 2 },
+    { id: 'f2', title: 'Data Entry Operator', company: 'TechSoft Solutions',  salary: '₹10k–12k/mo', category: 'Data Entry', status: 'active', location: 'Nanded',               timestamp: Date.now() - 86400000, verified_employer: true },
+    { id: 'f3', title: 'Security Guard',      company: 'Cybex Solution',      salary: '₹10,000/mo',  category: 'Security',   status: 'active', location: 'Kabra Nagar',          timestamp: Date.now() - 86400000 },
+    { id: 'f4', title: 'Telecaller',          company: 'Dhanraj Enterprises', salary: '₹12,000/mo',  category: 'TeleCaller', status: 'active', location: 'Maharana Pratap Chowk',timestamp: Date.now() - 86400000 * 5, fresher_ok: true },
   ];
 
   const demoJobs = [
-    { id: 'demo1', title: 'Telecaller', company: 'Dhanraj Enterprises', location: 'Nanded', salary: '₹12,000/mo', category: 'Other', icon: 'call-outline', fresher_ok: true, skills: ['Marathi', 'Hindi'], jobTime: 'Full time' },
-    { id: 'demo2', title: 'Web Developer', company: 'TechSoft Solutions', location: 'Nanded', salary: '₹25,000/mo', category: 'Other', icon: 'globe-outline', experience: '1 yr exp', skills: ['React', 'Node.js'], verified_employer: true, jobTime: 'Full time' },
-    { id: 'demo3', title: 'Shop Assistant', company: 'Reliance Retail', location: 'Station Road', salary: '₹12,000/mo', category: 'Shop Assistant', icon: 'storefront-outline', fresher_ok: true, skills: ['Customer service', 'Billing'], jobTime: 'Full time' },
+    { id: 'demo1', title: 'Telecaller',    company: 'Dhanraj Enterprises', location: 'Nanded',       salary: '₹12,000/mo', category: 'Other', icon: 'call-outline',       fresher_ok: true,  skills: ['Marathi', 'Hindi'],           jobTime: 'Full time' },
+    { id: 'demo2', title: 'Web Developer', company: 'TechSoft Solutions',  location: 'Nanded',       salary: '₹25,000/mo', category: 'Other', icon: 'globe-outline',      experience: '1 yr exp', skills: ['React', 'Node.js'], verified_employer: true, jobTime: 'Full time' },
+    { id: 'demo3', title: 'Shop Assistant',company: 'Reliance Retail',     location: 'Station Road', salary: '₹12,000/mo', category: 'Shop Assistant', icon: 'storefront-outline', fresher_ok: true, skills: ['Customer service', 'Billing'], jobTime: 'Full time' },
   ];
-  const displayJobs = recentJobs.length > 0 ? recentJobs : demoJobs;
-  const displayFeatured = activeJobs.length > 0 ? activeJobs.slice(0, 4) : featuredDemoJobs;
-  const displayRooms = ROOMS?.slice(0, 3) || [];
 
-  const handleSearch = () => {
-    if (searchText.trim()) nav.navigate('Jobs');
-  };
+  const demoRooms = [
+    { id: 'r1', title: '1BHK Flat – Vazirabad',       location: 'Vazirabad',    type: '1BHK',   rent: '₹5,500/mo',  available: true },
+    { id: 'r2', title: 'Single Room – Station Road',  location: 'Station Road', type: 'Single', rent: '₹3,000/mo',  available: true },
+    { id: 'r3', title: 'PG for Girls – Shivaji Nagar',location: 'Shivaji Nagar',type: 'PG',     rent: '₹4,200/mo',  available: true },
+  ];
+
+  const displayJobs     = recentJobs.length > 0  ? recentJobs           : demoJobs;
+  const displayFeatured = activeJobs.length > 0  ? activeJobs.slice(0,4): featuredDemoJobs;
+  const displayRooms    = rooms.length > 0        ? rooms.slice(0, 3)    : demoRooms;
+
+  const handleSearch = () => { if (searchText.trim()) nav.navigate('Jobs'); };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
@@ -411,16 +474,16 @@ export default function HomeScreen() {
           </View>
         </FadeSlide>
 
-        {/* ── Stats Row ── */}
+        {/* ── Stats Row — live from backend ── */}
         <FadeSlide delay={80}>
           <View style={s.statsRow}>
-            <AnimatedStat value={842} label="Active Jobs" delay={300} />
+            <AnimatedStat value={stats.jobs}     label="Active Jobs" delay={300} />
             <View style={s.statDivider} />
-            <AnimatedStat value={324} label="Rooms"       delay={450} />
+            <AnimatedStat value={stats.rooms}    label="Rooms"       delay={450} />
             <View style={s.statDivider} />
-            <AnimatedStat value={carCount} label="Vehicles"    delay={600} />
+            <AnimatedStat value={stats.vehicles} label="Vehicles"    delay={600} />
             <View style={s.statDivider} />
-            <AnimatedStat value={580} label="Items"       delay={750} />
+            <AnimatedStat value={stats.items}    label="Items"       delay={750} />
           </View>
         </FadeSlide>
 
@@ -431,7 +494,7 @@ export default function HomeScreen() {
             <ExploreCard
               icon="briefcase-outline"
               title="Jobs"
-              subtitle={`${activeJobs.length || 842}+ openings`}
+              subtitle={`${stats.jobs}+ openings`}
               color={ORANGE}
               onPress={() => nav.navigate('Jobs')}
               style={{ marginRight: 8 }}
@@ -439,7 +502,7 @@ export default function HomeScreen() {
             <ExploreCard
               icon="home-outline"
               title="Rooms"
-              subtitle={`${roomCount}+ listings`}
+              subtitle={`${stats.rooms}+ listings`}
               color={TEAL}
               onPress={() => nav.navigate('Rooms')}
             />
@@ -448,7 +511,7 @@ export default function HomeScreen() {
             <ExploreCard
               icon="car-sport-outline"
               title="Vehicles"
-              subtitle={`${carCount}+ for rent`}
+              subtitle={`${stats.vehicles}+ for rent`}
               color={PURPLE}
               onPress={() => nav.navigate('Cars')}
               style={{ marginRight: 8 }}
@@ -456,19 +519,19 @@ export default function HomeScreen() {
             <ExploreCard
               icon="pricetag-outline"
               title="Buy & Sell"
-              subtitle="580+ items"
+              subtitle={`${stats.items}+ items`}
               color={ORANGE}
               onPress={() => nav.navigate('BuySell')}
             />
           </View>
         </FadeSlide>
 
-        {/* ── Scrolling Ticker ── */}
+        {/* ── Ticker — seamless, dark background, correct spellings ── */}
         <FadeSlide delay={160}>
           <TickerBanner />
         </FadeSlide>
 
-        {/* ── Featured Jobs (horizontal scroll) ── */}
+        {/* ── Featured Jobs (horizontal scroll) — live from backend ── */}
         <FadeSlide delay={200}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>Featured Jobs</Text>
@@ -478,7 +541,7 @@ export default function HomeScreen() {
           </View>
           <FlatList
             data={displayFeatured}
-            keyExtractor={j => j.id}
+            keyExtractor={j => String(j.id)}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 4 }}
@@ -491,7 +554,7 @@ export default function HomeScreen() {
           />
         </FadeSlide>
 
-        {/* ── Recent Rooms ── */}
+        {/* ── Recent Rooms — live from backend ── */}
         <FadeSlide delay={260}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>Recent Rooms</Text>
@@ -501,7 +564,7 @@ export default function HomeScreen() {
           </View>
           {displayRooms.map(room => (
             <RecentRoomCard
-              key={room.id}
+              key={String(room.id)}
               room={room}
               onPress={() => nav.navigate('RoomDetail', { room })}
             />
@@ -527,6 +590,7 @@ export default function HomeScreen() {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
 
@@ -538,17 +602,17 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 }, elevation: 4,
   },
-  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  brandText: { fontSize: 20, fontWeight: '900', letterSpacing: 0.2 },
-  brandNanded: { color: '#111111' },
-  brandRozgar: { color: ORANGE },
-  locRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
-  locText: { color: '#888', fontSize: 11, fontWeight: '500' },
+  headerTop:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brandText:       { fontSize: 20, fontWeight: '900', letterSpacing: 0.2 },
+  brandNanded:     { color: '#111111' },
+  brandRozgar:     { color: ORANGE },
+  locRow:          { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  locText:         { color: '#888', fontSize: 11, fontWeight: '500' },
   profileBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center',
   },
-  profileInitial: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  profileInitial:  { color: '#fff', fontSize: 15, fontWeight: '800' },
   bellBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center',
@@ -574,8 +638,8 @@ const s = StyleSheet.create({
     position: 'absolute', width: 130, height: 130, borderRadius: 65,
     backgroundColor: 'rgba(255,255,255,0.08)', bottom: -40, right: 60,
   },
-  heroTitle: { fontSize: 28, fontWeight: '900', color: '#fff', lineHeight: 34, marginBottom: 6 },
-  heroSub:   { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginBottom: 18, fontWeight: '500' },
+  heroTitle:  { fontSize: 28, fontWeight: '900', color: '#fff', lineHeight: 34, marginBottom: 6 },
+  heroSub:    { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginBottom: 18, fontWeight: '500' },
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#fff', borderRadius: 12, height: 48, overflow: 'hidden',
@@ -583,7 +647,7 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 }, elevation: 5,
   },
   searchInput: { flex: 1, height: 48, paddingHorizontal: 10, fontSize: 14, color: '#333' },
-  searchBtn: { width: 46, height: 48, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
+  searchBtn:   { width: 46, height: 48, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
 
   // Stats
   statsRow: {
@@ -604,9 +668,9 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12,
   },
-  sectionTitle:          { fontSize: 17, fontWeight: '800', color: '#111' },
-  sectionTitleStandalone:{ fontSize: 17, fontWeight: '800', color: '#111', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12 },
-  seeAllBtn: { fontSize: 13, fontWeight: '700', color: ORANGE },
+  sectionTitle:           { fontSize: 17, fontWeight: '800', color: '#111' },
+  sectionTitleStandalone: { fontSize: 17, fontWeight: '800', color: '#111', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12 },
+  seeAllBtn:              { fontSize: 13, fontWeight: '700', color: ORANGE },
 
   // Explore Grid
   exploreGrid: { flexDirection: 'row', paddingHorizontal: 16 },
@@ -616,8 +680,8 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 }, elevation: 5,
   },
-  exploreInner: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
-  exploreIconWrap: {
+  exploreInner:   { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
+  exploreIconWrap:{
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center',
   },
@@ -625,20 +689,25 @@ const s = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center',
   },
-  exploreTitle: { fontSize: 15, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  exploreSub:   { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
+  exploreTitle:   { fontSize: 15, fontWeight: '800', color: '#fff', marginBottom: 4 },
+  exploreSub:     { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
   exploreCircle1: { position: 'absolute', width: 90, height: 90, borderRadius: 45, bottom: -20, right: -20 },
   exploreCircle2: { position: 'absolute', width: 60, height: 60, borderRadius: 30, bottom: 20, right: 40 },
 
-  // Ticker
+  // ── Ticker — dark background (#1a1a2e), seamless dual-strip ──────────────
   ticker: {
-    backgroundColor: ORANGE, height: 40,
-    justifyContent: 'center', overflow: 'hidden',
+    backgroundColor: TICKER_BG,
+    height: 40,
+    overflow: 'hidden',
     marginTop: 16,
   },
   tickerText: {
-    color: '#fff', fontSize: 12, fontWeight: '700',
-    letterSpacing: 0.5, whiteSpace: 'nowrap',
+    position: 'absolute',
+    top: 12,                   // vertically centred inside height:40
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 
   // Featured Jobs (horizontal)
@@ -674,13 +743,13 @@ const s = StyleSheet.create({
     backgroundColor: '#16a34a', borderRadius: 20,
     paddingVertical: 4, paddingHorizontal: 10,
   },
-  availTxt:  { color: '#fff', fontSize: 11, fontWeight: '700' },
-  roomInfo:  { padding: 14 },
-  roomTitle: { fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 8 },
-  roomMeta:  { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  roomChip:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f5f5f5', borderRadius: 20, paddingVertical: 3, paddingHorizontal: 10 },
+  availTxt:    { color: '#fff', fontSize: 11, fontWeight: '700' },
+  roomInfo:    { padding: 14 },
+  roomTitle:   { fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 8 },
+  roomMeta:    { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  roomChip:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f5f5f5', borderRadius: 20, paddingVertical: 3, paddingHorizontal: 10 },
   roomChipTxt: { fontSize: 11, color: '#666', fontWeight: '500' },
-  roomRent:  { fontSize: 16, fontWeight: '800', color: '#111' },
+  roomRent:    { fontSize: 16, fontWeight: '800', color: '#111' },
 
   // AI Card
   aiCard: {
@@ -690,10 +759,10 @@ const s = StyleSheet.create({
     shadowColor: ORANGE, shadowOpacity: 0.12, shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 }, elevation: 3,
   },
-  aiLeft:    { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  aiIconWrap:{ width: 40, height: 40, borderRadius: 11, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
-  aiTitle:   { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 3 },
-  aiPrompt:  { fontSize: 11, color: '#888', fontStyle: 'italic', lineHeight: 16 },
+  aiLeft:     { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  aiIconWrap: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
+  aiTitle:    { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 3 },
+  aiPrompt:   { fontSize: 11, color: '#888', fontStyle: 'italic', lineHeight: 16 },
 
   // Job Cards
   jobCard: {
@@ -736,10 +805,10 @@ const s = StyleSheet.create({
 });
 
 const lm = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  sheet:   { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36 },
-  title:   { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 16 },
-  row:     { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, marginBottom: 8, backgroundColor: '#f8f8f8', borderWidth: 1.5, borderColor: 'transparent' },
+  overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  sheet:        { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36 },
+  title:        { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 16 },
+  row:          { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, marginBottom: 8, backgroundColor: '#f8f8f8', borderWidth: 1.5, borderColor: 'transparent' },
   rowActive:    { borderColor: ORANGE, backgroundColor: '#fff8f3' },
   native:       { fontSize: 17, fontWeight: '700', color: '#111', minWidth: 60 },
   nativeActive: { color: ORANGE },
