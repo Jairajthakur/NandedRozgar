@@ -24,8 +24,8 @@ export default function JobCard({ job, onPress, index = 0 }) {
   const isFeatured = !!job.featured;
   const isUrgent   = !!job.urgent;
 
-  // Left orange accent bar — only for featured/urgent (Image 2 style)
-  const showAccent = isFeatured || isUrgent;
+  // Left accent bar — always shown; colour varies by priority
+  const accentColor = isUrgent ? '#ef4444' : ORANGE;
 
   const scale = useRef(new Animated.Value(1)).current;
   const handlePress = () => {
@@ -51,10 +51,8 @@ export default function JobCard({ job, onPress, index = 0 }) {
           activeOpacity={0.97}
           style={s.card}
         >
-          {/* Left accent bar for urgent/featured */}
-          {showAccent && (
-            <View style={[s.accentBar, { backgroundColor: isUrgent && !isFeatured ? '#ef4444' : ORANGE }]} />
-          )}
+          {/* Left accent bar — always visible */}
+          <View style={[s.accentBar, { backgroundColor: accentColor }]} />
 
           <View style={s.cardInner}>
             {/* Badge: URGENT or FEATURED */}
