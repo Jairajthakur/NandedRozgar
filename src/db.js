@@ -178,6 +178,64 @@ async function runMigrations() {
       );
     `);
 
+    // ── MESSAGES (in-app chat) ────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id          SERIAL PRIMARY KEY,
+        sender_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        receiver_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        job_id      INTEGER REFERENCES jobs(id)  ON DELETE SET NULL,
+        content     TEXT NOT NULL,
+        read        BOOLEAN DEFAULT FALSE,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // ── RATINGS ───────────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ratings (
+        id         SERIAL PRIMARY KEY,
+        job_id     INTEGER REFERENCES jobs(id)  ON DELETE CASCADE,
+        rater_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        rated_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        stars      INTEGER CHECK (stars BETWEEN 1 AND 5),
+        comment    TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(job_id, rater_id)
+      );
+    `);
+
+    // ── JOB ALERTS ────────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS job_alerts (
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        category   VARCHAR(50),
+        keywords   TEXT,
+        push_token TEXT,
+        active     BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(user_id, category)
+      );
+    `);
+
+    // ── SEEKER PROFILES ───────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS seeker_profiles (
+        id              SERIAL PRIMARY KEY,
+        user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+        headline        VARCHAR(200),
+        bio             TEXT,
+        skills          TEXT[],
+        experience      VARCHAR(50),
+        education       VARCHAR(100),
+        location        VARCHAR(100),
+        expected_salary VARCHAR(50),
+        open_to_work    BOOLEAN DEFAULT TRUE,
+        updated_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     // ── Safe ALTER for existing deployments (must run BEFORE indexes) ────────
     const safeAlters = [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium          BOOLEAN DEFAULT FALSE`,
@@ -220,6 +278,12 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_vehicles_status  ON vehicles(status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_rooms_status     ON rooms(status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_reports_job      ON job_reports(job_id);`);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_sender   ON messages(sender_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_ratings_rated     ON ratings(rated_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_alerts_user       ON job_alerts(user_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_seeker_user       ON seeker_profiles(user_id);`);
 
     // Fix any legacy invalid role values
     await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');`);
