@@ -15,6 +15,16 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "NandedRozgar",
+      "shortName": "NandedRozgar",
+      "description": "Local Jobs · Local Life · Nanded",
+      "themeColor": "#f97316",
+      "backgroundColor": "#111111"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.nandedrozgar.app"
