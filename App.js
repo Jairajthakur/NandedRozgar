@@ -32,6 +32,12 @@ import BuySellScreen    from './src/screens/BuySellScreen';
 import BuySellDetailScreen from './src/screens/BuySellDetailScreen';
 import OnboardingScreen, { isOnboarded } from './src/screens/OnboardingScreen';
 import ReferralScreen from './src/screens/ReferralScreen';
+import MyApplicationsScreen from './src/screens/MyApplicationsScreen';
+import SeekerProfileScreen  from './src/screens/SeekerProfileScreen';
+import AnalyticsScreen      from './src/screens/AnalyticsScreen';
+import AlertsScreen         from './src/screens/AlertsScreen';
+import ChatListScreen       from './src/screens/ChatListScreen';
+import ChatScreen           from './src/screens/ChatScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
 
 const Stack = createNativeStackNavigator();
@@ -190,7 +196,13 @@ function RootNavigator() {
       <Stack.Screen name="Profile"    component={ProfileScreen}    options={{ headerShown: true, headerTitle: t('myProfile'), ...HEADER }} />
       <Stack.Screen name="AIMatch"    component={AIScreen}         options={{ headerShown: true, headerTitle: t('aiJobMatch'), ...HEADER }} />
       <Stack.Screen name="AdminPanel"  component={AdminScreen}      options={{ headerShown: true, headerTitle: t('admin'), ...HEADER }} />
-      <Stack.Screen name="Referral"   component={ReferralScreen}   options={{ headerShown: true, headerTitle: t('referralTitle'), ...HEADER }} />
+      <Stack.Screen name="Referral"        component={ReferralScreen}        options={{ headerShown: true, headerTitle: t('referralTitle'), ...HEADER }} />
+      <Stack.Screen name="MyApplications"  component={MyApplicationsScreen}  options={{ headerShown: true, headerTitle: 'My Applications',      ...HEADER }} />
+      <Stack.Screen name="SeekerProfile"   component={SeekerProfileScreen}   options={{ headerShown: true, headerTitle: 'My Seeker Profile',     ...HEADER }} />
+      <Stack.Screen name="Analytics"       component={AnalyticsScreen}       options={{ headerShown: true, headerTitle: 'Analytics',             ...HEADER }} />
+      <Stack.Screen name="Alerts"          component={AlertsScreen}          options={{ headerShown: true, headerTitle: 'Job Alerts',            ...HEADER }} />
+      <Stack.Screen name="ChatList"        component={ChatListScreen}        options={{ headerShown: true, headerTitle: 'Messages',              ...HEADER }} />
+      <Stack.Screen name="Chat"            component={ChatScreen}            options={{ headerShown: true, headerTitle: 'Chat',                  ...HEADER }} />
     </Stack.Navigator>
   );
 }
