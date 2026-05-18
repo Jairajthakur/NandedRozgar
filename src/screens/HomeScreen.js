@@ -17,14 +17,15 @@ const TEAL      = '#0d9488';
 const PURPLE    = '#7c3aed';
 const TICKER_BG = '#1a1a2e';
 const IS_WEB    = Platform.OS === 'web';
+
 const { width: SCREEN_W } = Dimensions.get('window');
 
-// ── Animated Pressable ────────────────────────────────────────────────────────
+// ── Animated Pressable ─────────────────────────────────────────────────────────
 function AnimatedPress({ style, onPress, children }) {
   const scale = useRef(new Animated.Value(1)).current;
   const press = () => {
     Animated.sequence([
-      Animated.timing(scale, { toValue: 0.95, duration: 80, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 0.97, duration: 80, useNativeDriver: true }),
       Animated.timing(scale, { toValue: 1,    duration: 120, useNativeDriver: true }),
     ]).start();
     onPress?.();
@@ -36,14 +37,14 @@ function AnimatedPress({ style, onPress, children }) {
   );
 }
 
-// ── FadeSlide ─────────────────────────────────────────────────────────────────
+// ── FadeSlide ──────────────────────────────────────────────────────────────────
 function FadeSlide({ children, delay = 0, fromY = 24, style }) {
   const opacity    = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(fromY)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity,    { toValue: 1, duration: 420, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 420, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(opacity,    { toValue: 1, duration: 480, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 480, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
     ]).start();
   }, []);
   return (
@@ -51,7 +52,7 @@ function FadeSlide({ children, delay = 0, fromY = 24, style }) {
   );
 }
 
-// ── Pulsing dot ───────────────────────────────────────────────────────────────
+// ── Pulsing dot ────────────────────────────────────────────────────────────────
 function PulseDot({ color = ORANGE }) {
   const scale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -65,18 +66,28 @@ function PulseDot({ color = ORANGE }) {
   return <Animated.View style={[s.freshnessDot, { backgroundColor: color, transform: [{ scale }] }]} />;
 }
 
-// ── Animated stat counter ─────────────────────────────────────────────────────
-function AnimatedStat({ value, label, delay = 0 }) {
+// ── Animated stat counter ──────────────────────────────────────────────────────
+function AnimatedStat({ value, label, delay = 0, accent = ORANGE }) {
   const anim = useRef(new Animated.Value(0)).current;
   const [display, setDisplay] = useState(0);
   useEffect(() => {
     anim.setValue(0);
     const timer = setTimeout(() => {
-      Animated.timing(anim, { toValue: value, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
+      Animated.timing(anim, { toValue: value, duration: 1100, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
     }, delay);
     const id = anim.addListener(({ value: v }) => setDisplay(Math.round(v)));
     return () => { clearTimeout(timer); anim.removeListener(id); };
   }, [value]);
+
+  if (IS_WEB) {
+    return (
+      <View style={ws.statCard}>
+        <Text style={[ws.statNum, { color: accent }]}>{display}+</Text>
+        <Text style={ws.statLabel}>{label}</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={s.statItem}>
       <Text style={s.statNum}>{display}+</Text>
@@ -85,7 +96,7 @@ function AnimatedStat({ value, label, delay = 0 }) {
   );
 }
 
-// ── Lang Modal ────────────────────────────────────────────────────────────────
+// ── Lang Modal ─────────────────────────────────────────────────────────────────
 function LangModal({ visible, current, onSelect, onClose }) {
   const slideY = useRef(new Animated.Value(300)).current;
   useEffect(() => {
@@ -97,7 +108,7 @@ function LangModal({ visible, current, onSelect, onClose }) {
   return (
     <Modal transparent animationType="none" visible={visible} onRequestClose={onClose}>
       <TouchableOpacity style={lm.overlay} activeOpacity={1} onPress={onClose}>
-        <Animated.View style={[lm.sheet, { transform: [{ translateY: slideY }] }]}>
+        <Animated.View style={[lm.sheet, IS_WEB && lm.sheetWeb, { transform: [{ translateY: IS_WEB ? 0 : slideY }] }]}>
           <Text style={lm.title}>Choose Language</Text>
           {LANGUAGES.map(l => (
             <TouchableOpacity key={l.code} style={[lm.row, current === l.code && lm.rowActive]}
@@ -113,7 +124,7 @@ function LangModal({ visible, current, onSelect, onClose }) {
   );
 }
 
-// ── One-by-One Ticker — items animate in/out individually, no scrolling gap ───
+// ── Ticker ─────────────────────────────────────────────────────────────────────
 const TICKER_ITEMS = [
   { icon: 'checkmark-circle',   text: 'HIRING NOW — Nanded' },
   { icon: 'bicycle-outline',    text: 'DELIVERY JOBS AVAILABLE' },
@@ -132,17 +143,7 @@ function TickerBanner() {
   const opacity    = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(12)).current;
 
-  const bannerFadeIn  = useRef(new Animated.Value(0)).current;
-  const bannerSlideIn = useRef(new Animated.Value(-8)).current;
-
   useEffect(() => {
-    // Banner entrance
-    Animated.parallel([
-      Animated.timing(bannerFadeIn,  { toValue: 1, duration: 500, delay: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(bannerSlideIn, { toValue: 0, duration: 400, delay: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-    ]).start();
-
-    // Cycle through items one by one
     const showItem = () => {
       opacity.setValue(0);
       translateY.setValue(12);
@@ -151,10 +152,8 @@ function TickerBanner() {
         Animated.timing(translateY, { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       ]).start();
     };
-
     showItem();
     const interval = setInterval(() => {
-      // Fade out current
       Animated.parallel([
         Animated.timing(opacity,    { toValue: 0, duration: 280, easing: Easing.in(Easing.quad), useNativeDriver: true }),
         Animated.timing(translateY, { toValue: -10, duration: 280, easing: Easing.in(Easing.quad), useNativeDriver: true }),
@@ -167,34 +166,43 @@ function TickerBanner() {
         ]).start();
       });
     }, 2800);
-
     return () => clearInterval(interval);
   }, []);
 
   const item = TICKER_ITEMS[currentIndex];
   return (
-    <Animated.View style={[s.ticker, { opacity: bannerFadeIn, transform: [{ translateY: bannerSlideIn }] }]}>
+    <View style={[s.ticker, IS_WEB && ws.ticker]}>
       <Animated.View style={[s.tickerRow, { opacity, transform: [{ translateY }] }]}>
-        <Ionicons name={item.icon} size={14} color="#f97316" style={{ marginRight: 7 }} />
-        <Text style={s.tickerText} numberOfLines={1}>{item.text}</Text>
+        <Ionicons name={item.icon} size={14} color={ORANGE} style={{ marginRight: 8 }} />
+        <Text style={[s.tickerText, IS_WEB && { fontSize: 13 }]} numberOfLines={1}>{item.text}</Text>
       </Animated.View>
-    </Animated.View>
+    </View>
   );
 }
 
-// ── Explore Grid Card ─────────────────────────────────────────────────────────
+// ── Web Sidebar Nav Item ───────────────────────────────────────────────────────
+function SideNavItem({ icon, label, onPress, active }) {
+  return (
+    <TouchableOpacity style={[ws.sideNavItem, active && ws.sideNavItemActive]} onPress={onPress} activeOpacity={0.8}>
+      <Ionicons name={icon} size={18} color={active ? ORANGE : '#666'} />
+      <Text style={[ws.sideNavLabel, active && ws.sideNavLabelActive]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+// ── Explore Card ───────────────────────────────────────────────────────────────
 function ExploreCard({ icon, title, subtitle, color, onPress, style }) {
   return (
-    <AnimatedPress style={[s.exploreCard, { backgroundColor: color }, style]} onPress={onPress}>
+    <AnimatedPress style={[s.exploreCard, IS_WEB && ws.exploreCard, { backgroundColor: color }, style]} onPress={onPress}>
       <View style={s.exploreInner}>
         <View style={s.exploreIconWrap}>
-          <Ionicons name={icon} size={26} color="#fff" />
+          <Ionicons name={icon} size={IS_WEB ? 28 : 26} color="#fff" />
         </View>
         <View style={s.exploreBadge}>
           <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.8)" />
         </View>
       </View>
-      <Text style={s.exploreTitle}>{title}</Text>
+      <Text style={[s.exploreTitle, IS_WEB && ws.exploreTitle]}>{title}</Text>
       <Text style={s.exploreSub}>{subtitle}</Text>
       <View style={[s.exploreCircle1, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
       <View style={[s.exploreCircle2, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />
@@ -202,10 +210,10 @@ function ExploreCard({ icon, title, subtitle, color, onPress, style }) {
   );
 }
 
-// ── Featured Job Card (horizontal) ───────────────────────────────────────────
+// ── Featured Job Card ──────────────────────────────────────────────────────────
 function FeaturedJobCard({ job, onPress }) {
   return (
-    <AnimatedPress style={s.featJobCard} onPress={onPress}>
+    <AnimatedPress style={[s.featJobCard, IS_WEB && ws.featJobCard]} onPress={onPress}>
       <View style={s.featJobTop}>
         <View style={s.featJobIcon}>
           <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={18} color={ORANGE} />
@@ -225,7 +233,7 @@ function FeaturedJobCard({ job, onPress }) {
   );
 }
 
-// ── Recent Room Card — supports both DB shape and local shape ─────────────────
+// ── Recent Room Card ───────────────────────────────────────────────────────────
 function RecentRoomCard({ room, onPress }) {
   const title    = room.title    || (room.bhk_size ? `${room.bhk_size} – ${room.area}` : room.area || 'Room');
   const location = room.location || room.area || 'Nanded';
@@ -236,9 +244,9 @@ function RecentRoomCard({ room, onPress }) {
   const available = room.available !== undefined ? room.available : room.status === 'active';
 
   return (
-    <AnimatedPress style={s.roomCard} onPress={onPress}>
-      <View style={s.roomImgPlaceholder}>
-        <Ionicons name="home-outline" size={36} color="rgba(255,255,255,0.4)" />
+    <AnimatedPress style={[s.roomCard, IS_WEB && ws.roomCard]} onPress={onPress}>
+      <View style={[s.roomImgPlaceholder, IS_WEB && ws.roomImgPlaceholder]}>
+        <Ionicons name="home-outline" size={IS_WEB ? 44 : 36} color="rgba(255,255,255,0.4)" />
         {available && (
           <View style={s.availBadge}>
             <Text style={s.availTxt}>Available</Text>
@@ -246,7 +254,7 @@ function RecentRoomCard({ room, onPress }) {
         )}
       </View>
       <View style={s.roomInfo}>
-        <Text style={s.roomTitle} numberOfLines={1}>{title}</Text>
+        <Text style={[s.roomTitle, IS_WEB && { fontSize: 15 }]} numberOfLines={1}>{title}</Text>
         <View style={s.roomMeta}>
           <View style={s.roomChip}>
             <Ionicons name="location-outline" size={11} color="#777" />
@@ -256,13 +264,13 @@ function RecentRoomCard({ room, onPress }) {
             <Text style={s.roomChipTxt}>{type}</Text>
           </View>
         </View>
-        <Text style={s.roomRent}>{rent}</Text>
+        <Text style={[s.roomRent, IS_WEB && { fontSize: 17 }]}>{rent}</Text>
       </View>
     </AnimatedPress>
   );
 }
 
-// ── Recent Job Card (vertical list) ──────────────────────────────────────────
+// ── Recent Job Card ────────────────────────────────────────────────────────────
 function RecentJobCard({ job, onPress, index = 0 }) {
   const iconName = CAT_ICONS[job.category || job.icon] || 'briefcase';
   const ageDays = (Date.now() - (job.timestamp || 0)) / 86400000;
@@ -270,13 +278,13 @@ function RecentJobCard({ job, onPress, index = 0 }) {
   const freshnessLabel = ageDays < 1 ? 'Today'
     : ageDays < 7 ? `${Math.floor(ageDays)}d ago`
     : job.timestamp ? timeAgo(job.timestamp) : (job.jobTime || 'Recent');
-  const skills = Array.isArray(job.skills) ? job.skills.slice(0, 2) : [];
+  const skills = Array.isArray(job.skills) ? job.skills.slice(0, 3) : [];
   const expLabel = job.experience ? job.experience : job.fresher_ok ? 'Fresher OK' : null;
 
   return (
-    <FadeSlide delay={200 + index * 110}>
+    <FadeSlide delay={200 + index * 90}>
       <AnimatedPress
-        style={[s.jobCard, job.featured && s.jobCardFeatured, job.urgent && s.jobCardUrgent]}
+        style={[s.jobCard, IS_WEB && ws.jobCard, job.featured && s.jobCardFeatured, job.urgent && s.jobCardUrgent]}
         onPress={onPress}
       >
         {job.featured && (
@@ -292,11 +300,13 @@ function RecentJobCard({ job, onPress, index = 0 }) {
           </View>
         )}
         <View style={s.jobRow}>
-          <View style={s.jobThumb}><Ionicons name={iconName} size={20} color={ORANGE} /></View>
+          <View style={[s.jobThumb, IS_WEB && ws.jobThumb]}>
+            <Ionicons name={iconName} size={IS_WEB ? 24 : 20} color={ORANGE} />
+          </View>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Text style={s.jobTitle} numberOfLines={1}>{job.title}</Text>
-              {job.verified_employer && <Ionicons name="checkmark-circle" size={12} color="#16a34a" />}
+              <Text style={[s.jobTitle, IS_WEB && ws.jobTitle]} numberOfLines={1}>{job.title}</Text>
+              {job.verified_employer && <Ionicons name="checkmark-circle" size={14} color="#16a34a" />}
             </View>
             <View style={s.jobSubRow}>
               <Ionicons name="business-outline" size={11} color="#aaa" />
@@ -316,7 +326,7 @@ function RecentJobCard({ job, onPress, index = 0 }) {
             )}
           </View>
           <View style={s.salaryCol}>
-            <View style={s.priceBadge}><Text style={s.priceTxt}>{job.salary}</Text></View>
+            <View style={s.priceBadge}><Text style={[s.priceTxt, IS_WEB && { fontSize: 13 }]}>{job.salary}</Text></View>
             <View style={[s.freshnessRow, { marginTop: 6 }]}>
               {ageDays < 1 ? <PulseDot color={freshnessColor} /> : <View style={[s.freshnessDot, { backgroundColor: freshnessColor }]} />}
               <Text style={[s.jobTime, { color: freshnessColor }]}>{freshnessLabel}</Text>
@@ -334,208 +344,47 @@ function RecentJobCard({ job, onPress, index = 0 }) {
   );
 }
 
-// ── Web: Top Nav ──────────────────────────────────────────────────────────────
-function WebTopNav({ user, langBtnLabel, onLangPress, nav, searchText, setSearchText, onSearch }) {
+// ── Web Quick-Action Button ────────────────────────────────────────────────────
+function QuickAction({ icon, label, color, onPress }) {
   return (
-    <View style={ws.topNav}>
-      <View style={ws.topNavBrand}>
-        <View style={ws.topNavLogoBox}>
-          <Ionicons name="location-sharp" size={15} color={ORANGE} />
-        </View>
-        <Text style={ws.topNavBrandTxt}>
-          <Text style={{ color: '#111' }}>Nanded</Text>
-          <Text style={{ color: ORANGE }}>Rozgar</Text>
-        </Text>
+    <TouchableOpacity style={[ws.quickAction, { borderColor: color + '33' }]} onPress={onPress} activeOpacity={0.85}>
+      <View style={[ws.quickActionIcon, { backgroundColor: color + '15' }]}>
+        <Ionicons name={icon} size={20} color={color} />
       </View>
-
-      <View style={ws.topNavSearchBar}>
-        <Ionicons name="search-outline" size={16} color="#bbb" style={{ marginLeft: 14 }} />
-        <TextInput
-          style={ws.topNavSearchInput}
-          placeholder="Search jobs, rooms, vehicles..."
-          placeholderTextColor="#bbb"
-          value={searchText}
-          onChangeText={setSearchText}
-          onSubmitEditing={onSearch}
-          returnKeyType="search"
-        />
-        <TouchableOpacity style={ws.topNavSearchBtn} onPress={onSearch} activeOpacity={0.85}>
-          <Text style={ws.topNavSearchBtnTxt}>Search</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={ws.topNavActions}>
-        <TouchableOpacity style={ws.topNavLangBtn} onPress={onLangPress} activeOpacity={0.8}>
-          <Ionicons name="language" size={13} color={ORANGE} />
-          <Text style={ws.topNavLangTxt}>{langBtnLabel}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={ws.topNavBell} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
-          <Ionicons name="notifications-outline" size={20} color="#555" />
-        </TouchableOpacity>
-        <TouchableOpacity style={ws.topNavAvatar} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
-          <Text style={ws.topNavAvatarTxt}>{user?.name?.[0]?.toUpperCase() || 'J'}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      <Text style={ws.quickActionLabel}>{label}</Text>
+      <Ionicons name="chevron-forward" size={14} color="#ccc" style={{ marginLeft: 'auto' }} />
+    </TouchableOpacity>
   );
 }
 
-// ── Web: Sidebar ──────────────────────────────────────────────────────────────
-function WebSidebar({ nav, stats }) {
-  const items = [
-    { key: 'Home',    icon: 'home',         label: 'Home',       active: true },
-    { key: 'Jobs',    icon: 'briefcase',     label: 'Jobs',       count: stats.jobs },
-    { key: 'Rooms',   icon: 'business',      label: 'Rooms',      count: stats.rooms },
-    { key: 'Cars',    icon: 'car-sport',     label: 'Vehicles',   count: stats.vehicles },
-    { key: 'BuySell', icon: 'pricetag',      label: 'Buy & Sell', count: stats.items },
-    { key: 'AIMatch', icon: 'sparkles',      label: 'AI Assistant' },
-    { key: 'Profile', icon: 'person-circle', label: 'My Profile' },
-  ];
-  return (
-    <View style={ws.sidebar}>
-      <View style={ws.sidebarNav}>
-        {items.map(item => (
-          <TouchableOpacity
-            key={item.key}
-            style={[ws.sidebarItem, item.active && ws.sidebarItemActive]}
-            onPress={() => nav.navigate(item.key)}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name={item.active ? item.icon : `${item.icon}-outline`}
-              size={19}
-              color={item.active ? ORANGE : '#666'}
-            />
-            <Text style={[ws.sidebarLbl, item.active && ws.sidebarLblActive]}>{item.label}</Text>
-            {item.count !== undefined && (
-              <View style={[ws.sidebarPill, item.active && ws.sidebarPillActive]}>
-                <Text style={[ws.sidebarPillTxt, item.active && ws.sidebarPillTxtActive]}>{item.count}+</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-      <TouchableOpacity style={ws.sidebarCta} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
-        <Ionicons name="add-circle" size={17} color="#fff" />
-        <Text style={ws.sidebarCtaTxt}>Post a Listing</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ── Web: Right Panel ──────────────────────────────────────────────────────────
-function WebRightPanel({ nav, displayRooms, stats }) {
-  return (
-    <ScrollView style={ws.rightPanel} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-
-      {/* Live Stats */}
-      <Text style={ws.rpHeading}>Live Stats</Text>
-      <View style={ws.rpStatsGrid}>
-        {[
-          { v: stats.jobs,     l: 'Active Jobs' },
-          { v: stats.rooms,    l: 'Rooms' },
-          { v: stats.vehicles, l: 'Vehicles' },
-          { v: stats.items,    l: 'Items' },
-        ].map((st, i) => (
-          <View key={i} style={ws.rpStatCard}>
-            <Text style={ws.rpStatNum}>{st.v}+</Text>
-            <Text style={ws.rpStatLbl}>{st.l}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* AI Card */}
-      <TouchableOpacity style={ws.rpAiCard} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.9}>
-        <View style={ws.rpAiIcon}><Ionicons name="sparkles" size={18} color="#fff" /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={ws.rpAiTitle}>AI Career Assistant</Text>
-          <Text style={ws.rpAiSub}>Salary advice, resume tips & job matches</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={15} color="rgba(255,255,255,0.6)" />
-      </TouchableOpacity>
-
-      {/* Recent Rooms */}
-      <View style={ws.rpSectionHdr}>
-        <Text style={ws.rpHeading}>Recent Rooms</Text>
-        <TouchableOpacity onPress={() => nav.navigate('Rooms')}>
-          <Text style={ws.rpSeeAll}>See all →</Text>
-        </TouchableOpacity>
-      </View>
-      {displayRooms.map(room => {
-        const title    = room.title    || room.area   || 'Room';
-        const location = room.location || room.area   || 'Nanded';
-        const type     = room.type     || room.bhk_size || 'Room';
-        const rent     = room.rent ? (String(room.rent).startsWith('₹') ? room.rent : `₹${room.rent}/mo`) : 'On request';
-        const available = room.available !== undefined ? room.available : room.status === 'active';
-        return (
-          <TouchableOpacity key={String(room.id)} style={ws.rpRoomCard} onPress={() => nav.navigate('RoomDetail', { room })} activeOpacity={0.85}>
-            <View style={ws.rpRoomImg}>
-              <Ionicons name="home-outline" size={24} color="rgba(255,255,255,0.3)" />
-              {available && <View style={ws.rpAvailBadge}><Text style={ws.rpAvailTxt}>Available</Text></View>}
-            </View>
-            <View style={ws.rpRoomBody}>
-              <Text style={ws.rpRoomTitle} numberOfLines={1}>{title}</Text>
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
-                <View style={ws.rpRoomChip}><Text style={ws.rpRoomChipTxt}>{location}</Text></View>
-                <View style={ws.rpRoomChip}><Text style={ws.rpRoomChipTxt}>{type}</Text></View>
-              </View>
-              <Text style={ws.rpRoomRent}>{rent}</Text>
-            </View>
-          </TouchableOpacity>
-        );
-      })}
-
-      {/* Quick Links */}
-      <Text style={[ws.rpHeading, { marginTop: 20 }]}>Quick Links</Text>
-      {[
-        { icon: 'car-sport-outline', label: 'Rent a Vehicle',   screen: 'Cars',     color: PURPLE },
-        { icon: 'pricetag-outline',  label: 'Buy & Sell Items',  screen: 'BuySell',  color: ORANGE },
-        { icon: 'people-outline',    label: 'Referral Program',  screen: 'Referral', color: TEAL },
-      ].map(lnk => (
-        <TouchableOpacity key={lnk.label} style={ws.rpLink} onPress={() => nav.navigate(lnk.screen)} activeOpacity={0.8}>
-          <View style={[ws.rpLinkIcon, { backgroundColor: lnk.color + '18' }]}>
-            <Ionicons name={lnk.icon} size={15} color={lnk.color} />
-          </View>
-          <Text style={ws.rpLinkTxt}>{lnk.label}</Text>
-          <Ionicons name="chevron-forward" size={13} color="#ccc" />
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-}
-
-// ── Main ─────────────────────────────────────────────────────────────────────
+// ── Main ───────────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const nav = useNavigation();
   const { jobs, user } = useAuth();
   const { lang, changeLang } = useLang();
   const insets = useSafeAreaInsets();
   const [showLangPicker, setShowLangPicker] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText]         = useState('');
 
-  // ── Live data state ───────────────────────────────────────────────────────
   const [rooms,    setRooms]    = useState([]);
   const [vehicles, setVehicles] = useState([]);
-  const [stats,    setStats]    = useState({ jobs: 842, rooms: 324, vehicles: 156, items: 580 });
+  const [stats,    setStats]    = useState({ jobs: 7, rooms: 3, vehicles: 2, items: 580 });
 
-  // ── Fetch rooms + vehicles from backend ───────────────────────────────────
   const fetchHomeData = useCallback(async () => {
     try {
       const [roomRes, vehicleRes] = await Promise.all([
         http('GET', '/api/rooms'),
         http('GET', '/api/vehicles'),
       ]);
-      if (roomRes?.ok && Array.isArray(roomRes.rooms))       setRooms(roomRes.rooms);
+      if (roomRes?.ok && Array.isArray(roomRes.rooms))           setRooms(roomRes.rooms);
       if (vehicleRes?.ok && Array.isArray(vehicleRes.vehicles)) setVehicles(vehicleRes.vehicles);
-
-      // Update stats from live counts
-      const liveJobs    = jobs?.filter(j => j.status === 'active').length || 0;
-      const liveRooms   = roomRes?.rooms?.length    || 0;
-      const liveVehicles= vehicleRes?.vehicles?.length || 0;
+      const liveJobs     = jobs?.filter(j => j.status === 'active').length || 0;
+      const liveRooms    = roomRes?.rooms?.length    || 0;
+      const liveVehicles = vehicleRes?.vehicles?.length || 0;
       setStats(prev => ({
-        jobs:     liveJobs     > 0 ? liveJobs      : prev.jobs,
-        rooms:    liveRooms    > 0 ? liveRooms      : prev.rooms,
-        vehicles: liveVehicles > 0 ? liveVehicles   : prev.vehicles,
+        jobs:     liveJobs     > 0 ? liveJobs     : prev.jobs,
+        rooms:    liveRooms    > 0 ? liveRooms    : prev.rooms,
+        vehicles: liveVehicles > 0 ? liveVehicles : prev.vehicles,
         items:    prev.items,
       }));
     } catch {}
@@ -543,249 +392,300 @@ export default function HomeScreen() {
 
   useEffect(() => { fetchHomeData(); }, []);
 
-  // ── Derived display data ──────────────────────────────────────────────────
-  const currentLang    = LANGUAGES.find(l => l.code === lang);
-  const langBtnLabel   = currentLang?.native || 'EN';
-  const activeJobs     = jobs?.filter(j => j.status === 'active') || [];
-  const recentJobs     = activeJobs
+  const currentLang  = LANGUAGES.find(l => l.code === lang);
+  const langBtnLabel = currentLang?.native || 'EN';
+  const activeJobs   = jobs?.filter(j => j.status === 'active') || [];
+  const recentJobs   = activeJobs
     .sort((a, b) =>
       ((b.featured ? 2 : 0) + (b.urgent ? 1 : 0)) -
       ((a.featured ? 2 : 0) + (a.urgent ? 1 : 0)) ||
       b.timestamp - a.timestamp)
-    .slice(0, 3);
+    .slice(0, IS_WEB ? 5 : 3);
 
-  // ── Fallback demo data (shown only when database is empty) ────────────────
   const featuredDemoJobs = [
     { id: 'f1', title: 'Delivery Executive',  company: 'Swiggy Instamart',    salary: '₹15k–20k/mo', category: 'Delivery',   status: 'active', location: 'Nanded',               timestamp: Date.now() - 3600000 * 2 },
     { id: 'f2', title: 'Data Entry Operator', company: 'TechSoft Solutions',  salary: '₹10k–12k/mo', category: 'Data Entry', status: 'active', location: 'Nanded',               timestamp: Date.now() - 86400000, verified_employer: true },
     { id: 'f3', title: 'Security Guard',      company: 'Cybex Solution',      salary: '₹10,000/mo',  category: 'Security',   status: 'active', location: 'Kabra Nagar',          timestamp: Date.now() - 86400000 },
     { id: 'f4', title: 'Telecaller',          company: 'Dhanraj Enterprises', salary: '₹12,000/mo',  category: 'TeleCaller', status: 'active', location: 'Maharana Pratap Chowk',timestamp: Date.now() - 86400000 * 5, fresher_ok: true },
   ];
-
   const demoJobs = [
-    { id: 'demo1', title: 'Telecaller',    company: 'Dhanraj Enterprises', location: 'Nanded',       salary: '₹12,000/mo', category: 'Other', icon: 'call-outline',       fresher_ok: true,  skills: ['Marathi', 'Hindi'],           jobTime: 'Full time' },
-    { id: 'demo2', title: 'Web Developer', company: 'TechSoft Solutions',  location: 'Nanded',       salary: '₹25,000/mo', category: 'Other', icon: 'globe-outline',      experience: '1 yr exp', skills: ['React', 'Node.js'], verified_employer: true, jobTime: 'Full time' },
+    { id: 'demo1', title: 'Telecaller',    company: 'Dhanraj Enterprises', location: 'Nanded',       salary: '₹12,000/mo', category: 'Other', icon: 'call-outline',       fresher_ok: true,   skills: ['Marathi', 'Hindi'],           jobTime: 'Full time' },
+    { id: 'demo2', title: 'Web Developer', company: 'TechSoft Solutions',  location: 'Nanded',       salary: '₹25,000/mo', category: 'Other', icon: 'globe-outline',      experience: '1 yr', skills: ['React', 'Node.js'], verified_employer: true, jobTime: 'Full time' },
     { id: 'demo3', title: 'Shop Assistant',company: 'Reliance Retail',     location: 'Station Road', salary: '₹12,000/mo', category: 'Shop Assistant', icon: 'storefront-outline', fresher_ok: true, skills: ['Customer service', 'Billing'], jobTime: 'Full time' },
   ];
-
   const demoRooms = [
-    { id: 'r1', title: '1BHK Flat – Vazirabad',       location: 'Vazirabad',    type: '1BHK',   rent: '₹5,500/mo',  available: true },
-    { id: 'r2', title: 'Single Room – Station Road',  location: 'Station Road', type: 'Single', rent: '₹3,000/mo',  available: true },
-    { id: 'r3', title: 'PG for Girls – Shivaji Nagar',location: 'Shivaji Nagar',type: 'PG',     rent: '₹4,200/mo',  available: true },
+    { id: 'r1', title: '1BHK Flat – Vazirabad',        location: 'Vazirabad',     type: '1BHK',   rent: '₹5,500/mo',  available: true },
+    { id: 'r2', title: 'Single Room – Station Road',   location: 'Station Road',  type: 'Single', rent: '₹3,000/mo',  available: true },
+    { id: 'r3', title: 'PG for Girls – Shivaji Nagar', location: 'Shivaji Nagar', type: 'PG',     rent: '₹4,200/mo',  available: true },
   ];
 
-  const displayJobs     = recentJobs.length > 0  ? recentJobs           : demoJobs;
-  const displayFeatured = activeJobs.length > 0  ? activeJobs.slice(0,4): featuredDemoJobs;
-  const displayRooms    = rooms.length > 0        ? rooms.slice(0, 3)    : demoRooms;
+  const displayJobs     = recentJobs.length > 0  ? recentJobs            : demoJobs;
+  const displayFeatured = activeJobs.length > 0  ? activeJobs.slice(0,4) : featuredDemoJobs;
+  const displayRooms    = rooms.length > 0        ? rooms.slice(0, 3)     : demoRooms;
 
   const handleSearch = () => {
     const q = searchText.trim().toLowerCase();
     if (!q) return;
-
-    // Room / PG keywords
-    const roomKw = ['room', 'rooms', 'flat', 'pg', 'hostel', 'rent', 'bhk', 'house', 'accommodation', 'paying guest', '1bhk', '2bhk'];
-    // Car / vehicle keywords
-    const carKw  = ['car', 'cars', 'vehicle', 'vehicles', 'bike', 'scooter', 'rent car', 'auto', 'tempo', 'truck', 'cab', 'taxi'];
-    // Buy & Sell keywords
-    const sellKw = ['buy', 'sell', 'item', 'items', 'product', 'second hand', 'used', 'sale', 'shop', 'market', 'electronics', 'furniture', 'mobile'];
-
-    if (roomKw.some(k => q.includes(k))) {
-      nav.navigate('Rooms', { searchQuery: searchText.trim() });
-    } else if (carKw.some(k => q.includes(k))) {
-      nav.navigate('Cars', { searchQuery: searchText.trim() });
-    } else if (sellKw.some(k => q.includes(k))) {
-      nav.navigate('BuySell', { searchQuery: searchText.trim() });
-    } else {
-      // Default → Jobs (covers job, work, salary, hiring, telecaller, etc.)
-      nav.navigate('Jobs', { searchQuery: searchText.trim() });
-    }
+    const roomKw = ['room', 'rooms', 'flat', 'pg', 'hostel', 'rent', 'bhk', 'house', 'accommodation', '1bhk', '2bhk'];
+    const carKw  = ['car', 'cars', 'vehicle', 'vehicles', 'bike', 'scooter', 'auto', 'truck', 'cab'];
+    const sellKw = ['buy', 'sell', 'item', 'items', 'product', 'second hand', 'used', 'electronics', 'furniture', 'mobile'];
+    if (roomKw.some(k => q.includes(k)))      nav.navigate('Rooms',   { searchQuery: searchText.trim() });
+    else if (carKw.some(k => q.includes(k)))  nav.navigate('Cars',    { searchQuery: searchText.trim() });
+    else if (sellKw.some(k => q.includes(k))) nav.navigate('BuySell', { searchQuery: searchText.trim() });
+    else                                      nav.navigate('Jobs',    { searchQuery: searchText.trim() });
   };
 
-  // ── WEB LAYOUT ───────────────────────────────────────────────────────────────
+  // ── WEB LAYOUT ─────────────────────────────────────────────────────────────
   if (IS_WEB) {
     return (
       <View style={ws.root}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-        <WebTopNav
-          user={user}
-          langBtnLabel={langBtnLabel}
-          onLangPress={() => setShowLangPicker(true)}
-          nav={nav}
-          searchText={searchText}
-          setSearchText={setSearchText}
-          onSearch={handleSearch}
-        />
+        {/* ── Top Nav Bar ── */}
+        <View style={ws.topNav}>
+          <View style={ws.topNavInner}>
+            <View style={ws.brandRow}>
+              <Text style={ws.brandText}>
+                <Text style={ws.brandNanded}>Nanded</Text>
+                <Text style={ws.brandRozgar}>Rozgar</Text>
+              </Text>
+              <View style={ws.locRow}>
+                <Ionicons name="location-sharp" size={12} color={ORANGE} />
+                <Text style={ws.locText}>Nanded, Maharashtra</Text>
+              </View>
+            </View>
+
+            {/* Center search */}
+            <View style={ws.topSearchWrap}>
+              <Ionicons name="search" size={16} color="#aaa" style={{ marginLeft: 14 }} />
+              <TextInput
+                style={ws.topSearchInput}
+                placeholder="Search jobs, rooms, vehicles, items..."
+                placeholderTextColor="#bbb"
+                value={searchText}
+                onChangeText={setSearchText}
+                onSubmitEditing={handleSearch}
+                returnKeyType="search"
+              />
+              <TouchableOpacity style={ws.topSearchBtn} onPress={handleSearch} activeOpacity={0.9}>
+                <Text style={ws.topSearchBtnTxt}>Search</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={ws.topNavRight}>
+              <TouchableOpacity style={ws.langBtn} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
+                <Ionicons name="language" size={13} color={ORANGE} />
+                <Text style={ws.langBtnTxt}>{langBtnLabel}</Text>
+                <Ionicons name="chevron-down" size={11} color={ORANGE} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => nav.navigate('Profile')} activeOpacity={0.8} style={ws.bellBtn}>
+                <Ionicons name="notifications-outline" size={20} color="#555" />
+              </TouchableOpacity>
+              <TouchableOpacity style={ws.profileBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
+                <Text style={ws.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'T'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
 
         <LangModal visible={showLangPicker} current={lang} onSelect={changeLang} onClose={() => setShowLangPicker(false)} />
 
+        {/* ── Body: Sidebar + Main + Right Panel ── */}
         <View style={ws.body}>
-          <WebSidebar nav={nav} stats={stats} />
 
-          {/* ── Main content column ── */}
-          <ScrollView style={ws.mainScroll} contentContainerStyle={ws.mainPad} showsVerticalScrollIndicator={false}>
+          {/* ── Left Sidebar ── */}
+          <View style={ws.sidebar}>
+            <Text style={ws.sideNavSection}>BROWSE</Text>
+            <SideNavItem icon="home-outline"        label="Home"       onPress={() => {}} active />
+            <SideNavItem icon="briefcase-outline"   label="Jobs"       onPress={() => nav.navigate('Jobs')} />
+            <SideNavItem icon="home-outline"        label="Rooms"      onPress={() => nav.navigate('Rooms')} />
+            <SideNavItem icon="car-sport-outline"   label="Vehicles"   onPress={() => nav.navigate('Cars')} />
+            <SideNavItem icon="pricetag-outline"    label="Buy & Sell" onPress={() => nav.navigate('BuySell')} />
 
-            {/* Hero */}
-            <FadeSlide delay={0} fromY={-14}>
-              <View style={ws.hero}>
-                <View style={ws.heroCircle1} /><View style={ws.heroCircle2} /><View style={ws.heroCircle3} />
-                <View style={ws.heroText}>
-                  <View style={ws.heroBadge}>
-                    <View style={ws.heroBadgeDot} />
-                    <Text style={ws.heroBadgeTxt}>10,000+ opportunities in Nanded</Text>
+            <Text style={[ws.sideNavSection, { marginTop: 20 }]}>ACCOUNT</Text>
+            <SideNavItem icon="add-circle-outline"  label="Post an Ad"  onPress={() => nav.navigate('Post')} />
+            <SideNavItem icon="person-outline"      label="My Profile"  onPress={() => nav.navigate('Profile')} />
+            <SideNavItem icon="sparkles-outline"    label="AI Assistant" onPress={() => nav.navigate('AIMatch')} />
+
+            {/* Sidebar promo */}
+            <View style={ws.sidePromo}>
+              <Ionicons name="sparkles" size={20} color={ORANGE} />
+              <Text style={ws.sidePromoTitle}>AI Career Help</Text>
+              <Text style={ws.sidePromoSub}>Get salary insights & job match scores</Text>
+              <TouchableOpacity style={ws.sidePromoCta} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.85}>
+                <Text style={ws.sidePromoCtaTxt}>Try Now</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ── Main Content ── */}
+          <ScrollView style={ws.main} contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+
+            {/* ── Hero Banner ── */}
+            <FadeSlide delay={0} fromY={-16}>
+              <View style={ws.heroBanner}>
+                <View style={ws.heroCircle1} />
+                <View style={ws.heroCircle2} />
+                <View style={ws.heroCircle3} />
+                <View style={ws.heroContent}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={ws.heroTag}>🏙️ Nanded's #1 Local Platform</Text>
+                    <Text style={ws.heroTitle}>Find Jobs & Rooms{'\n'}in Nanded</Text>
+                    <Text style={ws.heroSub}>10,000+ opportunities for everyone nearby</Text>
+                    <View style={ws.heroBadges}>
+                      <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Free to Post</Text></View>
+                      <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Local Listings</Text></View>
+                      <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Verified Employers</Text></View>
+                    </View>
                   </View>
-                  <Text style={ws.heroTitle}>Find Jobs, Rooms{'\n'}& More in Nanded</Text>
-                  <Text style={ws.heroSub}>Your local marketplace for work, housing and vehicles</Text>
-                  <View style={ws.heroBtns}>
-                    <TouchableOpacity style={ws.heroBtnDark} onPress={() => nav.navigate('Jobs')} activeOpacity={0.88}>
-                      <Ionicons name="briefcase" size={15} color="#fff" />
-                      <Text style={ws.heroBtnDarkTxt}>Browse Jobs</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={ws.heroBtnLight} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
-                      <Ionicons name="add" size={15} color={ORANGE} />
-                      <Text style={ws.heroBtnLightTxt}>Post a Listing</Text>
-                    </TouchableOpacity>
+                  <View style={ws.heroStats}>
+                    <View style={ws.heroStatItem}>
+                      <Text style={ws.heroStatNum}>{stats.jobs}+</Text>
+                      <Text style={ws.heroStatLabel}>Active Jobs</Text>
+                    </View>
+                    <View style={ws.heroStatDivider} />
+                    <View style={ws.heroStatItem}>
+                      <Text style={ws.heroStatNum}>{stats.rooms}+</Text>
+                      <Text style={ws.heroStatLabel}>Rooms</Text>
+                    </View>
+                    <View style={ws.heroStatDivider} />
+                    <View style={ws.heroStatItem}>
+                      <Text style={ws.heroStatNum}>{stats.items}+</Text>
+                      <Text style={ws.heroStatLabel}>Items</Text>
+                    </View>
                   </View>
-                </View>
-                <View style={ws.heroStatsRow}>
-                  {[
-                    { n: stats.jobs,     l: 'Active Jobs' },
-                    { n: stats.rooms,    l: 'Rooms' },
-                    { n: stats.items,    l: 'Items for Sale' },
-                  ].map((st, i) => (
-                    <React.Fragment key={i}>
-                      {i > 0 && <View style={ws.heroStatDiv} />}
-                      <View style={ws.heroStatItem}>
-                        <Text style={ws.heroStatNum}>{st.n}+</Text>
-                        <Text style={ws.heroStatLbl}>{st.l}</Text>
-                      </View>
-                    </React.Fragment>
-                  ))}
                 </View>
               </View>
             </FadeSlide>
 
-            {/* Category cards */}
-            <FadeSlide delay={100}>
-              <Text style={ws.secTitle}>Explore Categories</Text>
-              <View style={ws.catGrid}>
-                {[
-                  { icon: 'briefcase-outline', title: 'Jobs',       sub: `${stats.jobs}+ openings`,    color: ORANGE,    screen: 'Jobs' },
-                  { icon: 'home-outline',       title: 'Rooms',      sub: `${stats.rooms}+ listings`,   color: TEAL,      screen: 'Rooms' },
-                  { icon: 'car-sport-outline',  title: 'Vehicles',   sub: `${stats.vehicles}+ for hire`, color: PURPLE,   screen: 'Cars' },
-                  { icon: 'pricetag-outline',   title: 'Buy & Sell', sub: `${stats.items}+ items`,      color: '#e11d48', screen: 'BuySell' },
-                ].map(cat => (
-                  <AnimatedPress key={cat.title} style={[ws.catCard, { borderTopColor: cat.color }]} onPress={() => nav.navigate(cat.screen)}>
-                    <View style={[ws.catIcon, { backgroundColor: cat.color + '15' }]}>
-                      <Ionicons name={cat.icon} size={26} color={cat.color} />
-                    </View>
-                    <Text style={ws.catTitle}>{cat.title}</Text>
-                    <Text style={ws.catSub}>{cat.sub}</Text>
-                    <View style={ws.catArrow}>
-                      <Ionicons name="arrow-forward" size={13} color={cat.color} />
-                    </View>
-                  </AnimatedPress>
-                ))}
-              </View>
-            </FadeSlide>
-
-            {/* Ticker */}
+            {/* ── Ticker ── */}
             <TickerBanner />
 
-            {/* Featured Jobs grid */}
-            <FadeSlide delay={180}>
-              <View style={ws.secHdr}>
-                <Text style={ws.secTitle}>Featured Jobs</Text>
-                <TouchableOpacity style={ws.seeAllBtn} onPress={() => nav.navigate('Jobs')}>
-                  <Text style={ws.seeAllTxt}>View all →</Text>
+            {/* ── Explore Grid ── */}
+            <FadeSlide delay={100}>
+              <View style={ws.sectionHeader}>
+                <Text style={ws.sectionTitle}>Explore Categories</Text>
+              </View>
+              <View style={ws.exploreGrid}>
+                <ExploreCard icon="briefcase-outline"  title="Jobs"       subtitle={`${stats.jobs}+ openings`}    color={ORANGE}  onPress={() => nav.navigate('Jobs')}    style={{ flex: 1, marginRight: 10 }} />
+                <ExploreCard icon="home-outline"       title="Rooms"      subtitle={`${stats.rooms}+ listings`}   color={TEAL}    onPress={() => nav.navigate('Rooms')}   style={{ flex: 1, marginRight: 10 }} />
+                <ExploreCard icon="car-sport-outline"  title="Vehicles"   subtitle={`${stats.vehicles}+ for rent`} color={PURPLE}  onPress={() => nav.navigate('Cars')}    style={{ flex: 1, marginRight: 10 }} />
+                <ExploreCard icon="pricetag-outline"   title="Buy & Sell" subtitle={`${stats.items}+ items`}      color='#0ea5e9' onPress={() => nav.navigate('BuySell')} style={{ flex: 1 }} />
+              </View>
+            </FadeSlide>
+
+            {/* ── Featured Jobs ── */}
+            <FadeSlide delay={160}>
+              <View style={ws.sectionHeader}>
+                <Text style={ws.sectionTitle}>Featured Jobs</Text>
+                <TouchableOpacity onPress={() => nav.navigate('Jobs')} style={ws.seeAllBtn}>
+                  <Text style={ws.seeAllTxt}>View All</Text>
+                  <Ionicons name="arrow-forward" size={14} color={ORANGE} />
                 </TouchableOpacity>
               </View>
-              <View style={ws.featGrid}>
+              <View style={ws.featJobsGrid}>
                 {displayFeatured.map(job => (
-                  <AnimatedPress key={String(job.id)} style={ws.featCard} onPress={() => job.status === 'active' ? nav.navigate('JobDetail', { job }) : nav.navigate('Jobs')}>
-                    <View style={ws.featCardTop}>
-                      <View style={ws.featCardIcon}>
-                        <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={20} color={ORANGE} />
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={ws.featCardTitle} numberOfLines={1}>{job.title}</Text>
-                        <Text style={ws.featCardCo} numberOfLines={1}>{job.company}</Text>
-                      </View>
-                      {job.urgent && <View style={ws.urgentTag}><Text style={ws.urgentTagTxt}>URGENT</Text></View>}
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }}>
-                      <View style={ws.featChip}><Ionicons name="location-outline" size={10} color="#777" /><Text style={ws.featChipTxt}>{job.location || 'Nanded'}</Text></View>
-                      {job.fresher_ok && <View style={[ws.featChip, { backgroundColor: '#f0fdf4' }]}><Text style={[ws.featChipTxt, { color: '#15803d' }]}>Fresher OK</Text></View>}
-                    </View>
-                    <View style={ws.featCardBottom}>
-                      <Text style={ws.featSalary}>{job.salary}</Text>
-                      <View style={ws.applyBtn}><Text style={ws.applyBtnTxt}>Apply</Text></View>
-                    </View>
-                  </AnimatedPress>
+                  <FeaturedJobCard
+                    key={String(job.id)}
+                    job={job}
+                    onPress={() => job.status === 'active' ? nav.navigate('JobDetail', { job }) : nav.navigate('Jobs')}
+                  />
                 ))}
               </View>
             </FadeSlide>
 
-            {/* Recent Jobs list */}
-            <FadeSlide delay={240}>
-              <View style={ws.secHdr}>
-                <Text style={ws.secTitle}>Recent Listings</Text>
-                <TouchableOpacity style={ws.seeAllBtn} onPress={() => nav.navigate('Jobs')}>
-                  <Text style={ws.seeAllTxt}>See all →</Text>
+            {/* ── Recent Jobs (full list) ── */}
+            <FadeSlide delay={220}>
+              <View style={ws.sectionHeader}>
+                <Text style={ws.sectionTitle}>Recent Jobs</Text>
+                <TouchableOpacity onPress={() => nav.navigate('Jobs')} style={ws.seeAllBtn}>
+                  <Text style={ws.seeAllTxt}>View All</Text>
+                  <Ionicons name="arrow-forward" size={14} color={ORANGE} />
                 </TouchableOpacity>
               </View>
-              {displayJobs.map((job, i) => {
-                const iconName = CAT_ICONS[job.category || job.icon] || 'briefcase';
-                const ageDays  = (Date.now() - (job.timestamp || 0)) / 86400000;
-                const fc       = ageDays < 1 ? '#16a34a' : ageDays < 7 ? ORANGE : '#bbb';
-                const fl       = ageDays < 1 ? 'Today' : ageDays < 7 ? `${Math.floor(ageDays)}d ago` : (job.jobTime || 'Recent');
-                const skills   = Array.isArray(job.skills) ? job.skills.slice(0, 2) : [];
-                const expLbl   = job.experience || (job.fresher_ok ? 'Fresher OK' : null);
-                return (
-                  <FadeSlide key={String(job.id)} delay={260 + i * 70}>
-                    <AnimatedPress style={[ws.jobCard, job.featured && ws.jobCardFeatured, job.urgent && ws.jobCardUrgent]} onPress={() => nav.navigate('JobDetail', { job })}>
-                      {job.featured && <View style={ws.jobBadge}><Text style={ws.jobBadgeTxt}>FEATURED</Text></View>}
-                      {job.urgent && !job.featured && <View style={[ws.jobBadge, { backgroundColor: '#ef4444' }]}><Text style={ws.jobBadgeTxt}>URGENT</Text></View>}
-                      <View style={ws.jobRow}>
-                        <View style={ws.jobThumb}><Ionicons name={iconName} size={21} color={ORANGE} /></View>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                            <Text style={ws.jobTitle} numberOfLines={1}>{job.title}</Text>
-                            {job.verified_employer && <Ionicons name="checkmark-circle" size={13} color="#16a34a" />}
-                          </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
-                            <Ionicons name="business-outline" size={11} color="#bbb" />
-                            <Text style={ws.jobCo}>{job.company}</Text>
-                          </View>
-                          <View style={ws.jobChips}>
-                            <View style={ws.jobChip}><Ionicons name="location-outline" size={10} color="#777" /><Text style={ws.jobChipTxt}>{job.location || job.loc || 'Nanded'}</Text></View>
-                            {expLbl && <View style={[ws.jobChip, { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }]}><Text style={[ws.jobChipTxt, { color: '#15803d' }]}>{expLbl}</Text></View>}
-                            {skills.map((sk, si) => <View key={si} style={ws.jobChip}><Text style={ws.jobChipTxt}>{sk}</Text></View>)}
-                          </View>
-                        </View>
-                        <View style={ws.jobRight}>
-                          <View style={ws.salaryPill}><Text style={ws.salaryPillTxt}>{job.salary}</Text></View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
-                            {ageDays < 1 ? <PulseDot color={fc} /> : <View style={[s.freshnessDot, { backgroundColor: fc }]} />}
-                            <Text style={[ws.jobTime, { color: fc }]}>{fl}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    </AnimatedPress>
-                  </FadeSlide>
-                );
-              })}
+              {displayJobs.map((job, i) => (
+                <RecentJobCard
+                  key={String(job.id)}
+                  job={job}
+                  index={i}
+                  onPress={() => nav.navigate('JobDetail', { job })}
+                />
+              ))}
+            </FadeSlide>
+
+            {/* ── Recent Rooms ── */}
+            <FadeSlide delay={280}>
+              <View style={ws.sectionHeader}>
+                <Text style={ws.sectionTitle}>Recent Rooms</Text>
+                <TouchableOpacity onPress={() => nav.navigate('Rooms')} style={ws.seeAllBtn}>
+                  <Text style={ws.seeAllTxt}>View All</Text>
+                  <Ionicons name="arrow-forward" size={14} color={ORANGE} />
+                </TouchableOpacity>
+              </View>
+              <View style={ws.roomsGrid}>
+                {displayRooms.map(room => (
+                  <RecentRoomCard
+                    key={String(room.id)}
+                    room={room}
+                    onPress={() => nav.navigate('RoomDetail', { room })}
+                  />
+                ))}
+              </View>
             </FadeSlide>
 
           </ScrollView>
 
-          <WebRightPanel nav={nav} displayRooms={displayRooms} stats={stats} />
+          {/* ── Right Panel ── */}
+          <View style={ws.rightPanel}>
+
+            {/* Post CTA */}
+            <FadeSlide delay={60}>
+              <View style={ws.postCtaCard}>
+                <Text style={ws.postCtaTitle}>Post for Free</Text>
+                <Text style={ws.postCtaSub}>Reach thousands of job seekers in Nanded</Text>
+                <TouchableOpacity style={ws.postCtaBtn} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
+                  <Ionicons name="add-circle-outline" size={16} color="#fff" />
+                  <Text style={ws.postCtaBtnTxt}>Post an Ad</Text>
+                </TouchableOpacity>
+              </View>
+            </FadeSlide>
+
+            {/* Stats Card */}
+            <FadeSlide delay={100}>
+              <View style={ws.statsCard}>
+                <Text style={ws.statsCardTitle}>Platform Stats</Text>
+                <AnimatedStat value={stats.jobs}     label="Active Jobs"  delay={400}  accent={ORANGE} />
+                <View style={ws.statDividerH} />
+                <AnimatedStat value={stats.rooms}    label="Rooms Listed" delay={550}  accent={TEAL} />
+                <View style={ws.statDividerH} />
+                <AnimatedStat value={stats.vehicles} label="Vehicles"     delay={700}  accent={PURPLE} />
+                <View style={ws.statDividerH} />
+                <AnimatedStat value={stats.items}    label="Items for Sale" delay={850} accent='#0ea5e9' />
+              </View>
+            </FadeSlide>
+
+            {/* Quick Actions */}
+            <FadeSlide delay={140}>
+              <View style={ws.quickActionsCard}>
+                <Text style={ws.statsCardTitle}>Quick Actions</Text>
+                <QuickAction icon="briefcase-outline"  label="Browse Jobs"    color={ORANGE}  onPress={() => nav.navigate('Jobs')} />
+                <QuickAction icon="home-outline"       label="Find a Room"    color={TEAL}    onPress={() => nav.navigate('Rooms')} />
+                <QuickAction icon="car-sport-outline"  label="Rent a Vehicle" color={PURPLE}  onPress={() => nav.navigate('Cars')} />
+                <QuickAction icon="pricetag-outline"   label="Buy & Sell"     color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
+                <QuickAction icon="sparkles-outline"   label="AI Assistant"   color={ORANGE}  onPress={() => nav.navigate('AIMatch')} />
+              </View>
+            </FadeSlide>
+
+          </View>
         </View>
       </View>
     );
   }
 
-  // ── MOBILE LAYOUT ─────────────────────────────────────────────────────────
+  // ── MOBILE LAYOUT (unchanged) ───────────────────────────────────────────────
+  return (
+    <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* ── Sticky White Header ── */}
       <View style={[s.headerBand, { paddingTop: insets.top + 6 }]}>
@@ -820,7 +720,7 @@ export default function HomeScreen() {
 
       <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
 
-        {/* ── Hero Banner ── */}
+        {/* Hero */}
         <FadeSlide delay={0} fromY={-12}>
           <View style={s.heroBanner}>
             <View style={s.heroCircle1} />
@@ -845,7 +745,7 @@ export default function HomeScreen() {
           </View>
         </FadeSlide>
 
-        {/* ── Stats Row — live from backend ── */}
+        {/* Stats */}
         <FadeSlide delay={80}>
           <View style={s.statsRow}>
             <AnimatedStat value={stats.jobs}     label="Active Jobs" delay={300} />
@@ -858,49 +758,22 @@ export default function HomeScreen() {
           </View>
         </FadeSlide>
 
-        {/* ── Explore ── */}
+        {/* Explore */}
         <FadeSlide delay={120}>
           <Text style={s.sectionTitleStandalone}>Explore</Text>
           <View style={s.exploreGrid}>
-            <ExploreCard
-              icon="briefcase-outline"
-              title="Jobs"
-              subtitle={`${stats.jobs}+ openings`}
-              color={ORANGE}
-              onPress={() => nav.navigate('Jobs')}
-              style={{ marginRight: 8 }}
-            />
-            <ExploreCard
-              icon="home-outline"
-              title="Rooms"
-              subtitle={`${stats.rooms}+ listings`}
-              color={TEAL}
-              onPress={() => nav.navigate('Rooms')}
-            />
+            <ExploreCard icon="briefcase-outline" title="Jobs"    subtitle={`${stats.jobs}+ openings`}     color={ORANGE} onPress={() => nav.navigate('Jobs')}    style={{ marginRight: 8 }} />
+            <ExploreCard icon="home-outline"      title="Rooms"   subtitle={`${stats.rooms}+ listings`}    color={TEAL}   onPress={() => nav.navigate('Rooms')} />
           </View>
           <View style={[s.exploreGrid, { marginTop: 10 }]}>
-            <ExploreCard
-              icon="car-sport-outline"
-              title="Vehicles"
-              subtitle={`${stats.vehicles}+ for rent`}
-              color={PURPLE}
-              onPress={() => nav.navigate('Cars')}
-              style={{ marginRight: 8 }}
-            />
-            <ExploreCard
-              icon="pricetag-outline"
-              title="Buy & Sell"
-              subtitle={`${stats.items}+ items`}
-              color={ORANGE}
-              onPress={() => nav.navigate('BuySell')}
-            />
+            <ExploreCard icon="car-sport-outline" title="Vehicles"   subtitle={`${stats.vehicles}+ for rent`} color={PURPLE} onPress={() => nav.navigate('Cars')}    style={{ marginRight: 8 }} />
+            <ExploreCard icon="pricetag-outline"  title="Buy & Sell" subtitle={`${stats.items}+ items`}       color={ORANGE} onPress={() => nav.navigate('BuySell')} />
           </View>
         </FadeSlide>
 
-        {/* ── Ticker — seamless, dark navy, entrance animation built-in ── */}
         <TickerBanner />
 
-        {/* ── Featured Jobs (horizontal scroll) — live from backend ── */}
+        {/* Featured Jobs */}
         <FadeSlide delay={200}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>Featured Jobs</Text>
@@ -923,7 +796,7 @@ export default function HomeScreen() {
           />
         </FadeSlide>
 
-        {/* ── Recent Rooms — live from backend ── */}
+        {/* Recent Rooms */}
         <FadeSlide delay={260}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>Recent Rooms</Text>
@@ -932,15 +805,11 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           {displayRooms.map(room => (
-            <RecentRoomCard
-              key={String(room.id)}
-              room={room}
-              onPress={() => nav.navigate('RoomDetail', { room })}
-            />
+            <RecentRoomCard key={String(room.id)} room={room} onPress={() => nav.navigate('RoomDetail', { room })} />
           ))}
         </FadeSlide>
 
-        {/* ── AI Career Assistant Banner ── */}
+        {/* AI Banner */}
         <FadeSlide delay={300}>
           <TouchableOpacity style={s.aiCard} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.9}>
             <View style={s.aiLeft}>
@@ -959,11 +828,171 @@ export default function HomeScreen() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ── WEB STYLES ─────────────────────────────────────────────────────────────────
+const ws = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#f3f4f6' },
+
+  // Top Nav
+  topNav: {
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1, borderBottomColor: '#ececec',
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }, elevation: 4,
+    zIndex: 100,
+  },
+  topNavInner: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 24, paddingVertical: 14,
+    gap: 20,
+  },
+  brandRow:   { minWidth: 160 },
+  brandText:  { fontSize: 22, fontWeight: '900', letterSpacing: 0.2 },
+  brandNanded:{ color: '#111111' },
+  brandRozgar:{ color: ORANGE },
+  locRow:     { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  locText:    { color: '#888', fontSize: 11, fontWeight: '500' },
+
+  topSearchWrap: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#f8f8f8', borderRadius: 10, height: 42,
+    borderWidth: 1.5, borderColor: '#e8e8e8',
+    overflow: 'hidden',
+  },
+  topSearchInput: { flex: 1, height: 42, paddingHorizontal: 10, fontSize: 14, color: '#333', outlineStyle: 'none' },
+  topSearchBtn:   { height: 42, paddingHorizontal: 20, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
+  topSearchBtnTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  topNavRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  langBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#fff7f0', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12,
+    borderWidth: 1, borderColor: ORANGE + '44',
+  },
+  langBtnTxt: { color: ORANGE, fontSize: 12, fontWeight: '700' },
+  bellBtn: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center',
+  },
+  profileBtn: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center',
+  },
+  profileInitial: { color: '#fff', fontSize: 15, fontWeight: '800' },
+
+  // Body
+  body:       { flex: 1, flexDirection: 'row' },
+
+  // Sidebar
+  sidebar: {
+    width: 220, backgroundColor: '#fff',
+    borderRightWidth: 1, borderRightColor: '#ececec',
+    paddingTop: 20, paddingHorizontal: 12,
+  },
+  sideNavSection: { fontSize: 10, fontWeight: '800', color: '#bbb', letterSpacing: 1.2, paddingHorizontal: 10, marginBottom: 6 },
+  sideNavItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, marginBottom: 2,
+  },
+  sideNavItemActive: { backgroundColor: '#fff7f0' },
+  sideNavLabel:      { fontSize: 14, fontWeight: '600', color: '#555' },
+  sideNavLabelActive:{ color: ORANGE, fontWeight: '700' },
+
+  sidePromo: {
+    marginTop: 24, backgroundColor: '#fff7f0', borderRadius: 14,
+    padding: 14, borderWidth: 1, borderColor: ORANGE + '33',
+  },
+  sidePromoTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginTop: 8, marginBottom: 4 },
+  sidePromoSub:   { fontSize: 12, color: '#888', lineHeight: 17, marginBottom: 12 },
+  sidePromoCta:   { backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  sidePromoCtaTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  // Main
+  main: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },
+
+  // Hero
+  heroBanner: {
+    backgroundColor: ORANGE,
+    borderRadius: 20, padding: 36,
+    overflow: 'hidden', position: 'relative',
+    marginBottom: 20,
+  },
+  heroCircle1: { position: 'absolute', width: 320, height: 320, borderRadius: 160, backgroundColor: 'rgba(255,255,255,0.10)', top: -100, right: -60 },
+  heroCircle2: { position: 'absolute', width: 180, height: 180, borderRadius: 90,  backgroundColor: 'rgba(255,255,255,0.07)', bottom: -60, right: 120 },
+  heroCircle3: { position: 'absolute', width: 100, height: 100, borderRadius: 50,  backgroundColor: 'rgba(0,0,0,0.06)',       top: 20,    right: 260 },
+  heroContent: { flexDirection: 'row', alignItems: 'center', gap: 32 },
+  heroTag:     { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginBottom: 10 },
+  heroTitle:   { fontSize: 38, fontWeight: '900', color: '#fff', lineHeight: 46, marginBottom: 10 },
+  heroSub:     { fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: '400', marginBottom: 18 },
+  heroBadges:  { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  heroBadge:   { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 12 },
+  heroBadgeTxt:{ color: '#fff', fontSize: 12, fontWeight: '600' },
+
+  heroStats: {
+    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 16,
+    padding: 20, alignItems: 'center', minWidth: 200,
+    flexDirection: 'column', gap: 0,
+  },
+  heroStatItem:  { alignItems: 'center', paddingVertical: 10 },
+  heroStatNum:   { fontSize: 28, fontWeight: '900', color: '#fff' },
+  heroStatLabel: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 2 },
+  heroStatDivider: { width: '80%', height: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
+
+  // Ticker web
+  ticker: { borderRadius: 10, marginBottom: 20 },
+
+  // Section
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, marginTop: 4 },
+  sectionTitle:  { fontSize: 18, fontWeight: '800', color: '#111' },
+  seeAllBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  seeAllTxt:     { fontSize: 13, fontWeight: '700', color: ORANGE },
+
+  // Explore — 4-column grid
+  exploreGrid:  { flexDirection: 'row', marginBottom: 24 },
+  exploreCard:  { borderRadius: 18, padding: 20, minHeight: 140 },
+  exploreTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
+
+  // Featured jobs grid — 2 col
+  featJobsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
+  featJobCard:  { width: '47.5%', backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+
+  // Recent jobs
+  jobCard: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#ebebeb', marginBottom: 10, padding: 18, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  jobThumb: { width: 52, height: 52, borderRadius: 14 },
+  jobTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
+
+  // Rooms grid — 3 col
+  roomsGrid: { flexDirection: 'row', gap: 14, marginBottom: 28, flexWrap: 'wrap' },
+  roomCard:  { flex: 1, minWidth: 200, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  roomImgPlaceholder: { height: 160, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+
+  // Right Panel
+  rightPanel: { width: 280, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 20 },
+
+  postCtaCard: {
+    backgroundColor: ORANGE, borderRadius: 16, padding: 20, marginBottom: 14,
+  },
+  postCtaTitle: { fontSize: 17, fontWeight: '800', color: '#fff', marginBottom: 6 },
+  postCtaSub:   { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginBottom: 16, lineHeight: 18 },
+  postCtaBtn:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)' },
+  postCtaBtnTxt:{ color: '#fff', fontSize: 14, fontWeight: '700' },
+
+  statsCard: { backgroundColor: '#fff', borderRadius: 16, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#f0f0f0' },
+  statsCardTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginBottom: 14 },
+  statCard:   { paddingVertical: 10 },
+  statNum:    { fontSize: 22, fontWeight: '900' },
+  statLabel:  { fontSize: 11, color: '#888', fontWeight: '600', marginTop: 2 },
+  statDividerH: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 2 },
+
+  quickActionsCard: { backgroundColor: '#fff', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#f0f0f0' },
+  quickAction: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderRadius: 10, paddingHorizontal: 6, borderWidth: 1, borderColor: 'transparent', marginBottom: 6 },
+  quickActionIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  quickActionLabel: { fontSize: 14, fontWeight: '600', color: '#333', flex: 1 },
+});
+
+// ── MOBILE STYLES (unchanged from original) ────────────────────────────────────
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
 
-  // Header
   headerBand: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 16, paddingBottom: 12,
@@ -977,123 +1006,47 @@ const s = StyleSheet.create({
   brandRozgar:     { color: ORANGE },
   locRow:          { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   locText:         { color: '#888', fontSize: 11, fontWeight: '500' },
-  profileBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center',
-  },
+  profileBtn:      { width: 36, height: 36, borderRadius: 18, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
   profileInitial:  { color: '#fff', fontSize: 15, fontWeight: '800' },
-  bellBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center',
-  },
-  langToggle: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#fff', borderRadius: 20, paddingVertical: 5, paddingHorizontal: 10,
-    borderWidth: 1, borderColor: ORANGE,
-  },
-  langToggleTxt: { color: ORANGE, fontSize: 11, fontWeight: '700' },
+  bellBtn:         { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
+  langToggle:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff', borderRadius: 20, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: ORANGE },
+  langToggleTxt:   { color: ORANGE, fontSize: 11, fontWeight: '700' },
 
-  // Hero
-  heroBanner: {
-    backgroundColor: ORANGE,
-    paddingHorizontal: 20, paddingTop: 28, paddingBottom: 28,
-    overflow: 'hidden', position: 'relative',
-  },
-  heroCircle1: {
-    position: 'absolute', width: 200, height: 200, borderRadius: 100,
-    backgroundColor: 'rgba(255,255,255,0.12)', top: -60, right: -50,
-  },
-  heroCircle2: {
-    position: 'absolute', width: 130, height: 130, borderRadius: 65,
-    backgroundColor: 'rgba(255,255,255,0.08)', bottom: -40, right: 60,
-  },
+  heroBanner: { backgroundColor: ORANGE, paddingHorizontal: 20, paddingTop: 28, paddingBottom: 28, overflow: 'hidden', position: 'relative' },
+  heroCircle1:{ position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(255,255,255,0.12)', top: -60, right: -50 },
+  heroCircle2:{ position: 'absolute', width: 130, height: 130, borderRadius: 65,  backgroundColor: 'rgba(255,255,255,0.08)', bottom: -40, right: 60 },
   heroTitle:  { fontSize: 28, fontWeight: '900', color: '#fff', lineHeight: 34, marginBottom: 6 },
   heroSub:    { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginBottom: 18, fontWeight: '500' },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderRadius: 12, height: 48, overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 }, elevation: 5,
-  },
-  searchInput: { flex: 1, height: 48, paddingHorizontal: 10, fontSize: 14, color: '#333' },
-  searchBtn:   { width: 46, height: 48, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
+  searchBar:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, height: 48, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
+  searchInput:{ flex: 1, height: 48, paddingHorizontal: 10, fontSize: 14, color: '#333' },
+  searchBtn:  { width: 46, height: 48, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
 
-  // Stats
-  statsRow: {
-    flexDirection: 'row', backgroundColor: '#fff',
-    marginHorizontal: 16, marginTop: 16,
-    borderRadius: 14, paddingVertical: 14, paddingHorizontal: 4,
-    alignItems: 'center',
-    shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 }, elevation: 4,
-  },
-  statItem:    { flex: 1, alignItems: 'center' },
-  statNum:     { fontSize: 17, fontWeight: '900', color: '#111' },
-  statLabel:   { fontSize: 9, color: '#888', fontWeight: '600', marginTop: 2, textAlign: 'center' },
-  statDivider: { width: 1, height: 26, backgroundColor: '#eee' },
+  statsRow: { flexDirection: 'row', backgroundColor: '#fff', marginHorizontal: 16, marginTop: 16, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 4, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  statItem:   { flex: 1, alignItems: 'center' },
+  statNum:    { fontSize: 17, fontWeight: '900', color: '#111' },
+  statLabel:  { fontSize: 9, color: '#888', fontWeight: '600', marginTop: 2, textAlign: 'center' },
+  statDivider:{ width: 1, height: 26, backgroundColor: '#eee' },
 
-  // Sections
-  sectionHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12,
-  },
+  sectionHeader:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12 },
   sectionTitle:           { fontSize: 17, fontWeight: '800', color: '#111' },
   sectionTitleStandalone: { fontSize: 17, fontWeight: '800', color: '#111', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12 },
   seeAllBtn:              { fontSize: 13, fontWeight: '700', color: ORANGE },
 
-  // Explore Grid
-  exploreGrid: { flexDirection: 'row', paddingHorizontal: 16 },
-  exploreCard: {
-    flex: 1, borderRadius: 16, padding: 16, minHeight: 130,
-    overflow: 'hidden', position: 'relative',
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 }, elevation: 5,
-  },
-  exploreInner:   { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
-  exploreIconWrap:{
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center',
-  },
-  exploreBadge: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center',
-  },
-  exploreTitle:   { fontSize: 15, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  exploreSub:     { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
-  exploreCircle1: { position: 'absolute', width: 90, height: 90, borderRadius: 45, bottom: -20, right: -20 },
-  exploreCircle2: { position: 'absolute', width: 60, height: 60, borderRadius: 30, bottom: 20, right: 40 },
+  exploreGrid:  { flexDirection: 'row', paddingHorizontal: 16 },
+  exploreCard:  { flex: 1, borderRadius: 16, padding: 16, minHeight: 130, overflow: 'hidden', position: 'relative', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
+  exploreInner: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
+  exploreIconWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  exploreBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  exploreTitle: { fontSize: 15, fontWeight: '800', color: '#fff', marginBottom: 4 },
+  exploreSub:   { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
+  exploreCircle1:{ position: 'absolute', width: 90, height: 90, borderRadius: 45, bottom: -20, right: -20 },
+  exploreCircle2:{ position: 'absolute', width: 60, height: 60, borderRadius: 30, bottom: 20,  right: 40 },
 
-  // ── Ticker — dark navy background, centered one-by-one animation ──────
-  ticker: {
-    backgroundColor: '#1a1a2e',
-    height: 38,
-    overflow: 'hidden',
-    marginTop: 12,
-    marginHorizontal: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  tickerText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
+  ticker:     { backgroundColor: TICKER_BG, height: 38, overflow: 'hidden', marginTop: 12, justifyContent: 'center', alignItems: 'center' },
+  tickerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  tickerText: { color: '#ffffff', fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
 
-  // Featured Jobs (horizontal)
-  featJobCard: {
-    width: 210, backgroundColor: '#fff', borderRadius: 14,
-    padding: 14, marginBottom: 4,
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 }, elevation: 3,
-    borderWidth: 1, borderColor: '#f0f0f0',
-  },
+  featJobCard:    { width: 210, backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 4, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0' },
   featJobTop:     { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   featJobIcon:    { width: 38, height: 38, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
   featJobTitle:   { fontSize: 13, fontWeight: '700', color: '#111' },
@@ -1103,22 +1056,9 @@ const s = StyleSheet.create({
   applyBtn:       { backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignItems: 'center', flexShrink: 0 },
   applyBtnTxt:    { color: '#fff', fontSize: 12, fontWeight: '700' },
 
-  // Room Cards
-  roomCard: {
-    backgroundColor: '#fff', borderRadius: 14,
-    marginHorizontal: 16, marginBottom: 12, overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 }, elevation: 3,
-  },
-  roomImgPlaceholder: {
-    height: 130, backgroundColor: '#2d2d3e',
-    alignItems: 'center', justifyContent: 'center', position: 'relative',
-  },
-  availBadge: {
-    position: 'absolute', top: 10, right: 10,
-    backgroundColor: '#16a34a', borderRadius: 20,
-    paddingVertical: 4, paddingHorizontal: 10,
-  },
+  roomCard: { backgroundColor: '#fff', borderRadius: 14, marginHorizontal: 16, marginBottom: 12, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  roomImgPlaceholder: { height: 130, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  availBadge: { position: 'absolute', top: 10, right: 10, backgroundColor: '#16a34a', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 },
   availTxt:    { color: '#fff', fontSize: 11, fontWeight: '700' },
   roomInfo:    { padding: 14 },
   roomTitle:   { fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 8 },
@@ -1127,64 +1067,47 @@ const s = StyleSheet.create({
   roomChipTxt: { fontSize: 11, color: '#666', fontWeight: '500' },
   roomRent:    { fontSize: 16, fontWeight: '800', color: '#111' },
 
-  // AI Card
-  aiCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: ORANGE,
-    padding: 14, marginHorizontal: 16, marginVertical: 8,
-    shadowColor: ORANGE, shadowOpacity: 0.12, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 }, elevation: 3,
-  },
+  aiCard:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: ORANGE, padding: 14, marginHorizontal: 16, marginVertical: 8, shadowColor: ORANGE, shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   aiLeft:     { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   aiIconWrap: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
   aiTitle:    { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 3 },
   aiPrompt:   { fontSize: 11, color: '#888', fontStyle: 'italic', lineHeight: 16 },
 
-  // Job Cards
-  jobCard: {
-    backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#ebebeb',
-    marginHorizontal: 16, marginBottom: 10, padding: 14, position: 'relative',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 }, elevation: 2,
-  },
+  jobCard:         { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#ebebeb', marginHorizontal: 16, marginBottom: 10, padding: 14, position: 'relative', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   jobCardFeatured: { borderLeftWidth: 3, borderLeftColor: ORANGE },
   jobCardUrgent:   { borderLeftWidth: 3, borderLeftColor: '#ef4444' },
-  jobFeatBadge: {
-    position: 'absolute', top: 0, right: 12,
-    backgroundColor: ORANGE, borderBottomLeftRadius: 5, borderBottomRightRadius: 5,
-    paddingVertical: 2, paddingHorizontal: 7,
-    flexDirection: 'row', alignItems: 'center', gap: 3, zIndex: 10,
-  },
-  jobFeatTxt:   { color: '#fff', fontSize: 8, fontWeight: '800', letterSpacing: 0.5 },
-  jobRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  jobThumb:     { width: 44, height: 44, borderRadius: 11, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  jobTitle:     { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
-  jobSubRow:    { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  jobSub:       { fontSize: 11, color: '#777' },
-  jobChipsRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 5 },
-  jobLocChip:   { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#f5f5f5', borderRadius: 20, paddingVertical: 2, paddingHorizontal: 8 },
-  jobLocTxt:    { fontSize: 10, color: '#666', fontWeight: '500' },
-  jobExpChip:   { backgroundColor: '#f0fdf4', borderRadius: 20, paddingVertical: 2, paddingHorizontal: 8, borderWidth: 0.5, borderColor: '#bbf7d0' },
-  jobExpTxt:    { fontSize: 10, color: '#15803d', fontWeight: '600' },
-  jobSkillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
-  jobSkillTag:  { backgroundColor: '#f8f8f8', borderWidth: 0.5, borderColor: '#e5e5e5', borderRadius: 4, paddingVertical: 2, paddingHorizontal: 6 },
-  jobSkillTxt:  { fontSize: 9, color: '#666', fontWeight: '500' },
-  salaryCol:    { alignItems: 'flex-end', flexShrink: 0 },
-  priceBadge:   { backgroundColor: '#111', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 },
-  priceTxt:     { color: '#fff', fontSize: 12, fontWeight: '700' },
-  freshnessRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  freshnessDot: { width: 5, height: 5, borderRadius: 3 },
-  jobTime:      { fontSize: 10, color: '#bbb', fontWeight: '500' },
+  jobFeatBadge:    { position: 'absolute', top: 0, right: 12, backgroundColor: ORANGE, borderBottomLeftRadius: 5, borderBottomRightRadius: 5, paddingVertical: 2, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 3, zIndex: 10 },
+  jobFeatTxt:      { color: '#fff', fontSize: 8, fontWeight: '800', letterSpacing: 0.5 },
+  jobRow:          { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  jobThumb:        { width: 44, height: 44, borderRadius: 11, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  jobTitle:        { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
+  jobSubRow:       { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  jobSub:          { fontSize: 11, color: '#777' },
+  jobChipsRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 5 },
+  jobLocChip:      { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#f5f5f5', borderRadius: 20, paddingVertical: 2, paddingHorizontal: 8 },
+  jobLocTxt:       { fontSize: 10, color: '#666', fontWeight: '500' },
+  jobExpChip:      { backgroundColor: '#f0fdf4', borderRadius: 20, paddingVertical: 2, paddingHorizontal: 8, borderWidth: 0.5, borderColor: '#bbf7d0' },
+  jobExpTxt:       { fontSize: 10, color: '#15803d', fontWeight: '600' },
+  jobSkillsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
+  jobSkillTag:     { backgroundColor: '#f8f8f8', borderWidth: 0.5, borderColor: '#e5e5e5', borderRadius: 4, paddingVertical: 2, paddingHorizontal: 6 },
+  jobSkillTxt:     { fontSize: 9, color: '#666', fontWeight: '500' },
+  salaryCol:       { alignItems: 'flex-end', flexShrink: 0 },
+  priceBadge:      { backgroundColor: '#111', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 },
+  priceTxt:        { color: '#fff', fontSize: 12, fontWeight: '700' },
+  freshnessRow:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  freshnessDot:    { width: 5, height: 5, borderRadius: 3 },
+  jobTime:         { fontSize: 10, color: '#bbb', fontWeight: '500' },
 
   viewAll:    { marginHorizontal: 16, marginTop: 4, alignItems: 'center', padding: 10 },
   viewAllTxt: { fontSize: 13, color: ORANGE, fontWeight: '700' },
 });
 
 const lm = StyleSheet.create({
-  overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  sheet:        { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36 },
-  title:        { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 16 },
-  row:          { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, marginBottom: 8, backgroundColor: '#f8f8f8', borderWidth: 1.5, borderColor: 'transparent' },
+  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: IS_WEB ? 'center' : 'flex-end', alignItems: IS_WEB ? 'center' : 'stretch' },
+  sheet:    { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36 },
+  sheetWeb: { borderRadius: 20, width: 360, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 24, shadowOffset: { width: 0, height: 8 }, elevation: 20 },
+  title:    { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 16 },
+  row:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, marginBottom: 8, backgroundColor: '#f8f8f8', borderWidth: 1.5, borderColor: 'transparent' },
   rowActive:    { borderColor: ORANGE, backgroundColor: '#fff8f3' },
   native:       { fontSize: 17, fontWeight: '700', color: '#111', minWidth: 60 },
   nativeActive: { color: ORANGE },
