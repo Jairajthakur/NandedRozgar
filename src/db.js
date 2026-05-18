@@ -232,6 +232,7 @@ async function runMigrations() {
         location        VARCHAR(100),
         expected_salary VARCHAR(50),
         open_to_work    BOOLEAN DEFAULT TRUE,
+        resume_url      TEXT,
         updated_at      TIMESTAMPTZ DEFAULT NOW()
       );
     `);
@@ -262,7 +263,7 @@ async function runMigrations() {
       `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`,
       `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS plan_days  INTEGER DEFAULT 30`,
       `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30)`,
-      `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS plan_price INTEGER`,
+      `ALTER TABLE seeker_profiles ADD COLUMN IF NOT EXISTS resume_url TEXT`,
     ];
     for (const sql of safeAlters) {
       try { await client.query(sql); } catch (e) { console.warn('Alter warn (non-fatal):', e.message); }
