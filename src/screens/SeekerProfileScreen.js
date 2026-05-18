@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { http } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -44,6 +46,9 @@ export default function SeekerProfileScreen() {
   const [location, setLocation]     = useState('');
   const [expectedSalary, setExpectedSalary] = useState('');
   const [openToWork, setOpenToWork] = useState(true);
+  const [resumeUrl, setResumeUrl]   = useState(null);
+  const [resumeName, setResumeName] = useState(null);
+  const [uploadingResume, setUploadingResume] = useState(false);
 
   useEffect(() => {
     http('GET', '/api/seeker/profile').then(r => {
@@ -57,6 +62,8 @@ export default function SeekerProfileScreen() {
         setLocation(p.location || '');
         setExpectedSalary(p.expected_salary || '');
         setOpenToWork(p.open_to_work !== false);
+        setResumeUrl(p.resume_url || null);
+        setResumeName(p.resume_url ? 'resume.pdf' : null);
       }
       setLoading(false);
     });
@@ -69,6 +76,51 @@ export default function SeekerProfileScreen() {
   }
 
   function removeSkill(sk) { setSkills(prev => prev.filter(s => s !== sk)); }
+
+  async function pickResume() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      if (asset.size && asset.size > 5 * 1024 * 1024) {
+        Toast.show({ type: 'error', text1: 'File too large (max 5 MB)' });
+        return;
+      }
+      setUploadingResume(true);
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const r = await http('POST', '/api/seeker/resume', {
+        resumeBase64: base64,
+        fileName: asset.name || 'resume.pdf',
+      });
+      setUploadingResume(false);
+      if (r?.ok) {
+        setResumeUrl(r.resumeUrl);
+        setResumeName(asset.name || 'resume.pdf');
+        Toast.show({ type: 'success', text1: '📄 Resume uploaded!' });
+      } else {
+        Toast.show({ type: 'error', text1: r?.error || 'Upload failed' });
+      }
+    } catch (e) {
+      setUploadingResume(false);
+      Toast.show({ type: 'error', text1: 'Could not pick file' });
+    }
+  }
+
+  async function removeResume() {
+    setUploadingResume(true);
+    const r = await http('DELETE', '/api/seeker/resume');
+    setUploadingResume(false);
+    if (r?.ok) {
+      setResumeUrl(null);
+      setResumeName(null);
+      Toast.show({ type: 'success', text1: 'Resume removed' });
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -182,6 +234,36 @@ export default function SeekerProfileScreen() {
         <Input value={expectedSalary} onChangeText={setExpectedSalary} placeholder="e.g. ₹12,000/month" />
       </Field>
 
+      {/* Resume Upload */}
+      <Field label="Resume / CV (PDF)">
+        {resumeUrl ? (
+          <View style={styles.resumeBox}>
+            <View style={styles.resumeFile}>
+              <Ionicons name="document-text" size={22} color={ORANGE} />
+              <Text style={styles.resumeFileName} numberOfLines={1}>{resumeName || 'resume.pdf'}</Text>
+            </View>
+            <TouchableOpacity style={styles.resumeRemoveBtn} onPress={removeResume} disabled={uploadingResume}>
+              {uploadingResume
+                ? <ActivityIndicator size="small" color="#ef4444" />
+                : <Ionicons name="trash-outline" size={18} color="#ef4444" />
+              }
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.resumeUploadBtn} onPress={pickResume} disabled={uploadingResume} activeOpacity={0.8}>
+            {uploadingResume ? (
+              <ActivityIndicator size="small" color={ORANGE} />
+            ) : (
+              <>
+                <Ionicons name="cloud-upload-outline" size={20} color={ORANGE} />
+                <Text style={styles.resumeUploadTxt}>Upload PDF Resume</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+        <Text style={styles.resumeHint}>Employers can download your resume when they view your profile</Text>
+      </Field>
+
       {/* Save */}
       <TouchableOpacity style={styles.saveBtn} onPress={save} disabled={saving} activeOpacity={0.85}>
         {saving
@@ -218,4 +300,11 @@ const styles = StyleSheet.create({
   skillChipTxt: { fontSize: 12, color: ORANGE, fontWeight: '600' },
   saveBtn:   { backgroundColor: ORANGE, borderRadius: 14, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 },
   saveTxt:   { color: '#fff', fontSize: 15, fontWeight: '700' },
+  resumeUploadBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: '#fed7aa', borderRadius: 10, borderStyle: 'dashed', padding: 14, justifyContent: 'center', backgroundColor: '#fff7ed' },
+  resumeUploadTxt: { fontSize: 13, fontWeight: '700', color: ORANGE },
+  resumeBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#fed7aa', borderRadius: 10, padding: 12, gap: 10 },
+  resumeFile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  resumeFileName: { flex: 1, fontSize: 13, fontWeight: '600', color: '#111' },
+  resumeRemoveBtn: { padding: 4 },
+  resumeHint: { fontSize: 11, color: '#aaa', marginTop: 6 },
 });
