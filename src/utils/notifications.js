@@ -1,15 +1,21 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// expo-notifications is not supported on web — guard everything
+let Notifications = null;
+if (Platform.OS !== 'web') {
+  Notifications = require('expo-notifications');
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 export async function registerForPushNotifications() {
+  if (Platform.OS === 'web' || !Notifications) return null;
+
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
@@ -41,6 +47,7 @@ export async function registerForPushNotifications() {
 }
 
 export function addNotificationResponseListener(callback) {
+  if (Platform.OS === 'web' || !Notifications) return () => {};
   const subscription = Notifications.addNotificationResponseReceivedListener(callback);
   return () => subscription.remove();
 }
