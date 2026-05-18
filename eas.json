@@ -31,6 +31,13 @@
       "env": {
         "NODE_ENV": "production"
       }
+    },
+
+    "web": {
+      "distribution": "internal",
+      "env": {
+        "NODE_ENV": "production"
+      }
     }
   },
 
