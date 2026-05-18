@@ -2,7 +2,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React from 'react';
 import {
   View, Text, ActivityIndicator, StatusBar,
-  TouchableOpacity, StyleSheet,
+  TouchableOpacity, StyleSheet, Platform,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -126,8 +126,12 @@ const HEADER = {
 // ── Tab Navigator ─────────────────────────────────────────────────────────────
 function MainTabs() {
   const { t } = useLang();
+  const isWeb = Platform.OS === 'web';
   return (
-    <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={HEADER}>
+    <Tab.Navigator
+      tabBar={isWeb ? () => null : props => <CustomTabBar {...props} />}
+      screenOptions={HEADER}
+    >
       <Tab.Screen name="Home"  component={HomeScreen}  options={{ headerShown: false, tabBarLabel: t('home') }} />
       <Tab.Screen name="Jobs"  component={BoardScreen} options={{ headerTitle: t('findJobs'), tabBarLabel: t('jobs') }} />
       <Tab.Screen name="Post"  component={PostScreen}  options={{ headerShown: false, tabBarLabel: t('post') }} />
