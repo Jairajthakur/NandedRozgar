@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 const { runMigrations } = require('./db');
 
@@ -32,8 +34,17 @@ app.use('/api/rooms',    require('./routes/rooms'));
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true, status: 'NandedRozgar API running 🚀' }));
 
-// 404
-app.use((req, res) => res.status(404).json({ ok: false, error: 'Route not found' }));
+// ── Serve Expo web build ──────────────────────────────────────────────────────
+const WEB_BUILD = path.join(__dirname, '..', 'dist');
+if (fs.existsSync(WEB_BUILD)) {
+  app.use(express.static(WEB_BUILD));
+  // SPA fallback — all non-API routes serve index.html
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(WEB_BUILD, 'index.html'));
+  });
+} else {
+  app.use((req, res) => res.status(404).json({ ok: false, error: 'Route not found' }));
+}
 
 const PORT = process.env.PORT || 3000;
 
