@@ -5,30 +5,29 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
-// ✅ Auto-creates all tables on server start
 async function runMigrations() {
   const client = await pool.connect();
   try {
     console.log('⚙️  Running database migrations...');
 
     await client.query(`
-      -- USERS table
       CREATE TABLE IF NOT EXISTS users (
-        id          SERIAL PRIMARY KEY,
-        name        VARCHAR(100),
-        email       VARCHAR(200) UNIQUE NOT NULL,
-        password    VARCHAR(200) NOT NULL,
-        phone       VARCHAR(15),
-        company     VARCHAR(100),
-        role        VARCHAR(10) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
-        premium     BOOLEAN DEFAULT FALSE,
-        active      BOOLEAN DEFAULT TRUE,
-        created_at  TIMESTAMPTZ DEFAULT NOW()
+        id               SERIAL PRIMARY KEY,
+        name             VARCHAR(100),
+        email            VARCHAR(200) UNIQUE NOT NULL,
+        password         VARCHAR(200) NOT NULL,
+        phone            VARCHAR(15),
+        company          VARCHAR(100),
+        role             VARCHAR(10) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+        premium          BOOLEAN DEFAULT FALSE,
+        active           BOOLEAN DEFAULT TRUE,
+        verified         BOOLEAN DEFAULT FALSE,
+        referral_credits INTEGER DEFAULT 0,
+        created_at       TIMESTAMPTZ DEFAULT NOW()
       );
     `);
 
     await client.query(`
-      -- JOBS table
       CREATE TABLE IF NOT EXISTS jobs (
         id               SERIAL PRIMARY KEY,
         posted_by        INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -57,19 +56,20 @@ async function runMigrations() {
       );
     `);
 
+    // Applications table with status tracking
     await client.query(`
-      -- JOB APPLICATIONS table
       CREATE TABLE IF NOT EXISTS applications (
         id         SERIAL PRIMARY KEY,
         job_id     INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
         user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        status     VARCHAR(20) DEFAULT 'applied'
+                   CHECK (status IN ('applied', 'reviewed', 'shortlisted', 'rejected', 'hired')),
         created_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(job_id, user_id)
       );
     `);
 
     await client.query(`
-      -- SAVED JOBS table
       CREATE TABLE IF NOT EXISTS saved_jobs (
         id         SERIAL PRIMARY KEY,
         job_id     INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
@@ -79,20 +79,33 @@ async function runMigrations() {
       );
     `);
 
+    // Payments table now stores Razorpay IDs for audit trail
     await client.query(`
-      -- PAYMENTS table
       CREATE TABLE IF NOT EXISTS payments (
-        id          SERIAL PRIMARY KEY,
-        user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        job_id      INTEGER REFERENCES jobs(id) ON DELETE SET NULL,
-        amount      INTEGER NOT NULL,
-        plan        VARCHAR(50),
-        status      VARCHAR(20) DEFAULT 'paid',
-        created_at  TIMESTAMPTZ DEFAULT NOW()
+        id                    SERIAL PRIMARY KEY,
+        user_id               INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        job_id                INTEGER REFERENCES jobs(id)  ON DELETE SET NULL,
+        amount                INTEGER NOT NULL,
+        plan                  VARCHAR(50),
+        razorpay_payment_id   VARCHAR(100),
+        razorpay_order_id     VARCHAR(100),
+        status                VARCHAR(20) DEFAULT 'paid',
+        created_at            TIMESTAMPTZ DEFAULT NOW()
       );
     `);
 
-    // ── VEHICLES table ────────────────────────────────────────────────────────
+    // Job reports table (was missing before — caused silent failures)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS job_reports (
+        id         SERIAL PRIMARY KEY,
+        job_id     INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
+        user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        reason     VARCHAR(200),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(job_id, user_id)
+      );
+    `);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS vehicles (
         id            SERIAL PRIMARY KEY,
@@ -129,7 +142,6 @@ async function runMigrations() {
       );
     `);
 
-    // ── ROOMS table ───────────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS rooms (
         id            SERIAL PRIMARY KEY,
@@ -166,72 +178,59 @@ async function runMigrations() {
       );
     `);
 
-    // Indexes for performance
+    // ── Indexes ───────────────────────────────────────────────────────────────
     await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_status      ON jobs(status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_category    ON jobs(category);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_posted_by   ON jobs(posted_by);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_job_id      ON applications(job_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_user_id     ON applications(user_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_status      ON applications(status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_vehicles_status  ON vehicles(status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_vehicles_expires ON vehicles(expires_at);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_rooms_status     ON rooms(status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_rooms_expires    ON rooms(expires_at);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_reports_job      ON job_reports(job_id);`);
 
-    // ── Fix legacy DB issues safely ───────────────────────────────────────────
-    // 1. Add premium column if missing
-    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN DEFAULT FALSE;`);
-
-    // 2. Fix any rows with invalid role values (old schema may have used 'employer'/'seeker')
-    await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');`);
-
-    // ── Add missing jobs columns (safe for existing tables) ─────────────────
-    const jobCols = [
-      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(15)`,
-      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS skills TEXT[]`,
-      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS requirements TEXT[]`,
-      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS education VARCHAR(100)`,
-      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS experience VARCHAR(50)`,
-      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS hours VARCHAR(50)`,
-      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS openings VARCHAR(10) DEFAULT '1'`,
+    // ── Safe ALTER for existing deployments ───────────────────────────────────
+    const safeAlters = [
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium          BOOLEAN DEFAULT FALSE`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS verified         BOOLEAN DEFAULT FALSE`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_credits INTEGER DEFAULT 0`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS whatsapp         VARCHAR(15)`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS skills           TEXT[]`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS requirements     TEXT[]`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS education        VARCHAR(100)`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS experience       VARCHAR(50)`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS hours            VARCHAR(50)`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS openings         VARCHAR(10) DEFAULT '1'`,
+      `ALTER TABLE applications ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'applied'`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(100)`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_order_id  VARCHAR(100)`,
     ];
-    for (const sql of jobCols) {
-      try { await client.query(sql); } catch (e) { console.warn('Col warn:', e.message); }
+    for (const sql of safeAlters) {
+      try { await client.query(sql); } catch (e) { console.warn('Alter warn (non-fatal):', e.message); }
     }
-    // ──────────────────────────────────────────────────────────────────────────
 
-    // 3. Drop and recreate role constraint cleanly
+    // Fix any legacy invalid role values
+    await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');`);
     await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`);
     await client.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'));`);
-    // ─────────────────────────────────────────────────────────────────────────
 
-    // Seed default admin
+    // ── Seed admin user from environment variables ─────────────────────────────
+    // Set ADMIN_EMAIL and ADMIN_PASSWORD in Railway — never hardcode these.
     try {
       const bcrypt = require('bcryptjs');
-      const adminPass = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10);
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@nandedrozgar.com';
+      const adminPass  = process.env.ADMIN_PASSWORD || 'ChangeMe@2025!';
+      const adminHash  = await bcrypt.hash(adminPass, 10);
       await client.query(`
         INSERT INTO users (name, email, password, role)
         VALUES ('Admin', $1, $2, 'admin')
         ON CONFLICT (email) DO NOTHING;
-      `, [process.env.ADMIN_EMAIL || 'admin@nandedrozgar.com', adminPass]);
+      `, [adminEmail, adminHash]);
     } catch (e) {
       console.warn('⚠️  Admin seed warning (non-fatal):', e.message);
     }
 
-    // Seed free test user (can post without payment)
-    try {
-      const bcrypt = require('bcryptjs');
-      const testPass = await bcrypt.hash('test@123', 10);
-      await client.query(`
-        INSERT INTO users (name, email, password, role, premium, phone)
-        VALUES ('Test User', 'test@nandedrozgar.com', $1, 'user', TRUE, '9999999999')
-        ON CONFLICT (email) DO UPDATE SET premium = TRUE;
-      `, [testPass]);
-      console.log('✅ Test user ready: test@nandedrozgar.com / test@123');
-    } catch (e) {
-      console.warn('⚠️  Test user seed warning (non-fatal):', e.message);
-    }
-
-    console.log('✅ Database migrations complete. All tables ready!');
+    console.log('✅ Database migrations complete.');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
     throw err;
