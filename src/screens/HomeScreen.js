@@ -560,7 +560,7 @@ export default function HomeScreen() {
           </View>
 
           {/* ── Main Content ── */}
-          <ScrollView style={ws.main} contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={ws.main} contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={true}>
 
             {/* ── Hero Banner ── */}
             <FadeSlide delay={0} fromY={-16}>
@@ -759,7 +759,7 @@ export default function HomeScreen() {
 
       <LangModal visible={showLangPicker} current={lang} onSelect={changeLang} onClose={() => setShowLangPicker(false)} />
 
-      <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={true}>
 
         {/* Hero */}
         <FadeSlide delay={0} fromY={-12}>
