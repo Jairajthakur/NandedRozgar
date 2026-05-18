@@ -111,7 +111,7 @@ function RevenueBar({ label, amount, total, color }) {
 }
 
 // ─── User detail modal ───────────────────────────────────────────────────────
-function UserModal({ user, visible, onClose, onToggle, onGrantPro, onRevokeRole, onMakeAdmin }) {
+function UserModal({ user, visible, onClose, onToggle, onGrantPro, onRevokeRole, onMakeAdmin, onVerify }) {
   if (!user) return null;
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -140,6 +140,7 @@ function UserModal({ user, visible, onClose, onToggle, onGrantPro, onRevokeRole,
             <Chip label={user.role === 'admin' ? '🔑 Admin' : '👤 User'} variant={user.role === 'admin' ? 'red' : 'blue'} />
             <Chip label={user.premium ? '💎 PRO' : 'Free'} variant={user.premium ? 'green' : 'gray'} />
             <Chip label={user.active ? '✅ Active' : '🚫 Banned'} variant={user.active ? 'green' : 'red'} />
+            <Chip label={user.verified ? '✔ Verified' : 'Unverified'} variant={user.verified ? 'green' : 'gray'} />
           </View>
 
           {/* Info rows */}
@@ -167,6 +168,11 @@ function UserModal({ user, visible, onClose, onToggle, onGrantPro, onRevokeRole,
             {!user.premium && (
               <Btn label="💎 Grant PRO Access" variant="orange" onPress={() => { onGrantPro(user.id); onClose(); }} />
             )}
+            <Btn
+              label={user.verified ? '🔲 Remove Verified Badge' : '✔ Mark as Verified Employer'}
+              variant={user.verified ? 'gray' : 'green'}
+              onPress={() => { onVerify && onVerify(user.id, !user.verified); onClose(); }}
+            />
             {user.role !== 'admin' && (
               <Btn label="🔑 Make Admin" variant="gray" onPress={() => { onMakeAdmin && onMakeAdmin(user.id); onClose(); }} />
             )}
@@ -395,6 +401,17 @@ export default function AdminScreen() {
         Toast.show({ type: 'success', text1: '🔑 Admin role granted.' });
       }},
     ]);
+  }
+
+  async function verifyUser(id, shouldVerify) {
+    const endpoint = shouldVerify ? 'verify' : 'unverify';
+    const r = await http('PATCH', `/api/admin/users/${id}/${endpoint}`);
+    if (r?.ok) {
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, verified: shouldVerify } : u));
+      Toast.show({ type: 'success', text1: shouldVerify ? '✔ Employer verified!' : '🔲 Verified badge removed.' });
+    } else {
+      Toast.show({ type: 'error', text1: r?.error || 'Action failed' });
+    }
   }
 
   async function sendNotification({ title, body, target }) {
@@ -988,6 +1005,7 @@ export default function AdminScreen() {
         onToggle={toggleUser}
         onGrantPro={grantPro}
         onMakeAdmin={makeAdmin}
+        onVerify={verifyUser}
       />
       <NotifyModal
         visible={notifyVis}
