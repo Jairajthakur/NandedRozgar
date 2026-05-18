@@ -290,7 +290,15 @@ export default function JobDetailScreen({ route, navigation }) {
                 <Text style={s.companyInitial}>{(job.company[0] || 'C').toUpperCase()}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.companyName}>{job.company}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Text style={s.companyName}>{job.company}</Text>
+                  {!!job.poster_verified && (
+                    <View style={s.verifiedBadge}>
+                      <Ionicons name="checkmark-circle" size={12} color="#fff" />
+                      <Text style={s.verifiedBadgeTxt}>Verified Employer</Text>
+                    </View>
+                  )}
+                </View>
                 {!!job.location && <Text style={s.companyLoc}>{job.location}</Text>}
               </View>
             </View>
@@ -506,6 +514,8 @@ const s = StyleSheet.create({
   companyInitial: { fontSize: 18, fontWeight: '800', color: '#fff' },
   companyName: { fontSize: 15, fontWeight: '700', color: '#111' },
   companyLoc:  { fontSize: 12, color: '#888', marginTop: 2 },
+  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10b981', borderRadius: 10, paddingVertical: 3, paddingHorizontal: 8 },
+  verifiedBadgeTxt: { fontSize: 10, fontWeight: '700', color: '#fff' },
 
   // ── Action buttons ──
   actionsBlock: { paddingHorizontal: 16, paddingTop: 16, gap: 10 },
