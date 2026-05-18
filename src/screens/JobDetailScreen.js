@@ -73,6 +73,31 @@ export default function JobDetailScreen({ route, navigation }) {
   const { user, role, loadJobs } = useAuth();
   const insets = useSafeAreaInsets();
 
+  const [ratingModal, setRatingModal] = useState(false);
+  const [myRating, setMyRating]         = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
+
+  async function submitRating() {
+    if (!myRating) return;
+    setSubmittingRating(true);
+    const r = await http('POST', '/api/ratings', {
+      jobId: job.id, ratedId: job.posted_by, stars: myRating, comment: ratingComment,
+    });
+    setSubmittingRating(false);
+    setRatingModal(false);
+    if (r?.ok) Toast.show({ type: 'success', text1: '⭐ Rating submitted! Thank you.' });
+  }
+
+  function openChat() {
+    navigation.navigate('Chat', {
+      otherId:   job.posted_by,
+      otherName: job.company || job.poster_name || 'Employer',
+      jobId:     job.id,
+      jobTitle:  job.title,
+    });
+  }
+
   const applicants = job.applicant_count || 0;
   const isOwner    = job.posted_by === user?.id || role === 'admin';
   const icon       = CAT_ICONS[job.category] || 'briefcase-outline';
@@ -291,6 +316,22 @@ export default function JobDetailScreen({ route, navigation }) {
                 onPress={openWhatsApp}
               />
             )}
+            {!isOwner && !!job.posted_by && (
+              <ActionBtn
+                label="Chat with Employer"
+                icon="chatbubble-outline"
+                color="#3b82f6"
+                onPress={openChat}
+              />
+            )}
+            {!isOwner && (
+              <ActionBtn
+                label="Rate this Employer"
+                icon="star-outline"
+                color="#f59e0b"
+                onPress={() => setRatingModal(true)}
+              />
+            )}
             <ActionBtn
               label="Share Job"
               icon="share-social-outline"
@@ -308,6 +349,42 @@ export default function JobDetailScreen({ route, navigation }) {
           </View>
         </FadeSection>
       </ScrollView>
+
+
+      {/* ── Rating Modal ── */}
+      {ratingModal && (
+        <View style={s.reportOverlay}>
+          <View style={s.reportBox}>
+            <Text style={s.reportTitle}>Rate this Employer</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
+              {[1,2,3,4,5].map(star => (
+                <TouchableOpacity key={star} onPress={() => setMyRating(star)}>
+                  <Ionicons name={star <= myRating ? 'star' : 'star-outline'} size={32} color={star <= myRating ? '#f59e0b' : '#ddd'} />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={{ borderWidth:1, borderColor:'#ebebeb', borderRadius:10, padding:10, fontSize:13, marginBottom:14, minHeight:60, textAlignVertical:'top' }}
+              placeholder="Leave a comment (optional)"
+              value={ratingComment}
+              onChangeText={setRatingComment}
+              multiline
+            />
+            <TouchableOpacity
+              style={[s.actionBtn, { backgroundColor: myRating ? '#f59e0b' : '#ddd', borderRadius:14, paddingVertical:13 }]}
+              onPress={submitRating}
+              disabled={!myRating || submittingRating}
+            >
+              <Text style={[s.actionBtnTxt, !myRating && { color:'#999' }]}>
+                {submittingRating ? 'Submitting…' : 'Submit Rating'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.cancelBtn} onPress={() => setRatingModal(false)}>
+              <Text style={s.cancelTxt}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* ── Report Modal ── */}
       {showReport && (
@@ -456,3 +533,6 @@ const s = StyleSheet.create({
   cancelBtn: { marginTop: 4, alignItems: 'center', padding: 12 },
   cancelTxt: { fontSize: 13, fontWeight: '600', color: '#999' },
 });
+
+// ─── PATCH: Rating widget exported for use in JobDetailScreen ───
+export { }; // keeps module
