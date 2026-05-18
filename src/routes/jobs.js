@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
     // Data query with pagination
     params.push(limit, offset);
     const { rows } = await pool.query(`
-      SELECT j.*, u.name AS poster_name,
+      SELECT j.*, u.name AS poster_name, u.verified AS poster_verified,
         (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) AS applicant_count
       FROM jobs j
       LEFT JOIN users u ON u.id = j.posted_by
