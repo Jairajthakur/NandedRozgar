@@ -15,6 +15,7 @@ export function Btn({ label, onPress, variant = 'primary', size = 'md', disabled
     : variant === 'outline' ? 'transparent'
     : variant === 'danger'  ? '#ef4444'
     : variant === 'gray'    ? '#f0f0f0'
+    : variant === 'green'   ? '#10b981'
     : '#111';
 
   const color = variant === 'outline' ? '#111'
