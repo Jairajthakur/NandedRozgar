@@ -56,6 +56,34 @@ router.patch('/users/:id/revoke-pro', async (req, res) => {
   }
 });
 
+// PATCH /api/admin/users/:id/verify — grant Verified Employer badge
+router.patch('/users/:id/verify', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'UPDATE users SET verified = true WHERE id = $1 RETURNING id, name, verified',
+      [req.params.id]
+    );
+    res.json({ ok: true, user: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to verify user' });
+  }
+});
+
+// PATCH /api/admin/users/:id/unverify — revoke Verified Employer badge
+router.patch('/users/:id/unverify', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'UPDATE users SET verified = false WHERE id = $1 RETURNING id, name, verified',
+      [req.params.id]
+    );
+    res.json({ ok: true, user: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to unverify user' });
+  }
+});
+
 // PATCH /api/admin/users/:id/role — set role (admin | user)
 router.patch('/users/:id/role', async (req, res) => {
   try {
