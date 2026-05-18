@@ -4,6 +4,16 @@ import {
   Animated, Easing, StatusBar, TextInput, Modal,
   FlatList, Dimensions, Platform,
 } from 'react-native';
+
+// ScrollVelocity is a web-only component (uses DOM/motion)
+let ScrollVelocity = null;
+if (Platform.OS === 'web') {
+  try {
+    ScrollVelocity = require('../components/ScrollVelocity').default;
+  } catch (e) {
+    // fallback gracefully if motion not installed
+  }
+}
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -138,7 +148,38 @@ const TICKER_ITEMS = [
   { icon: 'storefront-outline', text: 'LOCAL MARKETPLACE — NANDED' },
 ];
 
+// Scrolling text rows for ScrollVelocity (web)
+const SCROLL_ROW_1 = '✦ HIRING NOW — Nanded  ✦ DELIVERY JOBS AVAILABLE  ✦ ROOMS FOR RENT  ✦ CARS & VEHICLES FOR HIRE  ✦ BUY & SELL 580+ ITEMS  ✦ TELECALLER JOBS — APPLY NOW';
+const SCROLL_ROW_2 = '✦ SECURITY GUARD VACANCIES  ✦ CONSTRUCTION WORK  ✦ DATA ENTRY & OFFICE JOBS  ✦ LOCAL MARKETPLACE — NANDED  ✦ FRESHER JOBS AVAILABLE  ✦ POST FREE ADS TODAY';
+
+// Web ScrollVelocity banner
+function WebScrollBanner() {
+  if (!ScrollVelocity) return null;
+  return (
+    <div style={{
+      backgroundColor: '#1a1a2e',
+      overflow: 'hidden',
+      paddingTop: 12,
+      paddingBottom: 12,
+      marginBottom: 20,
+      borderRadius: 12,
+    }}>
+      <ScrollVelocity
+        texts={[SCROLL_ROW_1, SCROLL_ROW_2]}
+        velocity={80}
+        className="nanded-ticker-span"
+        parallaxStyle={{ overflow: 'hidden' }}
+        scrollerStyle={{ color: '#fff', fontSize: '0.95rem', fontWeight: '700', letterSpacing: '0.07em', paddingTop: 4, paddingBottom: 4 }}
+      />
+    </div>
+  );
+}
+
+// Native animated ticker (mobile / fallback)
 function TickerBanner() {
+  // On web, use the ScrollVelocity banner instead
+  if (IS_WEB) return <WebScrollBanner />;
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const opacity    = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(12)).current;
@@ -171,10 +212,10 @@ function TickerBanner() {
 
   const item = TICKER_ITEMS[currentIndex];
   return (
-    <View style={[s.ticker, IS_WEB && ws.ticker]}>
+    <View style={s.ticker}>
       <Animated.View style={[s.tickerRow, { opacity, transform: [{ translateY }] }]}>
         <Ionicons name={item.icon} size={14} color={ORANGE} style={{ marginRight: 8 }} />
-        <Text style={[s.tickerText, IS_WEB && { fontSize: 13 }]} numberOfLines={1}>{item.text}</Text>
+        <Text style={s.tickerText} numberOfLines={1}>{item.text}</Text>
       </Animated.View>
     </View>
   );
