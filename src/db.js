@@ -204,6 +204,18 @@ async function runMigrations() {
       `ALTER TABLE applications ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'applied'`,
       `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(100)`,
       `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_order_id  VARCHAR(100)`,
+      `ALTER TABLE payments  ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'paid'`,
+      `ALTER TABLE jobs      ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
+      `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
+      `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`,
+      `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS plan_days  INTEGER DEFAULT 30`,
+      `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30)`,
+      `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS plan_price INTEGER`,
+      `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
+      `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`,
+      `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS plan_days  INTEGER DEFAULT 30`,
+      `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30)`,
+      `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS plan_price INTEGER`,
     ];
     for (const sql of safeAlters) {
       try { await client.query(sql); } catch (e) { console.warn('Alter warn (non-fatal):', e.message); }
