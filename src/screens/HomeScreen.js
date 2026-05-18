@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Easing, StatusBar, TextInput, Modal,
-  FlatList, Dimensions,
+  FlatList, Dimensions, Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,8 +15,8 @@ import { timeAgo, http } from '../utils/api';
 const ORANGE    = '#f97316';
 const TEAL      = '#0d9488';
 const PURPLE    = '#7c3aed';
-// Dark ticker colour matching Image 3 reference design
 const TICKER_BG = '#1a1a2e';
+const IS_WEB    = Platform.OS === 'web';
 const { width: SCREEN_W } = Dimensions.get('window');
 
 // ── Animated Pressable ────────────────────────────────────────────────────────
@@ -334,6 +334,176 @@ function RecentJobCard({ job, onPress, index = 0 }) {
   );
 }
 
+// ── Web: Top Nav ──────────────────────────────────────────────────────────────
+function WebTopNav({ user, langBtnLabel, onLangPress, nav, searchText, setSearchText, onSearch }) {
+  return (
+    <View style={ws.topNav}>
+      <View style={ws.topNavBrand}>
+        <View style={ws.topNavLogoBox}>
+          <Ionicons name="location-sharp" size={15} color={ORANGE} />
+        </View>
+        <Text style={ws.topNavBrandTxt}>
+          <Text style={{ color: '#111' }}>Nanded</Text>
+          <Text style={{ color: ORANGE }}>Rozgar</Text>
+        </Text>
+      </View>
+
+      <View style={ws.topNavSearchBar}>
+        <Ionicons name="search-outline" size={16} color="#bbb" style={{ marginLeft: 14 }} />
+        <TextInput
+          style={ws.topNavSearchInput}
+          placeholder="Search jobs, rooms, vehicles..."
+          placeholderTextColor="#bbb"
+          value={searchText}
+          onChangeText={setSearchText}
+          onSubmitEditing={onSearch}
+          returnKeyType="search"
+        />
+        <TouchableOpacity style={ws.topNavSearchBtn} onPress={onSearch} activeOpacity={0.85}>
+          <Text style={ws.topNavSearchBtnTxt}>Search</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={ws.topNavActions}>
+        <TouchableOpacity style={ws.topNavLangBtn} onPress={onLangPress} activeOpacity={0.8}>
+          <Ionicons name="language" size={13} color={ORANGE} />
+          <Text style={ws.topNavLangTxt}>{langBtnLabel}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={ws.topNavBell} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
+          <Ionicons name="notifications-outline" size={20} color="#555" />
+        </TouchableOpacity>
+        <TouchableOpacity style={ws.topNavAvatar} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
+          <Text style={ws.topNavAvatarTxt}>{user?.name?.[0]?.toUpperCase() || 'J'}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// ── Web: Sidebar ──────────────────────────────────────────────────────────────
+function WebSidebar({ nav, stats }) {
+  const items = [
+    { key: 'Home',    icon: 'home',         label: 'Home',       active: true },
+    { key: 'Jobs',    icon: 'briefcase',     label: 'Jobs',       count: stats.jobs },
+    { key: 'Rooms',   icon: 'business',      label: 'Rooms',      count: stats.rooms },
+    { key: 'Cars',    icon: 'car-sport',     label: 'Vehicles',   count: stats.vehicles },
+    { key: 'BuySell', icon: 'pricetag',      label: 'Buy & Sell', count: stats.items },
+    { key: 'AIMatch', icon: 'sparkles',      label: 'AI Assistant' },
+    { key: 'Profile', icon: 'person-circle', label: 'My Profile' },
+  ];
+  return (
+    <View style={ws.sidebar}>
+      <View style={ws.sidebarNav}>
+        {items.map(item => (
+          <TouchableOpacity
+            key={item.key}
+            style={[ws.sidebarItem, item.active && ws.sidebarItemActive]}
+            onPress={() => nav.navigate(item.key)}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={item.active ? item.icon : `${item.icon}-outline`}
+              size={19}
+              color={item.active ? ORANGE : '#666'}
+            />
+            <Text style={[ws.sidebarLbl, item.active && ws.sidebarLblActive]}>{item.label}</Text>
+            {item.count !== undefined && (
+              <View style={[ws.sidebarPill, item.active && ws.sidebarPillActive]}>
+                <Text style={[ws.sidebarPillTxt, item.active && ws.sidebarPillTxtActive]}>{item.count}+</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+      <TouchableOpacity style={ws.sidebarCta} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
+        <Ionicons name="add-circle" size={17} color="#fff" />
+        <Text style={ws.sidebarCtaTxt}>Post a Listing</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ── Web: Right Panel ──────────────────────────────────────────────────────────
+function WebRightPanel({ nav, displayRooms, stats }) {
+  return (
+    <ScrollView style={ws.rightPanel} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+
+      {/* Live Stats */}
+      <Text style={ws.rpHeading}>Live Stats</Text>
+      <View style={ws.rpStatsGrid}>
+        {[
+          { v: stats.jobs,     l: 'Active Jobs' },
+          { v: stats.rooms,    l: 'Rooms' },
+          { v: stats.vehicles, l: 'Vehicles' },
+          { v: stats.items,    l: 'Items' },
+        ].map((st, i) => (
+          <View key={i} style={ws.rpStatCard}>
+            <Text style={ws.rpStatNum}>{st.v}+</Text>
+            <Text style={ws.rpStatLbl}>{st.l}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* AI Card */}
+      <TouchableOpacity style={ws.rpAiCard} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.9}>
+        <View style={ws.rpAiIcon}><Ionicons name="sparkles" size={18} color="#fff" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={ws.rpAiTitle}>AI Career Assistant</Text>
+          <Text style={ws.rpAiSub}>Salary advice, resume tips & job matches</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={15} color="rgba(255,255,255,0.6)" />
+      </TouchableOpacity>
+
+      {/* Recent Rooms */}
+      <View style={ws.rpSectionHdr}>
+        <Text style={ws.rpHeading}>Recent Rooms</Text>
+        <TouchableOpacity onPress={() => nav.navigate('Rooms')}>
+          <Text style={ws.rpSeeAll}>See all →</Text>
+        </TouchableOpacity>
+      </View>
+      {displayRooms.map(room => {
+        const title    = room.title    || room.area   || 'Room';
+        const location = room.location || room.area   || 'Nanded';
+        const type     = room.type     || room.bhk_size || 'Room';
+        const rent     = room.rent ? (String(room.rent).startsWith('₹') ? room.rent : `₹${room.rent}/mo`) : 'On request';
+        const available = room.available !== undefined ? room.available : room.status === 'active';
+        return (
+          <TouchableOpacity key={String(room.id)} style={ws.rpRoomCard} onPress={() => nav.navigate('RoomDetail', { room })} activeOpacity={0.85}>
+            <View style={ws.rpRoomImg}>
+              <Ionicons name="home-outline" size={24} color="rgba(255,255,255,0.3)" />
+              {available && <View style={ws.rpAvailBadge}><Text style={ws.rpAvailTxt}>Available</Text></View>}
+            </View>
+            <View style={ws.rpRoomBody}>
+              <Text style={ws.rpRoomTitle} numberOfLines={1}>{title}</Text>
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
+                <View style={ws.rpRoomChip}><Text style={ws.rpRoomChipTxt}>{location}</Text></View>
+                <View style={ws.rpRoomChip}><Text style={ws.rpRoomChipTxt}>{type}</Text></View>
+              </View>
+              <Text style={ws.rpRoomRent}>{rent}</Text>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+
+      {/* Quick Links */}
+      <Text style={[ws.rpHeading, { marginTop: 20 }]}>Quick Links</Text>
+      {[
+        { icon: 'car-sport-outline', label: 'Rent a Vehicle',   screen: 'Cars',     color: PURPLE },
+        { icon: 'pricetag-outline',  label: 'Buy & Sell Items',  screen: 'BuySell',  color: ORANGE },
+        { icon: 'people-outline',    label: 'Referral Program',  screen: 'Referral', color: TEAL },
+      ].map(lnk => (
+        <TouchableOpacity key={lnk.label} style={ws.rpLink} onPress={() => nav.navigate(lnk.screen)} activeOpacity={0.8}>
+          <View style={[ws.rpLinkIcon, { backgroundColor: lnk.color + '18' }]}>
+            <Ionicons name={lnk.icon} size={15} color={lnk.color} />
+          </View>
+          <Text style={ws.rpLinkTxt}>{lnk.label}</Text>
+          <Ionicons name="chevron-forward" size={13} color="#ccc" />
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const nav = useNavigation();
@@ -431,9 +601,191 @@ export default function HomeScreen() {
     }
   };
 
-  return (
-    <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+  // ── WEB LAYOUT ───────────────────────────────────────────────────────────────
+  if (IS_WEB) {
+    return (
+      <View style={ws.root}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+        <WebTopNav
+          user={user}
+          langBtnLabel={langBtnLabel}
+          onLangPress={() => setShowLangPicker(true)}
+          nav={nav}
+          searchText={searchText}
+          setSearchText={setSearchText}
+          onSearch={handleSearch}
+        />
+
+        <LangModal visible={showLangPicker} current={lang} onSelect={changeLang} onClose={() => setShowLangPicker(false)} />
+
+        <View style={ws.body}>
+          <WebSidebar nav={nav} stats={stats} />
+
+          {/* ── Main content column ── */}
+          <ScrollView style={ws.mainScroll} contentContainerStyle={ws.mainPad} showsVerticalScrollIndicator={false}>
+
+            {/* Hero */}
+            <FadeSlide delay={0} fromY={-14}>
+              <View style={ws.hero}>
+                <View style={ws.heroCircle1} /><View style={ws.heroCircle2} /><View style={ws.heroCircle3} />
+                <View style={ws.heroText}>
+                  <View style={ws.heroBadge}>
+                    <View style={ws.heroBadgeDot} />
+                    <Text style={ws.heroBadgeTxt}>10,000+ opportunities in Nanded</Text>
+                  </View>
+                  <Text style={ws.heroTitle}>Find Jobs, Rooms{'\n'}& More in Nanded</Text>
+                  <Text style={ws.heroSub}>Your local marketplace for work, housing and vehicles</Text>
+                  <View style={ws.heroBtns}>
+                    <TouchableOpacity style={ws.heroBtnDark} onPress={() => nav.navigate('Jobs')} activeOpacity={0.88}>
+                      <Ionicons name="briefcase" size={15} color="#fff" />
+                      <Text style={ws.heroBtnDarkTxt}>Browse Jobs</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={ws.heroBtnLight} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
+                      <Ionicons name="add" size={15} color={ORANGE} />
+                      <Text style={ws.heroBtnLightTxt}>Post a Listing</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <View style={ws.heroStatsRow}>
+                  {[
+                    { n: stats.jobs,     l: 'Active Jobs' },
+                    { n: stats.rooms,    l: 'Rooms' },
+                    { n: stats.items,    l: 'Items for Sale' },
+                  ].map((st, i) => (
+                    <React.Fragment key={i}>
+                      {i > 0 && <View style={ws.heroStatDiv} />}
+                      <View style={ws.heroStatItem}>
+                        <Text style={ws.heroStatNum}>{st.n}+</Text>
+                        <Text style={ws.heroStatLbl}>{st.l}</Text>
+                      </View>
+                    </React.Fragment>
+                  ))}
+                </View>
+              </View>
+            </FadeSlide>
+
+            {/* Category cards */}
+            <FadeSlide delay={100}>
+              <Text style={ws.secTitle}>Explore Categories</Text>
+              <View style={ws.catGrid}>
+                {[
+                  { icon: 'briefcase-outline', title: 'Jobs',       sub: `${stats.jobs}+ openings`,    color: ORANGE,    screen: 'Jobs' },
+                  { icon: 'home-outline',       title: 'Rooms',      sub: `${stats.rooms}+ listings`,   color: TEAL,      screen: 'Rooms' },
+                  { icon: 'car-sport-outline',  title: 'Vehicles',   sub: `${stats.vehicles}+ for hire`, color: PURPLE,   screen: 'Cars' },
+                  { icon: 'pricetag-outline',   title: 'Buy & Sell', sub: `${stats.items}+ items`,      color: '#e11d48', screen: 'BuySell' },
+                ].map(cat => (
+                  <AnimatedPress key={cat.title} style={[ws.catCard, { borderTopColor: cat.color }]} onPress={() => nav.navigate(cat.screen)}>
+                    <View style={[ws.catIcon, { backgroundColor: cat.color + '15' }]}>
+                      <Ionicons name={cat.icon} size={26} color={cat.color} />
+                    </View>
+                    <Text style={ws.catTitle}>{cat.title}</Text>
+                    <Text style={ws.catSub}>{cat.sub}</Text>
+                    <View style={ws.catArrow}>
+                      <Ionicons name="arrow-forward" size={13} color={cat.color} />
+                    </View>
+                  </AnimatedPress>
+                ))}
+              </View>
+            </FadeSlide>
+
+            {/* Ticker */}
+            <TickerBanner />
+
+            {/* Featured Jobs grid */}
+            <FadeSlide delay={180}>
+              <View style={ws.secHdr}>
+                <Text style={ws.secTitle}>Featured Jobs</Text>
+                <TouchableOpacity style={ws.seeAllBtn} onPress={() => nav.navigate('Jobs')}>
+                  <Text style={ws.seeAllTxt}>View all →</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={ws.featGrid}>
+                {displayFeatured.map(job => (
+                  <AnimatedPress key={String(job.id)} style={ws.featCard} onPress={() => job.status === 'active' ? nav.navigate('JobDetail', { job }) : nav.navigate('Jobs')}>
+                    <View style={ws.featCardTop}>
+                      <View style={ws.featCardIcon}>
+                        <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={20} color={ORANGE} />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={ws.featCardTitle} numberOfLines={1}>{job.title}</Text>
+                        <Text style={ws.featCardCo} numberOfLines={1}>{job.company}</Text>
+                      </View>
+                      {job.urgent && <View style={ws.urgentTag}><Text style={ws.urgentTagTxt}>URGENT</Text></View>}
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }}>
+                      <View style={ws.featChip}><Ionicons name="location-outline" size={10} color="#777" /><Text style={ws.featChipTxt}>{job.location || 'Nanded'}</Text></View>
+                      {job.fresher_ok && <View style={[ws.featChip, { backgroundColor: '#f0fdf4' }]}><Text style={[ws.featChipTxt, { color: '#15803d' }]}>Fresher OK</Text></View>}
+                    </View>
+                    <View style={ws.featCardBottom}>
+                      <Text style={ws.featSalary}>{job.salary}</Text>
+                      <View style={ws.applyBtn}><Text style={ws.applyBtnTxt}>Apply</Text></View>
+                    </View>
+                  </AnimatedPress>
+                ))}
+              </View>
+            </FadeSlide>
+
+            {/* Recent Jobs list */}
+            <FadeSlide delay={240}>
+              <View style={ws.secHdr}>
+                <Text style={ws.secTitle}>Recent Listings</Text>
+                <TouchableOpacity style={ws.seeAllBtn} onPress={() => nav.navigate('Jobs')}>
+                  <Text style={ws.seeAllTxt}>See all →</Text>
+                </TouchableOpacity>
+              </View>
+              {displayJobs.map((job, i) => {
+                const iconName = CAT_ICONS[job.category || job.icon] || 'briefcase';
+                const ageDays  = (Date.now() - (job.timestamp || 0)) / 86400000;
+                const fc       = ageDays < 1 ? '#16a34a' : ageDays < 7 ? ORANGE : '#bbb';
+                const fl       = ageDays < 1 ? 'Today' : ageDays < 7 ? `${Math.floor(ageDays)}d ago` : (job.jobTime || 'Recent');
+                const skills   = Array.isArray(job.skills) ? job.skills.slice(0, 2) : [];
+                const expLbl   = job.experience || (job.fresher_ok ? 'Fresher OK' : null);
+                return (
+                  <FadeSlide key={String(job.id)} delay={260 + i * 70}>
+                    <AnimatedPress style={[ws.jobCard, job.featured && ws.jobCardFeatured, job.urgent && ws.jobCardUrgent]} onPress={() => nav.navigate('JobDetail', { job })}>
+                      {job.featured && <View style={ws.jobBadge}><Text style={ws.jobBadgeTxt}>FEATURED</Text></View>}
+                      {job.urgent && !job.featured && <View style={[ws.jobBadge, { backgroundColor: '#ef4444' }]}><Text style={ws.jobBadgeTxt}>URGENT</Text></View>}
+                      <View style={ws.jobRow}>
+                        <View style={ws.jobThumb}><Ionicons name={iconName} size={21} color={ORANGE} /></View>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                            <Text style={ws.jobTitle} numberOfLines={1}>{job.title}</Text>
+                            {job.verified_employer && <Ionicons name="checkmark-circle" size={13} color="#16a34a" />}
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                            <Ionicons name="business-outline" size={11} color="#bbb" />
+                            <Text style={ws.jobCo}>{job.company}</Text>
+                          </View>
+                          <View style={ws.jobChips}>
+                            <View style={ws.jobChip}><Ionicons name="location-outline" size={10} color="#777" /><Text style={ws.jobChipTxt}>{job.location || job.loc || 'Nanded'}</Text></View>
+                            {expLbl && <View style={[ws.jobChip, { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }]}><Text style={[ws.jobChipTxt, { color: '#15803d' }]}>{expLbl}</Text></View>}
+                            {skills.map((sk, si) => <View key={si} style={ws.jobChip}><Text style={ws.jobChipTxt}>{sk}</Text></View>)}
+                          </View>
+                        </View>
+                        <View style={ws.jobRight}>
+                          <View style={ws.salaryPill}><Text style={ws.salaryPillTxt}>{job.salary}</Text></View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                            {ageDays < 1 ? <PulseDot color={fc} /> : <View style={[s.freshnessDot, { backgroundColor: fc }]} />}
+                            <Text style={[ws.jobTime, { color: fc }]}>{fl}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </AnimatedPress>
+                  </FadeSlide>
+                );
+              })}
+            </FadeSlide>
+
+          </ScrollView>
+
+          <WebRightPanel nav={nav} displayRooms={displayRooms} stats={stats} />
+        </View>
+      </View>
+    );
+  }
+
+  // ── MOBILE LAYOUT ─────────────────────────────────────────────────────────
 
       {/* ── Sticky White Header ── */}
       <View style={[s.headerBand, { paddingTop: insets.top + 6 }]}>
