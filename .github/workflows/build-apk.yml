@@ -1,10 +1,12 @@
-name: Build Android APK
+name: Build Android APK + Web
 on:
   push:
     branches: [main, master]
   workflow_dispatch:
+
 jobs:
-  build:
+  build-web:
+    name: Build & Deploy Web (via Railway)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -14,6 +16,35 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Expo web
+        run: npx expo export --platform web
+        env:
+          NODE_ENV: production
+
+      - name: Upload web dist as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: ./dist
+          retention-days: 7
+
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
       - name: Setup Java
         uses: actions/setup-java@v4
