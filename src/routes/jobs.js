@@ -2,19 +2,60 @@ const router = require('express').Router();
 const { pool } = require('../db');
 const { auth } = require('../middleware/auth');
 
-// GET /api/jobs — list all active, non-expired jobs
+// GET /api/jobs — paginated list of active, non-expired jobs
 router.get('/', async (req, res) => {
   try {
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.min(50, parseInt(req.query.limit) || 20);
+    const offset = (page - 1) * limit;
+    const category = req.query.category || null;
+    const search   = req.query.search   || null;
+
+    // Build dynamic WHERE clauses
+    const conditions = [`j.status = 'active'`, `(j.expires_at IS NULL OR j.expires_at > NOW())`];
+    const params = [];
+
+    if (category && category !== 'All') {
+      params.push(category);
+      conditions.push(`j.category = $${params.length}`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(j.title ILIKE $${params.length} OR j.company ILIKE $${params.length} OR j.description ILIKE $${params.length})`);
+    }
+
+    const where = conditions.join(' AND ');
+
+    // Total count for pagination
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM jobs j WHERE ${where}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    // Data query with pagination
+    params.push(limit, offset);
     const { rows } = await pool.query(`
       SELECT j.*, u.name AS poster_name,
         (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) AS applicant_count
       FROM jobs j
       LEFT JOIN users u ON u.id = j.posted_by
-      WHERE j.status = 'active'
-        AND (j.expires_at IS NULL OR j.expires_at > NOW())
+      WHERE ${where}
       ORDER BY j.featured DESC, j.urgent DESC, j.created_at DESC
-    `);
-    res.json({ ok: true, jobs: rows });
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
+
+    res.json({
+      ok: true,
+      jobs: rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+      },
+    });
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to load jobs' });
@@ -39,7 +80,6 @@ router.post('/', auth, async (req, res) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
-    // Normalise skills/requirements to arrays
     const skillsArr = Array.isArray(skills)
       ? skills
       : typeof skills === 'string' && skills.trim()
@@ -80,15 +120,85 @@ router.post('/', auth, async (req, res) => {
 // POST /api/jobs/:id/apply
 router.post('/:id/apply', auth, async (req, res) => {
   try {
+    // Check user hasn't already applied
+    const existing = await pool.query(
+      'SELECT id FROM applications WHERE job_id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (existing.rows.length > 0) {
+      return res.json({ ok: false, error: 'You have already applied to this job' });
+    }
+
     await pool.query(
-      'INSERT INTO applications (job_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      `INSERT INTO applications (job_id, user_id, status) VALUES ($1, $2, 'applied')
+       ON CONFLICT DO NOTHING`,
       [req.params.id, req.user.id]
     );
     await pool.query('UPDATE jobs SET applicant_count = applicant_count + 1 WHERE id = $1', [req.params.id]);
-    res.json({ ok: true });
+    res.json({ ok: true, message: 'Application submitted!' });
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to apply' });
+  }
+});
+
+// GET /api/jobs/:id/application-status — check if current user applied
+router.get('/:id/application-status', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT status FROM applications WHERE job_id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (rows.length === 0) return res.json({ ok: true, applied: false, status: null });
+    res.json({ ok: true, applied: true, status: rows[0].status });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to check status' });
+  }
+});
+
+// GET /api/jobs/my-applications — current user's applications with statuses
+router.get('/my-applications', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT a.id, a.status, a.created_at,
+        j.id AS job_id, j.title, j.company, j.category, j.location, j.salary
+      FROM applications a
+      JOIN jobs j ON j.id = a.job_id
+      WHERE a.user_id = $1
+      ORDER BY a.created_at DESC
+    `, [req.user.id]);
+    res.json({ ok: true, applications: rows });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to load applications' });
+  }
+});
+
+// PATCH /api/jobs/:id/application/:userId — employer updates application status
+router.patch('/:id/application/:userId', auth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ['applied', 'reviewed', 'shortlisted', 'rejected', 'hired'];
+    if (!validStatuses.includes(status)) {
+      return res.json({ ok: false, error: 'Invalid status value' });
+    }
+
+    // Only job owner or admin can update
+    const jobRow = await pool.query('SELECT posted_by FROM jobs WHERE id = $1', [req.params.id]);
+    if (!jobRow.rows[0]) return res.json({ ok: false, error: 'Job not found' });
+    if (jobRow.rows[0].posted_by !== req.user.id && req.user.role !== 'admin') {
+      return res.json({ ok: false, error: 'Not authorised' });
+    }
+
+    await pool.query(
+      `UPDATE applications SET status = $1 WHERE job_id = $2 AND user_id = $3`,
+      [status, req.params.id, req.params.userId]
+    );
+    res.json({ ok: true, status });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to update status' });
   }
 });
 
@@ -111,18 +221,37 @@ router.post('/:id/save', auth, async (req, res) => {
   }
 });
 
+// GET /api/jobs/saved — list user's saved jobs
+router.get('/saved', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT j.*, s.created_at AS saved_at
+      FROM saved_jobs s
+      JOIN jobs j ON j.id = s.job_id
+      WHERE s.user_id = $1 AND j.status = 'active'
+      ORDER BY s.created_at DESC
+    `, [req.user.id]);
+    res.json({ ok: true, jobs: rows });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to load saved jobs' });
+  }
+});
+
 // POST /api/jobs/:id/report
 router.post('/:id/report', auth, async (req, res) => {
   try {
     const { reason } = req.body;
     await pool.query(
-      'INSERT INTO job_reports (job_id, user_id, reason) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+      `INSERT INTO job_reports (job_id, user_id, reason)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (job_id, user_id) DO NOTHING`,
       [req.params.id, req.user.id, reason || 'Other']
-    ).catch(() => {}); // table may not exist yet — non-fatal
-    res.json({ ok: true });
+    );
+    res.json({ ok: true, message: 'Report submitted. Thank you.' });
   } catch (err) {
     console.error(err);
-    res.json({ ok: false, error: 'Failed to report' });
+    res.json({ ok: false, error: 'Failed to report job' });
   }
 });
 
