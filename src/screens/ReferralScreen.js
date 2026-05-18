@@ -1,15 +1,28 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Share, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
+import { http } from '../utils/api';
 
 const ORANGE = '#f97316';
 
 export default function ReferralScreen() {
-  const { user } = useAuth();
-  const code = `NR${(user?.id || '0000').toString().slice(0, 4).toUpperCase()}`;
+  const { user, setUser } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const credits = user?.referral_credits ?? 0;
+
+  // Build referral code from user ID — same format the backend expects
+  const code = `NR${String(user?.id || '0000').padStart(4, '0')}`;
+
+  useEffect(() => {
+    // Refresh user to get latest credit balance
+    http('GET', '/api/auth/me').then(r => {
+      if (r?.ok && r.user) setUser(r.user);
+      setLoading(false);
+    });
+  }, []);
 
   async function copyCode() {
     await Clipboard.setStringAsync(code);
@@ -23,13 +36,31 @@ export default function ReferralScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
       <View style={styles.card}>
         <View style={styles.iconWrap}>
           <Ionicons name="gift-outline" size={36} color={ORANGE} />
         </View>
         <Text style={styles.title}>Refer Friends & Earn</Text>
-        <Text style={styles.sub}>Share your code. When your friend posts a job, you both get benefits!</Text>
+        <Text style={styles.sub}>Share your code. When your friend signs up, you earn ₹20–₹50 credits!</Text>
+
+        {/* Credit Balance */}
+        <View style={styles.balanceBox}>
+          <Text style={styles.balanceLabel}>YOUR CREDIT BALANCE</Text>
+          {loading ? (
+            <ActivityIndicator color={ORANGE} style={{ marginVertical: 6 }} />
+          ) : (
+            <Text style={styles.balanceAmount}>
+              {credits}
+              <Text style={styles.balanceUnit}> credit{credits !== 1 ? 's' : ''}</Text>
+            </Text>
+          )}
+          <Text style={styles.balanceNote}>
+            {credits > 0
+              ? `Use ${credits} credit${credits !== 1 ? 's' : ''} to unlock Featured or Urgent job listings`
+              : 'Invite friends to earn credits for free featured listings'}
+          </Text>
+        </View>
 
         <View style={styles.codeBox}>
           <Text style={styles.codeLabel}>YOUR REFERRAL CODE</Text>
@@ -49,29 +80,35 @@ export default function ReferralScreen() {
       <View style={styles.howCard}>
         <Text style={styles.howTitle}>How it works</Text>
         {[
-          { n: '1', t: 'Share your code', s: 'Send it to friends in Nanded' },
-          { n: '2', t: 'Friend signs up', s: 'They use your code during registration' },
-          { n: '3', t: 'Both get rewarded', s: 'Get free featured job post credits' },
+          { n: '1', t: 'Share your code',   s: 'Send it to friends looking for work in Nanded' },
+          { n: '2', t: 'Friend signs up',   s: 'They enter your code during registration' },
+          { n: '3', t: 'You earn 1 credit', s: 'Each successful referral = 1 credit added to your balance' },
+          { n: '4', t: 'Redeem credits',    s: 'Credits unlock Featured (₹49) or Urgent (₹99) listings for free' },
         ].map(step => (
           <View key={step.n} style={styles.step}>
             <View style={styles.stepNum}><Text style={styles.stepNumTxt}>{step.n}</Text></View>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.stepTitle}>{step.t}</Text>
               <Text style={styles.stepSub}>{step.s}</Text>
             </View>
           </View>
         ))}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 16 },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#ebebeb', marginBottom: 16 },
   iconWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   title: { fontSize: 20, fontWeight: '800', color: '#111', marginBottom: 8 },
-  sub: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  sub: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  balanceBox: { width: '100%', backgroundColor: '#111', borderRadius: 14, padding: 18, alignItems: 'center', marginBottom: 20 },
+  balanceLabel: { fontSize: 10, fontWeight: '700', color: '#888', letterSpacing: 1, marginBottom: 6 },
+  balanceAmount: { fontSize: 36, fontWeight: '900', color: ORANGE, marginBottom: 6 },
+  balanceUnit: { fontSize: 18, fontWeight: '600', color: '#aaa' },
+  balanceNote: { fontSize: 11, color: '#888', textAlign: 'center', lineHeight: 16 },
   codeBox: { width: '100%', backgroundColor: '#fff7ed', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1.5, borderColor: '#fed7aa', marginBottom: 20, borderStyle: 'dashed' },
   codeLabel: { fontSize: 10, fontWeight: '700', color: '#aaa', letterSpacing: 1, marginBottom: 6 },
   code: { fontSize: 28, fontWeight: '900', color: ORANGE, letterSpacing: 4, marginBottom: 10 },
@@ -85,5 +122,5 @@ const styles = StyleSheet.create({
   stepNum: { width: 32, height: 32, borderRadius: 16, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   stepNumTxt: { color: '#fff', fontWeight: '800', fontSize: 14 },
   stepTitle: { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
-  stepSub: { fontSize: 12, color: '#888' },
+  stepSub: { fontSize: 12, color: '#888', lineHeight: 16 },
 });
