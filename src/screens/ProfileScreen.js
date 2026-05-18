@@ -1,18 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { http } from '../utils/api';
 
 const ORANGE = '#f97316';
 
 export default function ProfileScreen() {
   const nav = useNavigation();
   const { user, signOut, jobs } = useAuth();
+  const [stats, setStats]   = useState({ applied: 0, saved: 0 });
+  const [loading, setLoading] = useState(true);
 
   const myJobs = jobs?.filter(j => j.posted_by === user?.id) || [];
+  const isSeeker = !user?.company || user.company.trim() === '';
+
+  useEffect(() => {
+    http('GET', '/api/analytics/seeker').then(r => {
+      if (r?.ok) {
+        setStats({
+          applied: parseInt(r.applications?.total) || 0,
+          saved:   r.savedCount || 0,
+        });
+      }
+      setLoading(false);
+    });
+  }, []);
 
   function confirmLogout() {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -21,13 +37,28 @@ export default function ProfileScreen() {
     ]);
   }
 
-  const menuItems = [
-    { icon: 'briefcase-outline', label: 'My Job Posts', badge: myJobs.length, onPress: () => nav.navigate('Jobs') },
-    { icon: 'notifications-outline', label: 'Notifications', onPress: () => {} },
-    { icon: 'share-social-outline', label: 'Refer & Earn', onPress: () => nav.navigate('Referral') },
-    { icon: 'help-circle-outline', label: 'Help & Support', onPress: () => {} },
+  const seekerMenu = [
+    { icon: 'person-outline',          label: 'My Seeker Profile',   onPress: () => nav.navigate('SeekerProfile') },
+    { icon: 'checkmark-circle-outline',label: 'My Applications',     badge: stats.applied,  onPress: () => nav.navigate('MyApplications') },
+    { icon: 'bookmark-outline',        label: 'Saved Jobs',          badge: stats.saved,    onPress: () => nav.navigate('Jobs') },
+    { icon: 'notifications-outline',   label: 'Job Alerts',          onPress: () => nav.navigate('Alerts') },
+    { icon: 'chatbubbles-outline',     label: 'My Messages',         onPress: () => nav.navigate('ChatList') },
+  ];
+
+  const employerMenu = [
+    { icon: 'briefcase-outline',       label: 'My Job Posts',        badge: myJobs.length,  onPress: () => nav.navigate('Jobs') },
+    { icon: 'bar-chart-outline',       label: 'Analytics Dashboard', onPress: () => nav.navigate('Analytics') },
+    { icon: 'chatbubbles-outline',     label: 'My Messages',         onPress: () => nav.navigate('ChatList') },
+    { icon: 'star-outline',            label: 'My Reviews',          onPress: () => nav.navigate('ChatList') },
+  ];
+
+  const commonMenu = [
+    { icon: 'share-social-outline',    label: 'Refer & Earn',        onPress: () => nav.navigate('Referral') },
+    { icon: 'help-circle-outline',     label: 'Help & Support',      onPress: () => {} },
     { icon: 'information-circle-outline', label: 'About NandedRozgar', onPress: () => {} },
   ];
+
+  const menuItems = [...(isSeeker ? seekerMenu : employerMenu), ...commonMenu];
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -39,32 +70,38 @@ export default function ProfileScreen() {
         <Text style={styles.name}>{user?.name || 'User'}</Text>
         <Text style={styles.email}>{user?.email || ''}</Text>
         <View style={styles.roleBadge}>
-          <Text style={styles.roleTxt}>{user?.role === 'admin' ? '⚡ Admin' : '👤 Member'}</Text>
+          <Text style={styles.roleTxt}>
+            {user?.role === 'admin' ? '⚡ Admin' : isSeeker ? '👤 Job Seeker' : '🏢 Employer'}
+          </Text>
         </View>
       </View>
 
       {/* Stats */}
-      <View style={styles.statsRow}>
-        <View style={styles.statBox}>
-          <Text style={styles.statNum}>{myJobs.length}</Text>
-          <Text style={styles.statLbl}>Jobs Posted</Text>
+      {loading ? (
+        <ActivityIndicator color={ORANGE} style={{ marginTop: 20 }} />
+      ) : (
+        <View style={styles.statsRow}>
+          <TouchableOpacity style={styles.statBox} onPress={() => nav.navigate('Jobs')}>
+            <Text style={styles.statNum}>{myJobs.length}</Text>
+            <Text style={styles.statLbl}>{isSeeker ? 'Posts' : 'Jobs Posted'}</Text>
+          </TouchableOpacity>
+          <View style={styles.statDivider} />
+          <TouchableOpacity style={styles.statBox} onPress={() => isSeeker && nav.navigate('MyApplications')}>
+            <Text style={styles.statNum}>{stats.applied}</Text>
+            <Text style={styles.statLbl}>Applied</Text>
+          </TouchableOpacity>
+          <View style={styles.statDivider} />
+          <TouchableOpacity style={styles.statBox}>
+            <Text style={styles.statNum}>{stats.saved}</Text>
+            <Text style={styles.statLbl}>Saved</Text>
+          </TouchableOpacity>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statBox}>
-          <Text style={styles.statNum}>0</Text>
-          <Text style={styles.statLbl}>Applied</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statBox}>
-          <Text style={styles.statNum}>0</Text>
-          <Text style={styles.statLbl}>Saved</Text>
-        </View>
-      </View>
+      )}
 
       {/* Menu */}
       <View style={styles.menu}>
         {menuItems.map((item, i) => (
-          <TouchableOpacity key={i} style={styles.menuItem} onPress={item.onPress} activeOpacity={0.8}>
+          <TouchableOpacity key={i} style={[styles.menuItem, i === menuItems.length - 1 && { borderBottomWidth: 0 }]} onPress={item.onPress} activeOpacity={0.8}>
             <View style={styles.menuIcon}>
               <Ionicons name={item.icon} size={20} color={ORANGE} />
             </View>
@@ -84,7 +121,7 @@ export default function ProfileScreen() {
         <Text style={styles.signOutTxt}>Sign Out</Text>
       </TouchableOpacity>
 
-      <Text style={styles.version}>NandedRozgar v1.0.1 · Nanded, Maharashtra</Text>
+      <Text style={styles.version}>NandedRozgar v1.2.0 · Nanded, Maharashtra</Text>
     </ScrollView>
   );
 }
