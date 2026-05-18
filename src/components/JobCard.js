@@ -72,11 +72,19 @@ export default function JobCard({ job, onPress, index = 0 }) {
               {!!job.salary && <Text style={s.salary}>₹{job.salary}</Text>}
             </View>
 
-            {/* Company · Location */}
+            {/* Company · Location · Verified badge */}
             {(!!job.company || !!job.location) && (
-              <Text style={s.subtitle} numberOfLines={1}>
-                {[job.company, job.location].filter(Boolean).join(' · ')}
-              </Text>
+              <View style={s.companyRow}>
+                <Text style={s.subtitle} numberOfLines={1}>
+                  {[job.company, job.location].filter(Boolean).join(' · ')}
+                </Text>
+                {!!job.poster_verified && (
+                  <View style={s.verifiedBadge}>
+                    <Ionicons name="checkmark-circle" size={11} color="#fff" />
+                    <Text style={s.verifiedTxt}>Verified</Text>
+                  </View>
+                )}
+              </View>
             )}
 
             {/* Applied & Views — right below company (Image 2 style) */}
@@ -168,6 +176,9 @@ const s = StyleSheet.create({
   salary: { fontSize: 13, fontWeight: '700', color: ORANGE, flexShrink: 0, paddingTop: 2 },
 
   subtitle: { fontSize: 12, color: '#888', fontWeight: '500', marginBottom: 6 },
+  companyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' },
+  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#10b981', borderRadius: 10, paddingVertical: 2, paddingHorizontal: 6 },
+  verifiedTxt: { fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
 
   // Meta: applied · views
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
