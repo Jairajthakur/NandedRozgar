@@ -178,18 +178,7 @@ async function runMigrations() {
       );
     `);
 
-    // ── Indexes ───────────────────────────────────────────────────────────────
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_status      ON jobs(status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_category    ON jobs(category);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_posted_by   ON jobs(posted_by);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_job_id      ON applications(job_id);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_user_id     ON applications(user_id);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_status      ON applications(status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_vehicles_status  ON vehicles(status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_rooms_status     ON rooms(status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_reports_job      ON job_reports(job_id);`);
-
-    // ── Safe ALTER for existing deployments ───────────────────────────────────
+    // ── Safe ALTER for existing deployments (must run BEFORE indexes) ────────
     const safeAlters = [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium          BOOLEAN DEFAULT FALSE`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS verified         BOOLEAN DEFAULT FALSE`,
@@ -201,11 +190,11 @@ async function runMigrations() {
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS experience       VARCHAR(50)`,
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS hours            VARCHAR(50)`,
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS openings         VARCHAR(10) DEFAULT '1'`,
+      `ALTER TABLE jobs      ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
       `ALTER TABLE applications ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'applied'`,
       `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(100)`,
       `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_order_id  VARCHAR(100)`,
       `ALTER TABLE payments  ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'paid'`,
-      `ALTER TABLE jobs      ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
       `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
       `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`,
       `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS plan_days  INTEGER DEFAULT 30`,
@@ -220,6 +209,17 @@ async function runMigrations() {
     for (const sql of safeAlters) {
       try { await client.query(sql); } catch (e) { console.warn('Alter warn (non-fatal):', e.message); }
     }
+
+    // ── Indexes (run AFTER alters so all columns exist) ───────────────────────
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_status      ON jobs(status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_category    ON jobs(category);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_posted_by   ON jobs(posted_by);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_job_id      ON applications(job_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_user_id     ON applications(user_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_status      ON applications(status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_vehicles_status  ON vehicles(status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_rooms_status     ON rooms(status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_reports_job      ON job_reports(job_id);`);
 
     // Fix any legacy invalid role values
     await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');`);
