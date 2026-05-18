@@ -10,36 +10,48 @@ import { getToken } from '../utils/api';
 import { useLang } from '../utils/i18n';
 
 export default function AIScreen() {
-  const { user, role, jobs } = useAuth();
+  const { user, jobs } = useAuth();
   const { t } = useLang();
   const [query, setQuery]       = useState('');
   const [response, setResponse] = useState('');
   const [loading, setLoading]   = useState(false);
 
-  const isSeeker = false; // All users can use AI match
+  // Derive whether this user is a seeker or employer from their profile.
+  // A user with no company set is treated as a job seeker.
+  const isSeeker = !user?.company || user.company.trim() === '';
+
   const hints = isSeeker
-    ? ['Find jobs matching my skills in Nanded','How do I improve my chances of getting hired?',
-       'What skills should I learn for better pay?','Which areas in Nanded have most job openings?']
-    : ['What salary should I offer for a driver role in Nanded?',
-       'Write a compelling job description for a security guard',
-       'How many applications should I expect for ₹12,000/month?',
-       'Best way to hire quickly in Nanded?'];
+    ? [
+        'Find jobs matching my skills in Nanded',
+        'How do I improve my chances of getting hired?',
+        'What skills should I learn for better pay in Nanded?',
+        'Which areas in Nanded have most job openings?',
+      ]
+    : [
+        'What salary should I offer for a driver role in Nanded?',
+        'Write a compelling job description for a security guard',
+        'How many applications should I expect for ₹12,000/month?',
+        'Best way to hire quickly in Nanded?',
+      ];
 
   async function askAI() {
     if (!query.trim()) return;
     setLoading(true);
     setResponse('');
     try {
-      // AI calls go through the backend (/api/ai/chat) which holds the API key securely.
-      // See src/routes/ai.js on your Railway server.
-      const token = getToken();
+      // FIX: await the async getToken() call so we get the actual token string
+      const token = await getToken();
       const res = await fetch(`${BASE_URL}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: 'Bearer ' + token } : {}),
         },
-        body: JSON.stringify({ query, role, userLocation: user?.location }),
+        body: JSON.stringify({
+          query,
+          role: isSeeker ? 'seeker' : 'employer',
+          userLocation: user?.location,
+        }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -53,17 +65,28 @@ export default function AIScreen() {
     setLoading(false);
   }
 
+  const activeJobCount = jobs.filter(j => j.status === 'active').length;
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       <SectionTitle
         title={t('aiAssistant')}
-        sub={isSeeker
-          ? 'Get smart job recommendations based on your skills'
-          : 'Get hiring insights and salary benchmarks for Nanded'}
+        sub={
+          isSeeker
+            ? 'Get smart job recommendations based on your skills'
+            : 'Get hiring insights and salary benchmarks for Nanded'
+        }
         style={{ marginBottom: 16 }}
       />
 
       <Card style={{ marginBottom: 12 }}>
+        {/* Role indicator */}
+        <View style={styles.roleTag}>
+          <Text style={styles.roleTagTxt}>
+            {isSeeker ? '👤 Job Seeker Mode' : '🏢 Employer Mode'}
+          </Text>
+        </View>
+
         {/* Hints */}
         {hints.map(q => (
           <TouchableOpacity key={q} onPress={() => setQuery(q)} style={styles.hintBtn}>
@@ -76,7 +99,7 @@ export default function AIScreen() {
           <TextInput
             style={styles.input}
             placeholder={t('askAnything')}
-            placeholderTextColor='#bbb'
+            placeholderTextColor="#bbb"
             value={query}
             onChangeText={setQuery}
             multiline
@@ -85,7 +108,6 @@ export default function AIScreen() {
         <Btn label={loading ? 'Thinking…' : t('send')}
           onPress={askAI} disabled={loading || !query.trim()} />
 
-        {/* Loading indicator */}
         {loading && (
           <View style={styles.aiBox}>
             <ActivityIndicator color={C.dark} style={{ marginRight: 10 }} />
@@ -93,26 +115,22 @@ export default function AIScreen() {
           </View>
         )}
 
-        {/* Response */}
-        {response ? (
+        {!!response && (
           <View style={styles.aiBox}>
             <Text style={styles.aiText}>{response}</Text>
           </View>
-        ) : null}
+        )}
       </Card>
 
       <Card>
         <Text style={styles.contextTitle}>Context Available to AI</Text>
         <Text style={{ fontSize: 12, color: C.muted, lineHeight: 18 }}>
           AI has access to{' '}
-          <Text style={{ fontWeight: '700' }}>
-            {jobs.filter(j => j.status === 'active').length}
-          </Text>{' '}
-          active jobs in Nanded.
-          {'\n'}
+          <Text style={{ fontWeight: '700' }}>{activeJobCount}</Text>{' '}
+          active jobs in Nanded.{'\n'}
           {isSeeker
-            ? `Your skills: ${(user?.skills || []).join(', ') || 'none listed'}`
-            : `Your company: ${user?.company || 'not specified'}`}
+            ? `Your profile: ${user?.name || 'Not specified'}`
+            : `Your company: ${user?.company || 'Not specified'}`}
         </Text>
       </Card>
     </ScrollView>
@@ -121,6 +139,17 @@ export default function AIScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
+  roleTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#fff7ed',
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  roleTagTxt: { fontSize: 11, fontWeight: '700', color: '#f97316' },
   hintBtn: {
     borderWidth: 1.5, borderColor: '#ebebeb', borderRadius: 9,
     padding: 10, marginBottom: 8,
