@@ -1,6 +1,6 @@
 {
   "name": "nanded-rozgar",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "main": "index.js",
   "private": true,
   "scripts": {
@@ -30,17 +30,19 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-toast-message": "^2.2.1",
-    "expo-image-picker": "~16.1.4"
-  },
-  "devDependencies": {
-    "@babel/core": "^7.25.2",
-    "nodemon": "^3.1.4",
+    "expo-image-picker": "~16.1.4",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^7.4.1",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.12.0"
+    "pg": "^8.12.0",
+    "razorpay": "^2.9.4"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "nodemon": "^3.1.4"
   },
   "overrides": {
     "use-latest-callback": "0.1.9"
