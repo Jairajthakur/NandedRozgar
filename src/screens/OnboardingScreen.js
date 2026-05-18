@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Dimensions, StatusBar, Animated, Easing,
 } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import storage from '../utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
@@ -16,8 +16,8 @@ const SLIDES = [
 ];
 
 export const ONBOARDING_KEY = 'nr_onboarded_v1';
-export async function markOnboarded() { try { await SecureStore.setItemAsync(ONBOARDING_KEY, '1'); } catch {} }
-export async function isOnboarded() { try { const v = await SecureStore.getItemAsync(ONBOARDING_KEY); return v === '1'; } catch { return false; } }
+export async function markOnboarded() { await storage.setItem(ONBOARDING_KEY, '1'); }
+export async function isOnboarded() { try { const v = await storage.getItem(ONBOARDING_KEY); return v === '1'; } catch { return false; } }
 
 // ── Animated slide content ────────────────────────────────────────────────────
 function SlideContent({ slide, isMr, active }) {
