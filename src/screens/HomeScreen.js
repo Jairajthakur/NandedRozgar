@@ -626,7 +626,7 @@ export default function HomeScreen() {
 
           {/* ── Main Content ── */}
           <ScrollView
-            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 24, paddingTop: isSmWeb ? 12 : 20 }]}
+            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 16, paddingTop: isSmWeb ? 12 : 16 }]}
             contentContainerStyle={{ paddingBottom: isSmWeb ? 80 : 48 }}
             showsVerticalScrollIndicator={true}
           >
@@ -1008,9 +1008,9 @@ const ws = StyleSheet.create({
 
   // Sidebar
   sidebar: {
-    width: 180, backgroundColor: '#fff',
+    width: 170, backgroundColor: '#fff',
     borderRightWidth: 1, borderRightColor: '#ececec',
-    paddingTop: 20, paddingHorizontal: 10,
+    paddingTop: 16, paddingHorizontal: 8,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 2, height: 0 }, elevation: 2,
   },
   sideNavSection: { fontSize: 10, fontWeight: '800', color: '#bbb', letterSpacing: 1.2, paddingHorizontal: 10, marginBottom: 6 },
@@ -1032,24 +1032,24 @@ const ws = StyleSheet.create({
   sidePromoCtaTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // Main
-  main: { flex: 1, paddingHorizontal: 24, paddingTop: 20, backgroundColor: '#f3f4f6' },  // overridden inline for mobile-web
+  main: { flex: 1, paddingHorizontal: 16, paddingTop: 16, backgroundColor: '#f3f4f6' },  // overridden inline for mobile-web
 
   // Hero
   heroBanner: {
     backgroundColor: ORANGE,
-    borderRadius: 16, padding: 36,
+    borderRadius: 20, padding: 48,
     overflow: 'hidden', position: 'relative',
-    marginBottom: 20,
+    marginBottom: 24, minHeight: 320,
   },
   heroBannerSm: { padding: 20, borderRadius: 12 },
   heroCircle1: { position: 'absolute', width: 320, height: 320, borderRadius: 160, backgroundColor: 'rgba(255,255,255,0.10)', top: -100, right: -60 },
   heroCircle2: { position: 'absolute', width: 180, height: 180, borderRadius: 90,  backgroundColor: 'rgba(255,255,255,0.07)', bottom: -60, right: 120 },
   heroCircle3: { position: 'absolute', width: 100, height: 100, borderRadius: 50,  backgroundColor: 'rgba(0,0,0,0.06)',       top: 20,    right: 260 },
   heroContent: { flexDirection: 'row', alignItems: 'center', gap: 32 },
-  heroTag:     { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginBottom: 10 },
-  heroTitle:   { fontSize: 38, fontWeight: '900', color: '#fff', lineHeight: 46, marginBottom: 10 },
+  heroTag:     { fontSize: 12, color: 'rgba(255,255,255,0.80)', fontWeight: '600', marginBottom: 8 },
+  heroTitle:   { fontSize: 42, fontWeight: '900', color: '#fff', lineHeight: 50, marginBottom: 12 },
   heroTitleSm:  { fontSize: 26, lineHeight: 32 },
-  heroSub:     { fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: '400', marginBottom: 14 },
+  heroSub:     { fontSize: 16, color: 'rgba(255,255,255,0.88)', fontWeight: '400', marginBottom: 18 },
   heroSubSm:    { fontSize: 13, marginBottom: 12 },
   heroBadges:  { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   heroBadge:   { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 12 },
@@ -1058,21 +1058,21 @@ const ws = StyleSheet.create({
   heroBadgeTxtSm:{ fontSize: 11 },
 
   heroStats: {
-    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 16,
-    padding: 20, alignItems: 'center', minWidth: 200,
+    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20,
+    padding: 28, alignItems: 'center', minWidth: 220,
     flexDirection: 'column', gap: 0,
   },
   heroStatsSm: {
     flexDirection: 'row', minWidth: 0, width: '100%',
     padding: 14, paddingVertical: 12, justifyContent: 'space-around',
   },
-  heroStatItem:    { alignItems: 'center', paddingVertical: 10 },
+  heroStatItem:    { alignItems: 'center', paddingVertical: 14 },
   heroStatItemSm:  { flex: 1, alignItems: 'center', paddingVertical: 6 },
-  heroStatNum:     { fontSize: 28, fontWeight: '900', color: '#fff' },
+  heroStatNum:     { fontSize: 36, fontWeight: '900', color: '#fff' },
   heroStatNumSm:   { fontSize: 20, fontWeight: '900', color: '#fff' },
-  heroStatLabel:   { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 2 },
+  heroStatLabel:   { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '600', marginTop: 3 },
   heroStatLabelSm: { fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 1 },
-  heroStatDivider:   { width: '80%', height: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
+  heroStatDivider:   { width: '90%', height: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
   heroStatDividerSm: { width: 1, height: '60%', backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center' },
 
   // Ticker web
@@ -1087,9 +1087,9 @@ const ws = StyleSheet.create({
 
   // Explore — 4-column grid
   exploreGrid:  { flexDirection: 'row', marginBottom: 24 },
-  exploreCard:  { borderRadius: 18, padding: 20, minHeight: 140 },
+  exploreCard:  { borderRadius: 20, padding: 24, minHeight: 180 },
   exploreCardSm: { padding: 14, minHeight: 110 },
-  exploreTitle:  { fontSize: 18, fontWeight: '800', color: '#fff' },
+  exploreTitle:  { fontSize: 20, fontWeight: '900', color: '#fff' },
   exploreTitleSm: { fontSize: 15 },
 
   // Featured jobs grid — 2 col
@@ -1110,7 +1110,7 @@ const ws = StyleSheet.create({
   roomImgPlaceholder: { height: 160, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
 
   // Right Panel
-  rightPanel: { width: 220, paddingHorizontal: 12, paddingTop: 20, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: -2, height: 0 }, elevation: 2 },
+  rightPanel: { width: 200, paddingHorizontal: 10, paddingTop: 16, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: -2, height: 0 }, elevation: 2 },
 
   postCtaCard: {
     backgroundColor: ORANGE, borderRadius: 14, padding: 14, marginBottom: 12,
