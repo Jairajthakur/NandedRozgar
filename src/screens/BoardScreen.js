@@ -506,7 +506,7 @@ export default function BoardScreen({ route }) {
             <Ionicons name="arrow-back" size={20} color="#111" />
             <Text style={ws.topBarBackTxt}>Back</Text>
           </TouchableOpacity>
-          <Text style={ws.topBarTitle}>Jobs / Board</Text>
+          <Text style={ws.topBarTitle}>Jobs</Text>
         </View>
 
         {/* Sticky mini-header — overlays on scroll */}
