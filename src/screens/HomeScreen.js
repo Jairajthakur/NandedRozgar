@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Easing, StatusBar, TextInput, Modal,
-  FlatList, Dimensions, Platform,
+  FlatList, Dimensions, Platform, useWindowDimensions,
 } from 'react-native';
 
 // ScrollVelocity is a web-only component (uses DOM/motion)
@@ -27,6 +27,11 @@ const TEAL      = '#0d9488';
 const PURPLE    = '#7c3aed';
 const TICKER_BG = '#1a1a2e';
 const IS_WEB    = Platform.OS === 'web';
+
+// Responsive breakpoints
+const BP_SM  = 600;   // mobile-web: single column, no sidebar
+const BP_MD  = 900;   // tablet: sidebar + main, no right panel
+const BP_LG  = 1200;  // desktop: full 3-column layout
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -404,8 +409,14 @@ export default function HomeScreen() {
   const { jobs, user } = useAuth();
   const { lang, changeLang } = useLang();
   const insets = useSafeAreaInsets();
+  const { width: winW } = useWindowDimensions();
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [searchText, setSearchText]         = useState('');
+
+  // Responsive breakpoints (web only)
+  const showSidebar    = IS_WEB && winW >= BP_MD;
+  const showRightPanel = IS_WEB && winW >= BP_LG;
+  const isSmWeb        = IS_WEB && winW < BP_SM;
 
   const [rooms,    setRooms]    = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -484,8 +495,8 @@ export default function HomeScreen() {
 
         {/* ── Top Nav Bar ── */}
         <View style={ws.topNav}>
-          <View style={ws.topNavInner}>
-            <View style={ws.brandRow}>
+          <View style={[ws.topNavInner, isSmWeb && { paddingHorizontal: 12, gap: 8 }]}>
+            {!isSmWeb && <View style={ws.brandRow}>
               <Text style={ws.brandText}>
                 <Text style={ws.brandNanded}>Nanded</Text>
                 <Text style={ws.brandRozgar}>Rozgar</Text>
@@ -494,7 +505,7 @@ export default function HomeScreen() {
                 <Ionicons name="location-sharp" size={12} color={ORANGE} />
                 <Text style={ws.locText}>Nanded, Maharashtra</Text>
               </View>
-            </View>
+            </View>}
 
             {/* Center search */}
             <View style={ws.topSearchWrap}>
@@ -514,11 +525,11 @@ export default function HomeScreen() {
             </View>
 
             <View style={ws.topNavRight}>
-              <TouchableOpacity style={ws.langBtn} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
+              {!isSmWeb && <TouchableOpacity style={ws.langBtn} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
                 <Ionicons name="language" size={13} color={ORANGE} />
                 <Text style={ws.langBtnTxt}>{langBtnLabel}</Text>
                 <Ionicons name="chevron-down" size={11} color={ORANGE} />
-              </TouchableOpacity>
+              </TouchableOpacity>}
               <TouchableOpacity onPress={() => nav.navigate('Profile')} activeOpacity={0.8} style={ws.bellBtn}>
                 <Ionicons name="notifications-outline" size={20} color="#555" />
               </TouchableOpacity>
@@ -534,8 +545,8 @@ export default function HomeScreen() {
         {/* ── Body: Sidebar + Main + Right Panel ── */}
         <View style={ws.body}>
 
-          {/* ── Left Sidebar ── */}
-          <View style={ws.sidebar}>
+          {/* ── Left Sidebar (hidden on small/medium screens) ── */}
+          {showSidebar && <View style={ws.sidebar}>
             <Text style={ws.sideNavSection}>BROWSE</Text>
             <SideNavItem icon="home-outline"        label="Home"       onPress={() => {}} active />
             <SideNavItem icon="briefcase-outline"   label="Jobs"       onPress={() => nav.navigate('Jobs')} />
@@ -557,10 +568,14 @@ export default function HomeScreen() {
                 <Text style={ws.sidePromoCtaTxt}>Try Now</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </View>}
 
           {/* ── Main Content ── */}
-          <ScrollView style={ws.main} contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={true}>
+          <ScrollView
+            style={[ws.main, !showSidebar && { paddingHorizontal: isSmWeb ? 12 : 24 }]}
+            contentContainerStyle={{ paddingBottom: 48 }}
+            showsVerticalScrollIndicator={true}
+          >
 
             {/* ── Hero Banner ── */}
             <FadeSlide delay={0} fromY={-16}>
@@ -568,7 +583,7 @@ export default function HomeScreen() {
                 <View style={ws.heroCircle1} />
                 <View style={ws.heroCircle2} />
                 <View style={ws.heroCircle3} />
-                <View style={ws.heroContent}>
+                <View style={[ws.heroContent, isSmWeb && { flexDirection: 'column', gap: 16 }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={ws.heroTag}>🏙️ Nanded's #1 Local Platform</Text>
                     <Text style={ws.heroTitle}>Find Jobs & Rooms{'\n'}in Nanded</Text>
@@ -579,7 +594,7 @@ export default function HomeScreen() {
                       <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Verified Employers</Text></View>
                     </View>
                   </View>
-                  <View style={ws.heroStats}>
+                  <View style={[ws.heroStats, isSmWeb && { flexDirection: 'row', gap: 0, minWidth: 0, width: '100%' }]}>
                     <View style={ws.heroStatItem}>
                       <Text style={ws.heroStatNum}>{stats.jobs}+</Text>
                       <Text style={ws.heroStatLabel}>Active Jobs</Text>
@@ -607,11 +622,11 @@ export default function HomeScreen() {
               <View style={ws.sectionHeader}>
                 <Text style={ws.sectionTitle}>Explore Categories</Text>
               </View>
-              <View style={ws.exploreGrid}>
-                <ExploreCard icon="briefcase-outline"  title="Jobs"       subtitle={`${stats.jobs}+ openings`}    color={ORANGE}  onPress={() => nav.navigate('Jobs')}    style={{ flex: 1, marginRight: 10 }} />
-                <ExploreCard icon="home-outline"       title="Rooms"      subtitle={`${stats.rooms}+ listings`}   color={TEAL}    onPress={() => nav.navigate('Rooms')}   style={{ flex: 1, marginRight: 10 }} />
-                <ExploreCard icon="car-sport-outline"  title="Vehicles"   subtitle={`${stats.vehicles}+ for rent`} color={PURPLE}  onPress={() => nav.navigate('Cars')}    style={{ flex: 1, marginRight: 10 }} />
-                <ExploreCard icon="pricetag-outline"   title="Buy & Sell" subtitle={`${stats.items}+ items`}      color='#0ea5e9' onPress={() => nav.navigate('BuySell')} style={{ flex: 1 }} />
+              <View style={[ws.exploreGrid, isSmWeb && { flexWrap: 'wrap', gap: 8 }]}>
+                <ExploreCard icon="briefcase-outline"  title="Jobs"       subtitle={`${stats.jobs}+ openings`}    color={ORANGE}  onPress={() => nav.navigate('Jobs')}    style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
+                <ExploreCard icon="home-outline"       title="Rooms"      subtitle={`${stats.rooms}+ listings`}   color={TEAL}    onPress={() => nav.navigate('Rooms')}   style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
+                <ExploreCard icon="car-sport-outline"  title="Vehicles"   subtitle={`${stats.vehicles}+ for rent`} color={PURPLE}  onPress={() => nav.navigate('Cars')}    style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
+                <ExploreCard icon="pricetag-outline"   title="Buy & Sell" subtitle={`${stats.items}+ items`}      color='#0ea5e9' onPress={() => nav.navigate('BuySell')} style={[{ flex: 1 }, isSmWeb && { minWidth: '46%' }]} />
               </View>
             </FadeSlide>
 
@@ -624,7 +639,7 @@ export default function HomeScreen() {
                   <Ionicons name="arrow-forward" size={14} color={ORANGE} />
                 </TouchableOpacity>
               </View>
-              <View style={ws.featJobsGrid}>
+              <View style={[ws.featJobsGrid, isSmWeb && { flexDirection: 'column' }]}>
                 {displayFeatured.map(job => (
                   <FeaturedJobCard
                     key={String(job.id)}
@@ -676,8 +691,8 @@ export default function HomeScreen() {
 
           </ScrollView>
 
-          {/* ── Right Panel ── */}
-          <View style={ws.rightPanel}>
+          {/* ── Right Panel (hidden on small/medium screens) ── */}
+          {showRightPanel && <View style={ws.rightPanel}>
 
             {/* Post CTA */}
             <FadeSlide delay={60}>
@@ -717,8 +732,37 @@ export default function HomeScreen() {
               </View>
             </FadeSlide>
 
-          </View>
+          </View>}
         </View>
+
+        {/* ── Bottom Tab Nav (small web screens only) ── */}
+        {!showSidebar && (
+          <View style={ws.bottomNav}>
+            {[
+              { icon: 'home',              label: 'Home',     route: null },
+              { icon: 'briefcase-outline', label: 'Jobs',     route: 'Jobs' },
+              { icon: 'home-outline',      label: 'Rooms',    route: 'Rooms' },
+              { icon: 'car-sport-outline', label: 'Vehicles', route: 'Cars' },
+              { icon: 'pricetag-outline',  label: 'Sell',     route: 'BuySell' },
+            ].map(item => (
+              <TouchableOpacity
+                key={item.label}
+                style={ws.bottomNavItem}
+                onPress={() => item.route ? nav.navigate(item.route) : null}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name={item.icon}
+                  size={22}
+                  color={item.route === null ? ORANGE : '#888'}
+                />
+                <Text style={[ws.bottomNavLabel, item.route === null && { color: ORANGE }]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
     );
   }
@@ -995,6 +1039,7 @@ const ws = StyleSheet.create({
   // Featured jobs grid — 2 col
   featJobsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
   featJobCard:  { width: '47.5%', backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  featJobCardSm:{ width: '100%' },
 
   // Recent jobs
   jobCard: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#ebebeb', marginBottom: 10, padding: 18, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
@@ -1028,6 +1073,33 @@ const ws = StyleSheet.create({
   quickAction: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderRadius: 10, paddingHorizontal: 6, borderWidth: 1, borderColor: 'transparent', marginBottom: 6 },
   quickActionIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   quickActionLabel: { fontSize: 14, fontWeight: '600', color: '#333', flex: 1 },
+
+  // Bottom tab nav (small web)
+  bottomNav: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#ececec',
+    paddingBottom: IS_WEB ? 8 : 0,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -2 },
+    elevation: 10,
+  },
+  bottomNavItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 3,
+  },
+  bottomNavLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#888',
+    marginTop: 2,
+  },
 });
 
 // ── MOBILE STYLES (unchanged from original) ────────────────────────────────────
