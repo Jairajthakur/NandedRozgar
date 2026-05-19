@@ -33,30 +33,32 @@ if (IS_WEB && typeof document !== 'undefined') {
   if (!document.getElementById(styleId)) {
     const style = document.createElement('style');
     style.id = styleId;
+    // Chrome supports linear-gradient on scrollbar-thumb via background-image
+    // We use a tall gradient so the full Orange→Purple→Teal spectrum shows even on short thumbs
     style.textContent = `
-      /* Global custom scrollbar */
       ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 7px;
+        height: 7px;
       }
       ::-webkit-scrollbar-track {
-        background: transparent;
+        background: rgba(0,0,0,0.04);
+        border-radius: 999px;
       }
       ::-webkit-scrollbar-thumb {
         border-radius: 999px;
-        background: linear-gradient(180deg, #f97316 0%, #7c3aed 55%, #0d9488 100%);
-        min-height: 40px;
+        background-image: linear-gradient(to bottom, #f97316, #c2410c 20%, #7c3aed 60%, #0d9488 100%);
+        background-size: 100% 300px;
+        background-attachment: fixed;
+        border: 1.5px solid rgba(255,255,255,0.3);
+        box-shadow: inset 0 0 4px rgba(0,0,0,0.12);
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(180deg, #fb923c 0%, #8b5cf6 55%, #14b8a6 100%);
+        background-image: linear-gradient(to bottom, #fb923c, #ea580c 20%, #8b5cf6 60%, #14b8a6 100%);
+        background-size: 100% 300px;
+        background-attachment: fixed;
       }
       ::-webkit-scrollbar-corner {
         background: transparent;
-      }
-      /* Firefox */
-      * {
-        scrollbar-width: thin;
-        scrollbar-color: #f97316 transparent;
       }
     `;
     document.head.appendChild(style);
@@ -640,6 +642,11 @@ export default function HomeScreen() {
                     <View style={[ws.heroStatItem, isSmWeb && ws.heroStatItemSm]}>
                       <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.rooms}+</Text>
                       <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Rooms</Text>
+                    </View>
+                    <View style={[ws.heroStatDivider, isSmWeb && ws.heroStatDividerSm]} />
+                    <View style={[ws.heroStatItem, isSmWeb && ws.heroStatItemSm]}>
+                      <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.vehicles}+</Text>
+                      <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Vehicles</Text>
                     </View>
                     <View style={[ws.heroStatDivider, isSmWeb && ws.heroStatDividerSm]} />
                     <View style={[ws.heroStatItem, isSmWeb && ws.heroStatItemSm]}>
