@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, RefreshControl, Modal,
@@ -270,6 +270,10 @@ export default function CarsScreen({ route }) {
 
   const showSidebar = IS_WEB && winW >= 900;
 
+  useLayoutEffect(() => {
+    if (IS_WEB) nav.setOptions({ headerShown: false });
+  }, [nav]);
+
   const fetchCars = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
@@ -481,7 +485,7 @@ export default function CarsScreen({ route }) {
             <Ionicons name="arrow-back" size={16} color="#333" />
             <Text style={ws.topBarBackTxt}>Back</Text>
           </TouchableOpacity>
-          <Text style={ws.topBarTitle}>Vehicles / Nanded</Text>
+          <Text style={ws.topBarTitle}>Vehicles / Cars</Text>
           <TouchableOpacity style={[ws.iconBtn, { marginLeft: 'auto' }]} onPress={() => nav.navigate('PostCar')}>
             <Ionicons name="add" size={15} color={ORANGE} />
             <Text style={{ fontSize: 12, fontWeight: '700', color: ORANGE }}>List Vehicle</Text>
