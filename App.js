@@ -30,6 +30,7 @@ import PostCarScreen    from './src/screens/PostCarScreen';
 import PostRoomScreen   from './src/screens/PostRoomScreen';
 import BuySellScreen    from './src/screens/BuySellScreen';
 import BuySellDetailScreen from './src/screens/BuySellDetailScreen';
+import PostItemScreen   from './src/screens/PostItemScreen';
 import OnboardingScreen, { isOnboarded } from './src/screens/OnboardingScreen';
 import ReferralScreen from './src/screens/ReferralScreen';
 import MyApplicationsScreen from './src/screens/MyApplicationsScreen';
@@ -219,6 +220,7 @@ function RootNavigator() {
       <Stack.Screen name="PostRoom"   component={PostRoomScreen}   options={{ headerShown: false }} />
       <Stack.Screen name="BuySell"    component={BuySellScreen}       options={{ headerShown: true, headerTitle: t('buySell'), ...HEADER }} />
       <Stack.Screen name="BuySellDetail" component={BuySellDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="PostItem"   component={PostItemScreen}       options={{ headerShown: false }} />
       <Stack.Screen name="Profile"    component={ProfileScreen}    options={{ headerShown: true, headerTitle: t('myProfile'), ...HEADER }} />
       <Stack.Screen name="AIMatch"    component={AIScreen}         options={{ headerShown: true, headerTitle: t('aiJobMatch'), ...HEADER }} />
       <Stack.Screen name="AdminPanel"  component={AdminScreen}      options={{ headerShown: true, headerTitle: t('admin'), ...HEADER }} />
