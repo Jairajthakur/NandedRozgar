@@ -8,6 +8,11 @@ const { runMigrations } = require('./db');
 
 const app = express();
 
+// Railway (and most cloud platforms) sit behind a reverse proxy.
+// This tells Express to trust the X-Forwarded-For header so that
+// express-rate-limit can identify real client IPs correctly.
+app.set('trust proxy', 1);
+
 // ── Global middlewares ────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
