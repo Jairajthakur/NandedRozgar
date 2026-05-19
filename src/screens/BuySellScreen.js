@@ -12,14 +12,14 @@ import { http } from '../utils/api';
 const ORANGE  = '#f97316';
 const IS_WEB  = Platform.OS === 'web';
 
-// ScrollVelocity is web-only (uses DOM APIs)
-// let ScrollVelocity = null;
-// if (IS_WEB) {
-//   try { ScrollVelocity = require('../components/ScrollVelocity').default; } catch (_) {}
-// }
+ScrollVelocity is web-only (uses DOM APIs)
+let ScrollVelocity = null;
+if (IS_WEB) {
+  try { ScrollVelocity = require('../components/ScrollVelocity').default; } catch (_) {}
+}
 
-// const BS_SCROLL_ROW_1 = '✦ BUY & SELL IN NANDED  ✦ ELECTRONICS — GREAT DEALS  ✦ FURNITURE FOR SALE  ✦ VEHICLES AVAILABLE  ✦ POST YOUR ITEM FREE  ✦ BOOKS & CLOTHES LISTED';
-// const BS_SCROLL_ROW_2 = '✦ 100% FREE LISTING  ✦ NANDED MARKETPLACE  ✦ VERIFIED SELLERS  ✦ FRESH ARRIVALS DAILY  ✦ SELL IN MINUTES  ✦ FIND DEALS NEAR YOU';
+const BS_SCROLL_ROW_1 = '✦ BUY & SELL IN NANDED  ✦ ELECTRONICS — GREAT DEALS  ✦ FURNITURE FOR SALE  ✦ VEHICLES AVAILABLE  ✦ POST YOUR ITEM FREE  ✦ BOOKS & CLOTHES LISTED';
+const BS_SCROLL_ROW_2 = '✦ 100% FREE LISTING  ✦ NANDED MARKETPLACE  ✦ VERIFIED SELLERS  ✦ FRESH ARRIVALS DAILY  ✦ SELL IN MINUTES  ✦ FIND DEALS NEAR YOU';
 
 function BuySellScrollBanner() {
   if (!ScrollVelocity) return null;
