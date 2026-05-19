@@ -599,22 +599,19 @@ export default function HomeScreen() {
                     </View>
                   </View>
                   <View style={[ws.heroStats, isSmWeb && ws.heroStatsSm]}>
-                    <View style={[ws.heroStatItem, isSmWeb && ws.heroStatItemSm]}>
+                    <View style={[ws.heroStatCard, isSmWeb && ws.heroStatItemSm]}>
                       <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.jobs}+</Text>
                       <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Active Jobs</Text>
                     </View>
-                    <View style={[ws.heroStatDivider, isSmWeb && ws.heroStatDividerSm]} />
-                    <View style={[ws.heroStatItem, isSmWeb && ws.heroStatItemSm]}>
+                    <View style={[ws.heroStatCard, isSmWeb && ws.heroStatItemSm]}>
                       <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.rooms}+</Text>
                       <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Rooms</Text>
                     </View>
-                    <View style={[ws.heroStatDivider, isSmWeb && ws.heroStatDividerSm]} />
-                    <View style={[ws.heroStatItem, isSmWeb && ws.heroStatItemSm]}>
+                    <View style={[ws.heroStatCard, isSmWeb && ws.heroStatItemSm]}>
                       <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.vehicles}+</Text>
                       <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Vehicles</Text>
                     </View>
-                    <View style={[ws.heroStatDivider, isSmWeb && ws.heroStatDividerSm]} />
-                    <View style={[ws.heroStatItem, isSmWeb && ws.heroStatItemSm]}>
+                    <View style={[ws.heroStatCard, isSmWeb && ws.heroStatItemSm]}>
                       <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.items}+</Text>
                       <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Items</Text>
                     </View>
@@ -1007,20 +1004,23 @@ const ws = StyleSheet.create({
   heroBadgeTxtSm:{ fontSize: 11 },
 
   heroStats: {
-    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 16,
-    padding: 20, paddingVertical: 10, alignItems: 'center', minWidth: 180,
-    flexDirection: 'column', gap: 0,
+    flexDirection: 'column', gap: 8, minWidth: 160,
   },
   heroStatsSm: {
-    flexDirection: 'row', minWidth: 0, width: '100%',
-    padding: 14, paddingVertical: 12, justifyContent: 'space-around',
+    flexDirection: 'row', minWidth: 0, width: '100%', gap: 6,
+    justifyContent: 'space-around',
+  },
+  heroStatCard: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderRadius: 14, paddingVertical: 14, paddingHorizontal: 20,
+    alignItems: 'center',
   },
   heroStatItem:    { alignItems: 'center', paddingVertical: 16 },
-  heroStatItemSm:  { flex: 1, alignItems: 'center', paddingVertical: 6 },
-  heroStatNum:     { fontSize: 40, fontWeight: '900', color: '#fff' },
+  heroStatItemSm:  { flex: 1, alignItems: 'center', paddingVertical: 8, paddingHorizontal: 8, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 10 },
+  heroStatNum:     { fontSize: 36, fontWeight: '900', color: '#fff' },
   heroStatNumSm:   { fontSize: 20, fontWeight: '900', color: '#fff' },
-  heroStatLabel:   { fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: '500', marginTop: 2 },
-  heroStatLabelSm: { fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 1 },
+  heroStatLabel:   { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '500', marginTop: 2, textAlign: 'center' },
+  heroStatLabelSm: { fontSize: 10, color: 'rgba(255,255,255,0.85)', fontWeight: '500', marginTop: 1, textAlign: 'center' },
   heroStatDivider:   { width: '90%', height: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
   heroStatDividerSm: { width: 1, height: '60%', backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center' },
 
