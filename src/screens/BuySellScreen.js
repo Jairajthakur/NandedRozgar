@@ -12,37 +12,37 @@ import { http } from '../utils/api';
 const ORANGE  = '#f97316';
 const IS_WEB  = Platform.OS === 'web';
 
-// ScrollVelocity is web-only (uses DOM APIs)
-let ScrollVelocity = null;
-if (IS_WEB) {
-  try { ScrollVelocity = require('../components/ScrollVelocity').default; } catch (_) {}
-}
+// // ScrollVelocity is web-only (uses DOM APIs)
+// let ScrollVelocity = null;
+// if (IS_WEB) {
+//   try { ScrollVelocity = require('../components/ScrollVelocity').default; } catch (_) {}
+// }
 
-const BS_SCROLL_ROW_1 = '✦ BUY & SELL IN NANDED  ✦ ELECTRONICS — GREAT DEALS  ✦ FURNITURE FOR SALE  ✦ VEHICLES AVAILABLE  ✦ POST YOUR ITEM FREE  ✦ BOOKS & CLOTHES LISTED';
-const BS_SCROLL_ROW_2 = '✦ 100% FREE LISTING  ✦ NANDED MARKETPLACE  ✦ VERIFIED SELLERS  ✦ FRESH ARRIVALS DAILY  ✦ SELL IN MINUTES  ✦ FIND DEALS NEAR YOU';
+// const BS_SCROLL_ROW_1 = '✦ BUY & SELL IN NANDED  ✦ ELECTRONICS — GREAT DEALS  ✦ FURNITURE FOR SALE  ✦ VEHICLES AVAILABLE  ✦ POST YOUR ITEM FREE  ✦ BOOKS & CLOTHES LISTED';
+// const BS_SCROLL_ROW_2 = '✦ 100% FREE LISTING  ✦ NANDED MARKETPLACE  ✦ VERIFIED SELLERS  ✦ FRESH ARRIVALS DAILY  ✦ SELL IN MINUTES  ✦ FIND DEALS NEAR YOU';
 
-function BuySellScrollBanner() {
-  if (!ScrollVelocity) return null;
-  return (
-    <div style={{
-      backgroundColor: '#fff7f0',
-      overflow: 'hidden',
-      paddingTop: 10,
-      paddingBottom: 10,
-      marginBottom: 16,
-      borderRadius: 12,
-      border: '1.5px solid #fed7aa',
-    }}>
-      <ScrollVelocity
-        texts={[BS_SCROLL_ROW_1, BS_SCROLL_ROW_2]}
-        velocity={75}
-        className="buysell-ticker-span"
-        parallaxStyle={{ overflow: 'hidden' }}
-        scrollerStyle={{ color: '#c2410c', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.07em', paddingTop: 3, paddingBottom: 3 }}
-      />
-    </div>
-  );
-}
+// function BuySellScrollBanner() {
+//   if (!ScrollVelocity) return null;
+//   return (
+//     <div style={{
+//       backgroundColor: '#fff7f0',
+//       overflow: 'hidden',
+//       paddingTop: 10,
+//       paddingBottom: 10,
+//       marginBottom: 16,
+//       borderRadius: 12,
+//       border: '1.5px solid #fed7aa',
+//     }}>
+//       <ScrollVelocity
+//         texts={[BS_SCROLL_ROW_1, BS_SCROLL_ROW_2]}
+//         velocity={75}
+//         className="buysell-ticker-span"
+//         parallaxStyle={{ overflow: 'hidden' }}
+//         scrollerStyle={{ color: '#c2410c', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.07em', paddingTop: 3, paddingBottom: 3 }}
+//       />
+//     </div>
+//   );
+// }
 
 const CATEGORIES = [
   { key: 'All',         label: 'All',         icon: 'grid-outline' },
