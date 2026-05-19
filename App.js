@@ -2,7 +2,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React from 'react';
 import {
   View, Text, ActivityIndicator, StatusBar,
-  TouchableOpacity, StyleSheet, Platform,
+  TouchableOpacity, StyleSheet, Platform, useWindowDimensions,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -75,6 +75,12 @@ function TabIcon({ name, focused, library = 'ion' }) {
 
 function CustomTabBar({ state, descriptors, navigation }) {
   const { t } = useLang();
+  const { width } = useWindowDimensions();
+
+  // On web, only show the bottom tab bar when the viewport is mobile-sized (< 600px)
+  // On desktop web, the HomeScreen renders its own sidebar navigation
+  if (Platform.OS === 'web' && width >= 600) return null;
+
   return (
     <View style={s.tabBar}>
       {state.routes.map((route, index) => {
@@ -244,8 +250,6 @@ const s = StyleSheet.create({
       left: 0,
       right: 0,
       zIndex: 1000,
-      maxWidth: 600,
-      marginHorizontal: 'auto',
       width: '100%',
     } : {}),
   },
