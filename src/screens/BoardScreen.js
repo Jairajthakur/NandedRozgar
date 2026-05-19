@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, RefreshControl, Modal,
   Animated, Easing, StatusBar, Platform, useWindowDimensions,
+  Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -148,6 +149,38 @@ export default function BoardScreen({ route }) {
   const isGiver    = role === 'user' || role === 'admin';
   const showSidebar = IS_WEB && winW >= 900;
 
+  // ── Scroll animation ──────────────────────────────────────────────────────
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Title shrinks/fades slightly as user scrolls
+  const titleScale = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [1, 0.88],
+    extrapolate: 'clamp',
+  });
+  const titleOpacity = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 0.6],
+    extrapolate: 'clamp',
+  });
+  // Search bar gently slides up and fades as it scrolls away
+  const searchTranslate = scrollY.interpolate({
+    inputRange: [0, 60],
+    outputRange: [0, -4],
+    extrapolate: 'clamp',
+  });
+  const searchOpacity = scrollY.interpolate({
+    inputRange: [0, 120],
+    outputRange: [1, 0.85],
+    extrapolate: 'clamp',
+  });
+  // Stats strip fades out quickly
+  const statsOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
   const filtered = useMemo(() => {
     const base = jobs.filter(j => {
       if (j.status !== 'active') return false;
@@ -208,8 +241,12 @@ export default function BoardScreen({ route }) {
   // ── Header (shared mobile + web) ───────────────────────────────────────────
   const Header = (
     <View style={IS_WEB ? ws.header : s.header}>
-      {/* Title row */}
-      <View style={s.titleRow}>
+      {/* Title row — animates on scroll */}
+      <Animated.View style={[s.titleRow, {
+        transform: [{ scale: titleScale }],
+        opacity: titleOpacity,
+        transformOrigin: 'left center',
+      }]}>
         <View>
           <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
             Jobs in{' '}
@@ -244,20 +281,25 @@ export default function BoardScreen({ route }) {
             )}
           </TouchableOpacity>
         </View>
-      </View>
+      </Animated.View>
 
-      {/* Web: Stats strip */}
+      {/* Web: Stats strip — fades on scroll */}
       {IS_WEB && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
-          <StatPill icon="briefcase-outline" value={`${jobs.filter(j => j.status === 'active').length}+`} label="Active Jobs" color={ORANGE} />
-          <StatPill icon="people-outline"    value="10k+"  label="Job Seekers"  color="#3b82f6" />
-          <StatPill icon="checkmark-circle-outline" value="500+" label="Placements"  color="#16a34a" />
-          <StatPill icon="business-outline"  value="50+"   label="Companies"    color={TEAL} />
-        </ScrollView>
+        <Animated.View style={{ opacity: statsOpacity }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
+            <StatPill icon="briefcase-outline" value={`${jobs.filter(j => j.status === 'active').length}+`} label="Active Jobs" color={ORANGE} />
+            <StatPill icon="people-outline"    value="10k+"  label="Job Seekers"  color="#3b82f6" />
+            <StatPill icon="checkmark-circle-outline" value="500+" label="Placements"  color="#16a34a" />
+            <StatPill icon="business-outline"  value="50+"   label="Companies"    color={TEAL} />
+          </ScrollView>
+        </Animated.View>
       )}
 
-      {/* Search */}
-      <View style={[s.searchWrap, IS_WEB && ws.searchWrap]}>
+      {/* Search — animates on scroll */}
+      <Animated.View style={[
+        s.searchWrap, IS_WEB && ws.searchWrap,
+        { transform: [{ translateY: searchTranslate }], opacity: searchOpacity },
+      ]}>
         <Ionicons name="search-outline" size={18} color="#bbb" style={{ marginLeft: 14 }} />
         <TextInput
           style={[s.searchInput, IS_WEB && ws.searchInput]}
@@ -279,7 +321,7 @@ export default function BoardScreen({ route }) {
           <Ionicons name="filter-outline" size={17} color={ORANGE} />
           {IS_WEB && <Text style={ws.filterBtnTxt}>Filters</Text>}
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       {/* Type pills */}
       <ScrollView
@@ -463,7 +505,6 @@ export default function BoardScreen({ route }) {
 
           {/* ── MAIN COLUMN ── */}
           <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
-            {Header}
             <FlatList
               data={filtered}
               keyExtractor={j => String(j.id)}
@@ -472,10 +513,24 @@ export default function BoardScreen({ route }) {
               columnWrapperStyle={winW >= 1280 ? { gap: 12 } : null}
               contentContainerStyle={ws.list}
               showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+              horizontal={false}
+              bounces={false}
+              overScrollMode="never"
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                { useNativeDriver: false }
+              )}
+              scrollEventThrottle={16}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />
               }
-              ListHeaderComponent={ListHeader}
+              ListHeaderComponent={
+                <>
+                  {Header}
+                  {ListHeader}
+                </>
+              }
               renderItem={({ item, index }) => (
                 <View style={winW >= 1280 ? { flex: 1 } : {}}>
                   <JobCard
@@ -583,16 +638,29 @@ export default function BoardScreen({ route }) {
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f7f7" />
-      {Header}
       <FlatList
         data={filtered}
         keyExtractor={j => j.id}
         contentContainerStyle={s.list}
         showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        horizontal={false}
+        bounces={false}
+        overScrollMode="never"
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />
         }
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={
+          <>
+            {Header}
+            {ListHeader}
+          </>
+        }
         renderItem={({ item, index }) => (
           <JobCard
             job={item}
@@ -618,7 +686,7 @@ export default function BoardScreen({ route }) {
 
 // ── WEB STYLES ────────────────────────────────────────────────────────────────
 const ws = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f3f4f6' },
+  root: { flex: 1, backgroundColor: '#f3f4f6', overflow: 'hidden' },
 
   // 3-column body: left sidebar | main | right sidebar
   body: {
@@ -630,6 +698,7 @@ const ws = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 16,
     gap: 16,
+    overflow: 'hidden',
   },
 
   // Left sidebar
@@ -871,7 +940,7 @@ const ws = StyleSheet.create({
 
 // ── MOBILE STYLES ─────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f7f7f7' },
+  root: { flex: 1, backgroundColor: '#f7f7f7', overflow: 'hidden' },
 
   // Header
   header: {
@@ -967,7 +1036,7 @@ const s = StyleSheet.create({
   hiringLiveTxt: { fontSize: 10, fontWeight: '800', color: '#16a34a' },
 
   // List
-  list: { paddingHorizontal: 14, paddingTop: 2, paddingBottom: 40 },
+  list: { paddingHorizontal: 14, paddingTop: 0, paddingBottom: 40 },
 
   // Modals
   overlay: {
