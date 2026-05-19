@@ -8,7 +8,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { C, BASE_URL } from '../utils/constants';
 import { getToken } from '../utils/api';
-import { useLang } from '../utils/i18n';
 
 const ORANGE = '#f97316';
 const DARK   = '#111111';
@@ -81,34 +80,23 @@ function Chip({ label, onPress }) {
 export default function AIScreen() {
   const { user, jobs } = useAuth();
   const scrollRef      = useRef(null);
-
-  const isSeeker   = !user?.company || user.company.trim() === '';
-  const activeJobs = jobs.filter(j => j.status === 'active');
+  const activeJobs     = jobs.filter(j => j.status === 'active');
 
   const [messages,    setMessages]    = useState([]);
   const [input,       setInput]       = useState('');
   const [loading,     setLoading]     = useState(false);
   const [suggestions, setSuggestions] = useState([]);
 
-  // ── Build context-aware suggestions ──────────────────────────
+  // ── Suggestions based on live job data ───────────────────────
   const buildSuggestions = useCallback(() => {
     const cats = [...new Set(activeJobs.map(j => j.category).filter(Boolean))];
-    if (isSeeker) {
-      return [
-        cats[0] ? `Jobs available in ${cats[0]}` : 'What jobs are available now?',
-        'How do I stand out as an applicant?',
-        `Salary range for ${cats[1] || 'freshers'} in Nanded?`,
-        'Which area has the most openings?',
-      ];
-    } else {
-      return [
-        `Expected applicants for ₹${activeJobs[0]?.salary || '12,000'}/mo?`,
-        'Write a job description for my next hire',
-        'What salary attracts good candidates?',
-        'How do I screen applicants quickly?',
-      ];
-    }
-  }, [isSeeker, activeJobs]);
+    return [
+      cats[0] ? `Who's hiring for ${cats[0]} right now?` : 'What jobs are live right now?',
+      'Give me a salary report for Nanded',
+      cats[1] ? `Write a job post for ${cats[1]}` : 'Write a job description template',
+      'How can I get more applicants?',
+    ];
+  }, [activeJobs]);
 
   // ── Core AI call ──────────────────────────────────────────────
   async function callAI(query, history = []) {
@@ -122,9 +110,8 @@ export default function AIScreen() {
         },
         body: JSON.stringify({
           query,
-          role: isSeeker ? 'seeker' : 'employer',
           userLocation: user?.location,
-          history: history.slice(-6),
+          history: history.slice(-8),
         }),
       });
       const data = await res.json();
@@ -138,22 +125,19 @@ export default function AIScreen() {
   useEffect(() => {
     setSuggestions(buildSuggestions());
 
-    const greeting = isSeeker
-      ? `Hi ${user?.name?.split(' ')[0] || 'there'}! 👋 I'm your NandedRozgar AI. I can see ${activeJobs.length} active jobs in Nanded right now. What would you like to explore?`
-      : `Hi! 👋 I'm your hiring assistant for ${user?.company || 'your company'}. There are ${activeJobs.length} active jobs on the platform right now. Ask me anything — salaries, job descriptions, hiring tips.`;
+    const name = user?.name?.split(' ')[0] || 'there';
+    const greeting = `Hi ${name}! 👋 I'm your NandedRozgar AI assistant. There are ${activeJobs.length} active listings on the platform right now. Ask me anything — jobs, salaries, descriptions, market tips.`;
 
     setMessages([{ id: 'greeting', role: 'assistant', content: greeting, timestamp: Date.now() }]);
 
-    // Fetch a live market insight right away
+    // Auto-fetch a live snapshot
     (async () => {
       const typingId = 'typing-init';
       setMessages(prev => [...prev, { id: typingId, role: 'assistant', typing: true }]);
 
-      const prompt = isSeeker
-        ? 'Give me a 2-sentence snapshot of the Nanded job market right now based on the active listings. Mention actual categories and salary ranges.'
-        : 'Give me one sharp hiring tip for Nanded based on current active listings. Be specific.';
-
-      const reply = await callAI(prompt);
+      const reply = await callAI(
+        `Give me a 2-sentence snapshot of the current Nanded job market based on the active listings. Mention top categories and typical salary ranges.`
+      );
 
       setMessages(prev => prev
         .filter(m => m.id !== typingId)
@@ -167,7 +151,7 @@ export default function AIScreen() {
     })();
   }, []);
 
-  // ── Send a user message ───────────────────────────────────────
+  // ── Send message ──────────────────────────────────────────────
   async function send(text) {
     const q = (text !== undefined ? text : input).trim();
     if (!q || loading) return;
@@ -213,18 +197,13 @@ export default function AIScreen() {
         <View style={st.headerLeft}>
           <View style={st.headerIcon}><Text style={{ fontSize: 18 }}>🤖</Text></View>
           <View>
-            <Text style={st.headerTitle}>AI Career Assistant</Text>
-            <Text style={st.headerSub}>
-              {isSeeker
-                ? `${activeJobs.length} jobs live · Nanded`
-                : `${user?.company} · ${activeJobs.length} listings`}
-            </Text>
+            <Text style={st.headerTitle}>AI Assistant</Text>
+            <Text style={st.headerSub}>{activeJobs.length} active listings · Nanded</Text>
           </View>
         </View>
-        <View style={[st.modePill, { backgroundColor: isSeeker ? '#e0f2fe' : '#fff7ed' }]}>
-          <Text style={[st.modeTxt, { color: isSeeker ? '#0284c7' : ORANGE }]}>
-            {isSeeker ? '👤 Seeker' : '🏢 Employer'}
-          </Text>
+        <View style={st.livePill}>
+          <View style={st.liveDot} />
+          <Text style={st.liveTxt}>Live data</Text>
         </View>
       </View>
 
@@ -238,7 +217,6 @@ export default function AIScreen() {
       >
         {messages.map(msg => <Bubble key={msg.id} msg={msg} />)}
 
-        {/* Suggestion chips */}
         {suggestions.length > 0 && !loading && (
           <View style={st.chips}>
             <Text style={st.chipsLabel}>Try asking</Text>
@@ -251,11 +229,11 @@ export default function AIScreen() {
         )}
       </ScrollView>
 
-      {/* Input bar */}
+      {/* Input */}
       <View style={st.inputBar}>
         <TextInput
           style={st.inputField}
-          placeholder="Ask anything about jobs in Nanded…"
+          placeholder="Ask anything about Nanded jobs…"
           placeholderTextColor="#bbb"
           value={input}
           onChangeText={setInput}
@@ -284,7 +262,7 @@ const st = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  headerLeft:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerIcon: {
     width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff7ed',
     alignItems: 'center', justifyContent: 'center',
@@ -292,8 +270,9 @@ const st = StyleSheet.create({
   },
   headerTitle: { fontSize: 14, fontWeight: '800', color: DARK },
   headerSub:   { fontSize: 11, color: '#888', marginTop: 1 },
-  modePill:    { borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 },
-  modeTxt:     { fontSize: 11, fontWeight: '700' },
+  livePill:    { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#f0fdf4', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10, borderWidth: 1, borderColor: '#bbf7d0' },
+  liveDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' },
+  liveTxt:     { fontSize: 11, fontWeight: '700', color: '#16a34a' },
 
   chat: { flex: 1, backgroundColor: '#f8f8f8' },
 
