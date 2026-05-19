@@ -500,19 +500,14 @@ export default function BoardScreen({ route }) {
       <View style={ws.root}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-        {/* Mobile web top bar — shown only on narrow screens (no sidebar) */}
-        {!showSidebar && (
-          <View style={ws.mobileTopBar}>
-            <TouchableOpacity
-              onPress={() => nav.goBack()}
-              style={ws.mobileBackBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="arrow-back" size={22} color="#111" />
-            </TouchableOpacity>
-            <Text style={ws.mobileTopTitle}>Find Jobs</Text>
-          </View>
-        )}
+        {/* ── Sticky top bar with back button — shown on ALL web widths ── */}
+        <View style={ws.topBar}>
+          <TouchableOpacity onPress={() => nav.navigate('Home')} style={ws.topBarBack} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={20} color="#111" />
+            <Text style={ws.topBarBackTxt}>Back</Text>
+          </TouchableOpacity>
+          <Text style={ws.topBarTitle}>Jobs / Board</Text>
+        </View>
 
         {/* Sticky mini-header — overlays on scroll */}
         {StickyHeader}
@@ -843,6 +838,23 @@ const ws = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
+
+  topBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
+    paddingVertical: 12, paddingHorizontal: 20,
+    gap: 12,
+    position: 'sticky', top: 0, zIndex: 100,
+  },
+  topBarBack: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingVertical: 6, paddingHorizontal: 14,
+    borderRadius: 20, borderWidth: 1.5, borderColor: '#e0e0e0',
+    backgroundColor: '#f9f9f9',
+  },
+  topBarBackTxt: { fontSize: 13, fontWeight: '700', color: '#111' },
+  topBarTitle:   { fontSize: 15, fontWeight: '800', color: '#111' },
 
   pageTitle: {
     fontSize: 28,
