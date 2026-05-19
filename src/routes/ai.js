@@ -2,6 +2,10 @@ const router = require('express').Router();
 const { auth } = require('../middleware/auth');
 const { pool } = require('../db');
 
+
+// Groq model — update here if deprecated. See: https://console.groq.com/docs/deprecations
+// Active models: llama-3.1-8b-instant | llama-3.3-70b-versatile | gemma2-9b-it
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 // POST /api/ai/chat — powered by Groq (free, fast, no restrictions)
 router.post('/chat', auth, async (req, res) => {
   const apiKey = process.env.GROQ_API_KEY;
@@ -55,7 +59,7 @@ router.post('/chat', auth, async (req, res) => {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'llama3-8b-8192',
+        model: GROQ_MODEL,
         messages,
         max_tokens: 500,
         temperature: 0.7,
