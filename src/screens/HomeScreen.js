@@ -27,6 +27,42 @@ const TEAL      = '#0d9488';
 const PURPLE    = '#7c3aed';
 const TICKER_BG = '#1a1a2e';
 const IS_WEB    = Platform.OS === 'web';
+// ── Custom scrollbar (web only) ────────────────────────────────────────────────
+if (IS_WEB && typeof document !== 'undefined') {
+  const styleId = 'nanded-scrollbar-style';
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      /* Global custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: linear-gradient(180deg, #f97316 0%, #7c3aed 55%, #0d9488 100%);
+        min-height: 40px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #fb923c 0%, #8b5cf6 55%, #14b8a6 100%);
+      }
+      ::-webkit-scrollbar-corner {
+        background: transparent;
+      }
+      /* Firefox */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #f97316 transparent;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
 
 // Responsive breakpoints
 const BP_SM  = 600;   // mobile-web: single column, no sidebar
@@ -258,9 +294,9 @@ function ExploreCard({ icon, title, subtitle, color, onPress, style, compact }) 
 }
 
 // ── Featured Job Card ──────────────────────────────────────────────────────────
-function FeaturedJobCard({ job, onPress }) {
+function FeaturedJobCard({ job, onPress, fullWidth }) {
   return (
-    <AnimatedPress style={[s.featJobCard, IS_WEB && ws.featJobCard]} onPress={onPress}>
+    <AnimatedPress style={[s.featJobCard, IS_WEB && ws.featJobCard, IS_WEB && fullWidth && ws.featJobCardSmWeb]} onPress={onPress}>
       <View style={s.featJobTop}>
         <View style={s.featJobIcon}>
           <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={18} color={ORANGE} />
@@ -645,6 +681,7 @@ export default function HomeScreen() {
                   <FeaturedJobCard
                     key={String(job.id)}
                     job={job}
+                    fullWidth={isSmWeb}
                     onPress={() => nav.navigate('JobDetail', { job })}
                   />
                 ))}
@@ -674,7 +711,7 @@ export default function HomeScreen() {
           </ScrollView>
 
           {/* ── Right Panel (hidden on small/medium screens) ── */}
-          {showRightPanel && <View style={ws.rightPanel}>
+          {showRightPanel && <ScrollView style={ws.rightPanel} contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={true}>
 
             {/* Post CTA */}
             <FadeSlide delay={60}>
@@ -714,7 +751,7 @@ export default function HomeScreen() {
               </View>
             </FadeSlide>
 
-          </View>}
+          </ScrollView>}
         </View>
 
         {/* ── Bottom Tab Nav (small web screens only) ── */}
@@ -1157,7 +1194,7 @@ const s = StyleSheet.create({
   tickerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   tickerText: { color: '#ffffff', fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
 
-  featJobCard:    { width: 210, backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 4, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0' },
+  featJobCard:    { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0' },
   featJobCardGrid:{ flex: 1, width: 'auto' },
   featJobTop:     { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   featJobIcon:    { width: 38, height: 38, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
@@ -1213,12 +1250,11 @@ const s = StyleSheet.create({
   viewAll:    { marginHorizontal: 16, marginTop: 4, alignItems: 'center', padding: 10 },
   viewAllTxt: { fontSize: 13, color: ORANGE, fontWeight: '700' },
 
-  // Recent Jobs 2-col grid (mobile)
+  // Recent Jobs single-column list (mobile)
   mobileJobsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     paddingHorizontal: 16,
-    gap: 10,
+    gap: 0,
     marginBottom: 4,
   },
 });
