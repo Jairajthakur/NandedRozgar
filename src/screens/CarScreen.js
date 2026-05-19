@@ -485,7 +485,7 @@ export default function CarsScreen({ route }) {
             <Ionicons name="arrow-back" size={16} color="#333" />
             <Text style={ws.topBarBackTxt}>Back</Text>
           </TouchableOpacity>
-          <Text style={ws.topBarTitle}>Vehicles / Cars</Text>
+          <Text style={ws.topBarTitle}>Cars</Text>
           <TouchableOpacity style={[ws.iconBtn, { marginLeft: 'auto' }]} onPress={() => nav.navigate('PostCar')}>
             <Ionicons name="add" size={15} color={ORANGE} />
             <Text style={{ fontSize: 12, fontWeight: '700', color: ORANGE }}>List Vehicle</Text>
