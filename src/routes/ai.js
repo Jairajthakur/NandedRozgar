@@ -12,52 +12,44 @@ router.post('/chat', auth, async (req, res) => {
     });
   }
 
-  const { query, role, userLocation, history = [] } = req.body;
+  const { query, userLocation, history = [] } = req.body;
   if (!query || !query.trim()) {
     return res.json({ ok: false, error: 'Query is required.' });
   }
 
   try {
-    // Fetch richer job context
+    // Fetch all active jobs for full context
     const { rows: jobs } = await pool.query(
       `SELECT title, company, location, salary, type, category, created_at
-       FROM jobs WHERE status = 'active' ORDER BY created_at DESC LIMIT 20`
+       FROM jobs WHERE status = 'active' ORDER BY created_at DESC LIMIT 30`
     );
 
-    // Build category summary
+    // Category breakdown
     const catMap = {};
     jobs.forEach(j => { catMap[j.category] = (catMap[j.category] || 0) + 1; });
     const catSummary = Object.entries(catMap)
       .sort((a, b) => b[1] - a[1])
-      .map(([cat, count]) => `${cat}: ${count} listing${count > 1 ? 's' : ''}`)
+      .map(([cat, count]) => `${cat}: ${count}`)
       .join(', ');
 
     const jobList = jobs
       .map(j => `• ${j.title} at ${j.company} (${j.location}) — ${j.salary}, ${j.type}`)
       .join('\n');
 
-    const isSeeker = role === 'seeker';
-    const userName = req.user.name || '';
-    const userCtx = isSeeker
-      ? `User: Job Seeker. Name: ${userName}. Location: ${userLocation || 'Nanded'}.`
-      : `User: Employer. Company: ${req.user.company || ''}. Location: ${userLocation || 'Nanded'}.`;
-
     const system = [
-      'You are NandedRozgar AI — a sharp, friendly career assistant for the Nanded local job market in Maharashtra, India.',
-      userCtx,
-      `Total active listings: ${jobs.length}. Categories: ${catSummary || 'various'}.`,
-      jobs.length > 0 ? `Current active jobs:\n${jobList}` : 'No active jobs currently.',
-      isSeeker
-        ? 'Help the seeker find relevant jobs, improve their application, and understand the local market. Mention specific jobs by name when relevant.'
-        : 'Help the employer hire effectively — salary benchmarks, job description writing, candidate screening. Use real market data from listings.',
-      'Rules: Use ₹ for INR. Max 160 words. Be specific, practical, and encouraging. Use bullet points for lists. Speak naturally, not robotically.',
+      'You are NandedRozgar AI — a smart, friendly assistant for the NandedRozgar platform in Nanded, Maharashtra, India.',
+      `Platform owner: ${req.user.name || 'Admin'}. Location: ${userLocation || 'Nanded'}.`,
+      `Total active listings: ${jobs.length}. Categories: ${catSummary || 'none yet'}.`,
+      jobs.length > 0 ? `Current active listings:\n${jobList}` : 'No active listings currently.',
+      'You help with everything on this platform: jobs, rooms, vehicles, buy & sell, salary benchmarks, job descriptions, hiring tips, market insights.',
+      'Rules: Use ₹ for INR. Max 180 words per reply. Be specific, practical, and friendly. Use bullet points for lists. Reference actual listings by name when helpful.',
     ].join('\n');
 
-    // Build messages with conversation history for multi-turn context
+    // Build multi-turn messages
     const messages = [
       ...history
         .filter(h => h.role && h.content)
-        .slice(-8) // last 4 exchanges
+        .slice(-8)
         .map(h => ({ role: h.role, content: h.content })),
       { role: 'user', content: query.trim() },
     ];
