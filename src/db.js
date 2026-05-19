@@ -46,6 +46,7 @@ async function runMigrations() {
         experience       VARCHAR(50),
         hours            VARCHAR(50),
         openings         VARCHAR(10) DEFAULT '1',
+        fresher_ok       BOOLEAN DEFAULT FALSE,
         featured         BOOLEAN DEFAULT FALSE,
         urgent           BOOLEAN DEFAULT FALSE,
         status           VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'deleted')),
@@ -264,6 +265,7 @@ async function runMigrations() {
       `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS plan_days  INTEGER DEFAULT 30`,
       `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30)`,
       `ALTER TABLE seeker_profiles ADD COLUMN IF NOT EXISTS resume_url TEXT`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS fresher_ok BOOLEAN DEFAULT FALSE`,
     ];
     for (const sql of safeAlters) {
       try { await client.query(sql); } catch (e) { console.warn('Alter warn (non-fatal):', e.message); }
