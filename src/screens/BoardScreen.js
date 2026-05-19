@@ -763,6 +763,9 @@ const ws = StyleSheet.create({
     alignSelf: 'flex-start',
     position: 'sticky',
     top: 70,
+    maxHeight: 'calc(100vh - 82px)',
+    overflowY: 'auto',
+    paddingBottom: 16,
   },
 
   // Main column — fills all remaining space
@@ -780,6 +783,9 @@ const ws = StyleSheet.create({
     alignSelf: 'flex-start',
     position: 'sticky',
     top: 70,
+    maxHeight: 'calc(100vh - 82px)',
+    overflowY: 'auto',
+    paddingBottom: 16,
   },
 
   header: {
