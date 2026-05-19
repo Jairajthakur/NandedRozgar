@@ -219,9 +219,10 @@ function WebScrollBanner() {
       overflow: 'hidden',
       paddingTop: 12,
       paddingBottom: 12,
-      marginBottom: 20,
-      borderRadius: 12,
-      border: '1.5px solid #ede8e0',
+      marginBottom: 0,
+      borderRadius: 0,
+      borderLeft: 'none', borderRight: 'none',
+      borderTop: '1.5px solid #ede8e0', borderBottom: '1.5px solid #ede8e0',
     }}>
       <ScrollVelocity
         texts={[SCROLL_ROW_1, SCROLL_ROW_2]}
@@ -626,8 +627,8 @@ export default function HomeScreen() {
 
           {/* ── Main Content ── */}
           <ScrollView
-            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 16, paddingTop: isSmWeb ? 12 : 16 }]}
-            contentContainerStyle={{ paddingBottom: isSmWeb ? 80 : 48 }}
+            style={ws.main}
+            contentContainerStyle={{ paddingBottom: isSmWeb ? 80 : 48, paddingHorizontal: 0 }}
             showsVerticalScrollIndicator={true}
           >
 
@@ -640,7 +641,7 @@ export default function HomeScreen() {
                 <View style={[ws.heroContent, isSmWeb && { flexDirection: 'column', gap: 16 }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={ws.heroTag}>🏙️ Nanded's #1 Local Platform</Text>
-                    <Text style={[ws.heroTitle, isSmWeb && ws.heroTitleSm]}>Find Jobs & Rooms{'\n'}in Nanded</Text>
+                    <Text style={[ws.heroTitle, isSmWeb && ws.heroTitleSm]}>Find Jobs & Rooms in Nanded</Text>
                     <Text style={[ws.heroSub, isSmWeb && ws.heroSubSm]}>10,000+ opportunities for everyone nearby</Text>
                     <View style={ws.heroBadges}>
                       <View style={[ws.heroBadge, isSmWeb && ws.heroBadgeSm]}><Text style={[ws.heroBadgeTxt, isSmWeb && ws.heroBadgeTxtSm]}>✓ Free to Post</Text></View>
@@ -1032,14 +1033,15 @@ const ws = StyleSheet.create({
   sidePromoCtaTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // Main
-  main: { flex: 1, paddingHorizontal: 16, paddingTop: 16, backgroundColor: '#f3f4f6' },  // overridden inline for mobile-web
+  main: { flex: 1, backgroundColor: '#f3f4f6' },  // overridden inline for mobile-web
 
   // Hero
   heroBanner: {
     backgroundColor: ORANGE,
-    borderRadius: 20, padding: 48,
+    borderRadius: 0, padding: 40,
+    paddingHorizontal: 48,
     overflow: 'hidden', position: 'relative',
-    marginBottom: 24, minHeight: 320,
+    marginBottom: 0, minHeight: 340,
   },
   heroBannerSm: { padding: 20, borderRadius: 12 },
   heroCircle1: { position: 'absolute', width: 320, height: 320, borderRadius: 160, backgroundColor: 'rgba(255,255,255,0.10)', top: -100, right: -60 },
@@ -1047,7 +1049,7 @@ const ws = StyleSheet.create({
   heroCircle3: { position: 'absolute', width: 100, height: 100, borderRadius: 50,  backgroundColor: 'rgba(0,0,0,0.06)',       top: 20,    right: 260 },
   heroContent: { flexDirection: 'row', alignItems: 'center', gap: 32 },
   heroTag:     { fontSize: 12, color: 'rgba(255,255,255,0.80)', fontWeight: '600', marginBottom: 8 },
-  heroTitle:   { fontSize: 42, fontWeight: '900', color: '#fff', lineHeight: 50, marginBottom: 12 },
+  heroTitle:   { fontSize: 36, fontWeight: '900', color: '#fff', lineHeight: 44, marginBottom: 12 },
   heroTitleSm:  { fontSize: 26, lineHeight: 32 },
   heroSub:     { fontSize: 16, color: 'rgba(255,255,255,0.88)', fontWeight: '400', marginBottom: 18 },
   heroSubSm:    { fontSize: 13, marginBottom: 12 },
@@ -1076,24 +1078,24 @@ const ws = StyleSheet.create({
   heroStatDividerSm: { width: 1, height: '60%', backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center' },
 
   // Ticker web
-  ticker: { borderRadius: 10, marginBottom: 20 },
+  ticker: { borderRadius: 0, marginBottom: 0 },
 
   // Section
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, marginTop: 4 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, marginTop: 4, paddingHorizontal: 20 },
   sectionTitle:  { fontSize: 18, fontWeight: '800', color: '#111' },
   sectionTitleSm: { fontSize: 16 },
   seeAllBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
   seeAllTxt:     { fontSize: 13, fontWeight: '700', color: ORANGE },
 
   // Explore — 4-column grid
-  exploreGrid:  { flexDirection: 'row', marginBottom: 24 },
+  exploreGrid:  { flexDirection: 'row', marginBottom: 24, paddingHorizontal: 20 },
   exploreCard:  { borderRadius: 20, padding: 24, minHeight: 180 },
   exploreCardSm: { padding: 14, minHeight: 110 },
   exploreTitle:  { fontSize: 20, fontWeight: '900', color: '#fff' },
   exploreTitleSm: { fontSize: 15 },
 
   // Featured jobs grid — 2 col
-  featJobsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
+  featJobsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28, paddingHorizontal: 20 },
   featJobsGridSm:{ gap: 8, marginBottom: 16 },
   featJobCard:  { width: '47.5%', backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   featJobCardSmWeb: { width: '100%' },
@@ -1105,12 +1107,12 @@ const ws = StyleSheet.create({
   jobTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
 
   // Rooms grid — 3 col
-  roomsGrid: { flexDirection: 'row', gap: 14, marginBottom: 28, flexWrap: 'wrap' },
+  roomsGrid: { flexDirection: 'row', gap: 14, marginBottom: 28, flexWrap: 'wrap', paddingHorizontal: 20 },
   roomCard:  { flex: 1, minWidth: 200, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   roomImgPlaceholder: { height: 160, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
 
   // Right Panel
-  rightPanel: { width: 200, paddingHorizontal: 10, paddingTop: 16, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: -2, height: 0 }, elevation: 2 },
+  rightPanel: { width: 240, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec' },
 
   postCtaCard: {
     backgroundColor: ORANGE, borderRadius: 14, padding: 14, marginBottom: 12,
