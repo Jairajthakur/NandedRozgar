@@ -576,7 +576,7 @@ export default function HomeScreen() {
 
           {/* ── Main Content ── */}
           <ScrollView
-            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 16, paddingTop: isSmWeb ? 8 : 16 }]}
+            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 16, paddingTop: isSmWeb ? 8 : 10 }]}
             contentContainerStyle={{ paddingBottom: isSmWeb ? 80 : 48 }}
             showsVerticalScrollIndicator={true}
           >
@@ -983,63 +983,63 @@ const ws = StyleSheet.create({
   // Hero
   heroBanner: {
     backgroundColor: ORANGE,
-    borderRadius: 12, padding: 32, paddingVertical: 36,
+    borderRadius: 12, padding: 24, paddingVertical: 22,
     overflow: 'hidden', position: 'relative',
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  heroBannerSm: { padding: 20, borderRadius: 12 },
+  heroBannerSm: { padding: 16, borderRadius: 12 },
   heroCircle1: { position: 'absolute', width: 320, height: 320, borderRadius: 160, backgroundColor: 'rgba(255,255,255,0.10)', top: -100, right: -60 },
   heroCircle2: { position: 'absolute', width: 180, height: 180, borderRadius: 90,  backgroundColor: 'rgba(255,255,255,0.07)', bottom: -60, right: 120 },
   heroCircle3: { position: 'absolute', width: 100, height: 100, borderRadius: 50,  backgroundColor: 'rgba(0,0,0,0.06)',       top: 20,    right: 260 },
-  heroContent: { flexDirection: 'row', alignItems: 'center', gap: 32 },
-  heroTag:     { fontSize: 12, color: 'rgba(255,255,255,0.80)', fontWeight: '600', marginBottom: 8 },
-  heroTitle:   { fontSize: 44, fontWeight: '900', color: '#fff', lineHeight: 52, marginBottom: 10 },
-  heroTitleSm:  { fontSize: 26, lineHeight: 32 },
-  heroSub:     { fontSize: 14, color: 'rgba(255,255,255,0.88)', fontWeight: '400', marginBottom: 16 },
-  heroSubSm:    { fontSize: 13, marginBottom: 12 },
-  heroBadges:  { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  heroBadge:   { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 12 },
-  heroBadgeSm:  { paddingHorizontal: 9, paddingVertical: 3 },
-  heroBadgeTxt:{ color: '#fff', fontSize: 12, fontWeight: '600' },
-  heroBadgeTxtSm:{ fontSize: 11 },
+  heroContent: { flexDirection: 'row', alignItems: 'center', gap: 24 },
+  heroTag:     { fontSize: 11, color: 'rgba(255,255,255,0.80)', fontWeight: '600', marginBottom: 6 },
+  heroTitle:   { fontSize: 32, fontWeight: '900', color: '#fff', lineHeight: 38, marginBottom: 6 },
+  heroTitleSm:  { fontSize: 22, lineHeight: 28 },
+  heroSub:     { fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: '400', marginBottom: 12 },
+  heroSubSm:    { fontSize: 12, marginBottom: 10 },
+  heroBadges:  { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  heroBadge:   { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingVertical: 3, paddingHorizontal: 10 },
+  heroBadgeSm:  { paddingHorizontal: 8, paddingVertical: 2 },
+  heroBadgeTxt:{ color: '#fff', fontSize: 11, fontWeight: '600' },
+  heroBadgeTxtSm:{ fontSize: 10 },
 
   heroStats: {
-    flexDirection: 'column', gap: 8, minWidth: 160,
+    flexDirection: 'column', gap: 6, minWidth: 140,
   },
   heroStatsSm: {
-    flexDirection: 'row', minWidth: 0, width: '100%', gap: 6,
+    flexDirection: 'row', minWidth: 0, width: '100%', gap: 5,
     justifyContent: 'space-around',
   },
   heroStatCard: {
     backgroundColor: 'rgba(255,255,255,0.22)',
-    borderRadius: 14, paddingVertical: 14, paddingHorizontal: 20,
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16,
     alignItems: 'center',
   },
-  heroStatItem:    { alignItems: 'center', paddingVertical: 16 },
-  heroStatItemSm:  { flex: 1, alignItems: 'center', paddingVertical: 8, paddingHorizontal: 8, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 10 },
-  heroStatNum:     { fontSize: 36, fontWeight: '900', color: '#fff' },
-  heroStatNumSm:   { fontSize: 20, fontWeight: '900', color: '#fff' },
-  heroStatLabel:   { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '500', marginTop: 2, textAlign: 'center' },
+  heroStatItem:    { alignItems: 'center', paddingVertical: 10 },
+  heroStatItemSm:  { flex: 1, alignItems: 'center', paddingVertical: 6, paddingHorizontal: 6, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 10 },
+  heroStatNum:     { fontSize: 28, fontWeight: '900', color: '#fff' },
+  heroStatNumSm:   { fontSize: 18, fontWeight: '900', color: '#fff' },
+  heroStatLabel:   { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '500', marginTop: 1, textAlign: 'center' },
   heroStatLabelSm: { fontSize: 10, color: 'rgba(255,255,255,0.85)', fontWeight: '500', marginTop: 1, textAlign: 'center' },
   heroStatDivider:   { width: '90%', height: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
   heroStatDividerSm: { width: 1, height: '60%', backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center' },
 
   // Ticker web
-  ticker: { borderRadius: 10, marginBottom: 20 },
+  ticker: { borderRadius: 10, marginBottom: 12 },
 
   // Section
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, marginTop: 4 },
-  sectionTitle:  { fontSize: 18, fontWeight: '800', color: '#111' },
-  sectionTitleSm: { fontSize: 16 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, marginTop: 2 },
+  sectionTitle:  { fontSize: 17, fontWeight: '800', color: '#111' },
+  sectionTitleSm: { fontSize: 15 },
   seeAllBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
   seeAllTxt:     { fontSize: 13, fontWeight: '700', color: ORANGE },
 
   // Explore — 4-column grid
-  exploreGrid:  { flexDirection: 'row', marginBottom: 24, gap: 12 },
-  exploreCard:  { borderRadius: 20, padding: 20, minHeight: 200 },
-  exploreCardSm: { padding: 14, minHeight: 110 },
-  exploreTitle:  { fontSize: 22, fontWeight: '900', color: '#fff', marginBottom: 4 },
-  exploreTitleSm: { fontSize: 15 },
+  exploreGrid:  { flexDirection: 'row', marginBottom: 16, gap: 10 },
+  exploreCard:  { borderRadius: 16, padding: 16, minHeight: 150 },
+  exploreCardSm: { padding: 12, minHeight: 100 },
+  exploreTitle:  { fontSize: 18, fontWeight: '900', color: '#fff', marginBottom: 3 },
+  exploreTitleSm: { fontSize: 14 },
 
   // Featured jobs grid — 2 col
   featJobsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
