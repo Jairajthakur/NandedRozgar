@@ -138,7 +138,23 @@ function MainTabs() {
       screenOptions={HEADER}
     >
       <Tab.Screen name="Home"  component={HomeScreen}  options={{ headerShown: false, tabBarLabel: t('home') }} />
-      <Tab.Screen name="Jobs"  component={BoardScreen} options={{ headerTitle: t('findJobs'), tabBarLabel: t('jobs') }} />
+      <Tab.Screen
+        name="Jobs"
+        component={BoardScreen}
+        options={({ navigation }) => ({
+          headerTitle: t('findJobs'),
+          tabBarLabel: t('jobs'),
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ paddingHorizontal: 12 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="arrow-back" size={22} color="#111111" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
       <Tab.Screen name="Post"  component={PostScreen}  options={{ headerShown: false, tabBarLabel: t('post') }} />
       <Tab.Screen name="Rooms" component={RoomScreen}  options={{ headerTitle: t('roomsPG'), tabBarLabel: t('rooms') }} />
       <Tab.Screen name="Cars"  component={CarScreen}   options={{ headerTitle: t('carRental'), tabBarLabel: t('cars') }} />
