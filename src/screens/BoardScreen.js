@@ -741,7 +741,7 @@ export default function BoardScreen({ route }) {
 
 // ── WEB STYLES ────────────────────────────────────────────────────────────────
 const ws = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f3f4f6', overflow: 'hidden' },
+  root: { flex: 1, backgroundColor: '#f3f4f6' },
 
   // 3-column body: left sidebar | main | right sidebar
   body: {
@@ -753,14 +753,16 @@ const ws = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 16,
     gap: 16,
-    overflow: 'hidden',
   },
 
-  // Left sidebar
+  // Left sidebar — sticky so it stays in view while jobs scroll
   leftSidebar: {
     width: 220,
     flexShrink: 0,
     gap: 12,
+    alignSelf: 'flex-start',
+    position: 'sticky',
+    top: 70,
   },
 
   // Main column — fills all remaining space
@@ -770,11 +772,14 @@ const ws = StyleSheet.create({
     flexShrink: 1,
   },
 
-  // Right sidebar
+  // Right sidebar — sticky so filters stay in view
   rightSidebar: {
     width: 220,
     flexShrink: 0,
     gap: 12,
+    alignSelf: 'flex-start',
+    position: 'sticky',
+    top: 70,
   },
 
   header: {
@@ -994,7 +999,7 @@ const ws = StyleSheet.create({
 
   // Sticky mini-header
   stickyBar: {
-    position: 'absolute',
+    position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
