@@ -6,8 +6,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { C, BASE_URL } from '../utils/constants';
-import { getToken } from '../utils/api';
+import { C } from '../utils/constants';
+import { http } from '../utils/api';
 
 const ORANGE = '#f97316';
 const DARK   = '#111111';
@@ -100,25 +100,14 @@ export default function AIScreen() {
 
   // ── Core AI call ──────────────────────────────────────────────
   async function callAI(query, history = []) {
-    try {
-      const token = await getToken();
-      const res = await fetch(`${BASE_URL}/api/ai/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: 'Bearer ' + token } : {}),
-        },
-        body: JSON.stringify({
-          query,
-          userLocation: user?.location,
-          history: history.slice(-8),
-        }),
-      });
-      const data = await res.json();
-      return data.ok ? data.reply : null;
-    } catch {
-      return null;
-    }
+    const data = await http('POST', '/api/ai/chat', {
+      query,
+      userLocation: user?.location,
+      history: history.slice(-8),
+    });
+    if (data.ok) return data.reply;
+    // Surface the real server error in the chat instead of silent fail
+    return `⚠️ ${data.error || 'AI unavailable. Please try again.'}`;
   }
 
   // ── Auto-briefing on mount ────────────────────────────────────
@@ -144,7 +133,7 @@ export default function AIScreen() {
         .concat(reply ? [{
           id: 'insight-' + Date.now(),
           role: 'assistant',
-          content: '📊 ' + reply,
+          content: reply.startsWith('⚠️') ? reply : '📊 ' + reply,
           timestamp: Date.now(),
         }] : [])
       );
