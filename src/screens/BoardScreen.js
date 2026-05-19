@@ -149,6 +149,12 @@ export default function BoardScreen({ route }) {
   const isGiver    = role === 'user' || role === 'admin';
   const showSidebar = IS_WEB && winW >= 900;
 
+  // FlatList ref — used to scroll to top when filters change
+  const flatListRef = useRef(null);
+  useEffect(() => {
+    flatListRef.current?.scrollToOffset?.({ offset: 0, animated: true });
+  }, [jobType, salaryRange, search, sortBy]);
+
   // ── Scroll animation ──────────────────────────────────────────────────────
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -296,18 +302,6 @@ export default function BoardScreen({ route }) {
         </View>
       </Animated.View>
 
-      {/* Web: Stats strip — fades on scroll */}
-      {IS_WEB && (
-        <Animated.View style={{ opacity: statsOpacity }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
-            <StatPill icon="briefcase-outline" value={`${jobs.filter(j => j.status === 'active').length}+`} label="Active Jobs" color={ORANGE} />
-            <StatPill icon="people-outline"    value="10k+"  label="Job Seekers"  color="#3b82f6" />
-            <StatPill icon="checkmark-circle-outline" value="500+" label="Placements"  color="#16a34a" />
-            <StatPill icon="business-outline"  value="50+"   label="Companies"    color={TEAL} />
-          </ScrollView>
-        </Animated.View>
-      )}
-
       {/* Search — animates on scroll */}
       <Animated.View style={[
         s.searchWrap, IS_WEB && ws.searchWrap,
@@ -347,7 +341,11 @@ export default function BoardScreen({ route }) {
           <TouchableOpacity
             key={jt}
             onPress={() => setJobType(jt)}
-            style={[s.pill, jobType === jt && s.pillActive, IS_WEB && ws.pill]}
+            style={[
+              s.pill,
+              IS_WEB && ws.pill,
+              jobType === jt && s.pillActive,
+            ]}
           >
             <Text style={[s.pillTxt, jobType === jt && s.pillTxtActive]}>{jt}</Text>
           </TouchableOpacity>
@@ -559,6 +557,7 @@ export default function BoardScreen({ route }) {
           {/* ── MAIN COLUMN ── */}
           <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
             <FlatList
+              ref={flatListRef}
               data={filtered}
               keyExtractor={j => String(j.id)}
               numColumns={winW >= 1280 ? 2 : 1}
@@ -694,6 +693,7 @@ export default function BoardScreen({ route }) {
       {/* Sticky mini-header — overlays on scroll */}
       {StickyHeader}
       <FlatList
+        ref={flatListRef}
         data={filtered}
         keyExtractor={j => j.id}
         contentContainerStyle={s.list}
