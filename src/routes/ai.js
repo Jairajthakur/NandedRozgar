@@ -2,13 +2,13 @@ const router = require('express').Router();
 const { auth } = require('../middleware/auth');
 const { pool } = require('../db');
 
-// POST /api/ai/chat — powered by Google Gemini (free tier)
+// POST /api/ai/chat — powered by Groq (free, fast, no restrictions)
 router.post('/chat', auth, async (req, res) => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return res.json({
       ok: false,
-      error: 'AI is not configured yet. Add GEMINI_API_KEY to your Railway environment variables. Get a free key at https://aistudio.google.com/app/apikey',
+      error: 'Add GROQ_API_KEY to Railway variables. Get free key at https://console.groq.com',
     });
   }
 
@@ -18,9 +18,8 @@ router.post('/chat', auth, async (req, res) => {
   }
 
   try {
-    // Fetch all active jobs for full context
     const { rows: jobs } = await pool.query(
-      `SELECT title, company, location, salary, type, category, created_at
+      `SELECT title, company, location, salary, type, category
        FROM jobs WHERE status = 'active' ORDER BY created_at DESC LIMIT 30`
     );
 
@@ -28,8 +27,7 @@ router.post('/chat', auth, async (req, res) => {
     jobs.forEach(j => { catMap[j.category] = (catMap[j.category] || 0) + 1; });
     const catSummary = Object.entries(catMap)
       .sort((a, b) => b[1] - a[1])
-      .map(([cat, count]) => `${cat}: ${count}`)
-      .join(', ');
+      .map(([cat, count]) => `${cat}: ${count}`).join(', ');
 
     const jobList = jobs
       .map(j => `• ${j.title} at ${j.company} (${j.location}) — ${j.salary}, ${j.type}`)
@@ -38,51 +36,36 @@ router.post('/chat', auth, async (req, res) => {
     const systemPrompt = [
       'You are NandedRozgar AI — a smart, friendly assistant for the NandedRozgar platform in Nanded, Maharashtra, India.',
       `Platform owner: ${req.user.name || 'Admin'}. Location: ${userLocation || 'Nanded'}.`,
-      `Total active listings: ${jobs.length}. Categories: ${catSummary || 'none yet'}.`,
-      jobs.length > 0 ? `Current active listings:\n${jobList}` : 'No active listings currently.',
-      'You help with everything: jobs, rooms, vehicles, buy & sell, salary benchmarks, job descriptions, hiring tips, market insights.',
-      'Rules: Use ₹ for INR. Max 180 words per reply. Be specific, practical, and friendly. Use bullet points for lists. Reference actual listings by name when helpful.',
+      `Active listings: ${jobs.length}. Categories: ${catSummary || 'none yet'}.`,
+      jobs.length > 0 ? `Current listings:\n${jobList}` : 'No active listings currently.',
+      'Help with: jobs, rooms, vehicles, buy & sell, salaries, job descriptions, hiring tips, market insights.',
+      'Use ₹ for INR. Max 180 words. Be specific and friendly. Use bullet points for lists.',
     ].join('\n');
 
-    // Build Gemini contents array (multi-turn history)
-    const contents = [];
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history.filter(h => h.role && h.content).slice(-8),
+      { role: 'user', content: query.trim() },
+    ];
 
-    // Add conversation history
-    history
-      .filter(h => h.role && h.content)
-      .slice(-8)
-      .forEach(h => {
-        contents.push({
-          role: h.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: h.content }],
-        });
-      });
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'llama3-8b-8192',
+        messages,
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
+    });
 
-    // Add current user query
-    contents.push({ role: 'user', parts: [{ text: query.trim() }] });
+    const data = await groqRes.json();
+    const text = data?.choices?.[0]?.message?.content;
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents,
-          generationConfig: {
-            maxOutputTokens: 500,
-            temperature: 0.7,
-          },
-        }),
-      }
-    );
-
-    const data = await geminiRes.json();
-
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (text) {
-      return res.json({ ok: true, reply: text });
-    }
+    if (text) return res.json({ ok: true, reply: text });
 
     const errMsg = data?.error?.message || 'AI did not return a response.';
     return res.json({ ok: false, error: errMsg });
