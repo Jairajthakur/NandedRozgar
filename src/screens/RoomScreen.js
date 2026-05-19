@@ -195,43 +195,83 @@ function RoomCard({ item, index, onPress }) {
   const cardBg = CARD_COLORS[index % CARD_COLORS.length];
 
   if (IS_WEB) {
-    /* ── Web card: matches JobCard layout ── */
+    const hasPhotos = item.photos?.length > 0;
+    const photoCount = item.photos?.length || 0;
+    const webCardBg = CARD_COLORS[index % CARD_COLORS.length];
+
+    /* Photo-type category pills derived from amenities */
+    const webPhotoPills = hasPhotos
+      ? (['Room',
+          item.amenities?.includes('Meals') || item.amenities?.includes('Meals Included') ? 'Kitchen' : null,
+          item.amenities?.includes('Parking') ? 'Parking' : null,
+        ].filter(Boolean).slice(0, 3))
+      : [];
+
+    /* ── Web card: full-width top image (matches Image 2 / mobile style) ── */
     return (
       <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
         <TouchableOpacity activeOpacity={0.97} onPress={handlePress} style={ws.card}>
-          {/* Left accent bar */}
-          <View style={[ws.cardAccent, { backgroundColor: accentColor }]} />
 
-          {/* Thumbnail image (shown when photos exist) */}
-          {item.photos?.length > 0 && (
-            <View style={ws.cardThumb}>
+          {/* ── Top image / placeholder area ── */}
+          <View style={[ws.cardPhoto, { backgroundColor: hasPhotos ? webCardBg : '#f0f0f0' }]}>
+
+            {/* Actual photo */}
+            {hasPhotos && (
               <Image
                 source={{ uri: item.photos[0] }}
-                style={[StyleSheet.absoluteFillObject, { borderRadius: 0 }]}
+                style={StyleSheet.absoluteFillObject}
                 resizeMode="cover"
               />
-              {item.photos.length > 1 && (
-                <View style={ws.thumbCountBadge}>
-                  <Ionicons name="images-outline" size={10} color="#fff" />
-                  <Text style={ws.thumbCountTxt}>{item.photos.length}</Text>
-                </View>
-              )}
-            </View>
-          )}
+            )}
 
-          {/* Card body */}
-          <View style={ws.cardBody}>
-            {/* Available / NEW badges */}
-            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
-              <View style={[ws.statusBadge, { backgroundColor: item.available ? '#16a34a' : '#6b7280' }]}>
-                <Text style={ws.statusBadgeTxt}>{item.available ? 'Available' : 'Occupied'}</Text>
+            {/* Dark overlay for badge readability */}
+            {hasPhotos && <View style={ws.photoOverlay} />}
+
+            {/* Centred building icon when photo present */}
+            {hasPhotos && (
+              <Ionicons name="business" size={56} color="rgba(255,255,255,0.18)" />
+            )}
+
+            {/* Category pills at bottom */}
+            {hasPhotos && webPhotoPills.length > 0 && (
+              <View style={ws.photoPillsRow}>
+                {webPhotoPills.map((label, i) => (
+                  <View key={i} style={[ws.photoPill, i === 0 && ws.photoPillActive]}>
+                    <Text style={[ws.photoPillTxt, i === 0 && ws.photoPillTxtActive]}>{label}</Text>
+                  </View>
+                ))}
               </View>
-              {item.listedDaysAgo != null && item.listedDaysAgo <= 7 && (
-                <View style={[ws.statusBadge, { backgroundColor: ORANGE }]}>
-                  <Text style={ws.statusBadgeTxt}>NEW</Text>
-                </View>
-              )}
+            )}
+
+            {/* "N photos" / "photos" badge — top left */}
+            <View style={ws.photosBadge}>
+              <Text style={ws.photosBadgeTxt}>
+                {hasPhotos ? `${photoCount} photo${photoCount > 1 ? 's' : ''}` : 'photos'}
+              </Text>
             </View>
+
+            {/* Available / Occupied badge — top right */}
+            <View style={[ws.availBadge, { backgroundColor: item.available ? '#16a34a' : '#6b7280' }]}>
+              <Text style={ws.availTxt}>{item.available ? 'Available' : 'Occupied'}</Text>
+            </View>
+
+            {/* NEW badge — below available */}
+            {item.listedDaysAgo != null && item.listedDaysAgo <= 7 && (
+              <View style={ws.newBadge}>
+                <Text style={ws.newBadgeTxt}>NEW</Text>
+              </View>
+            )}
+
+            {/* Vacancies left — below NEW */}
+            {item.available && item.vacancies > 0 && item.vacancies <= 5 && (
+              <View style={ws.vacancyBadge}>
+                <Text style={ws.vacancyTxt}>{item.vacancies} left</Text>
+              </View>
+            )}
+          </View>
+
+          {/* ── Card body ── */}
+          <View style={ws.cardBody}>
 
             {/* Title + Rent */}
             <View style={ws.cardTitleRow}>
@@ -256,12 +296,6 @@ function RoomCard({ item, index, onPress }) {
                 <View style={ws.tag}>
                   <Ionicons name="business-outline" size={10} color="#555" style={{ marginRight: 3 }} />
                   <Text style={ws.tagTxt}>{item.type}</Text>
-                </View>
-              )}
-              {item.for && item.for !== 'Any' && (
-                <View style={ws.tag}>
-                  <Ionicons name="people-outline" size={10} color="#555" style={{ marginRight: 3 }} />
-                  <Text style={ws.tagTxt}>{item.for}</Text>
                 </View>
               )}
               {item.available && (
@@ -1129,34 +1163,80 @@ const ws = StyleSheet.create({
     width: 360, borderRadius: 20, bottom: 'auto',
   },
 
-  /* Web card (JobCard-matching) */
+  /* Web card — vertical layout with full-width top image (matches Image 2) */
   card: {
     backgroundColor: '#fff', borderRadius: 16,
-    borderWidth: 1, borderColor: '#ebebeb', marginBottom: 12,
-    overflow: 'hidden', flexDirection: 'row',
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 }, elevation: 2,
+    borderWidth: 1, borderColor: '#ebebeb', marginBottom: 14,
+    overflow: 'hidden', flexDirection: 'column',
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
-  cardAccent: { width: 4, flexShrink: 0 },
-  cardThumb: {
-    width: 110, flexShrink: 0, backgroundColor: '#1a2a3a', position: 'relative',
+
+  /* Photo area */
+  cardPhoto: {
+    height: 200, alignItems: 'center', justifyContent: 'center',
+    position: 'relative', overflow: 'hidden',
   },
-  thumbCountBadge: {
-    position: 'absolute', bottom: 6, right: 6,
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 6,
-    paddingVertical: 3, paddingHorizontal: 6,
+  photoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.30)',
   },
-  thumbCountTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
+
+  /* Category pills row at photo bottom */
+  photoPillsRow: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'center', gap: 8,
+    paddingBottom: 14, paddingHorizontal: 16,
+  },
+  photoPill: {
+    backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 8,
+    paddingVertical: 6, paddingHorizontal: 18,
+  },
+  photoPillActive: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+  },
+  photoPillTxt:       { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: '600' },
+  photoPillTxtActive: { color: '#fff', fontWeight: '700' },
+
+  /* "N photos" badge — top left */
+  photosBadge: {
+    position: 'absolute', top: 10, left: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8,
+    paddingVertical: 5, paddingHorizontal: 11,
+  },
+  photosBadgeTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
+
+  /* Available badge — top right */
+  availBadge: {
+    position: 'absolute', top: 10, right: 10,
+    borderRadius: 8, paddingVertical: 5, paddingHorizontal: 11,
+  },
+  availTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
+
+  /* NEW badge — below available */
+  newBadge: {
+    position: 'absolute', top: 44, right: 10,
+    backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 11,
+  },
+  newBadgeTxt: { color: '#fff', fontSize: 12, fontWeight: '800' },
+
+  /* Vacancy badge — below new */
+  vacancyBadge: {
+    position: 'absolute', top: 78, right: 10,
+    backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 11,
+  },
+  vacancyTxt: { color: '#fff', fontSize: 12, fontWeight: '800' },
+
   cardBody:   { flex: 1, padding: 16 },
 
   statusBadge:    { borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'flex-start' },
   statusBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
   cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 3, gap: 8 },
-  cardTitle:    { fontSize: 15, fontWeight: '700', color: '#111', flex: 1, lineHeight: 21 },
+  cardTitle:    { fontSize: 16, fontWeight: '800', color: '#111', flex: 1, lineHeight: 22 },
   rentWrap:     { alignItems: 'flex-end', flexShrink: 0 },
-  rentAmt:      { fontSize: 13, fontWeight: '700', color: ORANGE },
+  rentAmt:      { fontSize: 14, fontWeight: '700', color: ORANGE },
   depositTxt:   { fontSize: 10, color: '#999', marginTop: 1 },
 
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 10 },
