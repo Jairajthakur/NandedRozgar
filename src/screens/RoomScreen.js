@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, RefreshControl, Modal,
@@ -445,6 +445,11 @@ export default function RoomScreen({ route }) {
   const nav    = useNavigation();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+
+  /* Hide the native nav header on web — we render our own top bar */
+  useLayoutEffect(() => {
+    if (IS_WEB) nav.setOptions({ headerShown: false });
+  }, [nav]);
 
   const showSidebar = IS_WEB && width >= 900;
 
