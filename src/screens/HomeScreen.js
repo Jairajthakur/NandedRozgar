@@ -260,7 +260,7 @@ function ExploreCard({ icon, title, subtitle, color, onPress, style }) {
 // ── Featured Job Card ──────────────────────────────────────────────────────────
 function FeaturedJobCard({ job, onPress }) {
   return (
-    <AnimatedPress style={[s.featJobCard, IS_WEB && ws.featJobCard]} onPress={onPress}>
+    <AnimatedPress style={[s.featJobCard, IS_WEB && ws.featJobCard, !IS_WEB && s.featJobCardGrid]} onPress={onPress}>
       <View style={s.featJobTop}>
         <View style={s.featJobIcon}>
           <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={18} color={ORANGE} />
@@ -453,7 +453,7 @@ export default function HomeScreen() {
       ((b.featured ? 2 : 0) + (b.urgent ? 1 : 0)) -
       ((a.featured ? 2 : 0) + (a.urgent ? 1 : 0)) ||
       b.timestamp - a.timestamp)
-    .slice(0, IS_WEB ? 5 : 3);
+    .slice(0, 6);
 
   const featuredDemoJobs = [
     { id: 'f1', title: 'Delivery Executive',  company: 'Swiggy Instamart',    salary: '₹15k–20k/mo', category: 'Delivery',   status: 'active', location: 'Nanded',               timestamp: Date.now() - 3600000 * 2 },
@@ -631,28 +631,8 @@ export default function HomeScreen() {
               </View>
             </FadeSlide>
 
-            {/* ── Featured Jobs ── */}
+            {/* ── Recent Jobs ── */}
             <FadeSlide delay={160}>
-              <View style={ws.sectionHeader}>
-                <Text style={ws.sectionTitle}>Featured Jobs</Text>
-                <TouchableOpacity onPress={() => nav.navigate('Jobs')} style={ws.seeAllBtn}>
-                  <Text style={ws.seeAllTxt}>View All</Text>
-                  <Ionicons name="arrow-forward" size={14} color={ORANGE} />
-                </TouchableOpacity>
-              </View>
-              <View style={[ws.featJobsGrid, isSmWeb && { flexDirection: 'column' }]}>
-                {displayFeatured.map(job => (
-                  <FeaturedJobCard
-                    key={String(job.id)}
-                    job={job}
-                    onPress={() => job.status === 'active' ? nav.navigate('JobDetail', { job }) : nav.navigate('Jobs')}
-                  />
-                ))}
-              </View>
-            </FadeSlide>
-
-            {/* ── Recent Jobs (full list) ── */}
-            <FadeSlide delay={220}>
               <View style={ws.sectionHeader}>
                 <Text style={ws.sectionTitle}>Recent Jobs</Text>
                 <TouchableOpacity onPress={() => nav.navigate('Jobs')} style={ws.seeAllBtn}>
@@ -660,14 +640,15 @@ export default function HomeScreen() {
                   <Ionicons name="arrow-forward" size={14} color={ORANGE} />
                 </TouchableOpacity>
               </View>
-              {displayJobs.map((job, i) => (
-                <RecentJobCard
-                  key={String(job.id)}
-                  job={job}
-                  index={i}
-                  onPress={() => nav.navigate('JobDetail', { job })}
-                />
-              ))}
+              <View style={[ws.featJobsGrid, isSmWeb && { flexDirection: 'column' }]}>
+                {displayJobs.slice(0, 6).map(job => (
+                  <FeaturedJobCard
+                    key={String(job.id)}
+                    job={job}
+                    onPress={() => nav.navigate('JobDetail', { job })}
+                  />
+                ))}
+              </View>
             </FadeSlide>
 
             {/* ── Recent Rooms ── */}
@@ -859,27 +840,23 @@ export default function HomeScreen() {
 
         <TickerBanner />
 
-        {/* Featured Jobs */}
+        {/* Recent Jobs */}
         <FadeSlide delay={200}>
           <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Featured Jobs</Text>
+            <Text style={s.sectionTitle}>Recent Jobs</Text>
             <TouchableOpacity onPress={() => nav.navigate('Jobs')}>
               <Text style={s.seeAllBtn}>See all ›</Text>
             </TouchableOpacity>
           </View>
-          <FlatList
-            data={displayFeatured}
-            keyExtractor={j => String(j.id)}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 4 }}
-            renderItem={({ item }) => (
+          <View style={s.mobileJobsGrid}>
+            {displayJobs.slice(0, 6).map(job => (
               <FeaturedJobCard
-                job={item}
-                onPress={() => item.status === 'active' ? nav.navigate('JobDetail', { job: item }) : nav.navigate('Jobs')}
+                key={String(job.id)}
+                job={job}
+                onPress={() => nav.navigate('JobDetail', { job })}
               />
-            )}
-          />
+            ))}
+          </View>
         </FadeSlide>
 
         {/* Recent Rooms */}
@@ -1161,6 +1138,7 @@ const s = StyleSheet.create({
   tickerText: { color: '#ffffff', fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
 
   featJobCard:    { width: 210, backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 4, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0' },
+  featJobCardGrid:{ flex: 1, width: 'auto' },
   featJobTop:     { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   featJobIcon:    { width: 38, height: 38, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
   featJobTitle:   { fontSize: 13, fontWeight: '700', color: '#111' },
@@ -1214,6 +1192,15 @@ const s = StyleSheet.create({
 
   viewAll:    { marginHorizontal: 16, marginTop: 4, alignItems: 'center', padding: 10 },
   viewAllTxt: { fontSize: 13, color: ORANGE, fontWeight: '700' },
+
+  // Recent Jobs 2-col grid (mobile)
+  mobileJobsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    gap: 10,
+    marginBottom: 4,
+  },
 });
 
 const lm = StyleSheet.create({
