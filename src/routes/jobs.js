@@ -10,18 +10,29 @@ router.get('/', async (req, res) => {
     const offset = (page - 1) * limit;
     const category = req.query.category || null;
     const search   = req.query.search   || null;
+    const jobType  = req.query.type     || null;   // Full-time | Part-time | Fresher | Work from Home
 
     // Build dynamic WHERE clauses
-    const conditions = [`j.status = 'active'`, `(j.expires_at IS NULL OR j.expires_at > NOW())`];
+    const conditions = ["j.status = 'active'", "(j.expires_at IS NULL OR j.expires_at > NOW())"];
     const params = [];
 
     if (category && category !== 'All') {
       params.push(category);
       conditions.push(`j.category = $${params.length}`);
     }
+    if (jobType && jobType !== 'All') {
+      if (jobType === 'Fresher') {
+        conditions.push(`(j.fresher_ok = TRUE OR j.type ILIKE 'fresher%')`);
+      } else if (jobType === 'Work from Home') {
+        conditions.push(`(j.type ILIKE '%work from home%' OR j.type ILIKE '%wfh%' OR j.type ILIKE '%remote%')`);
+      } else {
+        params.push(jobType);
+        conditions.push(`j.type ILIKE $${params.length}`);
+      }
+    }
     if (search) {
       params.push(`%${search}%`);
-      conditions.push(`(j.title ILIKE $${params.length} OR j.company ILIKE $${params.length} OR j.description ILIKE $${params.length})`);
+      conditions.push(`(j.title ILIKE $${params.length} OR j.company ILIKE $${params.length} OR j.description ILIKE $${params.length} OR j.location ILIKE $${params.length})`);
     }
 
     const where = conditions.join(' AND ');
@@ -69,7 +80,7 @@ router.post('/', auth, async (req, res) => {
       title, company, category, type, location, salary,
       phone, whatsapp, description, skills, requirements,
       education, experience, hours, openings,
-      featured, urgent, planDays,
+      featured, urgent, fresherOk, planDays,
     } = req.body;
 
     if (!title || !category || !location) {
@@ -92,14 +103,17 @@ router.post('/', auth, async (req, res) => {
         ? requirements.split('\n').map(r => r.trim()).filter(Boolean)
         : [];
 
+    // Infer fresher_ok: explicit flag OR type is 'Freshers Welcome' OR type contains 'Fresher'
+    const isFresherOk = !!fresherOk || (type || '').toLowerCase().includes('fresher');
+
     const { rows } = await pool.query(`
       INSERT INTO jobs (
         posted_by, title, company, category, type, location, salary,
         phone, whatsapp, description, skills, requirements,
         education, experience, hours, openings,
-        featured, urgent, expires_at
+        featured, urgent, fresher_ok, expires_at
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
       RETURNING *
     `, [
       req.user.id, title, company, category,
@@ -107,7 +121,7 @@ router.post('/', auth, async (req, res) => {
       phone, whatsapp || phone, description,
       skillsArr, reqArr,
       education || '', experience || '', hours || '', openings || '1',
-      !!featured, !!urgent, expiresAt,
+      !!featured, !!urgent, isFresherOk, expiresAt,
     ]);
 
     res.json({ ok: true, job: rows[0] });
