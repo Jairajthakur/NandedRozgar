@@ -144,7 +144,7 @@ function AmenityChip({ label }) {
   );
 }
 
-/* ─── Room Card (mirrors JobCard layout) ─── */
+/* ─── Room Card (matches JobCard layout from Image 2) ─── */
 function RoomCard({ item, index, onPress }) {
   const fade  = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(24)).current;
@@ -157,27 +157,27 @@ function RoomCard({ item, index, onPress }) {
     ]).start();
   }, []);
 
-  const onPressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
-  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 30 }).start();
+  const handlePress = () => {
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 0.97, duration: 70, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 10, stiffness: 200 }),
+    ]).start();
+    onPress?.();
+  };
 
   const accentColor = item.available ? ORANGE : '#9ca3af';
   const cardBg = CARD_COLORS[index % CARD_COLORS.length];
 
   return (
     <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
-      <TouchableOpacity
-        activeOpacity={1}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        onPress={onPress}
-        style={s.card}
-      >
-        {/* Orange left accent bar */}
+      <TouchableOpacity activeOpacity={0.97} onPress={handlePress} style={s.card}>
+
+        {/* Left accent bar (orange = available, grey = occupied) */}
         <View style={[s.cardAccent, { backgroundColor: accentColor }]} />
 
-        {/* Color header strip */}
+        {/* Left colored strip with home icon + badges */}
         <View style={[s.cardStrip, { backgroundColor: cardBg }]}>
-          <Ionicons name="home-outline" size={38} color="#fff" style={{ opacity: 0.14 }} />
+          <Ionicons name="home-outline" size={32} color="#fff" style={{ opacity: 0.18 }} />
           <View style={[s.availBadge, { backgroundColor: item.available ? '#16a34a' : '#6b7280' }]}>
             <Text style={s.availTxt}>{item.available ? 'Available' : 'Occupied'}</Text>
           </View>
@@ -190,23 +190,25 @@ function RoomCard({ item, index, onPress }) {
 
         {/* Card body */}
         <View style={s.cardBody}>
+
+          {/* Title + Rent (top row) */}
           <View style={s.cardTitleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.cardTitle} numberOfLines={1}>{item.title}</Text>
-              <View style={s.locationRow}>
-                <Ionicons name="location-outline" size={11} color="#aaa" />
-                <Text style={s.locationTxt}>
-                  {item.location}{item.listedDaysAgo != null ? ` · ${item.listedDaysAgo}d ago` : ''}
-                </Text>
-              </View>
-            </View>
+            <Text style={s.cardTitle} numberOfLines={1}>{item.title}</Text>
             <View style={s.rentWrap}>
               <Text style={s.rentAmt}>{item.rent}</Text>
               {item.deposit && <Text style={s.depositTxt}>Dep: {item.deposit}</Text>}
             </View>
           </View>
 
-          {/* Tags — mirrors skill chips from JobCard */}
+          {/* Location */}
+          <View style={s.locationRow}>
+            <Ionicons name="location-outline" size={11} color="#aaa" />
+            <Text style={s.locationTxt}>
+              {item.location}{item.listedDaysAgo != null ? ` · ${item.listedDaysAgo}d ago` : ''}
+            </Text>
+          </View>
+
+          {/* Tag chips: type, gender, available, verified */}
           <View style={s.tagsRow}>
             {item.type && (
               <View style={s.tag}>
@@ -234,14 +236,14 @@ function RoomCard({ item, index, onPress }) {
             )}
           </View>
 
-          {/* Amenities */}
+          {/* Amenity chips */}
           {item.amenities?.length > 0 && (
             <View style={s.amenitiesRow}>
               {item.amenities.map((a, i) => <AmenityChip key={i} label={a} />)}
             </View>
           )}
 
-          {/* Footer */}
+          {/* Footer: owner + View button */}
           <View style={s.cardFooter}>
             <View style={s.ownerRow}>
               <View style={s.ownerAvatar}>
@@ -249,10 +251,11 @@ function RoomCard({ item, index, onPress }) {
               </View>
               <Text style={s.ownerName} numberOfLines={1}>{item.owner?.name || 'Owner'}</Text>
             </View>
-            <TouchableOpacity style={s.applyBtn} onPress={onPress}>
+            <TouchableOpacity style={s.applyBtn} onPress={handlePress}>
               <Text style={s.applyBtnTxt}>View</Text>
             </TouchableOpacity>
           </View>
+
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -664,66 +667,66 @@ const s = StyleSheet.create({
   liveTxt: { fontSize: 11, fontWeight: '800', color: '#16a34a' },
 
   card: {
-    backgroundColor: '#fff', borderRadius: 14,
+    backgroundColor: '#fff', borderRadius: 16,
     borderWidth: 1, borderColor: '#ebebeb', marginBottom: 12,
     overflow: 'hidden', flexDirection: 'row',
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 }, elevation: 2,
   },
   cardAccent: { width: 4, flexShrink: 0 },
   cardStrip: {
-    width: 88, flexShrink: 0,
+    width: 80, flexShrink: 0,
     alignItems: 'center', justifyContent: 'center',
-    position: 'relative', minHeight: 130,
+    position: 'relative', minHeight: 120,
   },
   availBadge: {
-    position: 'absolute', top: 8, left: 4, right: 4,
-    borderRadius: 20, paddingVertical: 3, paddingHorizontal: 6, alignItems: 'center',
+    position: 'absolute', top: 7, left: 4, right: 4,
+    borderRadius: 20, paddingVertical: 3, paddingHorizontal: 4, alignItems: 'center',
   },
-  availTxt:  { color: '#fff', fontSize: 9, fontWeight: '700' },
-  newBadge:  { position: 'absolute', bottom: 8, left: 4, right: 4, backgroundColor: ORANGE, borderRadius: 20, paddingVertical: 3, alignItems: 'center' },
-  newBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  availTxt:  { color: '#fff', fontSize: 8, fontWeight: '700' },
+  newBadge:  { position: 'absolute', bottom: 7, left: 4, right: 4, backgroundColor: ORANGE, borderRadius: 20, paddingVertical: 3, alignItems: 'center' },
+  newBadgeTxt: { color: '#fff', fontSize: 8, fontWeight: '800' },
 
-  cardBody: { flex: 1, padding: 12 },
-  cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
-  cardTitle:    { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2, flex: 1 },
-  locationRow:  { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  locationTxt:  { fontSize: 11, color: '#aaa', fontWeight: '500' },
-  rentWrap:     { alignItems: 'flex-end', marginLeft: 6 },
-  rentAmt:      { fontSize: 14, fontWeight: '800', color: '#111' },
+  cardBody: { flex: 1, padding: 14 },
+  cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 3, gap: 8 },
+  cardTitle:    { fontSize: 15, fontWeight: '700', color: '#111', flex: 1, lineHeight: 21 },
+  locationRow:  { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 10 },
+  locationTxt:  { fontSize: 12, color: '#888', fontWeight: '500' },
+  rentWrap:     { alignItems: 'flex-end', flexShrink: 0 },
+  rentAmt:      { fontSize: 13, fontWeight: '700', color: ORANGE },
   depositTxt:   { fontSize: 10, color: '#999', marginTop: 1 },
 
-  tagsRow: { flexDirection: 'row', gap: 5, flexWrap: 'wrap', marginBottom: 8 },
+  tagsRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
   tag: {
     flexDirection: 'row', alignItems: 'center',
-    borderRadius: 6, borderWidth: 1, borderColor: '#e5e5e5',
-    paddingVertical: 3, paddingHorizontal: 7, backgroundColor: '#fafafa',
+    borderRadius: 20, borderWidth: 1, borderColor: '#e0e0e0',
+    paddingVertical: 4, paddingHorizontal: 10, backgroundColor: '#fafafa',
   },
   tagGreen: { borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' },
   tagBlue:  { borderColor: '#a5f3fc', backgroundColor: '#ecfeff' },
-  tagTxt:   { fontSize: 10, color: '#555', fontWeight: '600' },
+  tagTxt:   { fontSize: 11, color: '#555', fontWeight: '500' },
 
-  amenitiesRow: { flexDirection: 'row', gap: 5, flexWrap: 'wrap', marginBottom: 8 },
+  amenitiesRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 12 },
   amenityChip: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f0fdf4', borderRadius: 6,
+    backgroundColor: '#f0fdf4', borderRadius: 20,
     borderWidth: 1, borderColor: '#bbf7d0',
-    paddingVertical: 3, paddingHorizontal: 7,
+    paddingVertical: 4, paddingHorizontal: 10,
   },
-  amenityTxt: { fontSize: 10, color: '#16a34a', fontWeight: '600' },
+  amenityTxt: { fontSize: 11, color: '#16a34a', fontWeight: '600' },
 
   cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   ownerRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
   ownerAvatar: {
-    width: 22, height: 22, borderRadius: 11,
+    width: 24, height: 24, borderRadius: 12,
     backgroundColor: '#fff7f0', borderWidth: 1, borderColor: '#fed7aa',
     alignItems: 'center', justifyContent: 'center',
   },
-  ownerInitial: { fontSize: 10, fontWeight: '700', color: ORANGE },
+  ownerInitial: { fontSize: 11, fontWeight: '700', color: ORANGE },
   ownerName:    { fontSize: 11, color: '#888', fontWeight: '600', flex: 1 },
 
-  applyBtn:    { borderWidth: 1.5, borderColor: ORANGE, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 16 },
-  applyBtnTxt: { fontSize: 12, fontWeight: '800', color: ORANGE },
+  applyBtn:    { borderWidth: 1.5, borderColor: ORANGE, borderRadius: 22, paddingVertical: 7, paddingHorizontal: 22 },
+  applyBtnTxt: { fontSize: 12, fontWeight: '700', color: ORANGE },
 
   emptyWrap: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 },
   emptyTxt:  { color: '#9ca3af', fontSize: 15, fontWeight: '700', marginTop: 12 },
