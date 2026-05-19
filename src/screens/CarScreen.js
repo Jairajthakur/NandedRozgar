@@ -327,8 +327,10 @@ export default function CarsScreen({ route }) {
       <View style={IS_WEB ? ws.header : s.header}>
         <View style={IS_WEB ? null : s.titleRow}>
           <View>
-            <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>🚗 Vehicles</Text>
-            <Text style={IS_WEB ? ws.pageCount : s.pageCount}>{filtered.length} listed in Nanded</Text>
+            <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
+              Vehicles in <Text style={{ color: ORANGE }}>Nanded</Text>
+            </Text>
+            <Text style={IS_WEB ? ws.pageCount : s.pageCount}>{filtered.length} listings found</Text>
           </View>
           {!IS_WEB && (
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -479,7 +481,7 @@ export default function CarsScreen({ route }) {
             <Ionicons name="arrow-back" size={16} color="#333" />
             <Text style={ws.topBarBackTxt}>Back</Text>
           </TouchableOpacity>
-          <Text style={ws.topBarTitle}>🚗 Vehicles — Nanded</Text>
+          <Text style={ws.topBarTitle}>Vehicles / Nanded</Text>
           <TouchableOpacity style={[ws.iconBtn, { marginLeft: 'auto' }]} onPress={() => nav.navigate('PostCar')}>
             <Ionicons name="add" size={15} color={ORANGE} />
             <Text style={{ fontSize: 12, fontWeight: '700', color: ORANGE }}>List Vehicle</Text>
