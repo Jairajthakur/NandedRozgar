@@ -500,6 +500,20 @@ export default function BoardScreen({ route }) {
       <View style={ws.root}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
+        {/* Mobile web top bar — shown only on narrow screens (no sidebar) */}
+        {!showSidebar && (
+          <View style={ws.mobileTopBar}>
+            <TouchableOpacity
+              onPress={() => nav.goBack()}
+              style={ws.mobileBackBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="arrow-back" size={22} color="#111" />
+            </TouchableOpacity>
+            <Text style={ws.mobileTopTitle}>Find Jobs</Text>
+          </View>
+        )}
+
         {/* Sticky mini-header — overlays on scroll */}
         {StickyHeader}
 
@@ -742,6 +756,36 @@ export default function BoardScreen({ route }) {
 // ── WEB STYLES ────────────────────────────────────────────────────────────────
 const ws = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f3f4f6' },
+
+  // Mobile web top bar (back + title, shown only on narrow screens)
+  mobileTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  mobileBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  mobileTopTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#111',
+    letterSpacing: -0.3,
+  },
 
   // 3-column body: left sidebar | main | right sidebar
   body: {
