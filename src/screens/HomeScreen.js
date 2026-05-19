@@ -34,7 +34,7 @@ const IS_WEB    = Platform.OS === 'web';
 // Responsive breakpoints
 const BP_SM  = 600;   // mobile-web: single column, no sidebar
 const BP_MD  = 900;   // tablet: sidebar + main, no right panel
-const BP_LG  = 1280;  // desktop: full 3-column layout
+const BP_LG  = 1200;  // desktop: full 3-column layout
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -576,7 +576,7 @@ export default function HomeScreen() {
 
           {/* ── Main Content ── */}
           <ScrollView
-            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 20 }]}
+            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 24, paddingTop: isSmWeb ? 8 : 16 }]}
             contentContainerStyle={{ paddingBottom: isSmWeb ? 80 : 48 }}
             showsVerticalScrollIndicator={true}
           >
@@ -968,7 +968,7 @@ const ws = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, marginBottom: 2,
   },
   sideNavItemActive: { backgroundColor: '#fff7f0' },
-  sideNavLabel:      { fontSize: 14, fontWeight: '600', color: '#555' },
+  sideNavLabel:      { fontSize: 15, fontWeight: '600', color: '#444' },
   sideNavLabelActive:{ color: ORANGE, fontWeight: '700' },
 
   sidePromo: {
@@ -981,14 +981,14 @@ const ws = StyleSheet.create({
   sidePromoCtaTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // Main
-  main: { flex: 1, backgroundColor: '#f3f4f6', paddingTop: 20 },  // overridden inline for mobile-web
+  main: { flex: 1, backgroundColor: '#f3f4f6' },  // overridden inline for mobile-web
 
   // Hero
   heroBanner: {
     backgroundColor: ORANGE,
-    borderRadius: 16, padding: 36,
+    borderRadius: 12, padding: 32, paddingVertical: 36,
     overflow: 'hidden', position: 'relative',
-    marginBottom: 20, minHeight: 300,
+    marginBottom: 16,
   },
   heroBannerSm: { padding: 20, borderRadius: 12 },
   heroCircle1: { position: 'absolute', width: 320, height: 320, borderRadius: 160, backgroundColor: 'rgba(255,255,255,0.10)', top: -100, right: -60 },
@@ -996,9 +996,9 @@ const ws = StyleSheet.create({
   heroCircle3: { position: 'absolute', width: 100, height: 100, borderRadius: 50,  backgroundColor: 'rgba(0,0,0,0.06)',       top: 20,    right: 260 },
   heroContent: { flexDirection: 'row', alignItems: 'center', gap: 32 },
   heroTag:     { fontSize: 12, color: 'rgba(255,255,255,0.80)', fontWeight: '600', marginBottom: 8 },
-  heroTitle:   { fontSize: 36, fontWeight: '900', color: '#fff', lineHeight: 44, marginBottom: 12 },
+  heroTitle:   { fontSize: 44, fontWeight: '900', color: '#fff', lineHeight: 52, marginBottom: 10 },
   heroTitleSm:  { fontSize: 26, lineHeight: 32 },
-  heroSub:     { fontSize: 16, color: 'rgba(255,255,255,0.88)', fontWeight: '400', marginBottom: 18 },
+  heroSub:     { fontSize: 14, color: 'rgba(255,255,255,0.88)', fontWeight: '400', marginBottom: 16 },
   heroSubSm:    { fontSize: 13, marginBottom: 12 },
   heroBadges:  { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   heroBadge:   { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 12 },
@@ -1007,19 +1007,19 @@ const ws = StyleSheet.create({
   heroBadgeTxtSm:{ fontSize: 11 },
 
   heroStats: {
-    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20,
-    padding: 28, alignItems: 'center', minWidth: 220,
+    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 16,
+    padding: 20, paddingVertical: 10, alignItems: 'center', minWidth: 180,
     flexDirection: 'column', gap: 0,
   },
   heroStatsSm: {
     flexDirection: 'row', minWidth: 0, width: '100%',
     padding: 14, paddingVertical: 12, justifyContent: 'space-around',
   },
-  heroStatItem:    { alignItems: 'center', paddingVertical: 14 },
+  heroStatItem:    { alignItems: 'center', paddingVertical: 16 },
   heroStatItemSm:  { flex: 1, alignItems: 'center', paddingVertical: 6 },
-  heroStatNum:     { fontSize: 36, fontWeight: '900', color: '#fff' },
+  heroStatNum:     { fontSize: 40, fontWeight: '900', color: '#fff' },
   heroStatNumSm:   { fontSize: 20, fontWeight: '900', color: '#fff' },
-  heroStatLabel:   { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '600', marginTop: 3 },
+  heroStatLabel:   { fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: '500', marginTop: 2 },
   heroStatLabelSm: { fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 1 },
   heroStatDivider:   { width: '90%', height: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
   heroStatDividerSm: { width: 1, height: '60%', backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center' },
@@ -1035,10 +1035,10 @@ const ws = StyleSheet.create({
   seeAllTxt:     { fontSize: 13, fontWeight: '700', color: ORANGE },
 
   // Explore — 4-column grid
-  exploreGrid:  { flexDirection: 'row', marginBottom: 24 },
-  exploreCard:  { borderRadius: 20, padding: 24, minHeight: 180 },
+  exploreGrid:  { flexDirection: 'row', marginBottom: 24, gap: 12 },
+  exploreCard:  { borderRadius: 20, padding: 20, minHeight: 200 },
   exploreCardSm: { padding: 14, minHeight: 110 },
-  exploreTitle:  { fontSize: 20, fontWeight: '900', color: '#fff' },
+  exploreTitle:  { fontSize: 22, fontWeight: '900', color: '#fff', marginBottom: 4 },
   exploreTitleSm: { fontSize: 15 },
 
   // Featured jobs grid — 2 col
@@ -1062,24 +1062,24 @@ const ws = StyleSheet.create({
   rightPanel: { width: 240, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec' },
 
   postCtaCard: {
-    backgroundColor: ORANGE, borderRadius: 0, padding: 20, marginBottom: 0,
+    backgroundColor: ORANGE, borderRadius: 0, padding: 18, marginBottom: 0, paddingTop: 22,
   },
   postCtaTitle: { fontSize: 16, fontWeight: '800', color: '#fff', marginBottom: 6 },
   postCtaSub:   { fontSize: 12, color: 'rgba(255,255,255,0.88)', marginBottom: 14, lineHeight: 18 },
   postCtaBtn:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)' },
   postCtaBtnTxt:{ color: '#fff', fontSize: 14, fontWeight: '700' },
 
-  statsCard: { backgroundColor: '#fff', borderRadius: 0, padding: 16, paddingHorizontal: 20, marginBottom: 0, borderBottomWidth: 1, borderColor: '#f0f0f0' },
-  statsCardTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginBottom: 12 },
+  statsCard: { backgroundColor: '#fff', borderRadius: 0, padding: 18, paddingHorizontal: 20, marginBottom: 0 },
+  statsCardTitle: { fontSize: 15, fontWeight: '800', color: '#111', marginBottom: 14 },
   statCard:   { paddingVertical: 10 },
-  statNum:    { fontSize: 22, fontWeight: '900' },
-  statLabel:  { fontSize: 11, color: '#888', fontWeight: '600', marginTop: 2 },
-  statDividerH: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 2 },
+  statNum:    { fontSize: 24, fontWeight: '900' },
+  statLabel:  { fontSize: 12, color: '#888', fontWeight: '500', marginTop: 2 },
+  statDividerH: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 4 },
 
-  quickActionsCard: { backgroundColor: '#fff', borderRadius: 0, padding: 16, paddingHorizontal: 20, borderWidth: 0 },
+  quickActionsCard: { backgroundColor: '#fff', borderRadius: 0, padding: 18, paddingHorizontal: 20, borderWidth: 0, borderTopWidth: 1, borderColor: '#f0f0f0' },
   quickAction: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderRadius: 10, paddingHorizontal: 4, borderWidth: 1, borderColor: 'transparent', marginBottom: 4 },
   quickActionIcon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  quickActionLabel: { fontSize: 13, fontWeight: '600', color: '#333', flex: 1 },
+  quickActionLabel: { fontSize: 13, fontWeight: '600', color: '#222', flex: 1 },
 
   // Bottom tab nav (small web)
   bottomNav: {
