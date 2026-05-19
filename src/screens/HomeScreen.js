@@ -28,57 +28,7 @@ const PURPLE    = '#7c3aed';
 const TICKER_BG = '#1a1a2e';
 const IS_WEB    = Platform.OS === 'web';
 // ── Custom scrollbar (web only) ────────────────────────────────────────────────
-if (IS_WEB && typeof document !== 'undefined') {
-  const styleId = 'nanded-scrollbar-style';
-  if (!document.getElementById(styleId)) {
-    const style = document.createElement('style');
-    style.id = styleId;
-    // Chrome supports linear-gradient on scrollbar-thumb via background-image
-    // We use a tall gradient so the full Orange→Purple→Teal spectrum shows even on short thumbs
-    style.textContent = `
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-        border-radius: 999px;
-        margin: 4px 0;
-      }
-      ::-webkit-scrollbar-thumb {
-        border-radius: 999px;
-        background: linear-gradient(
-          to bottom,
-          #f97316 0%,
-          #f97316 15%,
-          #7c3aed 50%,
-          #f97316 85%,
-          #f97316 100%
-        );
-        background-size: 100% 100%;
-        border: 2px solid rgba(255,255,255,0.35);
-        box-shadow: 0 2px 8px rgba(124,58,237,0.35), inset 0 0 2px rgba(0,0,0,0.08);
-        min-height: 60px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(
-          to bottom,
-          #fb923c 0%,
-          #fb923c 15%,
-          #8b5cf6 50%,
-          #fb923c 85%,
-          #fb923c 100%
-        );
-        border: 2px solid rgba(255,255,255,0.45);
-        box-shadow: 0 2px 10px rgba(139,92,246,0.45), inset 0 0 2px rgba(0,0,0,0.08);
-      }
-      ::-webkit-scrollbar-corner {
-        background: transparent;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-}
+
 
 
 // Responsive breakpoints
@@ -219,10 +169,9 @@ function WebScrollBanner() {
       overflow: 'hidden',
       paddingTop: 12,
       paddingBottom: 12,
-      marginBottom: 0,
-      borderRadius: 0,
-      borderLeft: 'none', borderRight: 'none',
-      borderTop: '1.5px solid #ede8e0', borderBottom: '1.5px solid #ede8e0',
+      marginBottom: 20,
+      borderRadius: 12,
+      border: '1.5px solid #ede8e0',
     }}>
       <ScrollVelocity
         texts={[SCROLL_ROW_1, SCROLL_ROW_2]}
@@ -627,8 +576,8 @@ export default function HomeScreen() {
 
           {/* ── Main Content ── */}
           <ScrollView
-            style={ws.main}
-            contentContainerStyle={{ paddingBottom: isSmWeb ? 80 : 48, paddingHorizontal: 0 }}
+            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 20 }]}
+            contentContainerStyle={{ paddingBottom: isSmWeb ? 80 : 48 }}
             showsVerticalScrollIndicator={true}
           >
 
@@ -1009,10 +958,9 @@ const ws = StyleSheet.create({
 
   // Sidebar
   sidebar: {
-    width: 170, backgroundColor: '#fff',
+    width: 200, backgroundColor: '#fff',
     borderRightWidth: 1, borderRightColor: '#ececec',
-    paddingTop: 16, paddingHorizontal: 8,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 2, height: 0 }, elevation: 2,
+    paddingTop: 20, paddingHorizontal: 12,
   },
   sideNavSection: { fontSize: 10, fontWeight: '800', color: '#bbb', letterSpacing: 1.2, paddingHorizontal: 10, marginBottom: 6 },
   sideNavItem: {
@@ -1033,15 +981,14 @@ const ws = StyleSheet.create({
   sidePromoCtaTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // Main
-  main: { flex: 1, backgroundColor: '#f3f4f6' },  // overridden inline for mobile-web
+  main: { flex: 1, backgroundColor: '#f3f4f6', paddingTop: 20 },  // overridden inline for mobile-web
 
   // Hero
   heroBanner: {
     backgroundColor: ORANGE,
-    borderRadius: 0, padding: 40,
-    paddingHorizontal: 48,
+    borderRadius: 16, padding: 36,
     overflow: 'hidden', position: 'relative',
-    marginBottom: 0, minHeight: 340,
+    marginBottom: 20, minHeight: 300,
   },
   heroBannerSm: { padding: 20, borderRadius: 12 },
   heroCircle1: { position: 'absolute', width: 320, height: 320, borderRadius: 160, backgroundColor: 'rgba(255,255,255,0.10)', top: -100, right: -60 },
@@ -1078,24 +1025,24 @@ const ws = StyleSheet.create({
   heroStatDividerSm: { width: 1, height: '60%', backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center' },
 
   // Ticker web
-  ticker: { borderRadius: 0, marginBottom: 0 },
+  ticker: { borderRadius: 10, marginBottom: 20 },
 
   // Section
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, marginTop: 4, paddingHorizontal: 20 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, marginTop: 4 },
   sectionTitle:  { fontSize: 18, fontWeight: '800', color: '#111' },
   sectionTitleSm: { fontSize: 16 },
   seeAllBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
   seeAllTxt:     { fontSize: 13, fontWeight: '700', color: ORANGE },
 
   // Explore — 4-column grid
-  exploreGrid:  { flexDirection: 'row', marginBottom: 24, paddingHorizontal: 20 },
+  exploreGrid:  { flexDirection: 'row', marginBottom: 24 },
   exploreCard:  { borderRadius: 20, padding: 24, minHeight: 180 },
   exploreCardSm: { padding: 14, minHeight: 110 },
   exploreTitle:  { fontSize: 20, fontWeight: '900', color: '#fff' },
   exploreTitleSm: { fontSize: 15 },
 
   // Featured jobs grid — 2 col
-  featJobsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28, paddingHorizontal: 20 },
+  featJobsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
   featJobsGridSm:{ gap: 8, marginBottom: 16 },
   featJobCard:  { width: '47.5%', backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   featJobCardSmWeb: { width: '100%' },
@@ -1107,32 +1054,32 @@ const ws = StyleSheet.create({
   jobTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
 
   // Rooms grid — 3 col
-  roomsGrid: { flexDirection: 'row', gap: 14, marginBottom: 28, flexWrap: 'wrap', paddingHorizontal: 20 },
+  roomsGrid: { flexDirection: 'row', gap: 14, marginBottom: 28, flexWrap: 'wrap' },
   roomCard:  { flex: 1, minWidth: 200, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   roomImgPlaceholder: { height: 160, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
 
   // Right Panel
-  rightPanel: { width: 240, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec' },
+  rightPanel: { width: 240, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec' },
 
   postCtaCard: {
-    backgroundColor: ORANGE, borderRadius: 14, padding: 14, marginBottom: 12,
+    backgroundColor: ORANGE, borderRadius: 0, padding: 20, marginBottom: 0,
   },
-  postCtaTitle: { fontSize: 15, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  postCtaSub:   { fontSize: 11, color: 'rgba(255,255,255,0.85)', marginBottom: 12, lineHeight: 16 },
+  postCtaTitle: { fontSize: 16, fontWeight: '800', color: '#fff', marginBottom: 6 },
+  postCtaSub:   { fontSize: 12, color: 'rgba(255,255,255,0.88)', marginBottom: 14, lineHeight: 18 },
   postCtaBtn:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)' },
   postCtaBtnTxt:{ color: '#fff', fontSize: 14, fontWeight: '700' },
 
-  statsCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#f0f0f0' },
-  statsCardTitle: { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 10 },
+  statsCard: { backgroundColor: '#fff', borderRadius: 0, padding: 16, paddingHorizontal: 20, marginBottom: 0, borderBottomWidth: 1, borderColor: '#f0f0f0' },
+  statsCardTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginBottom: 12 },
   statCard:   { paddingVertical: 10 },
-  statNum:    { fontSize: 19, fontWeight: '900' },
+  statNum:    { fontSize: 22, fontWeight: '900' },
   statLabel:  { fontSize: 11, color: '#888', fontWeight: '600', marginTop: 2 },
   statDividerH: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 2 },
 
-  quickActionsCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#f0f0f0' },
+  quickActionsCard: { backgroundColor: '#fff', borderRadius: 0, padding: 16, paddingHorizontal: 20, borderWidth: 0 },
   quickAction: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderRadius: 10, paddingHorizontal: 4, borderWidth: 1, borderColor: 'transparent', marginBottom: 4 },
   quickActionIcon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  quickActionLabel: { fontSize: 12, fontWeight: '600', color: '#333', flex: 1 },
+  quickActionLabel: { fontSize: 13, fontWeight: '600', color: '#333', flex: 1 },
 
   // Bottom tab nav (small web)
   bottomNav: {
