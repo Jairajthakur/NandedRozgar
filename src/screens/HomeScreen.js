@@ -162,19 +162,20 @@ function WebScrollBanner() {
   if (!ScrollVelocity) return null;
   return (
     <div style={{
-      backgroundColor: '#1a1a2e',
+      backgroundColor: '#f8f5f0',
       overflow: 'hidden',
       paddingTop: 12,
       paddingBottom: 12,
       marginBottom: 20,
       borderRadius: 12,
+      border: '1.5px solid #ede8e0',
     }}>
       <ScrollVelocity
         texts={[SCROLL_ROW_1, SCROLL_ROW_2]}
         velocity={80}
         className="nanded-ticker-span"
         parallaxStyle={{ overflow: 'hidden' }}
-        scrollerStyle={{ color: '#fff', fontSize: '0.95rem', fontWeight: '700', letterSpacing: '0.07em', paddingTop: 4, paddingBottom: 4 }}
+        scrollerStyle={{ color: '#1a1a1a', fontSize: '0.95rem', fontWeight: '700', letterSpacing: '0.07em', paddingTop: 4, paddingBottom: 4 }}
       />
     </div>
   );
