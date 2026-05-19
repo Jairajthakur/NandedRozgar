@@ -181,6 +181,19 @@ export default function BoardScreen({ route }) {
     extrapolate: 'clamp',
   });
 
+  // ── Sticky mini-header: slides in after scrolling past ~160px ─────────────
+  const STICKY_THRESHOLD = 160;
+  const stickyOpacity = scrollY.interpolate({
+    inputRange: [STICKY_THRESHOLD, STICKY_THRESHOLD + 40],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const stickyTranslate = scrollY.interpolate({
+    inputRange: [STICKY_THRESHOLD, STICKY_THRESHOLD + 40],
+    outputRange: [-56, 0],
+    extrapolate: 'clamp',
+  });
+
   const filtered = useMemo(() => {
     const base = jobs.filter(j => {
       if (j.status !== 'active') return false;
@@ -446,11 +459,51 @@ export default function BoardScreen({ route }) {
     count: cat === 'All' ? activeJobsList.length : activeJobsList.filter(j => j.category === cat).length,
   })).filter(c => c.label === 'All' || c.count > 0);
 
+  // ── Sticky mini-header (floats above scroll) ───────────────────────────────
+  const StickyHeader = (
+    <Animated.View
+      pointerEvents="box-none"
+      style={[
+        IS_WEB ? ws.stickyBar : s.stickyBar,
+        !IS_WEB && { top: insets.top },
+        { opacity: stickyOpacity, transform: [{ translateY: stickyTranslate }] },
+      ]}
+    >
+      <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
+        {/* Title */}
+        <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
+          Jobs in <Text style={{ color: ORANGE }}>Nanded</Text>
+        </Text>
+
+        {/* Search */}
+        <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
+          <Ionicons name="search-outline" size={15} color="#bbb" style={{ marginLeft: 10 }} />
+          <TextInput
+            style={IS_WEB ? ws.stickyInput : s.stickyInput}
+            placeholder="Search jobs..."
+            placeholderTextColor="#bbb"
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} style={{ paddingHorizontal: 6 }}>
+              <Ionicons name="close-circle" size={15} color="#ccc" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </Animated.View>
+  );
+
   // ── WEB LAYOUT ─────────────────────────────────────────────────────────────
   if (IS_WEB) {
     return (
       <View style={ws.root}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+        {/* Sticky mini-header — overlays on scroll */}
+        {StickyHeader}
 
         {/* Web body: left sidebar + main + right sidebar */}
         <View style={ws.body}>
@@ -638,6 +691,8 @@ export default function BoardScreen({ route }) {
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f7f7" />
+      {/* Sticky mini-header — overlays on scroll */}
+      {StickyHeader}
       <FlatList
         data={filtered}
         keyExtractor={j => j.id}
@@ -936,6 +991,59 @@ const ws = StyleSheet.create({
     borderRadius: 20,
     bottom: 'auto',
   },
+
+  // Sticky mini-header
+  stickyBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 999,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 8,
+  },
+  stickyInner: {
+    maxWidth: 1400,
+    width: '100%',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+  },
+  stickyTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#111',
+    letterSpacing: -0.3,
+    flexShrink: 0,
+  },
+  stickySearch: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f8f8',
+    borderRadius: 10,
+    height: 38,
+    borderWidth: 1.5,
+    borderColor: '#ebebeb',
+    overflow: 'hidden',
+  },
+  stickyInput: {
+    flex: 1,
+    height: 38,
+    paddingHorizontal: 8,
+    fontSize: 13,
+    color: '#111',
+    outlineStyle: 'none',
+  },
 });
 
 // ── MOBILE STYLES ─────────────────────────────────────────────────────────────
@@ -1085,4 +1193,53 @@ const s = StyleSheet.create({
     paddingVertical: 16, alignItems: 'center', marginTop: 12,
   },
   applyFilterTxt: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
+
+  // Sticky mini-header (mobile)
+  stickyBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 999,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 8,
+  },
+  stickyInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  stickyTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#111',
+    letterSpacing: -0.2,
+    flexShrink: 0,
+  },
+  stickySearch: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    height: 36,
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+    overflow: 'hidden',
+  },
+  stickyInput: {
+    flex: 1,
+    height: 36,
+    paddingHorizontal: 8,
+    fontSize: 13,
+    color: '#111',
+  },
 });
