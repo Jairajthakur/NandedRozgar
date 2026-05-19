@@ -12,6 +12,38 @@ import { http } from '../utils/api';
 const ORANGE  = '#f97316';
 const IS_WEB  = Platform.OS === 'web';
 
+// ScrollVelocity is web-only (uses DOM APIs)
+let ScrollVelocity = null;
+if (IS_WEB) {
+  try { ScrollVelocity = require('../components/ScrollVelocity').default; } catch (_) {}
+}
+
+const BS_SCROLL_ROW_1 = '✦ BUY & SELL IN NANDED  ✦ ELECTRONICS — GREAT DEALS  ✦ FURNITURE FOR SALE  ✦ VEHICLES AVAILABLE  ✦ POST YOUR ITEM FREE  ✦ BOOKS & CLOTHES LISTED';
+const BS_SCROLL_ROW_2 = '✦ 100% FREE LISTING  ✦ NANDED MARKETPLACE  ✦ VERIFIED SELLERS  ✦ FRESH ARRIVALS DAILY  ✦ SELL IN MINUTES  ✦ FIND DEALS NEAR YOU';
+
+function BuySellScrollBanner() {
+  if (!ScrollVelocity) return null;
+  return (
+    <div style={{
+      backgroundColor: '#fff7f0',
+      overflow: 'hidden',
+      paddingTop: 10,
+      paddingBottom: 10,
+      marginBottom: 16,
+      borderRadius: 12,
+      border: '1.5px solid #fed7aa',
+    }}>
+      <ScrollVelocity
+        texts={[BS_SCROLL_ROW_1, BS_SCROLL_ROW_2]}
+        velocity={75}
+        className="buysell-ticker-span"
+        parallaxStyle={{ overflow: 'hidden' }}
+        scrollerStyle={{ color: '#c2410c', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.07em', paddingTop: 3, paddingBottom: 3 }}
+      />
+    </div>
+  );
+}
+
 const CATEGORIES = [
   { key: 'All',         label: 'All',         icon: 'grid-outline' },
   { key: 'Electronics', label: 'Electronics', icon: 'phone-portrait-outline' },
@@ -670,14 +702,13 @@ export default function BuySellScreen({ route }) {
         <View style={ws.topBar}>
           <TouchableOpacity style={ws.topBarBack} onPress={() => nav.goBack()} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={16} color="#333" />
-            <Text style={ws.topBarBackTxt}>Back</Text>
           </TouchableOpacity>
           <Text style={ws.topBarTitle}>Buy &amp; Sell</Text>
-          <TouchableOpacity style={[ws.iconBtn, { marginLeft: 'auto' }]} onPress={() => nav.navigate('Post')} activeOpacity={0.8}>
+          <TouchableOpacity style={[ws.topBarPlainBtn, { marginLeft: 'auto' }]} onPress={() => nav.navigate('Post')} activeOpacity={0.8}>
             <Ionicons name="add" size={15} color={ORANGE} />
             <Text style={{ fontSize: 12, fontWeight: '700', color: ORANGE }}>Sell Item</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={ws.iconBtn} onPress={() => setShowSort(true)} activeOpacity={0.8}>
+          <TouchableOpacity style={ws.topBarPlainBtn} onPress={() => setShowSort(true)} activeOpacity={0.8}>
             <Ionicons name="swap-vertical-outline" size={15} color="#555" />
             <Text style={{ fontSize: 12, fontWeight: '700', color: '#555' }}>Sort</Text>
           </TouchableOpacity>
@@ -743,7 +774,7 @@ export default function BuySellScreen({ route }) {
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={() => fetchItems(true)} tintColor={ORANGE} colors={[ORANGE]} />
               }
-              ListHeaderComponent={<>{Header}{ListHeader}</>}
+              ListHeaderComponent={<>{IS_WEB && <BuySellScrollBanner />}{Header}{ListHeader}</>}
               ListEmptyComponent={Empty}
               renderItem={({ item, index }) => (
                 <ItemCard item={item} index={index} onPress={() => nav.navigate('BuySellDetail', { item })} />
@@ -1017,9 +1048,13 @@ const ws = StyleSheet.create({
     position: 'sticky', top: 0, zIndex: 100,
   },
   topBarBack: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingVertical: 6, paddingHorizontal: 14,
-    borderRadius: 20, borderWidth: 1.5, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9',
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9',
+  },
+  topBarPlainBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingVertical: 6, paddingHorizontal: 10,
   },
   topBarBackTxt: { fontSize: 13, fontWeight: '700', color: '#111' },
   topBarTitle:   { fontSize: 15, fontWeight: '800', color: '#111' },
