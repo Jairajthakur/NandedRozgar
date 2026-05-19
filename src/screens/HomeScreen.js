@@ -1059,7 +1059,7 @@ const ws = StyleSheet.create({
   roomImgPlaceholder: { height: 160, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
 
   // Right Panel
-  rightPanel: { width: 180, flexShrink: 0, flexGrow: 0, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec' },
+  rightPanel: { width: 220, flexShrink: 0, flexGrow: 0, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec' },
 
   postCtaCard: {
     backgroundColor: ORANGE, borderRadius: 0, padding: 18, marginBottom: 0, paddingTop: 22,
