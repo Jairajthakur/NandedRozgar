@@ -352,6 +352,20 @@ export default function BuySellScreen({ route }) {
 
   const showSidebar = IS_WEB && winW >= 900;
 
+  // ── Scroll animation for sticky mini-header ──────────────────────────────
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const STICKY_THRESHOLD = 160;
+  const stickyOpacity = scrollY.interpolate({
+    inputRange: [STICKY_THRESHOLD, STICKY_THRESHOLD + 40],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const stickyTranslate = scrollY.interpolate({
+    inputRange: [STICKY_THRESHOLD, STICKY_THRESHOLD + 40],
+    outputRange: [-56, 0],
+    extrapolate: 'clamp',
+  });
+
   useLayoutEffect(() => {
     if (IS_WEB) nav.setOptions({ headerShown: false });
   }, [nav]);
@@ -526,7 +540,41 @@ export default function BuySellScreen({ route }) {
     </FadeIn>
   );
 
-  const ListHeader = <FadeIn delay={180}><TopDealsBanner /></FadeIn>;
+  const ListHeader = null;
+
+  // ── Sticky mini-header (floats above scroll) ────────────────────────────
+  const StickyHeader = (
+    <Animated.View
+      pointerEvents="box-none"
+      style={[
+        IS_WEB ? ws.stickyBar : s.stickyBar,
+        !IS_WEB && { top: insets.top },
+        { opacity: stickyOpacity, transform: [{ translateY: stickyTranslate }] },
+      ]}
+    >
+      <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
+        <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
+          Buy &amp; Sell in <Text style={{ color: ORANGE }}>Nanded</Text>
+        </Text>
+        <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
+          <Ionicons name="search-outline" size={15} color="#bbb" style={{ marginLeft: 10 }} />
+          <TextInput
+            style={IS_WEB ? ws.stickyInput : s.stickyInput}
+            placeholder="Search items…"
+            placeholderTextColor="#bbb"
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} style={{ paddingHorizontal: 6 }}>
+              <Ionicons name="close-circle" size={15} color="#ccc" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </Animated.View>
+  );
 
   const Empty = (
     <View style={s.emptyWrap}>
@@ -635,6 +683,8 @@ export default function BuySellScreen({ route }) {
           </TouchableOpacity>
         </View>
 
+        {StickyHeader}
+
         <View style={ws.body}>
 
           {/* LEFT SIDEBAR */}
@@ -685,6 +735,11 @@ export default function BuySellScreen({ route }) {
               keyExtractor={item => item.id}
               contentContainerStyle={ws.list}
               showsVerticalScrollIndicator={false}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                { useNativeDriver: false }
+              )}
+              scrollEventThrottle={16}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={() => fetchItems(true)} tintColor={ORANGE} colors={[ORANGE]} />
               }
