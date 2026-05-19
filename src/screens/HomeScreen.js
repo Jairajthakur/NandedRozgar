@@ -34,7 +34,7 @@ const IS_WEB    = Platform.OS === 'web';
 // Responsive breakpoints
 const BP_SM  = 600;   // mobile-web: single column, no sidebar
 const BP_MD  = 900;   // tablet: sidebar + main, no right panel
-const BP_LG  = 1200;  // desktop: full 3-column layout
+const BP_LG  = 1100;  // desktop: full 3-column layout
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -576,7 +576,7 @@ export default function HomeScreen() {
 
           {/* ── Main Content ── */}
           <ScrollView
-            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 24, paddingTop: isSmWeb ? 8 : 16 }]}
+            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 20, paddingTop: isSmWeb ? 8 : 16 }]}
             contentContainerStyle={{ paddingBottom: isSmWeb ? 80 : 48 }}
             showsVerticalScrollIndicator={true}
           >
@@ -958,7 +958,7 @@ const ws = StyleSheet.create({
 
   // Sidebar
   sidebar: {
-    width: 200, backgroundColor: '#fff',
+    width: 180, backgroundColor: '#fff',
     borderRightWidth: 1, borderRightColor: '#ececec',
     paddingTop: 20, paddingHorizontal: 12,
   },
@@ -1059,7 +1059,7 @@ const ws = StyleSheet.create({
   roomImgPlaceholder: { height: 160, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
 
   // Right Panel
-  rightPanel: { width: 240, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec' },
+  rightPanel: { width: 200, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec' },
 
   postCtaCard: {
     backgroundColor: ORANGE, borderRadius: 0, padding: 18, marginBottom: 0, paddingTop: 22,
