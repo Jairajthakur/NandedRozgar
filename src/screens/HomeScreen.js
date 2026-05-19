@@ -238,19 +238,19 @@ function SideNavItem({ icon, label, onPress, active }) {
 }
 
 // ── Explore Card ───────────────────────────────────────────────────────────────
-function ExploreCard({ icon, title, subtitle, color, onPress, style }) {
+function ExploreCard({ icon, title, subtitle, color, onPress, style, compact }) {
   return (
-    <AnimatedPress style={[s.exploreCard, IS_WEB && ws.exploreCard, { backgroundColor: color }, style]} onPress={onPress}>
+    <AnimatedPress style={[s.exploreCard, IS_WEB && ws.exploreCard, IS_WEB && compact && ws.exploreCardSm, { backgroundColor: color }, style]} onPress={onPress}>
       <View style={s.exploreInner}>
         <View style={s.exploreIconWrap}>
-          <Ionicons name={icon} size={IS_WEB ? 28 : 26} color="#fff" />
+          <Ionicons name={icon} size={compact ? 22 : IS_WEB ? 28 : 26} color="#fff" />
         </View>
         <View style={s.exploreBadge}>
-          <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.8)" />
+          <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.8)" />
         </View>
       </View>
-      <Text style={[s.exploreTitle, IS_WEB && ws.exploreTitle]}>{title}</Text>
-      <Text style={s.exploreSub}>{subtitle}</Text>
+      <Text style={[s.exploreTitle, IS_WEB && ws.exploreTitle, IS_WEB && compact && ws.exploreTitleSm]}>{title}</Text>
+      <Text style={[s.exploreSub, compact && { fontSize: 11 }]}>{subtitle}</Text>
       <View style={[s.exploreCircle1, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
       <View style={[s.exploreCircle2, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />
     </AnimatedPress>
@@ -260,7 +260,7 @@ function ExploreCard({ icon, title, subtitle, color, onPress, style }) {
 // ── Featured Job Card ──────────────────────────────────────────────────────────
 function FeaturedJobCard({ job, onPress }) {
   return (
-    <AnimatedPress style={[s.featJobCard, IS_WEB && ws.featJobCard, !IS_WEB && s.featJobCardGrid]} onPress={onPress}>
+    <AnimatedPress style={[s.featJobCard, IS_WEB && ws.featJobCard]} onPress={onPress}>
       <View style={s.featJobTop}>
         <View style={s.featJobIcon}>
           <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={18} color={ORANGE} />
@@ -496,7 +496,7 @@ export default function HomeScreen() {
 
         {/* ── Top Nav Bar ── */}
         <View style={ws.topNav}>
-          <View style={[ws.topNavInner, isSmWeb && { paddingHorizontal: 12, gap: 8 }]}>
+          <View style={[ws.topNavInner, isSmWeb && ws.topNavInnerSm]}>
             {!isSmWeb && <View style={ws.brandRow}>
               <Text style={ws.brandText}>
                 <Text style={ws.brandNanded}>Nanded</Text>
@@ -520,7 +520,7 @@ export default function HomeScreen() {
                 onSubmitEditing={handleSearch}
                 returnKeyType="search"
               />
-              <TouchableOpacity style={ws.topSearchBtn} onPress={handleSearch} activeOpacity={0.9}>
+              <TouchableOpacity style={[ws.topSearchBtn, isSmWeb && ws.topSearchBtnSm]} onPress={handleSearch} activeOpacity={0.9}>
                 <Text style={ws.topSearchBtnTxt}>Search</Text>
               </TouchableOpacity>
             </View>
@@ -573,42 +573,42 @@ export default function HomeScreen() {
 
           {/* ── Main Content ── */}
           <ScrollView
-            style={[ws.main, !showSidebar && { paddingHorizontal: isSmWeb ? 12 : 24 }]}
-            contentContainerStyle={{ paddingBottom: 48 }}
+            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 24, paddingTop: isSmWeb ? 12 : 20 }]}
+            contentContainerStyle={{ paddingBottom: isSmWeb ? 80 : 48 }}
             showsVerticalScrollIndicator={true}
           >
 
             {/* ── Hero Banner ── */}
             <FadeSlide delay={0} fromY={-16}>
-              <View style={ws.heroBanner}>
+              <View style={[ws.heroBanner, isSmWeb && ws.heroBannerSm]}>
                 <View style={ws.heroCircle1} />
                 <View style={ws.heroCircle2} />
                 <View style={ws.heroCircle3} />
                 <View style={[ws.heroContent, isSmWeb && { flexDirection: 'column', gap: 16 }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={ws.heroTag}>🏙️ Nanded's #1 Local Platform</Text>
-                    <Text style={ws.heroTitle}>Find Jobs & Rooms{'\n'}in Nanded</Text>
-                    <Text style={ws.heroSub}>10,000+ opportunities for everyone nearby</Text>
+                    <Text style={[ws.heroTitle, isSmWeb && ws.heroTitleSm]}>Find Jobs & Rooms{'\n'}in Nanded</Text>
+                    <Text style={[ws.heroSub, isSmWeb && ws.heroSubSm]}>10,000+ opportunities for everyone nearby</Text>
                     <View style={ws.heroBadges}>
-                      <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Free to Post</Text></View>
-                      <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Local Listings</Text></View>
-                      <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Verified Employers</Text></View>
+                      <View style={[ws.heroBadge, isSmWeb && ws.heroBadgeSm]}><Text style={[ws.heroBadgeTxt, isSmWeb && ws.heroBadgeTxtSm]}>✓ Free to Post</Text></View>
+                      <View style={[ws.heroBadge, isSmWeb && ws.heroBadgeSm]}><Text style={[ws.heroBadgeTxt, isSmWeb && ws.heroBadgeTxtSm]}>✓ Local Listings</Text></View>
+                      <View style={[ws.heroBadge, isSmWeb && ws.heroBadgeSm]}><Text style={[ws.heroBadgeTxt, isSmWeb && ws.heroBadgeTxtSm]}>✓ Verified Employers</Text></View>
                     </View>
                   </View>
-                  <View style={[ws.heroStats, isSmWeb && { flexDirection: 'row', gap: 0, minWidth: 0, width: '100%' }]}>
-                    <View style={ws.heroStatItem}>
-                      <Text style={ws.heroStatNum}>{stats.jobs}+</Text>
-                      <Text style={ws.heroStatLabel}>Active Jobs</Text>
+                  <View style={[ws.heroStats, isSmWeb && ws.heroStatsSm]}>
+                    <View style={[ws.heroStatItem, isSmWeb && ws.heroStatItemSm]}>
+                      <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.jobs}+</Text>
+                      <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Active Jobs</Text>
                     </View>
-                    <View style={ws.heroStatDivider} />
-                    <View style={ws.heroStatItem}>
-                      <Text style={ws.heroStatNum}>{stats.rooms}+</Text>
-                      <Text style={ws.heroStatLabel}>Rooms</Text>
+                    <View style={[ws.heroStatDivider, isSmWeb && ws.heroStatDividerSm]} />
+                    <View style={[ws.heroStatItem, isSmWeb && ws.heroStatItemSm]}>
+                      <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.rooms}+</Text>
+                      <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Rooms</Text>
                     </View>
-                    <View style={ws.heroStatDivider} />
-                    <View style={ws.heroStatItem}>
-                      <Text style={ws.heroStatNum}>{stats.items}+</Text>
-                      <Text style={ws.heroStatLabel}>Items</Text>
+                    <View style={[ws.heroStatDivider, isSmWeb && ws.heroStatDividerSm]} />
+                    <View style={[ws.heroStatItem, isSmWeb && ws.heroStatItemSm]}>
+                      <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.items}+</Text>
+                      <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Items</Text>
                     </View>
                   </View>
                 </View>
@@ -621,26 +621,26 @@ export default function HomeScreen() {
             {/* ── Explore Grid ── */}
             <FadeSlide delay={100}>
               <View style={ws.sectionHeader}>
-                <Text style={ws.sectionTitle}>Explore Categories</Text>
+                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>Explore Categories</Text>
               </View>
               <View style={[ws.exploreGrid, isSmWeb && { flexWrap: 'wrap', gap: 8 }]}>
-                <ExploreCard icon="briefcase-outline"  title="Jobs"       subtitle={`${stats.jobs}+ openings`}    color={ORANGE}  onPress={() => nav.navigate('Jobs')}    style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
-                <ExploreCard icon="home-outline"       title="Rooms"      subtitle={`${stats.rooms}+ listings`}   color={TEAL}    onPress={() => nav.navigate('Rooms')}   style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
-                <ExploreCard icon="car-sport-outline"  title="Vehicles"   subtitle={`${stats.vehicles}+ for rent`} color={PURPLE}  onPress={() => nav.navigate('Cars')}    style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
-                <ExploreCard icon="pricetag-outline"   title="Buy & Sell" subtitle={`${stats.items}+ items`}      color='#0ea5e9' onPress={() => nav.navigate('BuySell')} style={[{ flex: 1 }, isSmWeb && { minWidth: '46%' }]} />
+                <ExploreCard icon="briefcase-outline"  title="Jobs"       subtitle={`${stats.jobs}+ openings`}    color={ORANGE}  onPress={() => nav.navigate('Jobs')}    compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
+                <ExploreCard icon="home-outline"       title="Rooms"      subtitle={`${stats.rooms}+ listings`}   color={TEAL}    onPress={() => nav.navigate('Rooms')}   compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
+                <ExploreCard icon="car-sport-outline"  title="Vehicles"   subtitle={`${stats.vehicles}+ for rent`} color={PURPLE}  onPress={() => nav.navigate('Cars')}    compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
+                <ExploreCard icon="pricetag-outline"   title="Buy & Sell" subtitle={`${stats.items}+ items`}      color='#0ea5e9' onPress={() => nav.navigate('BuySell')} compact={isSmWeb} style={[{ flex: 1 }, isSmWeb && { minWidth: '46%' }]} />
               </View>
             </FadeSlide>
 
             {/* ── Recent Jobs ── */}
             <FadeSlide delay={160}>
               <View style={ws.sectionHeader}>
-                <Text style={ws.sectionTitle}>Recent Jobs</Text>
+                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>Recent Jobs</Text>
                 <TouchableOpacity onPress={() => nav.navigate('Jobs')} style={ws.seeAllBtn}>
                   <Text style={ws.seeAllTxt}>View All</Text>
                   <Ionicons name="arrow-forward" size={14} color={ORANGE} />
                 </TouchableOpacity>
               </View>
-              <View style={[ws.featJobsGrid, isSmWeb && { flexDirection: 'column' }]}>
+              <View style={[ws.featJobsGrid, isSmWeb && ws.featJobsGridSm]}>
                 {displayJobs.slice(0, 6).map(job => (
                   <FeaturedJobCard
                     key={String(job.id)}
@@ -654,7 +654,7 @@ export default function HomeScreen() {
             {/* ── Recent Rooms ── */}
             <FadeSlide delay={280}>
               <View style={ws.sectionHeader}>
-                <Text style={ws.sectionTitle}>Recent Rooms</Text>
+                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>Recent Rooms</Text>
                 <TouchableOpacity onPress={() => nav.navigate('Rooms')} style={ws.seeAllBtn}>
                   <Text style={ws.seeAllTxt}>View All</Text>
                   <Ionicons name="arrow-forward" size={14} color={ORANGE} />
@@ -908,6 +908,7 @@ const ws = StyleSheet.create({
     paddingHorizontal: 24, paddingVertical: 14,
     gap: 20,
   },
+  topNavInnerSm: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   brandRow:   { minWidth: 160 },
   brandText:  { fontSize: 22, fontWeight: '900', letterSpacing: 0.2 },
   brandNanded:{ color: '#111111' },
@@ -923,6 +924,7 @@ const ws = StyleSheet.create({
   },
   topSearchInput: { flex: 1, height: 42, paddingHorizontal: 10, fontSize: 14, color: '#333', outlineStyle: 'none' },
   topSearchBtn:   { height: 42, paddingHorizontal: 20, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
+  topSearchBtnSm:  { paddingHorizontal: 12 },
   topSearchBtnTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
   topNavRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -970,35 +972,48 @@ const ws = StyleSheet.create({
   sidePromoCtaTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // Main
-  main: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },
+  main: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },  // overridden inline for mobile-web
 
   // Hero
   heroBanner: {
     backgroundColor: ORANGE,
-    borderRadius: 20, padding: 36,
+    borderRadius: 16, padding: 36,
     overflow: 'hidden', position: 'relative',
     marginBottom: 20,
   },
+  heroBannerSm: { padding: 20, borderRadius: 12 },
   heroCircle1: { position: 'absolute', width: 320, height: 320, borderRadius: 160, backgroundColor: 'rgba(255,255,255,0.10)', top: -100, right: -60 },
   heroCircle2: { position: 'absolute', width: 180, height: 180, borderRadius: 90,  backgroundColor: 'rgba(255,255,255,0.07)', bottom: -60, right: 120 },
   heroCircle3: { position: 'absolute', width: 100, height: 100, borderRadius: 50,  backgroundColor: 'rgba(0,0,0,0.06)',       top: 20,    right: 260 },
   heroContent: { flexDirection: 'row', alignItems: 'center', gap: 32 },
   heroTag:     { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginBottom: 10 },
   heroTitle:   { fontSize: 38, fontWeight: '900', color: '#fff', lineHeight: 46, marginBottom: 10 },
-  heroSub:     { fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: '400', marginBottom: 18 },
+  heroTitleSm:  { fontSize: 26, lineHeight: 32 },
+  heroSub:     { fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: '400', marginBottom: 14 },
+  heroSubSm:    { fontSize: 13, marginBottom: 12 },
   heroBadges:  { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   heroBadge:   { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 12 },
+  heroBadgeSm:  { paddingHorizontal: 9, paddingVertical: 3 },
   heroBadgeTxt:{ color: '#fff', fontSize: 12, fontWeight: '600' },
+  heroBadgeTxtSm:{ fontSize: 11 },
 
   heroStats: {
     backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 16,
     padding: 20, alignItems: 'center', minWidth: 200,
     flexDirection: 'column', gap: 0,
   },
-  heroStatItem:  { alignItems: 'center', paddingVertical: 10 },
-  heroStatNum:   { fontSize: 28, fontWeight: '900', color: '#fff' },
-  heroStatLabel: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 2 },
-  heroStatDivider: { width: '80%', height: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
+  heroStatsSm: {
+    flexDirection: 'row', minWidth: 0, width: '100%',
+    padding: 14, paddingVertical: 12, justifyContent: 'space-around',
+  },
+  heroStatItem:    { alignItems: 'center', paddingVertical: 10 },
+  heroStatItemSm:  { flex: 1, alignItems: 'center', paddingVertical: 6 },
+  heroStatNum:     { fontSize: 28, fontWeight: '900', color: '#fff' },
+  heroStatNumSm:   { fontSize: 20, fontWeight: '900', color: '#fff' },
+  heroStatLabel:   { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 2 },
+  heroStatLabelSm: { fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 1 },
+  heroStatDivider:   { width: '80%', height: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
+  heroStatDividerSm: { width: 1, height: '60%', backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center' },
 
   // Ticker web
   ticker: { borderRadius: 10, marginBottom: 20 },
@@ -1006,17 +1021,22 @@ const ws = StyleSheet.create({
   // Section
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, marginTop: 4 },
   sectionTitle:  { fontSize: 18, fontWeight: '800', color: '#111' },
+  sectionTitleSm: { fontSize: 16 },
   seeAllBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
   seeAllTxt:     { fontSize: 13, fontWeight: '700', color: ORANGE },
 
   // Explore — 4-column grid
   exploreGrid:  { flexDirection: 'row', marginBottom: 24 },
   exploreCard:  { borderRadius: 18, padding: 20, minHeight: 140 },
-  exploreTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  exploreCardSm: { padding: 14, minHeight: 110 },
+  exploreTitle:  { fontSize: 18, fontWeight: '800', color: '#fff' },
+  exploreTitleSm: { fontSize: 15 },
 
   // Featured jobs grid — 2 col
   featJobsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
+  featJobsGridSm:{ gap: 8, marginBottom: 16 },
   featJobCard:  { width: '47.5%', backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  featJobCardSmWeb: { width: '100%' },
   featJobCardSm:{ width: '100%' },
 
   // Recent jobs
