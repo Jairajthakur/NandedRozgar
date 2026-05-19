@@ -126,10 +126,9 @@ const HEADER = {
 // ── Tab Navigator ─────────────────────────────────────────────────────────────
 function MainTabs() {
   const { t } = useLang();
-  const isWeb = Platform.OS === 'web';
   return (
     <Tab.Navigator
-      tabBar={isWeb ? () => null : props => <CustomTabBar {...props} />}
+      tabBar={props => <CustomTabBar {...props} />}
       screenOptions={HEADER}
     >
       <Tab.Screen name="Home"  component={HomeScreen}  options={{ headerShown: false, tabBarLabel: t('home') }} />
@@ -236,9 +235,19 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#ffffff',
     borderTopWidth: 1, borderTopColor: '#f0f0f0',
-    height: 72, paddingBottom: 10, paddingHorizontal: 4,
+    height: 72, paddingBottom: Platform.OS === 'web' ? 0 : 10, paddingHorizontal: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.08, shadowRadius: 10, elevation: 16,
+    ...(Platform.OS === 'web' ? {
+      position: 'fixed',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 1000,
+      maxWidth: 600,
+      marginHorizontal: 'auto',
+      width: '100%',
+    } : {}),
   },
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, gap: 2 },
   tabLabel:       { fontSize: 10, fontWeight: '500', color: '#aaa' },
