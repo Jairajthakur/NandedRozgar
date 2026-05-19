@@ -676,6 +676,16 @@ export default function RoomScreen({ route }) {
   if (IS_WEB && width >= 600) {
     return (
       <View style={ws.root}>
+
+        {/* ── Sticky top bar with back button — shown on all web widths ── */}
+        <View style={ws.topBar}>
+          <TouchableOpacity onPress={() => nav.navigate('Home')} style={ws.topBarBack} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={20} color="#111" />
+            <Text style={ws.topBarBackTxt}>Back</Text>
+          </TouchableOpacity>
+          <Text style={ws.topBarTitle}>Rooms / PG</Text>
+        </View>
+
         <View style={ws.body}>
 
           {/* ── LEFT SIDEBAR ── */}
@@ -726,7 +736,7 @@ export default function RoomScreen({ route }) {
               {/* Explore More — matches Jobs "Explore More" */}
               <SideCard>
                 <Text style={ws.sideTitle}>Explore More</Text>
-                <QuickAction icon="briefcase-outline"  label="Find a Job"     color={ORANGE}   onPress={() => nav.navigate('Board')} />
+                <QuickAction icon="briefcase-outline"  label="Find a Job"     color={ORANGE}   onPress={() => nav.navigate('Jobs')} />
                 <QuickAction icon="car-sport-outline"  label="Rent a Vehicle" color="#9333ea"  onPress={() => nav.navigate('Cars')} />
                 <QuickAction icon="pricetag-outline"   label="Buy & Sell"     color="#0ea5e9"  onPress={() => nav.navigate('BuySell')} />
               </SideCard>
@@ -1066,6 +1076,23 @@ const ws = StyleSheet.create({
   },
 
   list: { paddingTop: 0, paddingBottom: 48 },
+
+  topBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
+    paddingVertical: 12, paddingHorizontal: 20,
+    gap: 12,
+    position: 'sticky', top: 0, zIndex: 100,
+  },
+  topBarBack: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingVertical: 6, paddingHorizontal: 14,
+    borderRadius: 20, borderWidth: 1.5, borderColor: '#e0e0e0',
+    backgroundColor: '#f9f9f9',
+  },
+  topBarBackTxt: { fontSize: 13, fontWeight: '700', color: '#111' },
+  topBarTitle:   { fontSize: 15, fontWeight: '800', color: '#111' },
 
   header: {
     backgroundColor: '#fff', borderRadius: 16, marginBottom: 12, padding: 20,
