@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, RefreshControl, Modal,
-  Animated, Easing, Platform, useWindowDimensions,
+  Animated, Easing, Platform, useWindowDimensions, Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +39,10 @@ export const ROOMS = [
     amenities: ['WiFi', 'Power Backup', 'Parking'],
     for: 'Any', listedDaysAgo: 2, deposit: '2 months',
     owner: { name: 'Ramesh Kulkarni', verified: true }, phone: '9876543210',
+    photos: [
+      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=80',
+      'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80',
+    ],
   },
   {
     id: 'r2', title: 'PG — Girls Hostel', location: 'Near SRTMU', type: 'PG',
@@ -47,6 +51,9 @@ export const ROOMS = [
     amenities: ['AC', 'Meals', 'WiFi'],
     for: 'Female', listedDaysAgo: 5, deposit: '1 month',
     owner: { name: 'Sunita Deshpande', verified: true }, phone: '9765432109',
+    photos: [
+      'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&q=80',
+    ],
   },
   {
     id: 'r3', title: 'Single Room — Station Road', location: 'Station Road', type: 'Single Room',
@@ -55,6 +62,7 @@ export const ROOMS = [
     amenities: ['WiFi'],
     for: 'Male', listedDaysAgo: 8, deposit: '1 month',
     owner: { name: 'Prakash More', verified: false }, phone: '9812345678',
+    photos: [],
   },
   {
     id: 'r4', title: '2BHK — Vazirabad Main Road', location: 'Vazirabad', type: '2BHK',
@@ -63,6 +71,11 @@ export const ROOMS = [
     amenities: ['Parking', 'Power Backup'],
     for: 'Any', listedDaysAgo: 20, deposit: '2 months',
     owner: { name: 'Anil Patil', verified: false }, phone: '9898989898',
+    photos: [
+      'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=600&q=80',
+      'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80',
+      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80',
+    ],
   },
   {
     id: 'r5', title: 'PG — Boys Hostel CIDCO', location: 'CIDCO', type: 'PG',
@@ -71,6 +84,10 @@ export const ROOMS = [
     amenities: ['Meals', 'Laundry'],
     for: 'Male', listedDaysAgo: 3, deposit: '1 month',
     owner: { name: 'Deepak Jadhav', verified: true }, phone: '9911223344',
+    photos: [
+      'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&q=80',
+      'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=600&q=80',
+    ],
   },
 ];
 
@@ -185,6 +202,23 @@ function RoomCard({ item, index, onPress }) {
           {/* Left accent bar */}
           <View style={[ws.cardAccent, { backgroundColor: accentColor }]} />
 
+          {/* Thumbnail image (shown when photos exist) */}
+          {item.photos?.length > 0 && (
+            <View style={ws.cardThumb}>
+              <Image
+                source={{ uri: item.photos[0] }}
+                style={[StyleSheet.absoluteFillObject, { borderRadius: 0 }]}
+                resizeMode="cover"
+              />
+              {item.photos.length > 1 && (
+                <View style={ws.thumbCountBadge}>
+                  <Ionicons name="images-outline" size={10} color="#fff" />
+                  <Text style={ws.thumbCountTxt}>{item.photos.length}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Card body */}
           <View style={ws.cardBody}>
             {/* Available / NEW badges */}
@@ -281,13 +315,49 @@ function RoomCard({ item, index, onPress }) {
 
         {/* Photo area */}
         <View style={[s.cardPhoto, { backgroundColor: cardBg }]}>
-          <Ionicons name="home-outline" size={48} color="#fff" style={{ opacity: 0.15 }} />
-          <View style={[s.availBadge, { backgroundColor: item.available ? '#16a34a' : '#6b7280' }]}>
+          {item.photos?.length > 0 ? (
+            <Image
+              source={{ uri: item.photos[0] }}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+            />
+          ) : (
+            <Ionicons name="home-outline" size={48} color="#fff" style={{ opacity: 0.15 }} />
+          )}
+
+          {/* Dark overlay for readability when image exists */}
+          {item.photos?.length > 0 && (
+            <View style={s.photoOverlay} />
+          )}
+
+          {/* Photo count badge — top left */}
+          {item.photos?.length > 0 && (
+            <View style={s.photoCountBadge}>
+              <Ionicons name="images-outline" size={11} color="#fff" />
+              <Text style={s.photoCountTxt}>{item.photos.length} photo{item.photos.length > 1 ? 's' : ''}</Text>
+            </View>
+          )}
+
+          {/* Available badge — top left (shifted right if photo count shown) */}
+          <View style={[
+            s.availBadge,
+            { backgroundColor: item.available ? '#16a34a' : '#6b7280' },
+            item.photos?.length > 0 && { left: 'auto', right: 10, top: 40 },
+          ]}>
             <Text style={s.availTxt}>{item.available ? 'Available' : 'Occupied'}</Text>
           </View>
+
+          {/* NEW badge — top right */}
           {item.listedDaysAgo != null && item.listedDaysAgo <= 7 && (
             <View style={s.newBadge}>
               <Text style={s.newBadgeTxt}>NEW</Text>
+            </View>
+          )}
+
+          {/* Vacancies left badge — bottom right */}
+          {item.available && item.vacancies > 0 && item.vacancies <= 3 && (
+            <View style={s.vacancyBadge}>
+              <Text style={s.vacancyTxt}>{item.vacancies} left</Text>
             </View>
           )}
         </View>
@@ -367,6 +437,8 @@ export default function RoomScreen({ route }) {
           deposit:  r.deposit || null,
           owner:    { name: r.owner_name || r.poster_name || 'Owner', verified: !!r.verified },
           phone:    r.phone || r.whatsapp || '',
+          photos:   Array.isArray(r.photos) ? r.photos : (r.photos ? JSON.parse(r.photos) : []),
+          vacancies: r.vacancies || 0,
         })));
       }
     } catch (_) {}
@@ -803,6 +875,17 @@ const s = StyleSheet.create({
   cardPhoto: {
     height: 160, alignItems: 'center', justifyContent: 'center', position: 'relative',
   },
+  photoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+  },
+  photoCountBadge: {
+    position: 'absolute', top: 10, left: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8,
+    paddingVertical: 4, paddingHorizontal: 8,
+  },
+  photoCountTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
   availBadge: {
     position: 'absolute', top: 10, left: 10,
     borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10,
@@ -813,6 +896,11 @@ const s = StyleSheet.create({
     backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10,
   },
   newBadgeTxt: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  vacancyBadge: {
+    position: 'absolute', bottom: 10, right: 10,
+    backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10,
+  },
+  vacancyTxt: { color: '#fff', fontSize: 11, fontWeight: '800' },
 
   cardInfo:  { padding: 14 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 4 },
@@ -980,6 +1068,16 @@ const ws = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 }, elevation: 2,
   },
   cardAccent: { width: 4, flexShrink: 0 },
+  cardThumb: {
+    width: 110, flexShrink: 0, backgroundColor: '#1a2a3a', position: 'relative',
+  },
+  thumbCountBadge: {
+    position: 'absolute', bottom: 6, right: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 6,
+    paddingVertical: 3, paddingHorizontal: 6,
+  },
+  thumbCountTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
   cardBody:   { flex: 1, padding: 16 },
 
   statusBadge:    { borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'flex-start' },
