@@ -704,14 +704,6 @@ export default function BuySellScreen({ route }) {
             <Ionicons name="arrow-back" size={16} color="#333" />
           </TouchableOpacity>
           <Text style={ws.topBarTitle}>Buy &amp; Sell</Text>
-          <TouchableOpacity style={[ws.topBarPlainBtn, { marginLeft: 'auto' }]} onPress={() => nav.navigate('Post')} activeOpacity={0.8}>
-            <Ionicons name="add" size={15} color={ORANGE} />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: ORANGE }}>Sell Item</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={ws.topBarPlainBtn} onPress={() => setShowSort(true)} activeOpacity={0.8}>
-            <Ionicons name="swap-vertical-outline" size={15} color="#555" />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#555' }}>Sort</Text>
-          </TouchableOpacity>
         </View>
 
         {StickyHeader}
@@ -1014,6 +1006,28 @@ const s = StyleSheet.create({
   rangeTxt:    { fontSize: 14, color: '#444', fontWeight: '600' },
   applyFilterBtn: { marginTop: 16, backgroundColor: ORANGE, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   applyFilterTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
+
+  stickyBar: {
+    position: 'absolute',
+    left: 0, right: 0,
+    zIndex: 999,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 }, elevation: 8,
+  },
+  stickyInner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 14, paddingVertical: 9,
+  },
+  stickyTitle: { fontSize: 14, fontWeight: '900', color: '#111', letterSpacing: -0.2, flexShrink: 0 },
+  stickySearch: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#f5f5f5', borderRadius: 10, height: 34,
+    borderWidth: 1, borderColor: '#e8e8e8', overflow: 'hidden',
+  },
+  stickyInput: { flex: 1, height: 34, paddingHorizontal: 8, fontSize: 13, color: '#111' },
 });
 
 /* ─────────────────────────── WEB STYLES ─────────────────────────── */
@@ -1226,4 +1240,56 @@ const ws = StyleSheet.create({
 
   viewBtn:    { borderWidth: 1.5, borderColor: ORANGE, borderRadius: 22, paddingVertical: 7, paddingHorizontal: 22 },
   viewBtnTxt: { fontSize: 12, fontWeight: '700', color: ORANGE },
+
+  stickyBar: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 999,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 8,
+  },
+  stickyInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    maxWidth: 1400,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  stickyTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#111',
+    letterSpacing: -0.2,
+    flexShrink: 0,
+  },
+  stickySearch: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    height: 36,
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+    overflow: 'hidden',
+  },
+  stickyInput: {
+    flex: 1,
+    height: 36,
+    paddingHorizontal: 8,
+    fontSize: 13,
+    color: '#111',
+    outlineStyle: 'none',
+  },
 });
