@@ -1,184 +1,311 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Switch, RefreshControl,
+  View, Text, ScrollView, TextInput,
+  TouchableOpacity, StyleSheet, ActivityIndicator,
+  KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Toast from 'react-native-toast-message';
+import { useAuth } from '../context/AuthContext';
+import { C } from '../utils/constants';
 import { http } from '../utils/api';
-import { getPushToken } from '../utils/notifications';
 
 const ORANGE = '#f97316';
+const DARK   = '#111111';
 
-const CATEGORIES = [
-  { label: 'Driver',        icon: 'car-outline' },
-  { label: 'Security',      icon: 'shield-outline' },
-  { label: 'Delivery',      icon: 'bicycle-outline' },
-  { label: 'Teacher',       icon: 'school-outline' },
-  { label: 'Nurse',         icon: 'medkit-outline' },
-  { label: 'Tailor',        icon: 'cut-outline' },
-  { label: 'Electrician',   icon: 'flash-outline' },
-  { label: 'Plumber',       icon: 'hammer-outline' },
-  { label: 'Cook',          icon: 'restaurant-outline' },
-  { label: 'Salesperson',   icon: 'storefront-outline' },
-  { label: 'Accountant',    icon: 'calculator-outline' },
-  { label: 'Computer',      icon: 'laptop-outline' },
-  { label: 'Construction',  icon: 'construct-outline' },
-  { label: 'Cleaning',      icon: 'sparkles-outline' },
-];
-
-export default function AlertsScreen() {
-  const [alerts, setAlerts]     = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [saving, setSaving]     = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  async function load(refresh = false) {
-    if (refresh) setRefreshing(true);
-    const r = await http('GET', '/api/alerts');
-    if (r?.ok) setAlerts(r.alerts || []);
-    setLoading(false);
-    setRefreshing(false);
-  }
-
-  useEffect(() => { load(); }, []);
-
-  function isActive(category) {
-    return alerts.some(a => a.category === category && a.active);
-  }
-
-  function alertId(category) {
-    return alerts.find(a => a.category === category)?.id;
-  }
-
-  async function toggle(category) {
-    setSaving(category);
-    const id = alertId(category);
-
-    if (id && isActive(category)) {
-      // Deactivate — toggle off
-      const r = await http('PATCH', `/api/alerts/${id}/toggle`);
-      if (r?.ok) {
-        setAlerts(prev => prev.map(a => a.id === id ? r.alert : a));
-        Toast.show({ type: 'success', text1: `🔕 Alert off for ${category}` });
-      }
-    } else if (id) {
-      // Re-activate
-      const r = await http('PATCH', `/api/alerts/${id}/toggle`);
-      if (r?.ok) {
-        setAlerts(prev => prev.map(a => a.id === id ? r.alert : a));
-        Toast.show({ type: 'success', text1: `🔔 Alert on for ${category}` });
-      }
-    } else {
-      // Create new alert
-      let pushToken = null;
-      try { pushToken = await getPushToken(); } catch {}
-      const r = await http('POST', '/api/alerts', { category, pushToken });
-      if (r?.ok) {
-        setAlerts(prev => [...prev, r.alert]);
-        Toast.show({ type: 'success', text1: `🔔 You'll be notified for ${category} jobs!` });
-      }
-    }
-    setSaving(null);
-  }
-
-  async function deleteAlert(id) {
-    await http('DELETE', `/api/alerts/${id}`);
-    setAlerts(prev => prev.filter(a => a.id !== id));
-    Toast.show({ type: 'success', text1: 'Alert removed' });
-  }
-
-  const activeCount = alerts.filter(a => a.active).length;
-
+// ── Typing indicator ──────────────────────────────────────────
+function TypingDots() {
+  const d0 = useRef(new Animated.Value(0)).current;
+  const d1 = useRef(new Animated.Value(0)).current;
+  const d2 = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = (d, delay) => Animated.loop(Animated.sequence([
+      Animated.delay(delay),
+      Animated.timing(d, { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.timing(d, { toValue: 0, duration: 280, useNativeDriver: true }),
+      Animated.delay(400),
+    ]));
+    const a0 = anim(d0, 0); const a1 = anim(d1, 160); const a2 = anim(d2, 320);
+    a0.start(); a1.start(); a2.start();
+    return () => { a0.stop(); a1.stop(); a2.stop(); };
+  }, []);
+  const dot = (d) => ({
+    opacity: d,
+    transform: [{ translateY: d.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }],
+  });
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: 32 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={ORANGE} />}
-    >
-      {/* Info banner */}
-      <View style={styles.banner}>
-        <Ionicons name="notifications" size={22} color={ORANGE} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.bannerTitle}>Job Alert Notifications</Text>
-          <Text style={styles.bannerSub}>
-            {activeCount > 0
-              ? `You have ${activeCount} active alert${activeCount > 1 ? 's' : ''}. We'll notify you when new matching jobs are posted.`
-              : 'Tap a category below to get notified when new jobs are posted.'}
-          </Text>
-        </View>
-      </View>
-
-      {loading ? (
-        <ActivityIndicator color={ORANGE} style={{ marginTop: 40 }} />
-      ) : (
-        <View style={styles.grid}>
-          {CATEGORIES.map(cat => {
-            const active = isActive(cat.label);
-            const isSaving = saving === cat.label;
-            return (
-              <TouchableOpacity
-                key={cat.label}
-                style={[styles.catCard, active && styles.catCardActive]}
-                onPress={() => toggle(cat.label)}
-                activeOpacity={0.8}
-                disabled={!!isSaving}
-              >
-                <View style={[styles.catIcon, active && styles.catIconActive]}>
-                  {isSaving
-                    ? <ActivityIndicator color={active ? '#fff' : ORANGE} size="small" />
-                    : <Ionicons name={cat.icon} size={22} color={active ? '#fff' : ORANGE} />
-                  }
-                </View>
-                <Text style={[styles.catLabel, active && styles.catLabelActive]}>{cat.label}</Text>
-                {active && (
-                  <View style={styles.activeIndicator}>
-                    <Ionicons name="checkmark-circle" size={14} color={ORANGE} />
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
-
-      {/* Active alerts list */}
-      {alerts.filter(a => a.active).length > 0 && (
-        <View style={styles.activeSection}>
-          <Text style={styles.activeSectionTitle}>ACTIVE ALERTS</Text>
-          {alerts.filter(a => a.active).map(alert => (
-            <View key={alert.id} style={styles.alertRow}>
-              <Ionicons name="notifications" size={16} color={ORANGE} />
-              <Text style={styles.alertLabel}>{alert.category}</Text>
-              {alert.keywords && <Text style={styles.alertKeywords}>"{alert.keywords}"</Text>}
-              <View style={{ flex: 1 }} />
-              <TouchableOpacity onPress={() => deleteAlert(alert.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="trash-outline" size={16} color="#ef4444" />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      )}
-    </ScrollView>
+    <View style={st.dots}>
+      <Animated.View style={[st.dot, dot(d0)]} />
+      <Animated.View style={[st.dot, dot(d1)]} />
+      <Animated.View style={[st.dot, dot(d2)]} />
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: '#f5f5f5' },
-  banner:      { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: '#fff7ed', margin: 16, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#fed7aa' },
-  bannerTitle: { fontSize: 13, fontWeight: '700', color: '#111', marginBottom: 3 },
-  bannerSub:   { fontSize: 12, color: '#666', lineHeight: 17 },
-  grid:        { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 10 },
-  catCard:     { width: '30%', flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14, alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: '#ebebeb', position: 'relative' },
-  catCardActive:{ borderColor: '#fed7aa', backgroundColor: '#fff7ed' },
-  catIcon:     { width: 46, height: 46, borderRadius: 12, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
-  catIconActive:{ backgroundColor: ORANGE },
-  catLabel:    { fontSize: 11, fontWeight: '700', color: '#666', textAlign: 'center' },
-  catLabelActive:{ color: ORANGE },
-  activeIndicator:{ position: 'absolute', top: 6, right: 6 },
-  activeSection:{ margin: 16, backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#ebebeb' },
-  activeSectionTitle:{ fontSize: 11, fontWeight: '800', color: '#999', letterSpacing: 1, marginBottom: 12 },
-  alertRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
-  alertLabel:  { fontSize: 13, fontWeight: '700', color: '#111' },
-  alertKeywords:{ fontSize: 12, color: '#888', flex: 1 },
+// ── Chat Bubble ───────────────────────────────────────────────
+function Bubble({ msg }) {
+  const isAI = msg.role === 'assistant';
+  return (
+    <View style={[st.bubbleRow, isAI ? st.bubbleLeft : st.bubbleRight]}>
+      {isAI && (
+        <View style={st.avatar}>
+          <Text style={{ fontSize: 14 }}>🤖</Text>
+        </View>
+      )}
+      <View style={[st.bubble, isAI ? st.bubbleAI : st.bubbleUser]}>
+        {msg.typing ? (
+          <TypingDots />
+        ) : (
+          <Text style={[st.bubbleTxt, !isAI && { color: '#fff' }]}>{msg.content}</Text>
+        )}
+        {msg.timestamp && !msg.typing && (
+          <Text style={[st.bubbleTime, !isAI && { color: 'rgba(255,255,255,0.6)' }]}>
+            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ── Suggestion Chip ───────────────────────────────────────────
+function Chip({ label, onPress }) {
+  return (
+    <TouchableOpacity style={st.chip} onPress={onPress} activeOpacity={0.75}>
+      <Text style={st.chipTxt}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+// ── Main Screen ───────────────────────────────────────────────
+export default function AIScreen() {
+  const { user, jobs } = useAuth();
+  const scrollRef      = useRef(null);
+  const activeJobs     = jobs.filter(j => j.status === 'active');
+
+  const [messages,    setMessages]    = useState([]);
+  const [input,       setInput]       = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+
+  // ── Suggestions based on live job data ───────────────────────
+  const buildSuggestions = useCallback(() => {
+    const cats = [...new Set(activeJobs.map(j => j.category).filter(Boolean))];
+    return [
+      cats[0] ? `Who's hiring for ${cats[0]} right now?` : 'What jobs are live right now?',
+      'Give me a salary report for Nanded',
+      cats[1] ? `Write a job post for ${cats[1]}` : 'Write a job description template',
+      'How can I get more applicants?',
+    ];
+  }, [activeJobs]);
+
+  // ── Core AI call ──────────────────────────────────────────────
+  async function callAI(query, history = []) {
+    const data = await http('POST', '/api/ai/chat', {
+      query,
+      userLocation: user?.location,
+      history: history.slice(-8),
+    });
+    if (data.ok) return data.reply;
+    // Surface the real server error in the chat instead of silent fail
+    return `⚠️ ${data.error || 'AI unavailable. Please try again.'}`;
+  }
+
+  // ── Auto-briefing on mount ────────────────────────────────────
+  useEffect(() => {
+    setSuggestions(buildSuggestions());
+
+    const name = user?.name?.split(' ')[0] || 'there';
+    const greeting = `Hi ${name}! 👋 I'm your NandedRozgar AI assistant. There are ${activeJobs.length} active listings on the platform right now. Ask me anything — jobs, salaries, descriptions, market tips.`;
+
+    setMessages([{ id: 'greeting', role: 'assistant', content: greeting, timestamp: Date.now() }]);
+
+    // Auto-fetch a live snapshot
+    (async () => {
+      const typingId = 'typing-init';
+      setMessages(prev => [...prev, { id: typingId, role: 'assistant', typing: true }]);
+
+      const reply = await callAI(
+        `Give me a 2-sentence snapshot of the current Nanded job market based on the active listings. Mention top categories and typical salary ranges.`
+      );
+
+      setMessages(prev => prev
+        .filter(m => m.id !== typingId)
+        .concat(reply ? [{
+          id: 'insight-' + Date.now(),
+          role: 'assistant',
+          content: reply.startsWith('⚠️') ? reply : '📊 ' + reply,
+          timestamp: Date.now(),
+        }] : [])
+      );
+    })();
+  }, []);
+
+  // ── Send message ──────────────────────────────────────────────
+  async function send(text) {
+    const q = (text !== undefined ? text : input).trim();
+    if (!q || loading) return;
+    setInput('');
+    setSuggestions([]);
+
+    const userMsg  = { id: 'u-' + Date.now(), role: 'user', content: q, timestamp: Date.now() };
+    const typingId = 'typing-' + Date.now();
+
+    setMessages(prev => [...prev, userMsg, { id: typingId, role: 'assistant', typing: true }]);
+    setLoading(true);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+
+    const history = messages
+      .filter(m => !m.typing)
+      .map(m => ({ role: m.role, content: m.content }));
+
+    const reply = await callAI(q, [...history, { role: 'user', content: q }]);
+
+    setMessages(prev => prev
+      .filter(m => m.id !== typingId)
+      .concat([{
+        id: 'a-' + Date.now(),
+        role: 'assistant',
+        content: reply || "Sorry, I couldn't connect. Please try again.",
+        timestamp: Date.now(),
+      }])
+    );
+
+    setSuggestions(buildSuggestions());
+    setLoading(false);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={90}
+    >
+      {/* Header */}
+      <View style={st.header}>
+        <View style={st.headerLeft}>
+          <View style={st.headerIcon}><Text style={{ fontSize: 18 }}>🤖</Text></View>
+          <View>
+            <Text style={st.headerTitle}>AI Assistant</Text>
+            <Text style={st.headerSub}>{activeJobs.length} active listings · Nanded</Text>
+          </View>
+        </View>
+        <View style={st.livePill}>
+          <View style={st.liveDot} />
+          <Text style={st.liveTxt}>Live data</Text>
+        </View>
+      </View>
+
+      {/* Chat */}
+      <ScrollView
+        ref={scrollRef}
+        style={st.chat}
+        contentContainerStyle={{ padding: 16, paddingBottom: 12 }}
+        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+        keyboardShouldPersistTaps="handled"
+      >
+        {messages.map(msg => <Bubble key={msg.id} msg={msg} />)}
+
+        {suggestions.length > 0 && !loading && (
+          <View style={st.chips}>
+            <Text style={st.chipsLabel}>Try asking</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {suggestions.map(s => <Chip key={s} label={s} onPress={() => send(s)} />)}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Input */}
+      <View style={st.inputBar}>
+        <TextInput
+          style={st.inputField}
+          placeholder="Ask anything about Nanded jobs…"
+          placeholderTextColor="#bbb"
+          value={input}
+          onChangeText={setInput}
+          multiline
+          maxLength={300}
+          editable={!loading}
+        />
+        <TouchableOpacity
+          style={[st.sendBtn, (!input.trim() || loading) && { opacity: 0.4 }]}
+          onPress={() => send()}
+          disabled={!input.trim() || loading}
+          activeOpacity={0.8}
+        >
+          {loading
+            ? <ActivityIndicator size="small" color="#fff" />
+            : <Ionicons name="send" size={18} color="#fff" />}
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+const st = StyleSheet.create({
+  header: {
+    backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerIcon: {
+    width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff7ed',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#fed7aa',
+  },
+  headerTitle: { fontSize: 14, fontWeight: '800', color: DARK },
+  headerSub:   { fontSize: 11, color: '#888', marginTop: 1 },
+  livePill:    { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#f0fdf4', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10, borderWidth: 1, borderColor: '#bbf7d0' },
+  liveDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' },
+  liveTxt:     { fontSize: 11, fontWeight: '700', color: '#16a34a' },
+
+  chat: { flex: 1, backgroundColor: '#f8f8f8' },
+
+  bubbleRow:   { flexDirection: 'row', marginBottom: 14, maxWidth: '88%' },
+  bubbleLeft:  { alignSelf: 'flex-start', alignItems: 'flex-end' },
+  bubbleRight: { alignSelf: 'flex-end', flexDirection: 'row-reverse' },
+  avatar: {
+    width: 30, height: 30, borderRadius: 10, backgroundColor: '#fff7ed',
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 8, marginTop: 2, flexShrink: 0,
+    borderWidth: 1, borderColor: '#fed7aa',
+  },
+  bubble:     { borderRadius: 16, paddingVertical: 10, paddingHorizontal: 14, maxWidth: '100%', flexShrink: 1 },
+  bubbleAI:   { backgroundColor: '#fff', borderBottomLeftRadius: 4, ...C.shadow },
+  bubbleUser: { backgroundColor: ORANGE, borderBottomRightRadius: 4 },
+  bubbleTxt:  { fontSize: 13, lineHeight: 20, color: DARK },
+  bubbleTime: { fontSize: 10, color: '#bbb', marginTop: 4, textAlign: 'right' },
+
+  dots: { flexDirection: 'row', gap: 4, paddingVertical: 4, alignItems: 'center' },
+  dot:  { width: 7, height: 7, borderRadius: 4, backgroundColor: '#ddd' },
+
+  chips:      { marginTop: 4, marginBottom: 4 },
+  chipsLabel: { fontSize: 10, fontWeight: '700', color: '#bbb', letterSpacing: 0.6, marginBottom: 8, textTransform: 'uppercase' },
+  chip: {
+    backgroundColor: '#fff', borderRadius: 20,
+    paddingVertical: 7, paddingHorizontal: 14,
+    borderWidth: 1.5, borderColor: '#ebebeb',
+  },
+  chipTxt: { fontSize: 12, color: DARK, fontWeight: '600' },
+
+  inputBar: {
+    flexDirection: 'row', alignItems: 'flex-end',
+    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f0f0f0',
+    padding: 10, gap: 10,
+  },
+  inputField: {
+    flex: 1, backgroundColor: '#f5f5f5', borderRadius: 22,
+    paddingVertical: 10, paddingHorizontal: 16,
+    fontSize: 13, color: DARK, maxHeight: 100,
+    borderWidth: 1.5, borderColor: '#ebebeb',
+  },
+  sendBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: ORANGE,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
 });
