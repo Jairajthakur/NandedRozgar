@@ -84,7 +84,7 @@ if (IS_WEB && typeof document !== 'undefined') {
 // Responsive breakpoints
 const BP_SM  = 600;   // mobile-web: single column, no sidebar
 const BP_MD  = 900;   // tablet: sidebar + main, no right panel
-const BP_LG  = 1200;  // desktop: full 3-column layout
+const BP_LG  = 1280;  // desktop: full 3-column layout
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -1008,9 +1008,9 @@ const ws = StyleSheet.create({
 
   // Sidebar
   sidebar: {
-    width: 220, backgroundColor: '#fff',
+    width: 180, backgroundColor: '#fff',
     borderRightWidth: 1, borderRightColor: '#ececec',
-    paddingTop: 20, paddingHorizontal: 12,
+    paddingTop: 20, paddingHorizontal: 10,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 2, height: 0 }, elevation: 2,
   },
   sideNavSection: { fontSize: 10, fontWeight: '800', color: '#bbb', letterSpacing: 1.2, paddingHorizontal: 10, marginBottom: 6 },
@@ -1110,27 +1110,27 @@ const ws = StyleSheet.create({
   roomImgPlaceholder: { height: 160, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
 
   // Right Panel
-  rightPanel: { width: 280, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: -2, height: 0 }, elevation: 2 },
+  rightPanel: { width: 220, paddingHorizontal: 12, paddingTop: 20, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: -2, height: 0 }, elevation: 2 },
 
   postCtaCard: {
-    backgroundColor: ORANGE, borderRadius: 16, padding: 20, marginBottom: 14,
+    backgroundColor: ORANGE, borderRadius: 14, padding: 14, marginBottom: 12,
   },
-  postCtaTitle: { fontSize: 17, fontWeight: '800', color: '#fff', marginBottom: 6 },
-  postCtaSub:   { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginBottom: 16, lineHeight: 18 },
+  postCtaTitle: { fontSize: 15, fontWeight: '800', color: '#fff', marginBottom: 4 },
+  postCtaSub:   { fontSize: 11, color: 'rgba(255,255,255,0.85)', marginBottom: 12, lineHeight: 16 },
   postCtaBtn:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)' },
   postCtaBtnTxt:{ color: '#fff', fontSize: 14, fontWeight: '700' },
 
-  statsCard: { backgroundColor: '#fff', borderRadius: 16, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#f0f0f0' },
-  statsCardTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginBottom: 14 },
+  statsCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#f0f0f0' },
+  statsCardTitle: { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 10 },
   statCard:   { paddingVertical: 10 },
-  statNum:    { fontSize: 22, fontWeight: '900' },
+  statNum:    { fontSize: 19, fontWeight: '900' },
   statLabel:  { fontSize: 11, color: '#888', fontWeight: '600', marginTop: 2 },
   statDividerH: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 2 },
 
-  quickActionsCard: { backgroundColor: '#fff', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#f0f0f0' },
-  quickAction: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderRadius: 10, paddingHorizontal: 6, borderWidth: 1, borderColor: 'transparent', marginBottom: 6 },
-  quickActionIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  quickActionLabel: { fontSize: 14, fontWeight: '600', color: '#333', flex: 1 },
+  quickActionsCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#f0f0f0' },
+  quickAction: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderRadius: 10, paddingHorizontal: 4, borderWidth: 1, borderColor: 'transparent', marginBottom: 4 },
+  quickActionIcon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  quickActionLabel: { fontSize: 12, fontWeight: '600', color: '#333', flex: 1 },
 
   // Bottom tab nav (small web)
   bottomNav: {
