@@ -958,7 +958,7 @@ const ws = StyleSheet.create({
 
   // Sidebar
   sidebar: {
-    width: 180, backgroundColor: '#fff',
+    width: 180, flexShrink: 0, flexGrow: 0, backgroundColor: '#fff',
     borderRightWidth: 1, borderRightColor: '#ececec',
     paddingTop: 20, paddingHorizontal: 12,
   },
@@ -981,7 +981,7 @@ const ws = StyleSheet.create({
   sidePromoCtaTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // Main
-  main: { flex: 1, backgroundColor: '#f3f4f6' },  // overridden inline for mobile-web
+  main: { flex: 1, flexShrink: 1, flexGrow: 1, minWidth: 0, backgroundColor: '#f3f4f6' },  // overridden inline for mobile-web
 
   // Hero
   heroBanner: {
@@ -1059,7 +1059,7 @@ const ws = StyleSheet.create({
   roomImgPlaceholder: { height: 160, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
 
   // Right Panel
-  rightPanel: { width: 200, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec' },
+  rightPanel: { width: 180, flexShrink: 0, flexGrow: 0, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec' },
 
   postCtaCard: {
     backgroundColor: ORANGE, borderRadius: 0, padding: 18, marginBottom: 0, paddingTop: 22,
