@@ -128,6 +128,8 @@ const HEADER = {
   headerStyle:      { backgroundColor: '#ffffff' },
   headerTintColor:  '#111111',
   headerTitleStyle: { fontWeight: '800', fontSize: 16, color: '#111111' },
+  headerBackTitle:  '',
+  headerBackTitleVisible: false,
 };
 
 // ── Tab Navigator ─────────────────────────────────────────────────────────────
@@ -143,7 +145,7 @@ function MainTabs() {
         name="Jobs"
         component={BoardScreen}
         options={({ navigation }) => ({
-          headerTitle: t('findJobs'),
+          headerTitle: 'Jobs',
           tabBarLabel: t('jobs'),
           headerShown: Platform.OS !== 'web',
           headerLeft: () => (
@@ -158,8 +160,8 @@ function MainTabs() {
         })}
       />
       <Tab.Screen name="Post"  component={PostScreen}  options={{ headerShown: false, tabBarLabel: t('post') }} />
-      <Tab.Screen name="Rooms" component={RoomScreen}  options={{ headerTitle: t('roomsPG'), tabBarLabel: t('rooms') }} />
-      <Tab.Screen name="Cars"  component={CarScreen}   options={{ headerTitle: t('carRental'), tabBarLabel: t('cars') }} />
+      <Tab.Screen name="Rooms" component={RoomScreen}  options={{ headerTitle: 'Rooms', tabBarLabel: t('rooms') }} />
+      <Tab.Screen name="Cars"  component={CarScreen}   options={{ headerTitle: 'Cars', tabBarLabel: t('cars') }} />
     </Tab.Navigator>
   );
 }
