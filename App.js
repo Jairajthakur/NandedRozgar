@@ -144,6 +144,7 @@ function MainTabs() {
         options={({ navigation }) => ({
           headerTitle: t('findJobs'),
           tabBarLabel: t('jobs'),
+          headerShown: Platform.OS !== 'web',
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => navigation.goBack()}
