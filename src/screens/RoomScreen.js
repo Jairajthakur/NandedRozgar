@@ -688,7 +688,7 @@ export default function RoomScreen({ route }) {
             <Ionicons name="arrow-back" size={20} color="#111" />
             <Text style={ws.topBarBackTxt}>Back</Text>
           </TouchableOpacity>
-          <Text style={ws.topBarTitle}>Rooms / PG</Text>
+          <Text style={ws.topBarTitle}>Rooms</Text>
         </View>
 
         <View style={ws.body}>
