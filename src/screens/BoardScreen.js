@@ -266,24 +266,14 @@ export default function BoardScreen({ route }) {
         opacity: titleOpacity,
         transformOrigin: 'left center',
       }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {/* Back button */}
-          <TouchableOpacity
-            style={[s.iconBtn, IS_WEB && ws.iconBtn]}
-            onPress={() => nav.goBack()}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="arrow-back" size={20} color="#444" />
-          </TouchableOpacity>
-          <View>
-            <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
-              Jobs in{' '}
-              <Text style={{ color: ORANGE }}>Nanded</Text>
-            </Text>
-            <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
-              {filtered.length} jobs found
-            </Text>
-          </View>
+        <View>
+          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
+            Jobs in{' '}
+            <Text style={{ color: ORANGE }}>Nanded</Text>
+          </Text>
+          <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
+            {filtered.length} jobs found
+          </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           {/* Sort button */}
