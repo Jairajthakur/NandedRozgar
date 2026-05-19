@@ -146,19 +146,37 @@ export default function BoardScreen({ route }) {
   const [refreshing,  setRefreshing]  = useState(false);
 
   const isGiver    = role === 'user' || role === 'admin';
-  const showSidebar = IS_WEB && winW >= 860;
+  const showSidebar = IS_WEB && winW >= 900;
 
   const filtered = useMemo(() => {
-    const base = jobs.filter(j =>
-      j.status === 'active' &&
-      (jobType === 'All' || j.type === jobType) &&
-      parseSalary(j.salary) >= salaryRange.min &&
-      parseSalary(j.salary) <= salaryRange.max &&
-      (search === '' ||
-        [j.title, j.location, j.company, j.description || '']
-          .join(' ').toLowerCase()
-          .includes(search.toLowerCase()))
-    );
+    const base = jobs.filter(j => {
+      if (j.status !== 'active') return false;
+
+      // Type filter — handle special cases
+      if (jobType !== 'All') {
+        if (jobType === 'Fresher') {
+          // Accept jobs with fresher_ok flag OR type containing 'fresher'
+          const typeLower = (j.type || '').toLowerCase();
+          if (!j.fresher_ok && !typeLower.includes('fresher')) return false;
+        } else if (jobType === 'Work from Home') {
+          const typeLower = (j.type || '').toLowerCase();
+          if (!typeLower.includes('work from home') && !typeLower.includes('wfh') && !typeLower.includes('remote')) return false;
+        } else {
+          if (j.type !== jobType) return false;
+        }
+      }
+
+      if (parseSalary(j.salary) < salaryRange.min) return false;
+      if (parseSalary(j.salary) > salaryRange.max) return false;
+
+      if (search !== '') {
+        const hay = [j.title, j.location, j.company, j.description || '', ...(Array.isArray(j.skills) ? j.skills : [])]
+          .join(' ').toLowerCase();
+        if (!hay.includes(search.toLowerCase())) return false;
+      }
+
+      return true;
+    });
     if (sortBy === 'salary') {
       return base.sort((a, b) => parseSalary(b.salary) - parseSalary(a.salary));
     }
@@ -379,49 +397,25 @@ export default function BoardScreen({ route }) {
     </Modal>
   );
 
+  // ── Category counts for sidebar ────────────────────────────────────────────
+  const activeJobsList = jobs.filter(j => j.status === 'active');
+  const catCounts = ['All', 'Delivery', 'Security', 'Data Entry', 'TeleCaller', 'Teaching', 'Driver', 'Other'].map(cat => ({
+    label: cat,
+    count: cat === 'All' ? activeJobsList.length : activeJobsList.filter(j => j.category === cat).length,
+  })).filter(c => c.label === 'All' || c.count > 0);
+
   // ── WEB LAYOUT ─────────────────────────────────────────────────────────────
   if (IS_WEB) {
     return (
       <View style={ws.root}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-        {/* Web body: main content + optional sidebar */}
+        {/* Web body: left sidebar + main + right sidebar */}
         <View style={ws.body}>
 
-          {/* ── Main column ── */}
-          <View style={[ws.mainCol, !showSidebar && { maxWidth: '100%' }]}>
-            {Header}
-            <FlatList
-              data={filtered}
-              keyExtractor={j => j.id}
-              contentContainerStyle={[ws.list, !showSidebar && { paddingHorizontal: 16 }]}
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />
-              }
-              ListHeaderComponent={ListHeader}
-              renderItem={({ item, index }) => (
-                <JobCard
-                  job={item}
-                  index={index}
-                  onPress={() => nav.navigate('JobDetail', { job: item })}
-                />
-              )}
-              ListEmptyComponent={
-                <Empty
-                  icon="search"
-                  title="No jobs found"
-                  sub={search || jobType !== 'All' ? 'Try different filters' : 'Check back later'}
-                  action={isGiver ? () => nav.navigate('Post') : null}
-                  actionLabel={t('postAJob')}
-                />
-              }
-            />
-          </View>
-
-          {/* ── Sidebar (desktop only) ── */}
+          {/* ── LEFT SIDEBAR (desktop only) ── */}
           {showSidebar && (
-            <View style={ws.sidebar}>
+            <View style={ws.leftSidebar}>
 
               {/* Post CTA */}
               <SideCard style={ws.ctaCard}>
@@ -435,6 +429,77 @@ export default function BoardScreen({ route }) {
                   <Text style={ws.ctaBtnTxt}>Post an Ad</Text>
                 </TouchableOpacity>
               </SideCard>
+
+              {/* Browse by Category */}
+              <SideCard>
+                <Text style={ws.sideTitle}>Browse Categories</Text>
+                {catCounts.map(({ label, count }) => (
+                  <TouchableOpacity
+                    key={label}
+                    style={ws.catRow}
+                    onPress={() => label === 'All' ? setSearch('') : setSearch(label)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={ws.catIconWrap}>
+                      <Ionicons name={CAT_ICONS[label] || 'briefcase-outline'} size={14} color={ORANGE} />
+                    </View>
+                    <Text style={ws.catLabel}>{label}</Text>
+                    <View style={ws.catCount}><Text style={ws.catCountTxt}>{count}</Text></View>
+                  </TouchableOpacity>
+                ))}
+              </SideCard>
+
+              {/* Quick Actions */}
+              <SideCard>
+                <Text style={ws.sideTitle}>Explore More</Text>
+                <QuickAction icon="home-outline"      label="Find a Room"    color={TEAL}    onPress={() => nav.navigate('Rooms')} />
+                <QuickAction icon="car-sport-outline" label="Rent a Vehicle" color="#9333ea" onPress={() => nav.navigate('Cars')} />
+                <QuickAction icon="pricetag-outline"  label="Buy & Sell"     color="#0ea5e9" onPress={() => nav.navigate('BuySell')} />
+                <QuickAction icon="sparkles-outline"  label="AI Career Help" color={ORANGE}  onPress={() => nav.navigate('AIMatch')} />
+              </SideCard>
+
+            </View>
+          )}
+
+          {/* ── MAIN COLUMN ── */}
+          <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
+            {Header}
+            <FlatList
+              data={filtered}
+              keyExtractor={j => String(j.id)}
+              numColumns={winW >= 1280 ? 2 : 1}
+              key={winW >= 1280 ? 'two-col' : 'one-col'}
+              columnWrapperStyle={winW >= 1280 ? { gap: 12 } : null}
+              contentContainerStyle={ws.list}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />
+              }
+              ListHeaderComponent={ListHeader}
+              renderItem={({ item, index }) => (
+                <View style={winW >= 1280 ? { flex: 1 } : {}}>
+                  <JobCard
+                    job={item}
+                    index={index}
+                    onPress={() => nav.navigate('JobDetail', { job: item })}
+                  />
+                </View>
+              )}
+              ListEmptyComponent={
+                <Empty
+                  icon="search"
+                  title="No jobs found"
+                  sub={search || jobType !== 'All' ? 'Try different filters' : 'Check back later'}
+                  action={isGiver ? () => nav.navigate('Post') : null}
+                  actionLabel={t('postAJob')}
+                />
+              }
+            />
+          </View>
+
+          {/* ── RIGHT SIDEBAR (desktop only) ── */}
+          {showSidebar && (
+            <View style={ws.rightSidebar}>
 
               {/* Sort */}
               <SideCard>
@@ -470,13 +535,38 @@ export default function BoardScreen({ route }) {
                 ))}
               </SideCard>
 
-              {/* Quick Actions */}
+              {/* Job Type quick filter */}
               <SideCard>
-                <Text style={ws.sideTitle}>Quick Actions</Text>
-                <QuickAction icon="home-outline"      label="Find a Room"    color={TEAL}    onPress={() => nav.navigate('Rooms')} />
-                <QuickAction icon="car-sport-outline" label="Rent a Vehicle" color="#9333ea" onPress={() => nav.navigate('Cars')} />
-                <QuickAction icon="pricetag-outline"  label="Buy & Sell"     color="#0ea5e9" onPress={() => nav.navigate('BuySell')} />
-                <QuickAction icon="sparkles-outline"  label="AI Career Help" color={ORANGE}  onPress={() => nav.navigate('AIMatch')} />
+                <Text style={ws.sideTitle}>Job Type</Text>
+                {JOB_TYPES.map(jt => (
+                  <TouchableOpacity
+                    key={jt}
+                    style={[ws.sortRow, jobType === jt && ws.sortRowActive]}
+                    onPress={() => setJobType(jt)}
+                  >
+                    <Text style={[ws.sortTxt, jobType === jt && ws.sortTxtActive]}>{jt}</Text>
+                    {jobType === jt && <Ionicons name="checkmark-circle" size={16} color={ORANGE} />}
+                  </TouchableOpacity>
+                ))}
+              </SideCard>
+
+              {/* Tips card */}
+              <SideCard style={ws.tipCard}>
+                <Text style={ws.tipTitle}>💡 Job Search Tips</Text>
+                {[
+                  'Update your profile to get noticed',
+                  'Apply within 24h of posting for best chance',
+                  'Use AI Career Help for salary insights',
+                ].map((tip, i) => (
+                  <View key={i} style={ws.tipRow}>
+                    <View style={ws.tipDot} />
+                    <Text style={ws.tipTxt}>{tip}</Text>
+                  </View>
+                ))}
+                <TouchableOpacity style={ws.tipBtn} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.85}>
+                  <Ionicons name="sparkles-outline" size={14} color={ORANGE} />
+                  <Text style={ws.tipBtnTxt}>Try AI Career Help</Text>
+                </TouchableOpacity>
               </SideCard>
 
             </View>
@@ -530,27 +620,43 @@ export default function BoardScreen({ route }) {
 const ws = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f3f4f6' },
 
+  // 3-column body: left sidebar | main | right sidebar
   body: {
     flex: 1,
     flexDirection: 'row',
-    maxWidth: 1100,
+    maxWidth: 1400,
     width: '100%',
     alignSelf: 'center',
-    paddingTop: 8,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    gap: 16,
   },
 
-  // Main column
+  // Left sidebar
+  leftSidebar: {
+    width: 220,
+    flexShrink: 0,
+    gap: 12,
+  },
+
+  // Main column — fills all remaining space
   mainCol: {
     flex: 1,
     minWidth: 0,
     flexShrink: 1,
   },
 
+  // Right sidebar
+  rightSidebar: {
+    width: 220,
+    flexShrink: 0,
+    gap: 12,
+  },
+
   header: {
     backgroundColor: '#fff',
     borderRadius: 16,
-    margin: 16,
-    marginBottom: 0,
+    marginBottom: 12,
     padding: 20,
     shadowColor: '#000',
     shadowOpacity: 0.05,
@@ -560,7 +666,7 @@ const ws = StyleSheet.create({
   },
 
   pageTitle: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '900',
     color: '#111',
     letterSpacing: -0.5,
@@ -645,16 +751,9 @@ const ws = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  list: { padding: 16, paddingTop: 12, paddingBottom: 48 },
+  list: { paddingTop: 0, paddingBottom: 48 },
 
-  // Sidebar
-  sidebar: {
-    width: 240,
-    flexShrink: 0,
-    paddingTop: 16,
-    paddingRight: 16,
-    gap: 12,
-  },
+  // Shared side card
   sideCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -671,6 +770,7 @@ const ws = StyleSheet.create({
   },
   sideTitle: {
     fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 12,
+    textTransform: 'uppercase', letterSpacing: 0.5,
   },
 
   // Post CTA card
@@ -704,7 +804,25 @@ const ws = StyleSheet.create({
   },
   ctaBtnTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
 
-  // Sort rows in sidebar
+  // Category rows in left sidebar
+  catRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 8, paddingHorizontal: 8, borderRadius: 10,
+    marginBottom: 2,
+  },
+  catIconWrap: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: '#fff7f0',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  catLabel: { flex: 1, fontSize: 13, fontWeight: '600', color: '#333' },
+  catCount: {
+    backgroundColor: '#f3f4f6', borderRadius: 20,
+    paddingVertical: 2, paddingHorizontal: 7,
+  },
+  catCountTxt: { fontSize: 11, fontWeight: '700', color: '#888' },
+
+  // Sort rows in right sidebar
   sortRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 9, paddingHorizontal: 10, borderRadius: 10,
@@ -725,6 +843,19 @@ const ws = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   quickLabel: { fontSize: 13, fontWeight: '600', color: '#222' },
+
+  // Tips card
+  tipCard: { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' },
+  tipTitle: { fontSize: 13, fontWeight: '800', color: '#15803d', marginBottom: 10 },
+  tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
+  tipDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#16a34a', marginTop: 6, flexShrink: 0 },
+  tipTxt: { fontSize: 12, color: '#166534', lineHeight: 18, flex: 1 },
+  tipBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#bbf7d0',
+    paddingVertical: 8, paddingHorizontal: 12, marginTop: 4, alignSelf: 'flex-start',
+  },
+  tipBtnTxt: { fontSize: 12, fontWeight: '700', color: ORANGE },
 
   // Centered modal for web
   centeredModal: {
