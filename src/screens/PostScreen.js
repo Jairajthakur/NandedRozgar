@@ -39,7 +39,7 @@ const OPTIONS = [
     bg: '#fffbeb',
     title: 'Sell an Item',
     sub: 'Sell electronics, furniture, books',
-    screen: 'BuySell',
+    screen: 'PostItem',
   },
 ];
 
