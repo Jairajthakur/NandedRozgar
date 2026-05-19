@@ -37,25 +37,40 @@ if (IS_WEB && typeof document !== 'undefined') {
     // We use a tall gradient so the full Orange→Purple→Teal spectrum shows even on short thumbs
     style.textContent = `
       ::-webkit-scrollbar {
-        width: 7px;
-        height: 7px;
+        width: 8px;
+        height: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.04);
+        background: transparent;
         border-radius: 999px;
+        margin: 4px 0;
       }
       ::-webkit-scrollbar-thumb {
         border-radius: 999px;
-        background-image: linear-gradient(to bottom, #f97316, #c2410c 20%, #7c3aed 60%, #0d9488 100%);
-        background-size: 100% 300px;
-        background-attachment: fixed;
-        border: 1.5px solid rgba(255,255,255,0.3);
-        box-shadow: inset 0 0 4px rgba(0,0,0,0.12);
+        background: linear-gradient(
+          to bottom,
+          #f97316 0%,
+          #f97316 15%,
+          #7c3aed 50%,
+          #f97316 85%,
+          #f97316 100%
+        );
+        background-size: 100% 100%;
+        border: 2px solid rgba(255,255,255,0.35);
+        box-shadow: 0 2px 8px rgba(124,58,237,0.35), inset 0 0 2px rgba(0,0,0,0.08);
+        min-height: 60px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background-image: linear-gradient(to bottom, #fb923c, #ea580c 20%, #8b5cf6 60%, #14b8a6 100%);
-        background-size: 100% 300px;
-        background-attachment: fixed;
+        background: linear-gradient(
+          to bottom,
+          #fb923c 0%,
+          #fb923c 15%,
+          #8b5cf6 50%,
+          #fb923c 85%,
+          #fb923c 100%
+        );
+        border: 2px solid rgba(255,255,255,0.45);
+        box-shadow: 0 2px 10px rgba(139,92,246,0.45), inset 0 0 2px rgba(0,0,0,0.08);
       }
       ::-webkit-scrollbar-corner {
         background: transparent;
@@ -989,13 +1004,14 @@ const ws = StyleSheet.create({
   profileInitial: { color: '#fff', fontSize: 15, fontWeight: '800' },
 
   // Body
-  body:       { flex: 1, flexDirection: 'row' },
+  body:       { flex: 1, flexDirection: 'row', backgroundColor: '#f3f4f6' },
 
   // Sidebar
   sidebar: {
     width: 220, backgroundColor: '#fff',
     borderRightWidth: 1, borderRightColor: '#ececec',
     paddingTop: 20, paddingHorizontal: 12,
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 2, height: 0 }, elevation: 2,
   },
   sideNavSection: { fontSize: 10, fontWeight: '800', color: '#bbb', letterSpacing: 1.2, paddingHorizontal: 10, marginBottom: 6 },
   sideNavItem: {
@@ -1016,7 +1032,7 @@ const ws = StyleSheet.create({
   sidePromoCtaTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // Main
-  main: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },  // overridden inline for mobile-web
+  main: { flex: 1, paddingHorizontal: 24, paddingTop: 20, backgroundColor: '#f3f4f6' },  // overridden inline for mobile-web
 
   // Hero
   heroBanner: {
@@ -1094,7 +1110,7 @@ const ws = StyleSheet.create({
   roomImgPlaceholder: { height: 160, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
 
   // Right Panel
-  rightPanel: { width: 280, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 20 },
+  rightPanel: { width: 280, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: -2, height: 0 }, elevation: 2 },
 
   postCtaCard: {
     backgroundColor: ORANGE, borderRadius: 16, padding: 20, marginBottom: 14,
