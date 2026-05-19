@@ -175,19 +175,6 @@ function RoomCard({ item, index, onPress }) {
         {/* Left accent bar (orange = available, grey = occupied) */}
         <View style={[s.cardAccent, { backgroundColor: accentColor }]} />
 
-        {/* Left colored strip with home icon + badges */}
-        <View style={[s.cardStrip, { backgroundColor: cardBg }]}>
-          <Ionicons name="home-outline" size={32} color="#fff" style={{ opacity: 0.18 }} />
-          <View style={[s.availBadge, { backgroundColor: item.available ? '#16a34a' : '#6b7280' }]}>
-            <Text style={s.availTxt}>{item.available ? 'Available' : 'Occupied'}</Text>
-          </View>
-          {item.listedDaysAgo != null && item.listedDaysAgo <= 7 && (
-            <View style={s.newBadge}>
-              <Text style={s.newBadgeTxt}>NEW</Text>
-            </View>
-          )}
-        </View>
-
         {/* Card body */}
         <View style={s.cardBody}>
 
@@ -198,6 +185,18 @@ function RoomCard({ item, index, onPress }) {
               <Text style={s.rentAmt}>{item.rent}</Text>
               {item.deposit && <Text style={s.depositTxt}>Dep: {item.deposit}</Text>}
             </View>
+          </View>
+
+          {/* Available / NEW badge row */}
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
+            <View style={[s.statusBadge, { backgroundColor: item.available ? '#16a34a' : '#6b7280' }]}>
+              <Text style={s.statusBadgeTxt}>{item.available ? 'Available' : 'Occupied'}</Text>
+            </View>
+            {item.listedDaysAgo != null && item.listedDaysAgo <= 7 && (
+              <View style={[s.statusBadge, { backgroundColor: ORANGE }]}>
+                <Text style={s.statusBadgeTxt}>NEW</Text>
+              </View>
+            )}
           </View>
 
           {/* Location */}
@@ -674,18 +673,9 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 }, elevation: 2,
   },
   cardAccent: { width: 4, flexShrink: 0 },
-  cardStrip: {
-    width: 80, flexShrink: 0,
-    alignItems: 'center', justifyContent: 'center',
-    position: 'relative', minHeight: 120,
-  },
-  availBadge: {
-    position: 'absolute', top: 7, left: 4, right: 4,
-    borderRadius: 20, paddingVertical: 3, paddingHorizontal: 4, alignItems: 'center',
-  },
-  availTxt:  { color: '#fff', fontSize: 8, fontWeight: '700' },
-  newBadge:  { position: 'absolute', bottom: 7, left: 4, right: 4, backgroundColor: ORANGE, borderRadius: 20, paddingVertical: 3, alignItems: 'center' },
-  newBadgeTxt: { color: '#fff', fontSize: 8, fontWeight: '800' },
+
+  statusBadge: { borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'flex-start' },
+  statusBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
   cardBody: { flex: 1, padding: 14 },
   cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 3, gap: 8 },
