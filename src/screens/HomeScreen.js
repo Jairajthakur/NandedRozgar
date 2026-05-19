@@ -576,7 +576,7 @@ export default function HomeScreen() {
 
           {/* ── Main Content ── */}
           <ScrollView
-            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 20, paddingTop: isSmWeb ? 8 : 16 }]}
+            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 16, paddingTop: isSmWeb ? 8 : 16 }]}
             contentContainerStyle={{ paddingBottom: isSmWeb ? 80 : 48 }}
             showsVerticalScrollIndicator={true}
           >
@@ -914,12 +914,12 @@ const ws = StyleSheet.create({
   },
   topNavInner: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 0, paddingVertical: 14,
+    paddingHorizontal: 0, paddingVertical: 12,
     gap: 0,
   },
   topNavInnerSm: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-  brandRow:   { width: 180, flexShrink: 0, flexGrow: 0, paddingHorizontal: 12 },
-  brandText:  { fontSize: 22, fontWeight: '900', letterSpacing: 0.2 },
+  brandRow:   { width: 210, flexShrink: 0, flexGrow: 0, paddingHorizontal: 16 },
+  brandText:  { fontSize: 20, fontWeight: '900', letterSpacing: 0.2 },
   brandNanded:{ color: '#111111' },
   brandRozgar:{ color: ORANGE },
   locRow:     { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
@@ -927,12 +927,12 @@ const ws = StyleSheet.create({
 
   topSearchWrap: {
     flex: 1, flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f8f8f8', borderRadius: 10, height: 42,
+    backgroundColor: '#f8f8f8', borderRadius: 10, height: 44,
     borderWidth: 1.5, borderColor: '#e8e8e8',
-    overflow: 'hidden', marginHorizontal: 20,
+    overflow: 'hidden',
   },
-  topSearchInput: { flex: 1, height: 42, paddingHorizontal: 10, fontSize: 14, color: '#333', outlineStyle: 'none' },
-  topSearchBtn:   { height: 42, paddingHorizontal: 20, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
+  topSearchInput: { flex: 1, height: 44, paddingHorizontal: 10, fontSize: 14, color: '#333', outlineStyle: 'none' },
+  topSearchBtn:   { height: 44, paddingHorizontal: 24, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
   topSearchBtnSm:  { paddingHorizontal: 12 },
   topSearchBtnTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
@@ -958,7 +958,7 @@ const ws = StyleSheet.create({
 
   // Sidebar
   sidebar: {
-    width: 180, flexShrink: 0, flexGrow: 0, backgroundColor: '#fff',
+    width: 210, flexShrink: 0, flexGrow: 0, backgroundColor: '#fff',
     borderRightWidth: 1, borderRightColor: '#ececec',
     paddingTop: 20, paddingHorizontal: 12,
   },
