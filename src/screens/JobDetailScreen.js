@@ -143,14 +143,14 @@ export default function JobDetailScreen({ route, navigation }) {
 
   function openWhatsApp() {
     const phone = (job.phone || '').replace(/\D/g, '');
-    const msg   = encodeURIComponent(`Hi, I saw your job posting on NandedRozgar for ${job.title}. I am interested.`);
+    const msg   = encodeURIComponent(`Hi, I saw your job posting on LocalLoop for ${job.title}. I am interested.`);
     Linking.openURL(`https://wa.me/91${phone}?text=${msg}`);
   }
 
   async function shareJob() {
     try {
       await Share.share({
-        message: `Job: ${job.title}${job.company ? ` at ${job.company}` : ''}\n${job.location || 'Nanded'}${job.salary ? ` | ₹${job.salary}` : ''}\n\nApply on NandedRozgar!`,
+        message: `Job: ${job.title}${job.company ? ` at ${job.company}` : ''}\n${job.location || 'Nanded'}${job.salary ? ` | ₹${job.salary}` : ''}\n\nApply on LocalLoop!`,
       });
     } catch {}
   }
