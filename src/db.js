@@ -290,6 +290,20 @@ async function runMigrations() {
       `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30)`,
       `ALTER TABLE seeker_profiles ADD COLUMN IF NOT EXISTS resume_url TEXT`,
       `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS fresher_ok BOOLEAN DEFAULT FALSE`,
+
+      // ── business_promotions columns added in later versions ──────────────────
+      // These are NO-OPs if the column already exists, but critical for databases
+      // that were created before banner_style / accent_color were introduced.
+      // Without them the INSERT in POST /api/promotions crashes silently.
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS banner_style  VARCHAR(20) DEFAULT 'bold'`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS accent_color  VARCHAR(20)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS plan_price    INTEGER`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS plan_days     INTEGER`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS website       VARCHAR(200)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS description   TEXT`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS address       TEXT`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS tagline       VARCHAR(100)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS expires_at    TIMESTAMPTZ`,
     ];
     for (const sql of safeAlters) {
       try { await client.query(sql); } catch (e) { console.warn('Alter warn (non-fatal):', e.message); }
