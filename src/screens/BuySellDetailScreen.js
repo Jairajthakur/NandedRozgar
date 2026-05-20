@@ -52,7 +52,7 @@ export default function BuySellDetailScreen() {
   const condStyle = CONDITION_COLORS[item.condition] || CONDITION_COLORS['Used'];
 
   function openWhatsApp() {
-    const msg = `Hi, I'm interested in your "${item.title}" listed on NandedRozgar for ${item.price}.`;
+    const msg = `Hi, I'm interested in your "${item.title}" listed on LocalLoop for ${item.price}.`;
     Linking.openURL(`https://wa.me/91${item.phone || 'XXXXXXXXXX'}?text=${encodeURIComponent(msg)}`).catch(() =>
       Alert.alert('WhatsApp not installed', 'Please contact via call.')
     );
@@ -61,8 +61,8 @@ export default function BuySellDetailScreen() {
   async function shareItem() {
     try {
       await Share.share({
-        message: `${item.emoji || '📦'} ${item.title} — ${item.price}\n📍 ${item.loc}\nCondition: ${item.condition}\n\nSee it on NandedRozgar!`,
-        title: `${item.title} — NandedRozgar`,
+        message: `${item.emoji || '📦'} ${item.title} — ${item.price}\n📍 ${item.loc}\nCondition: ${item.condition}\n\nSee it on LocalLoop!`,
+        title: `${item.title} — LocalLoop`,
       });
     } catch (_) {}
   }
