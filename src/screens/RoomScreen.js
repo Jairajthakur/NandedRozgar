@@ -456,9 +456,7 @@ export default function RoomScreen({ route }) {
   // State — declared first so hooks below can safely reference them
   const [roomType,   setRoomType]   = useState('All');
   const [search,     setSearch]     = useState(route?.params?.searchQuery || '');
-  const [sortBy,     setSortBy]     = useState('recent');
   const [rentRange,  setRentRange]  = useState(RENT_RANGES[0]);
-  const [showSort,   setShowSort]   = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [rooms,      setRooms]      = useState(ROOMS);
   const [refreshing, setRefreshing] = useState(false);
@@ -467,7 +465,7 @@ export default function RoomScreen({ route }) {
   const flatListRef = useRef(null);
   useEffect(() => {
     flatListRef.current?.scrollToOffset?.({ offset: 0, animated: true });
-  }, [roomType, search, sortBy]);
+  }, [roomType, search]);
 
   // Scroll animation — drives sticky mini-header (same as Jobs/Cars/BuySell)
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -545,11 +543,9 @@ export default function RoomScreen({ route }) {
       const matchRent   = r.rentNum >= rentRange.min && r.rentNum <= rentRange.max;
       return matchType && matchSearch && matchRent;
     });
-    if (sortBy === 'rentAsc')  list = [...list].sort((a, b) => a.rentNum - b.rentNum);
-    if (sortBy === 'rentDesc') list = [...list].sort((a, b) => b.rentNum - a.rentNum);
-    if (sortBy === 'recent')   list = [...list].sort((a, b) => (a.listedDaysAgo ?? 99) - (b.listedDaysAgo ?? 99));
+    list = [...list].sort((a, b) => (a.listedDaysAgo ?? 99) - (b.listedDaysAgo ?? 99));
     return list;
-  }, [rooms, roomType, search, sortBy, rentRange]);
+  }, [rooms, roomType, search, rentRange]);
 
   const activeFiltersCount = (roomType !== 'All' ? 1 : 0) + (rentRange.label !== 'Any' ? 1 : 0);
 
@@ -559,7 +555,7 @@ export default function RoomScreen({ route }) {
       {/* Title row */}
       <View style={s.titleRow}>
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
-          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
             Rooms in <Text style={{ color: ORANGE }}>Nanded</Text>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
@@ -567,9 +563,6 @@ export default function RoomScreen({ route }) {
           </Text>
         </Animated.View>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-          <TouchableOpacity style={[s.iconBtn, IS_WEB && ws.iconBtn]} onPress={() => setShowSort(true)}>
-            <Ionicons name="swap-vertical-outline" size={18} color="#444" />
-          </TouchableOpacity>
           <TouchableOpacity
             style={[s.iconBtn, activeFiltersCount > 0 && s.iconBtnActive, IS_WEB && ws.iconBtn]}
             onPress={() => setShowFilter(true)}
@@ -649,26 +642,6 @@ export default function RoomScreen({ route }) {
   );
 
   const ListHeader = <FadeIn delay={180}><TrendingBanner /></FadeIn>;
-
-  const SortModal = (
-    <Modal visible={showSort} transparent animationType="fade" onRequestClose={() => setShowSort(false)}>
-      <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowSort(false)} />
-      <View style={[s.sheet, IS_WEB && ws.centeredModal]}>
-        <View style={s.sheetHandle} />
-        <Text style={s.sheetTitle}>Sort By</Text>
-        {SORT_OPTIONS.map(opt => (
-          <TouchableOpacity
-            key={opt.value}
-            style={[s.rangeRow, sortBy === opt.value && s.rangeActive]}
-            onPress={() => { setSortBy(opt.value); setShowSort(false); }}
-          >
-            <Text style={[s.rangeTxt, sortBy === opt.value && { color: ORANGE, fontWeight: '700' }]}>{opt.label}</Text>
-            {sortBy === opt.value && <Ionicons name="checkmark-circle" size={18} color={ORANGE} />}
-          </TouchableOpacity>
-        ))}
-      </View>
-    </Modal>
-  );
 
   const FilterModal = (
     <Modal visible={showFilter} transparent animationType="none" onRequestClose={() => setShowFilter(false)}>
@@ -851,21 +824,6 @@ export default function RoomScreen({ route }) {
           {showSidebar && (
             <View style={ws.rightSidebar}>
 
-              {/* Sort By */}
-              <SideCard>
-                <Text style={ws.sideTitle}>Sort By</Text>
-                {SORT_OPTIONS.map(opt => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[ws.sortRow, sortBy === opt.value && ws.sortRowActive]}
-                    onPress={() => setSortBy(opt.value)}
-                  >
-                    <Text style={[ws.sortTxt, sortBy === opt.value && ws.sortTxtActive]}>{opt.label}</Text>
-                    {sortBy === opt.value && <Ionicons name="checkmark-circle" size={16} color={ORANGE} />}
-                  </TouchableOpacity>
-                ))}
-              </SideCard>
-
               {/* Rent Range */}
               <SideCard>
                 <Text style={ws.sideTitle}>Rent Range</Text>
@@ -915,7 +873,7 @@ export default function RoomScreen({ route }) {
           )}
         </View>
 
-        {SortModal}{FilterModal}
+        {FilterModal}
       </View>
     );
   }
@@ -947,7 +905,7 @@ export default function RoomScreen({ route }) {
           <RoomCard item={item} index={index} onPress={() => nav.navigate('RoomDetail', { room: item })} />
         )}
       />
-      {SortModal}{FilterModal}
+      {FilterModal}
     </View>
   );
 }
@@ -1258,7 +1216,7 @@ const ws = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  pageTitle: { fontSize: 28, fontWeight: '900', color: '#111', letterSpacing: -0.5, marginBottom: 2 },
+  pageTitle: { fontSize: 24, fontWeight: '900', color: '#111', letterSpacing: -0.5, marginBottom: 2, flexShrink: 1 },
   pageCount: { fontSize: 13, color: '#999', fontWeight: '500', marginBottom: 16 },
 
   iconBtn: {
