@@ -453,6 +453,16 @@ export default function RoomScreen({ route }) {
 
   const showSidebar = IS_WEB && width >= 900;
 
+  // State — declared first so hooks below can safely reference them
+  const [roomType,   setRoomType]   = useState('All');
+  const [search,     setSearch]     = useState(route?.params?.searchQuery || '');
+  const [sortBy,     setSortBy]     = useState('recent');
+  const [rentRange,  setRentRange]  = useState(RENT_RANGES[0]);
+  const [showSort,   setShowSort]   = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
+  const [rooms,      setRooms]      = useState(ROOMS);
+  const [refreshing, setRefreshing] = useState(false);
+
   // FlatList ref — scroll to top when filters change
   const flatListRef = useRef(null);
   useEffect(() => {
@@ -486,15 +496,6 @@ export default function RoomScreen({ route }) {
     outputRange: [-56, 0],
     extrapolate: 'clamp',
   });
-
-  const [roomType,   setRoomType]   = useState('All');
-  const [search,     setSearch]     = useState(route?.params?.searchQuery || '');
-  const [sortBy,     setSortBy]     = useState('recent');
-  const [rentRange,  setRentRange]  = useState(RENT_RANGES[0]);
-  const [showSort,   setShowSort]   = useState(false);
-  const [showFilter, setShowFilter] = useState(false);
-  const [rooms,      setRooms]      = useState(ROOMS);
-  const [refreshing, setRefreshing] = useState(false);
 
   const sheetY = useRef(new Animated.Value(400)).current;
   useEffect(() => {
