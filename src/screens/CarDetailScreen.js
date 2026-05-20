@@ -102,7 +102,7 @@ function ShareButton({ onPress, delay }) {
     <Animated.View style={{ opacity: fadeAnim }}>
       <TouchableOpacity onPress={onPress} style={s.shareBtn}>
         <Ionicons name="share-social-outline" size={16} color="#555" style={{ marginRight: 6 }} />
-        <Text style={s.shareBtnTxt}>Share Vehicle</Text>
+        <Text style={s.shareBtnTxt}>{t('shareVehicle')}</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -230,7 +230,7 @@ export default function CarDetailScreen() {
             {car.available !== false && (
               <View style={s.availChip}>
                 <Ionicons name="checkmark-circle" size={12} color="#16a34a" style={{ marginRight: 3 }} />
-                <Text style={s.availChipTxt}>Available</Text>
+                <Text style={s.availChipTxt}>{t('available')}</Text>
               </View>
             )}
           </View>
@@ -238,7 +238,7 @@ export default function CarDetailScreen() {
           {/* Features */}
           {features.length > 0 && (
             <>
-              <Text style={s.sectionTitle}>FEATURES</Text>
+              <Text style={s.sectionTitle}>{t('features')}</Text>
               <View style={s.featuresGrid}>
                 {features.map((f, i) => (
                   <FeatureChip key={i} label={f} delay={i * 60} />
@@ -250,7 +250,7 @@ export default function CarDetailScreen() {
           {/* Rental Terms */}
           {rentalTerms.length > 0 && (
             <>
-              <Text style={s.sectionTitle}>RENTAL TERMS</Text>
+              <Text style={s.sectionTitle}>{t('rentalTerms')}</Text>
               <View style={s.termsBox}>
                 {rentalTerms.map((term, i) => (
                   <Text key={i} style={s.termTxt}>{term}</Text>
