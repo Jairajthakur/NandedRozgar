@@ -682,12 +682,30 @@ export default function RoomScreen({ route }) {
     return (
       <View style={ws.root}>
 
-        {/* ── Sticky top bar with back button — shown on all web widths ── */}
+        {/* Sticky top bar — title + search (mirrors Jobs page) */}
         <View style={ws.topBar}>
           <TouchableOpacity onPress={() => nav.navigate('Home')} style={ws.topBarBack} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={20} color="#111" />
           </TouchableOpacity>
-          <Text style={ws.topBarTitle}>Rooms</Text>
+          <Text style={ws.topBarTitle}>
+            Rooms in <Text style={{ color: ORANGE }}>Nanded</Text>
+          </Text>
+          <View style={ws.topBarSearch}>
+            <Ionicons name="search-outline" size={16} color="#bbb" style={{ marginLeft: 12 }} />
+            <TextInput
+              style={ws.topBarSearchInput}
+              placeholder="Search area, type, amenity..."
+              placeholderTextColor="#bbb"
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')} style={{ paddingHorizontal: 8 }}>
+                <Ionicons name="close-circle" size={16} color="#ccc" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <View style={ws.body}>
@@ -1103,6 +1121,15 @@ const ws = StyleSheet.create({
     width: 34, height: 34, borderRadius: 17,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9',
+  },
+  topBarSearch: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#f3f4f6', borderRadius: 10,
+    borderWidth: 1, borderColor: '#e8e8e8', height: 38,
+  },
+  topBarSearchInput: {
+    flex: 1, height: 38, paddingHorizontal: 10,
+    fontSize: 14, color: '#111', outlineStyle: 'none',
   },
   topBarBackTxt: { fontSize: 13, fontWeight: '700', color: '#111' },
   topBarTitle:   { fontSize: 15, fontWeight: '800', color: '#111' },
