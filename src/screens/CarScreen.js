@@ -261,9 +261,7 @@ export default function CarsScreen({ route }) {
   const [search,      setSearch]      = useState(route?.params?.searchQuery || '');
   const [vehicleType, setVehicleType] = useState('All');
   const [priceRange,  setPriceRange]  = useState(PRICE_RANGES[0]);
-  const [sortBy,      setSortBy]      = useState('recent');
   const [showFilters, setShowFilters] = useState(false);
-  const [showSort,    setShowSort]    = useState(false);
   const [cars,        setCars]        = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
@@ -343,11 +341,9 @@ export default function CarsScreen({ route }) {
         c.type?.toLowerCase().includes(search.toLowerCase());
       return matchType && matchPrice && matchSearch;
     });
-    if (sortBy === 'priceAsc')  list = [...list].sort((a, b) => a.priceNum - b.priceNum);
-    if (sortBy === 'priceDesc') list = [...list].sort((a, b) => b.priceNum - a.priceNum);
-    if (sortBy === 'recent')    list = [...list].sort((a, b) => b.postedAt - a.postedAt);
+    list = [...list].sort((a, b) => b.postedAt - a.postedAt);
     return list;
-  }, [cars, vehicleType, priceRange, sortBy, search]);
+  }, [cars, vehicleType, priceRange, search]);
 
   const activeFilters = [
     vehicleType !== 'All'      ? vehicleType      : null,
@@ -359,15 +355,12 @@ export default function CarsScreen({ route }) {
       {/* Title row */}
       <View style={s.titleRow}>
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
-          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
             Vehicles in <Text style={{ color: ORANGE }}>Nanded</Text>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>{filtered.length} listings found</Text>
         </Animated.View>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-          <TouchableOpacity style={[s.iconBtn, IS_WEB && ws.iconBtn]} onPress={() => setShowSort(true)}>
-            <Ionicons name="swap-vertical-outline" size={18} color="#444" />
-          </TouchableOpacity>
           <TouchableOpacity
             style={[s.iconBtn, activeFilters.length > 0 && s.iconBtnActive, IS_WEB && ws.iconBtn]}
             onPress={() => setShowFilters(true)}
@@ -485,26 +478,6 @@ export default function CarsScreen({ route }) {
     </View>
   );
 
-  const SortModal = (
-    <Modal visible={showSort} transparent animationType="fade" onRequestClose={() => setShowSort(false)}>
-      <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowSort(false)} />
-      <View style={[s.sheet, IS_WEB && ws.centeredModal]}>
-        <View style={s.sheetHandle} />
-        <View style={s.sheetHeader}>
-          <Text style={s.sheetTitle}>Sort By</Text>
-          <TouchableOpacity onPress={() => setShowSort(false)}><Ionicons name="close" size={22} color="#888" /></TouchableOpacity>
-        </View>
-        {SORT_OPTIONS.map(opt => (
-          <TouchableOpacity key={opt.value} style={[s.rangeRow, sortBy === opt.value && s.rangeActive]}
-            onPress={() => { setSortBy(opt.value); setShowSort(false); }}>
-            <Text style={[s.rangeTxt, sortBy === opt.value && { color: ORANGE, fontWeight: '700' }]}>{opt.label}</Text>
-            {sortBy === opt.value && <Ionicons name="checkmark-circle" size={18} color={ORANGE} />}
-          </TouchableOpacity>
-        ))}
-      </View>
-    </Modal>
-  );
-
   const FilterModal = (
     <Modal visible={showFilters} transparent animationType="fade" onRequestClose={() => setShowFilters(false)}>
       <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowFilters(false)} />
@@ -617,17 +590,6 @@ export default function CarsScreen({ route }) {
           {showSidebar && (
             <View style={ws.rightSidebar}>
               <SideCard>
-                <Text style={ws.sideTitle}>Sort By</Text>
-                {SORT_OPTIONS.map(opt => (
-                  <TouchableOpacity key={opt.value} style={[ws.sortRow, sortBy === opt.value && ws.sortRowActive]}
-                    onPress={() => setSortBy(opt.value)}>
-                    <Text style={[ws.sortTxt, sortBy === opt.value && ws.sortTxtActive]}>{opt.label}</Text>
-                    {sortBy === opt.value && <Ionicons name="checkmark-circle" size={16} color={ORANGE} />}
-                  </TouchableOpacity>
-                ))}
-              </SideCard>
-
-              <SideCard>
                 <Text style={ws.sideTitle}>Price Range</Text>
                 {PRICE_RANGES.map(pr => (
                   <TouchableOpacity key={pr.label} style={[ws.sortRow, priceRange.label === pr.label && ws.sortRowActive]}
@@ -661,7 +623,7 @@ export default function CarsScreen({ route }) {
             </View>
           )}
         </View>
-        {SortModal}{FilterModal}
+        {FilterModal}
       </View>
     );
   }
@@ -692,7 +654,7 @@ export default function CarsScreen({ route }) {
           <VehicleCard item={item} index={index} onPress={() => nav.navigate('CarDetail', { car: item })} />
         )}
       />
-      {SortModal}{FilterModal}
+      {FilterModal}
     </View>
   );
 }
@@ -949,7 +911,7 @@ const ws = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  pageTitle: { fontSize: 28, fontWeight: '900', color: '#111', letterSpacing: -0.5, marginBottom: 2 },
+  pageTitle: { fontSize: 24, fontWeight: '900', color: '#111', letterSpacing: -0.5, marginBottom: 2, flexShrink: 1 },
   pageCount: { fontSize: 13, color: '#999', fontWeight: '500', marginBottom: 16 },
 
   iconBtn: {
