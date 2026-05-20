@@ -1,3 +1,4 @@
+import { useLang } from '../utils/i18n';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator,
@@ -11,6 +12,7 @@ const ORANGE = '#f97316';
 
 export default function ProfileScreen() {
   const nav = useNavigation();
+  const { t } = useLang();
   const { user, signOut, jobs } = useAuth();
   const [stats, setStats]   = useState({ applied: 0, saved: 0 });
   const [loading, setLoading] = useState(true);
@@ -31,9 +33,9 @@ export default function ProfileScreen() {
   }, []);
 
   function confirmLogout() {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+    Alert.alert(t('signOut'), 'Are you sure you want to sign out?', [
       { text: 'Cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+      { text: t('signOut'), style: 'destructive', onPress: signOut },
     ]);
   }
 
@@ -55,7 +57,7 @@ export default function ProfileScreen() {
   const commonMenu = [
     { icon: 'share-social-outline',    label: 'Refer & Earn',        onPress: () => nav.navigate('Referral') },
     { icon: 'help-circle-outline',     label: 'Help & Support',      onPress: () => {} },
-    { icon: 'information-circle-outline', label: 'About LocalLoop', onPress: () => {} },
+    { icon: 'information-circle-outline', label: '{t('admin')}', onPress: () => {} },
   ];
 
   const menuItems = [...(isSeeker ? seekerMenu : employerMenu), ...commonMenu];
@@ -88,12 +90,12 @@ export default function ProfileScreen() {
           <View style={styles.statDivider} />
           <TouchableOpacity style={styles.statBox} onPress={() => isSeeker && nav.navigate('MyApplications')}>
             <Text style={styles.statNum}>{stats.applied}</Text>
-            <Text style={styles.statLbl}>Applied</Text>
+            <Text style={styles.statLbl}>{t('jobsApplied')}</Text>
           </TouchableOpacity>
           <View style={styles.statDivider} />
           <TouchableOpacity style={styles.statBox}>
             <Text style={styles.statNum}>{stats.saved}</Text>
-            <Text style={styles.statLbl}>Saved</Text>
+            <Text style={styles.statLbl}>{t('jobsSaved')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -118,7 +120,7 @@ export default function ProfileScreen() {
       {/* Sign Out */}
       <TouchableOpacity style={styles.signOutBtn} onPress={confirmLogout}>
         <Ionicons name="log-out-outline" size={18} color="#ef4444" />
-        <Text style={styles.signOutTxt}>Sign Out</Text>
+        <Text style={styles.signOutTxt}>{t('signOut')}</Text>
       </TouchableOpacity>
 
       <Text style={styles.version}>LocalLoop v1.2.0</Text>
