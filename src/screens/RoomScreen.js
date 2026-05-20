@@ -556,21 +556,17 @@ export default function RoomScreen({ route }) {
   /* ── Shared header ── */
   const Header = (
     <View style={IS_WEB ? ws.header : s.header}>
-      {/* Title row — animates on scroll */}
-      <Animated.View style={[s.titleRow, {
-        transform: [{ scale: titleScale }],
-        opacity: titleOpacity,
-        transformOrigin: 'left center',
-      }]}>
-        <View>
-          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
+      {/* Title row */}
+      <View style={s.titleRow}>
+        <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
+          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
             Rooms in <Text style={{ color: ORANGE }}>Nanded</Text>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
             {filtered.length} listings found
           </Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+        </Animated.View>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexShrink: 0 }}>
           <TouchableOpacity style={[s.iconBtn, IS_WEB && ws.iconBtn]} onPress={() => setShowSort(true)}>
             <Ionicons name="swap-vertical-outline" size={18} color="#444" />
           </TouchableOpacity>
@@ -586,7 +582,7 @@ export default function RoomScreen({ route }) {
             )}
           </TouchableOpacity>
         </View>
-      </Animated.View>
+      </View>
 
       {/* Search — animates on scroll */}
       <Animated.View style={[
@@ -985,7 +981,7 @@ const s = StyleSheet.create({
   },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 20,
     paddingBottom: 10,
