@@ -8,6 +8,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { Input, Btn, Spinner } from '../components/UI';
 import { C } from '../utils/constants';
+import { useLang } from '../utils/i18n';
 
 const ORANGE = '#f97316';
 
