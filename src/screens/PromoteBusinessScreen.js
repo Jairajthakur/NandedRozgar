@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 const ORANGE  = '#f97316';
 const PURPLE  = '#7c3aed';
@@ -302,6 +303,18 @@ function BannerPreviewCard({ style, form, selected, onSelect }) {
 export default function PromoteBusinessScreen() {
   const nav    = useNavigation();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+
+  // Redirect to Login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      Alert.alert(
+        'Login Required',
+        'Please log in to promote your business.',
+        [{ text: 'Log In', onPress: () => nav.navigate('Login') }]
+      );
+    }
+  }, [user]);
 
   const [form, setForm] = useState({
     bizName: '', tagline: '', phone: '', category: '', location: '',
@@ -323,6 +336,14 @@ export default function PromoteBusinessScreen() {
   };
 
   const handleSubmit = async () => {
+    if (!user) {
+      Alert.alert(
+        'Login Required',
+        'Please log in to promote your business.',
+        [{ text: 'Log In', onPress: () => nav.navigate('Login') }]
+      );
+      return;
+    }
     if (!validate()) return;
     setSubmitting(true);
     try {
