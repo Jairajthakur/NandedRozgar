@@ -42,7 +42,7 @@ import ChatScreen           from './src/screens/ChatScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
 
 const linking = {
-  prefixes: ['https://nandedrozgar-production.up.railway.app', 'http://localhost:19006', 'http://localhost:8081'],
+  prefixes: ['https://localloops-production.up.railway.app', 'http://localhost:19006', 'http://localhost:8081'],
   config: {
     screens: {
       Main: {
