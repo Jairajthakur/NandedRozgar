@@ -46,7 +46,7 @@ export async function http(method, path, body) {
       };
     }
 
-    return { ...data, ok: data.ok ?? res.ok };
+    return { ...data, ok: data.ok ?? res.ok, status: res.status };
   } catch (e) {
     console.warn('http error:', e.message);
     // Network-level failure (no internet, server unreachable)
