@@ -340,6 +340,20 @@ export default function PromoteBusinessScreen() {
       });
 
       if (!res.ok) {
+        // Handle auth / session errors specifically
+        if (
+          res.error?.toLowerCase().includes('unauthorized') ||
+          res.error?.toLowerCase().includes('invalid token') ||
+          res.error?.toLowerCase().includes('no token') ||
+          res.status === 401
+        ) {
+          Alert.alert(
+            'Session Expired',
+            'Please log in again to continue.',
+            [{ text: 'Log In', onPress: () => nav.navigate('Login') }]
+          );
+          return;
+        }
         Alert.alert('Error', res.error || 'Failed to submit. Please try again.');
         return;
       }
