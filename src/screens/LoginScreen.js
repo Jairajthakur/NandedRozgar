@@ -126,7 +126,7 @@ export default function LoginScreen() {
               {['login', 'register'].map(m => (
                 <TouchableOpacity key={m} onPress={() => switchMode(m)} style={styles.modeBtn} activeOpacity={0.8}>
                   <Text style={[styles.modeBtnText, mode === m && styles.modeBtnTextActive]}>
-                    {m === 'login' ? 'Sign In' : 'Register'}
+                    {m === 'login' ? t('signIn') : t('register')}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -156,9 +156,9 @@ export default function LoginScreen() {
             }
 
             <View style={styles.switchRow}>
-              <Text style={styles.switchText}>{mode === 'login' ? {t('dontHaveAccount') + ' '} : {t('alreadyHaveAccount') + ' '}}</Text>
+              <Text style={styles.switchText}>{mode === 'login' ? t('dontHaveAccount') : t('alreadyHaveAccount')}{' '}</Text>
               <TouchableOpacity onPress={() => switchMode(mode === 'login' ? 'register' : 'login')}>
-                <Text style={styles.switchLink}>{mode === 'login' ? 'Register Free' : 'Sign In'}</Text>
+                <Text style={styles.switchLink}>{mode === 'login' ? t('registerFree') : t('signIn')}</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
