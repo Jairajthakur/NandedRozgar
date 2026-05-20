@@ -525,24 +525,7 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-              {/* Row 2: Search bar */}
-              <View style={ws.topNavSmRow2}>
-                <View style={ws.topSearchWrap}>
-                  <Ionicons name="search" size={16} color="#aaa" style={{ marginLeft: 12 }} />
-                  <TextInput
-                    style={ws.topSearchInput}
-                    placeholder="Search jobs, rooms, cars..."
-                    placeholderTextColor="#bbb"
-                    value={searchText}
-                    onChangeText={setSearchText}
-                    onSubmitEditing={handleSearch}
-                    returnKeyType="search"
-                  />
-                  <TouchableOpacity style={ws.topSearchBtnSm} onPress={handleSearch} activeOpacity={0.9}>
-                    <Ionicons name="search" size={16} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
+              {/* Search bar moved into hero banner for small web */}
             </View>
           ) : (
             /* ── Desktop web: single row ── */
@@ -628,41 +611,67 @@ export default function HomeScreen() {
 
             {/* ── Hero Banner ── */}
             <FadeSlide delay={0} fromY={-16}>
-              <View style={[ws.heroBanner, isSmWeb && ws.heroBannerSm]}>
-                <View style={ws.heroCircle1} />
-                <View style={ws.heroCircle2} />
-                <View style={ws.heroCircle3} />
-                <View style={[ws.heroContent, isSmWeb && { flexDirection: 'column', gap: 16 }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={ws.heroTag}>🏙️ Nanded's #1 Local Platform</Text>
-                    <Text style={[ws.heroTitle, isSmWeb && ws.heroTitleSm]}>Find Jobs & Rooms in Nanded</Text>
-                    <Text style={[ws.heroSub, isSmWeb && ws.heroSubSm]}>10,000+ opportunities for everyone nearby</Text>
-                    <View style={ws.heroBadges}>
-                      <View style={[ws.heroBadge, isSmWeb && ws.heroBadgeSm]}><Text style={[ws.heroBadgeTxt, isSmWeb && ws.heroBadgeTxtSm]}>✓ Free to Post</Text></View>
-                      <View style={[ws.heroBadge, isSmWeb && ws.heroBadgeSm]}><Text style={[ws.heroBadgeTxt, isSmWeb && ws.heroBadgeTxtSm]}>✓ Local Listings</Text></View>
-                      <View style={[ws.heroBadge, isSmWeb && ws.heroBadgeSm]}><Text style={[ws.heroBadgeTxt, isSmWeb && ws.heroBadgeTxtSm]}>✓ Verified Employers</Text></View>
-                    </View>
+              {isSmWeb ? (
+                /* ── Compact hero for mobile web — title + subtitle + search inside ── */
+                <View style={ws.heroBannerCompact}>
+                  <View style={ws.heroCircle1} />
+                  <View style={ws.heroCircle2} />
+                  <Text style={ws.heroBannerCompactTitle}>Find Jobs &amp; Rooms in Nanded</Text>
+                  <Text style={ws.heroBannerCompactSub}>10,000+ opportunities for everyone nearby</Text>
+                  <View style={ws.heroBannerCompactSearch}>
+                    <Ionicons name="search" size={16} color="#aaa" style={{ marginLeft: 12 }} />
+                    <TextInput
+                      style={ws.heroBannerSearchInput}
+                      placeholder="Search jobs, rooms, cars..."
+                      placeholderTextColor="#bbb"
+                      value={searchText}
+                      onChangeText={setSearchText}
+                      onSubmitEditing={handleSearch}
+                      returnKeyType="search"
+                    />
+                    <TouchableOpacity style={ws.heroBannerSearchBtn} onPress={handleSearch} activeOpacity={0.9}>
+                      <Ionicons name="search" size={16} color="#fff" />
+                    </TouchableOpacity>
                   </View>
-                  <View style={[ws.heroStats, isSmWeb && ws.heroStatsSm]}>
-                    <View style={[ws.heroStatCard, isSmWeb && ws.heroStatItemSm]}>
-                      <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.jobs}+</Text>
-                      <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Active Jobs</Text>
+                </View>
+              ) : (
+                /* ── Full hero for desktop web ── */
+                <View style={ws.heroBanner}>
+                  <View style={ws.heroCircle1} />
+                  <View style={ws.heroCircle2} />
+                  <View style={ws.heroCircle3} />
+                  <View style={ws.heroContent}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={ws.heroTag}>🏙️ Nanded's #1 Local Platform</Text>
+                      <Text style={ws.heroTitle}>Find Jobs &amp; Rooms in Nanded</Text>
+                      <Text style={ws.heroSub}>10,000+ opportunities for everyone nearby</Text>
+                      <View style={ws.heroBadges}>
+                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Free to Post</Text></View>
+                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Local Listings</Text></View>
+                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Verified Employers</Text></View>
+                      </View>
                     </View>
-                    <View style={[ws.heroStatCard, isSmWeb && ws.heroStatItemSm]}>
-                      <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.rooms}+</Text>
-                      <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Rooms</Text>
-                    </View>
-                    <View style={[ws.heroStatCard, isSmWeb && ws.heroStatItemSm]}>
-                      <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.vehicles}+</Text>
-                      <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Vehicles</Text>
-                    </View>
-                    <View style={[ws.heroStatCard, isSmWeb && ws.heroStatItemSm]}>
-                      <Text style={[ws.heroStatNum, isSmWeb && ws.heroStatNumSm]}>{stats.items}+</Text>
-                      <Text style={[ws.heroStatLabel, isSmWeb && ws.heroStatLabelSm]}>Items</Text>
+                    <View style={ws.heroStats}>
+                      <View style={ws.heroStatCard}>
+                        <Text style={ws.heroStatNum}>{stats.jobs}+</Text>
+                        <Text style={ws.heroStatLabel}>Active Jobs</Text>
+                      </View>
+                      <View style={ws.heroStatCard}>
+                        <Text style={ws.heroStatNum}>{stats.rooms}+</Text>
+                        <Text style={ws.heroStatLabel}>Rooms</Text>
+                      </View>
+                      <View style={ws.heroStatCard}>
+                        <Text style={ws.heroStatNum}>{stats.vehicles}+</Text>
+                        <Text style={ws.heroStatLabel}>Vehicles</Text>
+                      </View>
+                      <View style={ws.heroStatCard}>
+                        <Text style={ws.heroStatNum}>{stats.items}+</Text>
+                        <Text style={ws.heroStatLabel}>Items</Text>
+                      </View>
                     </View>
                   </View>
                 </View>
-              </View>
+              )}
             </FadeSlide>
 
             {/* ── Ticker ── */}
@@ -1065,6 +1074,59 @@ const ws = StyleSheet.create({
     marginBottom: 12,
   },
   heroBannerSm: { padding: 16, borderRadius: 12 },
+
+  // Compact hero for mobile web (title + search inside orange box)
+  heroBannerCompact: {
+    backgroundColor: '#f97316',
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingTop: 22,
+    paddingBottom: 20,
+    marginBottom: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroBannerCompactTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#fff',
+    lineHeight: 28,
+    marginBottom: 6,
+  },
+  heroBannerCompactSub: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.88)',
+    marginBottom: 16,
+    fontWeight: '400',
+  },
+  heroBannerCompactSearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    height: 46,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  heroBannerSearchInput: {
+    flex: 1,
+    height: 46,
+    paddingHorizontal: 10,
+    fontSize: 14,
+    color: '#333',
+    outlineStyle: 'none',
+  },
+  heroBannerSearchBtn: {
+    width: 46,
+    height: 46,
+    backgroundColor: '#f97316',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   heroCircle1: { position: 'absolute', width: 320, height: 320, borderRadius: 160, backgroundColor: 'rgba(255,255,255,0.10)', top: -100, right: -60 },
   heroCircle2: { position: 'absolute', width: 180, height: 180, borderRadius: 90,  backgroundColor: 'rgba(255,255,255,0.07)', bottom: -60, right: 120 },
   heroCircle3: { position: 'absolute', width: 100, height: 100, borderRadius: 50,  backgroundColor: 'rgba(0,0,0,0.06)',       top: 20,    right: 260 },
