@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
+import PromoBanner from '../components/PromoBanner';
 
 const ORANGE = '#f97316';
 const TEAL   = '#0d9488';
@@ -641,7 +642,7 @@ export default function RoomScreen({ route }) {
     </View>
   );
 
-  const ListHeader = <FadeIn delay={180}><TrendingBanner /></FadeIn>;
+  const ListHeader = <><FadeIn delay={180}><TrendingBanner /></FadeIn><PromoBanner /></>;
 
   const FilterModal = (
     <Modal visible={showFilter} transparent animationType="none" onRequestClose={() => setShowFilter(false)}>
