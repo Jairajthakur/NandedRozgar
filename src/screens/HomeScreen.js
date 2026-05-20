@@ -502,8 +502,8 @@ export default function HomeScreen() {
           <View style={[ws.topNavInner, isSmWeb && ws.topNavInnerSm]}>
             {!isSmWeb && <View style={ws.brandRow}>
               <Text style={ws.brandText}>
-                <Text style={ws.brandNanded}>Nanded</Text>
-                <Text style={ws.brandRozgar}>Rozgar</Text>
+                <Text style={ws.brandNanded}>Local</Text>
+                <Text style={ws.brandRozgar}>Loop</Text>
               </Text>
               <View style={ws.locRow}>
                 <Ionicons name="location-sharp" size={12} color={ORANGE} />
@@ -765,8 +765,8 @@ export default function HomeScreen() {
         <View style={s.headerTop}>
           <View>
             <Text style={s.brandText}>
-              <Text style={s.brandNanded}>Nanded</Text>
-              <Text style={s.brandRozgar}>Rozgar</Text>
+              <Text style={s.brandNanded}>Local</Text>
+              <Text style={s.brandRozgar}>Loop</Text>
             </Text>
             <View style={s.locRow}>
               <Ionicons name="location-sharp" size={12} color={ORANGE} />
