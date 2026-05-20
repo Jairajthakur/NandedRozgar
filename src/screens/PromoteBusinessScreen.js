@@ -16,6 +16,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { http } from '../utils/api';
 
 const ORANGE  = '#f97316';
 const PURPLE  = '#7c3aed';
@@ -324,15 +325,35 @@ export default function PromoteBusinessScreen() {
   const handleSubmit = async () => {
     if (!validate()) return;
     setSubmitting(true);
-    // Simulated API call — replace with real endpoint
-    setTimeout(() => {
-      setSubmitting(false);
+    try {
+      const res = await http('POST', '/api/promotions', {
+        bizName:     form.bizName,
+        tagline:     form.tagline,
+        phone:       form.phone,
+        category:    form.category,
+        location:    form.location,
+        address:     form.address,
+        website:     form.website,
+        description: form.description,
+        plan:        selectedPlan,
+        bannerStyle: selectedBannerStyle,
+      });
+
+      if (!res.ok) {
+        Alert.alert('Error', res.error || 'Failed to submit. Please try again.');
+        return;
+      }
+
       Alert.alert(
         '🎉 Promotion Submitted!',
-        `Your business "${form.bizName}" will go live within 24 hours. Our team will call you on ${form.phone} to confirm payment.`,
+        `Your business "${form.bizName}" will go live on all listing screens within 24 hours.\n\nOur team will call you on ${form.phone} to confirm payment via UPI / cash.`,
         [{ text: 'Done', onPress: () => nav.goBack() }]
       );
-    }, 1200);
+    } catch (err) {
+      Alert.alert('Error', 'Something went wrong. Please check your connection.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const selectedPlanObj = PLANS.find(p => p.id === selectedPlan);
