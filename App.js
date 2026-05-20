@@ -194,8 +194,8 @@ function RootNavigator() {
         <MaterialIcons name="location-city" size={36} color={ORANGE} />
       </View>
       <Text style={s.splashTitle}>
-        <Text style={{ color: '#fff' }}>Nanded</Text>
-        <Text style={{ color: ORANGE }}>Rozgar</Text>
+        <Text style={{ color: '#fff' }}>Local</Text>
+        <Text style={{ color: ORANGE }}>Loop</Text>
       </Text>
       <Text style={s.splashSub}>Jobs · Cars · Rooms · Nanded</Text>
       <ActivityIndicator color={ORANGE} size="large" style={{ marginTop: 40 }} />
