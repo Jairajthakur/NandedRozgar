@@ -13,6 +13,7 @@ const ORANGE = '#f97316';
 
 export default function LoginScreen() {
   const { login, register } = useAuth();
+  const { t } = useLang();
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ email: '', password: '', name: '', phone: '' });
   const [loading, setLoading] = useState(false);
@@ -113,7 +114,7 @@ export default function LoginScreen() {
               <Text style={{ color: '#fff' }}>Local</Text>
               <Text style={{ color: ORANGE }}>Loop</Text>
             </Text>
-            <Text style={styles.logoSub}>Discover Jobs · Rooms · More</Text>
+            <Text style={styles.logoSub}>{t('findJobsRooms')}</Text>
           </Animated.View>
 
           {/* ── Form box ── */}
@@ -133,14 +134,14 @@ export default function LoginScreen() {
 
             {mode === 'register' && (
               <>
-                <Input label="Full Name *" value={form.name} onChangeText={v => set('name', v)} placeholder="Your full name" />
-                <Input label="Phone Number" value={form.phone} onChangeText={v => set('phone', v)} placeholder="9XXXXXXXXX" keyboardType="phone-pad" maxLength={10} />
+                <Input label={t('fullName')} value={form.name} onChangeText={v => set('name', v)} placeholder={t('yourFullName')} />
+                <Input label={t('phoneNumber')} value={form.phone} onChangeText={v => set('phone', v)} placeholder="9XXXXXXXXX" keyboardType="phone-pad" maxLength={10} />
               </>
             )}
 
-            <Input label="Email Address" value={form.email} onChangeText={v => set('email', v)} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
-            <Input label="Password" value={form.password} onChangeText={v => set('password', v)}
-              placeholder={mode === 'register' ? 'Create a password (min 6 chars)' : 'Your password'} secureTextEntry />
+            <Input label={t('emailAddress')} value={form.email} onChangeText={v => set('email', v)} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
+            <Input label={t('password')} value={form.password} onChangeText={v => set('password', v)}
+              placeholder={mode === 'register' ? t('createPassword') : t('yourPassword')} secureTextEntry />
 
             {error ? (
               <Animated.View style={[styles.errorBox, { transform: [{ translateX: shake }] }]}>
@@ -155,7 +156,7 @@ export default function LoginScreen() {
             }
 
             <View style={styles.switchRow}>
-              <Text style={styles.switchText}>{mode === 'login' ? "Don't have an account? " : 'Already have an account? '}</Text>
+              <Text style={styles.switchText}>{mode === 'login' ? {t('dontHaveAccount') + ' '} : {t('alreadyHaveAccount') + ' '}}</Text>
               <TouchableOpacity onPress={() => switchMode(mode === 'login' ? 'register' : 'login')}>
                 <Text style={styles.switchLink}>{mode === 'login' ? 'Register Free' : 'Sign In'}</Text>
               </TouchableOpacity>
