@@ -500,7 +500,7 @@ export default function HomeScreen() {
         {/* ── Top Nav Bar ── */}
         <View style={ws.topNav}>
           <View style={[ws.topNavInner, isSmWeb && ws.topNavInnerSm]}>
-            {!isSmWeb && <View style={ws.brandRow}>
+            {!isSmWeb && <TouchableOpacity style={ws.brandRow} onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
               <Text style={ws.brandText}>
                 <Text style={ws.brandName}>Local</Text>
                 <Text style={ws.brandLoop}>Loop</Text>
@@ -509,7 +509,7 @@ export default function HomeScreen() {
                 <Ionicons name="location-sharp" size={12} color={ORANGE} />
                 <Text style={ws.locText}>Nanded, Maharashtra</Text>
               </View>
-            </View>}
+            </TouchableOpacity>}
 
             {/* Center search */}
             <View style={ws.topSearchWrap}>
@@ -763,7 +763,7 @@ export default function HomeScreen() {
       {/* ── Sticky White Header ── */}
       <View style={[s.headerBand, { paddingTop: insets.top + 6 }]}>
         <View style={s.headerTop}>
-          <View>
+          <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
             <Text style={s.brandText}>
               <Text style={s.brandName}>Local</Text>
               <Text style={s.brandLoop}>Loop</Text>
@@ -772,7 +772,7 @@ export default function HomeScreen() {
               <Ionicons name="location-sharp" size={12} color={ORANGE} />
               <Text style={s.locText}>Nanded, Maharashtra</Text>
             </View>
-          </View>
+          </TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TouchableOpacity style={s.langToggle} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
               <Ionicons name="language" size={12} color={ORANGE} />
