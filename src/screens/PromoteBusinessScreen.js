@@ -342,10 +342,11 @@ export default function PromoteBusinessScreen() {
       if (!res.ok) {
         // Handle auth / session errors specifically
         if (
+          res.status === 401 ||
           res.error?.toLowerCase().includes('unauthorized') ||
           res.error?.toLowerCase().includes('invalid token') ||
           res.error?.toLowerCase().includes('no token') ||
-          res.status === 401
+          res.error?.toLowerCase().includes('not authenticated')
         ) {
           Alert.alert(
             'Session Expired',
