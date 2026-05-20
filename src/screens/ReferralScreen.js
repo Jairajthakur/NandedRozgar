@@ -31,7 +31,7 @@ export default function ReferralScreen() {
 
   async function shareCode() {
     await Share.share({
-      message: `Use my referral code ${code} on NandedRozgar to find jobs, rooms & more in Nanded! Download the app now.`,
+      message: `Use my referral code ${code} on LocalLoop to find jobs, rooms & more in Nanded! Download the app now.`,
     });
   }
 
