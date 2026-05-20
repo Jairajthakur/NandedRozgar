@@ -141,9 +141,7 @@ export default function BoardScreen({ route }) {
   const [search,      setSearch]      = useState(route?.params?.searchQuery || '');
   const [jobType,     setJobType]     = useState('All');
   const [salaryRange, setSalaryRange] = useState(SALARY_RANGES[0]);
-  const [sortBy,      setSortBy]      = useState('recent');
   const [showFilters, setShowFilters] = useState(false);
-  const [showSort,    setShowSort]    = useState(false);
   const [refreshing,  setRefreshing]  = useState(false);
 
   const isGiver    = role === 'user' || role === 'admin';
@@ -153,7 +151,7 @@ export default function BoardScreen({ route }) {
   const flatListRef = useRef(null);
   useEffect(() => {
     flatListRef.current?.scrollToOffset?.({ offset: 0, animated: true });
-  }, [jobType, salaryRange, search, sortBy]);
+  }, [jobType, salaryRange, search]);
 
   // ── Scroll animation ──────────────────────────────────────────────────────
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -229,15 +227,12 @@ export default function BoardScreen({ route }) {
 
       return true;
     });
-    if (sortBy === 'salary') {
-      return base.sort((a, b) => parseSalary(b.salary) - parseSalary(a.salary));
-    }
     return base.sort((a, b) =>
       ((b.featured ? 2 : 0) + (b.urgent ? 1 : 0)) -
       ((a.featured ? 2 : 0) + (a.urgent ? 1 : 0)) ||
       b.timestamp - a.timestamp
     );
-  }, [jobs, search, jobType, salaryRange, sortBy]);
+  }, [jobs, search, jobType, salaryRange]);
 
   const activeFiltersCount =
     (jobType !== 'All' ? 1 : 0) +
@@ -263,7 +258,7 @@ export default function BoardScreen({ route }) {
       {/* Title row */}
       <View style={s.titleRow}>
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
-          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
             Jobs in{' '}
             <Text style={{ color: ORANGE }}>Nanded</Text>
           </Text>
@@ -272,13 +267,6 @@ export default function BoardScreen({ route }) {
           </Text>
         </Animated.View>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-          {/* Sort button */}
-          <TouchableOpacity
-            style={[s.iconBtn, IS_WEB && ws.iconBtn]}
-            onPress={() => setShowSort(true)}
-          >
-            <Ionicons name="swap-vertical-outline" size={18} color="#444" />
-          </TouchableOpacity>
           {/* Filter button */}
           <TouchableOpacity
             style={[s.iconBtn, activeFiltersCount > 0 && s.iconBtnActive, IS_WEB && ws.iconBtn]}
@@ -374,29 +362,6 @@ export default function BoardScreen({ route }) {
     <FadeIn delay={180}>
       <HiringBanner onPress={() => {}} />
     </FadeIn>
-  );
-
-  // ── Sort Modal ─────────────────────────────────────────────────────────────
-  const SortModal = (
-    <Modal visible={showSort} transparent animationType="fade" onRequestClose={() => setShowSort(false)}>
-      <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowSort(false)} />
-      <View style={[s.sortSheet, IS_WEB && ws.centeredModal]}>
-        <View style={s.sheetHandle} />
-        <Text style={s.sheetTitle}>Sort By</Text>
-        {SORT_OPTIONS.map(opt => (
-          <TouchableOpacity
-            key={opt.value}
-            style={[s.rangeRow, sortBy === opt.value && s.rangeActive]}
-            onPress={() => { setSortBy(opt.value); setShowSort(false); }}
-          >
-            <Text style={[s.rangeTxt, sortBy === opt.value && { color: ORANGE, fontWeight: '700' }]}>
-              {opt.label}
-            </Text>
-            {sortBy === opt.value && <Ionicons name="checkmark-circle" size={18} color={ORANGE} />}
-          </TouchableOpacity>
-        ))}
-      </View>
-    </Modal>
   );
 
   // ── Filter Modal ───────────────────────────────────────────────────────────
@@ -612,23 +577,6 @@ export default function BoardScreen({ route }) {
           {showSidebar && (
             <View style={ws.rightSidebar}>
 
-              {/* Sort */}
-              <SideCard>
-                <Text style={ws.sideTitle}>Sort By</Text>
-                {SORT_OPTIONS.map(opt => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[ws.sortRow, sortBy === opt.value && ws.sortRowActive]}
-                    onPress={() => setSortBy(opt.value)}
-                  >
-                    <Text style={[ws.sortTxt, sortBy === opt.value && ws.sortTxtActive]}>
-                      {opt.label}
-                    </Text>
-                    {sortBy === opt.value && <Ionicons name="checkmark-circle" size={16} color={ORANGE} />}
-                  </TouchableOpacity>
-                ))}
-              </SideCard>
-
               {/* Salary filter */}
               <SideCard>
                 <Text style={ws.sideTitle}>Salary Range</Text>
@@ -684,7 +632,6 @@ export default function BoardScreen({ route }) {
           )}
         </View>
 
-        {SortModal}
         {FilterModal}
       </View>
     );
@@ -737,7 +684,6 @@ export default function BoardScreen({ route }) {
           />
         }
       />
-      {SortModal}
       {FilterModal}
     </View>
   );
@@ -851,11 +797,12 @@ const ws = StyleSheet.create({
   topBarTitle:   { fontSize: 15, fontWeight: '800', color: '#111' },
 
   pageTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900',
     color: '#111',
     letterSpacing: -0.5,
     marginBottom: 2,
+    flexShrink: 1,
   },
   pageCount: {
     fontSize: 13,
