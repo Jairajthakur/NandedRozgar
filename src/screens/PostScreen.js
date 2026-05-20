@@ -74,6 +74,18 @@ const CARDS = [
     cardBg: '#fdfaff',
     route: 'PostItem',
   },
+  {
+    id: 'promote',
+    title: 'Promote Business',
+    desc: 'Advertise your shop, clinic or service',
+    icon: 'megaphone-outline',
+    iconColor: '#db2777',
+    iconBg: '#fdf2f8',
+    accent: '#ec4899',
+    cardBg: '#fffafd',
+    badge: { label: '✨ NEW', bg: '#fdf2f8', border: '#fbcfe8', color: '#be185d' },
+    route: 'PromoteBusiness',
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
