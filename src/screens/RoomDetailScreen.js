@@ -99,7 +99,7 @@ export default function RoomDetailScreen({ route, navigation }) {
   function whatsapp() {
     const phone = room.phone || '';
     const msg = encodeURIComponent(
-      `Hi, I saw your room listing on NandedRozgar: ${room.title}. Is it still available?`
+      `Hi, I saw your room listing on LocalLoop: ${room.title}. Is it still available?`
     );
     if (phone) Linking.openURL(`https://wa.me/91${phone}?text=${msg}`);
   }
@@ -107,7 +107,7 @@ export default function RoomDetailScreen({ route, navigation }) {
   async function shareListing() {
     try {
       await Share.share({
-        message: `Room for Rent: ${room.title}\n${room.location} | ${room.rent}\n\nFind on NandedRozgar!`,
+        message: `Room for Rent: ${room.title}\n${room.location} | ${room.rent}\n\nFind on LocalLoop!`,
       });
     } catch {}
   }
