@@ -92,7 +92,7 @@ export default function AIScreen() {
     const cats = [...new Set(activeJobs.map(j => j.category).filter(Boolean))];
     return [
       cats[0] ? `Who's hiring for ${cats[0]} right now?` : 'What jobs are live right now?',
-      'Give me a salary report for Nanded',
+      'Give me a salary overview for local listings',
       cats[1] ? `Write a job post for ${cats[1]}` : 'Write a job description template',
       'How can I get more applicants?',
     ];
@@ -115,7 +115,7 @@ export default function AIScreen() {
     setSuggestions(buildSuggestions());
 
     const name = user?.name?.split(' ')[0] || 'there';
-    const greeting = `Hi ${name}! 👋 I'm your NandedRozgar AI assistant. There are ${activeJobs.length} active listings on the platform right now. Ask me anything — jobs, salaries, descriptions, market tips.`;
+    const greeting = `Hi ${name}! 👋 I'm your LocalLoop AI assistant. There are ${activeJobs.length} active listings on the platform right now. Ask me anything — jobs, salaries, descriptions, market tips.`;
 
     setMessages([{ id: 'greeting', role: 'assistant', content: greeting, timestamp: Date.now() }]);
 
@@ -125,7 +125,7 @@ export default function AIScreen() {
       setMessages(prev => [...prev, { id: typingId, role: 'assistant', typing: true }]);
 
       const reply = await callAI(
-        `Give me a 2-sentence snapshot of the current Nanded job market based on the active listings. Mention top categories and typical salary ranges.`
+        `Give me a 2-sentence snapshot of the current local job market based on the active listings. Mention top categories and typical salary ranges.`
       );
 
       setMessages(prev => prev
@@ -187,7 +187,7 @@ export default function AIScreen() {
           <View style={st.headerIcon}><Text style={{ fontSize: 18 }}>🤖</Text></View>
           <View>
             <Text style={st.headerTitle}>AI Assistant</Text>
-            <Text style={st.headerSub}>{activeJobs.length} active listings · Nanded</Text>
+            <Text style={st.headerSub}>{activeJobs.length} active listings</Text>
           </View>
         </View>
         <View style={st.livePill}>
@@ -222,7 +222,7 @@ export default function AIScreen() {
       <View style={st.inputBar}>
         <TextInput
           style={st.inputField}
-          placeholder="Ask anything about Nanded jobs…"
+          placeholder="Ask anything about local jobs…"
           placeholderTextColor="#bbb"
           value={input}
           onChangeText={setInput}
