@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLang } from '../utils/i18n';
 
 const ORANGE = '#f97316';
 const DARK_NAVY = '#1a2a3a';
@@ -67,6 +68,7 @@ function AmenityChip({ label, delay }) {
 export default function RoomDetailScreen({ route, navigation }) {
   const { room } = route.params;
   const insets = useSafeAreaInsets();
+  const { t } = useLang();
 
   const [saved, setSaved] = useState(false);
   const savedScale = useRef(new Animated.Value(1)).current;
