@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffe
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, RefreshControl, Modal,
-  Animated, Easing, Platform, useWindowDimensions,
+  Animated, Easing, Platform, StatusBar, useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -272,6 +272,20 @@ export default function CarsScreen({ route }) {
 
   // ── Scroll animation for sticky mini-header ──────────────────────────────
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  const titleScale = scrollY.interpolate({
+    inputRange: [0, 80], outputRange: [1, 0.88], extrapolate: 'clamp',
+  });
+  const titleOpacity = scrollY.interpolate({
+    inputRange: [0, 100], outputRange: [1, 0.6], extrapolate: 'clamp',
+  });
+  const searchTranslate = scrollY.interpolate({
+    inputRange: [0, 60], outputRange: [0, -4], extrapolate: 'clamp',
+  });
+  const searchOpacity = scrollY.interpolate({
+    inputRange: [0, 120], outputRange: [1, 0.85], extrapolate: 'clamp',
+  });
+
   const STICKY_THRESHOLD = 160;
   const stickyOpacity = scrollY.interpolate({
     inputRange: [STICKY_THRESHOLD, STICKY_THRESHOLD + 40],
@@ -341,84 +355,90 @@ export default function CarsScreen({ route }) {
   ].filter(Boolean);
 
   const Header = (
-    <FadeIn>
-      <View style={IS_WEB ? ws.header : s.header}>
-        <View style={IS_WEB ? null : s.titleRow}>
-          <View>
-            <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
-              Vehicles in <Text style={{ color: ORANGE }}>Nanded</Text>
-            </Text>
-            <Text style={IS_WEB ? ws.pageCount : s.pageCount}>{filtered.length} listings found</Text>
-          </View>
-          {!IS_WEB && (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity style={[s.iconBtn, showSort && s.iconBtnActive]} onPress={() => setShowSort(true)}>
-                <Ionicons name="swap-vertical-outline" size={16} color={showSort ? '#fff' : '#555'} />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: showSort ? '#fff' : '#555' }}>Sort</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.iconBtn, activeFilters.length > 0 && s.iconBtnActive]} onPress={() => setShowFilters(true)}>
-                <Ionicons name="options-outline" size={16} color={activeFilters.length > 0 ? '#fff' : '#555'} />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: activeFilters.length > 0 ? '#fff' : '#555' }}>Filter</Text>
-                {activeFilters.length > 0 && (
-                  <View style={s.filterBadge}><Text style={s.filterBadgeTxt}>{activeFilters.length}</Text></View>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
+    <View style={IS_WEB ? ws.header : s.header}>
+      {/* Title row — animates on scroll */}
+      <Animated.View style={[s.titleRow, {
+        transform: [{ scale: titleScale }],
+        opacity: titleOpacity,
+        transformOrigin: 'left center',
+      }]}>
+        <View>
+          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
+            Vehicles in <Text style={{ color: ORANGE }}>Nanded</Text>
+          </Text>
+          <Text style={IS_WEB ? ws.pageCount : s.pageCount}>{filtered.length} listings found</Text>
         </View>
-
-        <View style={IS_WEB ? ws.searchWrap : s.searchWrap}>
-          <Ionicons name="search-outline" size={16} color="#bbb" style={{ marginLeft: 12 }} />
-          <TextInput
-            style={IS_WEB ? ws.searchInput : s.searchInput}
-            placeholder="Search vehicle, area, type…"
-            placeholderTextColor="#bbb"
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} style={{ paddingRight: 12 }}>
-              <Ionicons name="close-circle" size={17} color="#bbb" />
-            </TouchableOpacity>
-          )}
-          {IS_WEB && (
-            <TouchableOpacity style={ws.searchFilterBtn} onPress={() => setShowFilters(true)}>
-              <Ionicons name="options-outline" size={15} color={ORANGE} />
-              <Text style={ws.filterBtnTxt}>Filter{activeFilters.length > 0 ? ` (${activeFilters.length})` : ''}</Text>
-            </TouchableOpacity>
-          )}
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <TouchableOpacity style={[s.iconBtn, IS_WEB && ws.iconBtn]} onPress={() => setShowSort(true)}>
+            <Ionicons name="swap-vertical-outline" size={18} color="#444" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.iconBtn, activeFilters.length > 0 && s.iconBtnActive, IS_WEB && ws.iconBtn]}
+            onPress={() => setShowFilters(true)}
+          >
+            <Ionicons name="options-outline" size={18} color={activeFilters.length > 0 ? '#fff' : '#444'} />
+            {activeFilters.length > 0 && (
+              <View style={s.filterBadge}><Text style={s.filterBadgeTxt}>{activeFilters.length}</Text></View>
+            )}
+          </TouchableOpacity>
         </View>
+      </Animated.View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}
-          contentContainerStyle={IS_WEB ? ws.pillsRow : s.pillsRow}>
-          {VEHICLE_TYPES.map(vt => (
-            <TouchableOpacity key={vt} onPress={() => setVehicleType(vt)}
-              style={[IS_WEB ? ws.pill : s.pill, vehicleType === vt && (IS_WEB ? ws.pillActive : s.pillActive)]}>
-              <Text style={[IS_WEB ? ws.pillTxt : s.pillTxt, vehicleType === vt && (IS_WEB ? ws.pillTxtActive : s.pillTxtActive)]}>
-                {vt}
-              </Text>
+      {/* Search — animates on scroll */}
+      <Animated.View style={[
+        s.searchWrap, IS_WEB && ws.searchWrap,
+        { transform: [{ translateY: searchTranslate }], opacity: searchOpacity },
+      ]}>
+        <Ionicons name="search-outline" size={18} color="#bbb" style={{ marginLeft: 14 }} />
+        <TextInput
+          style={[s.searchInput, IS_WEB && ws.searchInput]}
+          placeholder="Search vehicle, area, type…"
+          placeholderTextColor="#bbb"
+          value={search}
+          onChangeText={setSearch}
+          returnKeyType="search"
+        />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')} style={{ paddingHorizontal: 8 }}>
+            <Ionicons name="close-circle" size={18} color="#ccc" />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          style={[s.searchFilterBtn, IS_WEB && ws.searchFilterBtn]}
+          onPress={() => setShowFilters(true)}
+        >
+          <Ionicons name="filter-outline" size={17} color={ORANGE} />
+          {IS_WEB && <Text style={ws.filterBtnTxt}>Filters</Text>}
+        </TouchableOpacity>
+      </Animated.View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        contentContainerStyle={[s.pillsRow, IS_WEB && ws.pillsRow]}
+        style={{ maxHeight: 52 }}>
+        {VEHICLE_TYPES.map(vt => (
+          <TouchableOpacity key={vt} onPress={() => setVehicleType(vt)}
+            style={[s.pill, IS_WEB && ws.pill, vehicleType === vt && s.pillActive]}>
+            <Text style={[s.pillTxt, vehicleType === vt && s.pillTxtActive]}>{vt}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {IS_WEB && activeFilters.length > 0 && (
+        <View style={ws.activeFiltersRow}>
+          <Text style={ws.activeFiltersLabel}>Active filters:</Text>
+          {activeFilters.map((f, i) => (
+            <TouchableOpacity key={i} style={ws.activeChip}
+              onPress={() => { if (f === vehicleType) setVehicleType('All'); else setPriceRange(PRICE_RANGES[0]); }}>
+              <Text style={ws.activeChipTxt}>{f}</Text>
+              <Ionicons name="close" size={11} color={ORANGE} />
             </TouchableOpacity>
           ))}
-        </ScrollView>
-
-        {IS_WEB && activeFilters.length > 0 && (
-          <View style={ws.activeFiltersRow}>
-            <Text style={ws.activeFiltersLabel}>Filters:</Text>
-            {activeFilters.map((f, i) => (
-              <TouchableOpacity key={i} style={ws.activeChip}
-                onPress={() => { if (f === vehicleType) setVehicleType('All'); else setPriceRange(PRICE_RANGES[0]); }}>
-                <Text style={ws.activeChipTxt}>{f}</Text>
-                <Ionicons name="close" size={11} color={ORANGE} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </View>
-    </FadeIn>
+        </View>
+      )}
+    </View>
   );
 
-  const ListHeader = null;
+  const ListHeader = <FadeIn delay={180}><TopVehiclesBanner /></FadeIn>;
 
   // ── Sticky mini-header (floats above scroll) ────────────────────────────
   const StickyHeader = (
@@ -652,15 +672,20 @@ export default function CarsScreen({ route }) {
 
   /* ══════════ MOBILE LAYOUT ══════════ */
   return (
-    <View style={s.container}>
+    <View style={[s.root, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f7f7f7" />
       {StickyHeader}
       <FlatList
         data={filtered}
         keyExtractor={c => c.id}
-        stickyHeaderIndices={[0]}
         ListHeaderComponent={<>{Header}{ListHeader}</>}
         contentContainerStyle={s.list}
         ListEmptyComponent={Empty}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        horizontal={false}
+        bounces={false}
+        overScrollMode="never"
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
@@ -678,7 +703,7 @@ export default function CarsScreen({ route }) {
 
 /* ─────────────────────────── MOBILE STYLES ─────────────────────────── */
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  root: { flex: 1, backgroundColor: '#f7f7f7', overflow: 'hidden' },
 
   // Sticky mini-header (mobile)
   stickyBar: {
@@ -708,24 +733,30 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#e8e8e8', overflow: 'hidden',
   },
   stickyInput: { flex: 1, height: 36, paddingHorizontal: 8, fontSize: 13, color: '#111' },
-  list: { paddingHorizontal: 12, paddingBottom: 48 },
+  list: { paddingHorizontal: 14, paddingTop: 0, paddingBottom: 40 },
 
   header: {
-    backgroundColor: '#fff', borderRadius: 16,
-    margin: 12, marginBottom: 0, padding: 18,
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    backgroundColor: '#f7f7f7',
+    paddingHorizontal: 16,
+    paddingBottom: 6,
   },
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
   pageTitle: { fontSize: 26, fontWeight: '900', color: '#111', letterSpacing: -0.5, marginBottom: 2 },
   pageCount: { fontSize: 13, color: '#999', fontWeight: '500', marginBottom: 14 },
 
   iconBtn: {
-    height: 40, paddingHorizontal: 14, borderRadius: 10,
-    backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e8e8e8',
-    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4,
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: '#ececec',
+    alignItems: 'center', justifyContent: 'center',
+    position: 'relative',
   },
-  iconBtnActive: { backgroundColor: ORANGE, borderColor: ORANGE },
+  iconBtnActive: { backgroundColor: '#111' },
   filterBadge: {
     position: 'absolute', top: -4, right: -4,
     width: 16, height: 16, borderRadius: 8, backgroundColor: '#ef4444',
@@ -735,10 +766,19 @@ const s = StyleSheet.create({
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f8f8f8', borderRadius: 12, height: 48,
-    borderWidth: 1.5, borderColor: '#ebebeb', marginBottom: 14, overflow: 'hidden',
+    backgroundColor: '#fff', borderRadius: 16,
+    borderWidth: 1, borderColor: '#e8e8e8',
+    marginTop: 4, marginBottom: 14, height: 52,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  searchInput: { flex: 1, height: 48, paddingHorizontal: 10, fontSize: 14, color: '#111' },
+  searchInput: { flex: 1, paddingHorizontal: 10, fontSize: 14, color: '#111' },
+
+  searchFilterBtn: {
+    width: 48, height: 52,
+    alignItems: 'center', justifyContent: 'center',
+    borderLeftWidth: 1, borderLeftColor: '#ececec',
+  },
 
   pillsRow: { gap: 8, paddingBottom: 4, alignItems: 'center' },
   pill: {
@@ -750,26 +790,32 @@ const s = StyleSheet.create({
   pillTxtActive: { color: '#fff' },
 
   trendingBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#fff7f0', borderRadius: 14, padding: 14,
-    marginBottom: 10, marginTop: 10,
-    borderWidth: 1.5, borderColor: '#fed7aa',
-    position: 'relative', overflow: 'hidden',
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff9f3', borderRadius: 16,
+    borderWidth: 1, borderColor: '#fddcb5',
+    marginBottom: 12, overflow: 'hidden',
+    paddingVertical: 14, paddingRight: 14,
   },
-  trendingAccent:   { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: ORANGE, borderRadius: 2 },
+  trendingAccent: {
+    width: 5, alignSelf: 'stretch',
+    backgroundColor: ORANGE,
+    borderTopLeftRadius: 14, borderBottomLeftRadius: 14,
+    marginRight: 10,
+  },
   trendingIconWrap: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: '#fed7aa',
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: '#fff3e0',
+    alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
   trendingTitle: { fontSize: 14, fontWeight: '800', color: ORANGE },
-  trendingSub:   { fontSize: 12, color: '#c2410c', marginTop: 1, fontWeight: '500' },
+  trendingSub:   { fontSize: 11, color: '#999', marginTop: 2 },
   liveBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#fff', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10,
-    borderWidth: 1.5, borderColor: '#bbf7d0',
+    backgroundColor: '#f0fdf4', borderRadius: 20,
+    paddingVertical: 4, paddingHorizontal: 10,
+    borderWidth: 1, borderColor: '#bbf7d0',
   },
-  liveTxt: { fontSize: 11, fontWeight: '800', color: '#16a34a' },
+  liveTxt: { fontSize: 10, fontWeight: '800', color: '#16a34a' },
 
   card: {
     backgroundColor: '#fff', borderRadius: 16,
@@ -853,6 +899,7 @@ const ws = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 8,
   },
+  // placeholder — keeps index same as RoomScreen ws
   stickyInner: {
     maxWidth: 1400, width: '100%', alignSelf: 'center',
     flexDirection: 'row', alignItems: 'center',
