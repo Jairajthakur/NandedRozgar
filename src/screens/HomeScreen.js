@@ -261,9 +261,11 @@ function ExploreCard({ icon, title, subtitle, color, onPress, style, compact }) 
 }
 
 // ── Featured Job Card ──────────────────────────────────────────────────────────
-function FeaturedJobCard({ job, onPress, fullWidth }) {
+function FeaturedJobCard({ job, onPress, cardWidth }) {
+  const baseStyle = IS_WEB ? ws.featJobCard : s.featJobCard;
+  const widthStyle = cardWidth ? { width: cardWidth } : {};
   return (
-    <AnimatedPress style={[s.featJobCard, IS_WEB && ws.featJobCard, IS_WEB && fullWidth && ws.featJobCardSmWeb]} onPress={onPress}>
+    <AnimatedPress style={[baseStyle, widthStyle]} onPress={onPress}>
       <View style={s.featJobTop}>
         <View style={s.featJobIcon}>
           <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={18} color={ORANGE} />
@@ -696,22 +698,23 @@ export default function HomeScreen() {
                   style={ws.jobsScroll}
                 >
                   {displayJobs.slice(0, 6).map(job => (
-                    <View key={String(job.id)} style={ws.jobScrollCard}>
-                      <FeaturedJobCard
-                        job={job}
-                        onPress={() => nav.navigate('JobDetail', { job })}
-                      />
-                    </View>
+                    <FeaturedJobCard
+                      key={String(job.id)}
+                      job={job}
+                      cardWidth={220}
+                      onPress={() => nav.navigate('JobDetail', { job })}
+                    />
                   ))}
                 </ScrollView>
               ) : (
                 <View style={ws.featJobsGrid}>
                   {displayJobs.slice(0, 6).map(job => (
-                    <FeaturedJobCard
-                      key={String(job.id)}
-                      job={job}
-                      onPress={() => nav.navigate('JobDetail', { job })}
-                    />
+                    <View key={String(job.id)} style={ws.featJobGridItem}>
+                      <FeaturedJobCard
+                        job={job}
+                        onPress={() => nav.navigate('JobDetail', { job })}
+                      />
+                    </View>
                   ))}
                 </View>
               )}
@@ -921,12 +924,12 @@ export default function HomeScreen() {
             style={s.jobsScroll}
           >
             {displayJobs.slice(0, 6).map((job) => (
-              <View key={String(job.id)} style={s.jobScrollCard}>
-                <FeaturedJobCard
-                  job={job}
-                  onPress={() => nav.navigate('JobDetail', { job })}
-                />
-              </View>
+              <FeaturedJobCard
+                key={String(job.id)}
+                job={job}
+                cardWidth={SCREEN_W * 0.60}
+                onPress={() => nav.navigate('JobDetail', { job })}
+              />
             ))}
           </ScrollView>
         </FadeSlide>
@@ -1118,7 +1121,7 @@ const ws = StyleSheet.create({
   // Featured jobs grid — 2 col
   featJobsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
   featJobsGridSm:{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  featJobCard:  { width: '47.5%', backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  featJobCard:  { backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, overflow: 'hidden' },
   featJobCardSmWeb: { width: '47%' },
   featJobCardSm:{ width: '100%' },
 
@@ -1155,15 +1158,13 @@ const ws = StyleSheet.create({
   quickActionIcon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   quickActionLabel: { fontSize: 13, fontWeight: '600', color: '#222', flex: 1 },
 
+  featJobGridItem: { width: '47.5%' },
   // Recent Jobs horizontal scroll carousel (small web)
   jobsScroll: { marginBottom: 4 },
   jobsScrollContent: {
     paddingHorizontal: 0,
-    paddingVertical: 4,
+    paddingBottom: 8,
     gap: 10,
-  },
-  jobScrollCard: {
-    width: 200,
   },
 
   // Bottom tab nav (small web)
@@ -1251,7 +1252,7 @@ const s = StyleSheet.create({
   tickerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   tickerText: { color: '#ffffff', fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
 
-  featJobCard:    { backgroundColor: '#fff', borderRadius: 14, padding: 14, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0' },
+  featJobCard:    { backgroundColor: '#fff', borderRadius: 14, padding: 14, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0', overflow: 'hidden' },
   featJobCardGrid:{ flex: 1, width: 'auto' },
   featJobTop:     { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   featJobIcon:    { width: 38, height: 38, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
@@ -1313,11 +1314,8 @@ const s = StyleSheet.create({
   jobsScroll: { marginBottom: 4 },
   jobsScrollContent: {
     paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingBottom: 8,
     gap: 12,
-  },
-  jobScrollCard: {
-    width: SCREEN_W * 0.56,
   },
 });
 
