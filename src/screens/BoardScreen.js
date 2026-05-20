@@ -13,6 +13,7 @@ import JobCard from '../components/JobCard';
 import { Empty } from '../components/UI';
 import { CAT_ICONS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
+import PromoBanner from '../components/PromoBanner';
 
 const ORANGE = '#f97316';
 const TEAL   = '#0d9488';
@@ -359,9 +360,12 @@ export default function BoardScreen({ route }) {
 
   // ── Hiring banner (as list header) ─────────────────────────────────────────
   const ListHeader = (
-    <FadeIn delay={180}>
-      <HiringBanner onPress={() => {}} />
-    </FadeIn>
+    <>
+      <FadeIn delay={180}>
+        <HiringBanner onPress={() => {}} />
+      </FadeIn>
+      <PromoBanner />
+    </>
   );
 
   // ── Filter Modal ───────────────────────────────────────────────────────────
