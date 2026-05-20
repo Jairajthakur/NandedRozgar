@@ -840,11 +840,12 @@ export default function RoomScreen({ route }) {
   /* ── Mobile layout ── */
   return (
     <View style={s.container}>
+      {/* Sticky header always visible above the list */}
+      {Header}
       <FlatList
         data={filtered}
         keyExtractor={r => r.id}
-        stickyHeaderIndices={[0]}
-        ListHeaderComponent={<>{Header}{ListHeader}</>}
+        ListHeaderComponent={ListHeader}
         contentContainerStyle={s.list}
         ListEmptyComponent={Empty}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchRooms(true)} tintColor={ORANGE} colors={[ORANGE]} />}
