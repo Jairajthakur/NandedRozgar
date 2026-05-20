@@ -182,7 +182,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             {room.available !== false && (
               <View style={[s.chip, { borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' }]}>
                 <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
-                <Text style={[s.chipTxt, { color: '#16a34a', marginLeft: 2 }]}>Available</Text>
+                <Text style={[s.chipTxt, { color: '#16a34a', marginLeft: 2 }]}>{t('available')}</Text>
               </View>
             )}
           </View>
@@ -190,7 +190,7 @@ export default function RoomDetailScreen({ route, navigation }) {
           {/* Description */}
           {!!room.description && (
             <>
-              <Text style={s.sectionTitle}>DESCRIPTION</Text>
+              <Text style={s.sectionTitle}>{t('description')}</Text>
               <View style={s.descCard}>
                 <Text style={s.descTxt}>{room.description}</Text>
               </View>
@@ -200,7 +200,7 @@ export default function RoomDetailScreen({ route, navigation }) {
           {/* Amenities */}
           {amenities.length > 0 && (
             <>
-              <Text style={s.sectionTitle}>AMENITIES</Text>
+              <Text style={s.sectionTitle}>{t('amenities')}</Text>
               <View style={s.amenitiesWrap}>
                 {amenities.map((a, i) => (
                   <AmenityChip key={i} label={a} delay={i * 70} />
@@ -219,7 +219,7 @@ export default function RoomDetailScreen({ route, navigation }) {
               {room.owner?.verified && (
                 <View style={s.verifiedRow}>
                   <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
-                  <Text style={s.verifiedTxt}>Verified Owner</Text>
+                  <Text style={s.verifiedTxt}>{t('verifiedOwner')}</Text>
                 </View>
               )}
             </View>
@@ -246,7 +246,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             <Animated.View style={{ opacity: contentFade }}>
               <TouchableOpacity onPress={shareListing} style={s.shareBtn}>
                 <Ionicons name="share-social-outline" size={16} color="#555" style={{ marginRight: 6 }} />
-                <Text style={s.shareBtnTxt}>Share Listing</Text>
+                <Text style={s.shareBtnTxt}>{t('shareListing')}</Text>
               </TouchableOpacity>
             </Animated.View>
           </View>
