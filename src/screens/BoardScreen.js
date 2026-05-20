@@ -603,7 +603,7 @@ export default function BoardScreen({ route }) {
                 <Empty
                   icon="search"
                   title={t('noJobsFound')}
-                  sub={search || jobType !== 'All' ? '{t('noResults')}' : '{t('noJobsFound')}'}
+                  sub={search || jobType !== 'All' ? t('noResults') : t('noJobsFound')}
                   action={isGiver ? () => nav.navigate('Post') : null}
                   actionLabel={t('postAJob')}
                 />
