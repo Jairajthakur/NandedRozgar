@@ -297,7 +297,7 @@ async function runMigrations() {
     // Set ADMIN_EMAIL and ADMIN_PASSWORD in Railway — never hardcode these.
     try {
       const bcrypt = require('bcryptjs');
-      const adminEmail = process.env.ADMIN_EMAIL || 'admin@nandedrozgar.com';
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@localloop.com';
       const adminPass  = process.env.ADMIN_PASSWORD || 'ChangeMe@2025!';
       const adminHash  = await bcrypt.hash(adminPass, 10);
       await client.query(`
