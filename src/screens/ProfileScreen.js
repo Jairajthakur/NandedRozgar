@@ -57,7 +57,7 @@ export default function ProfileScreen() {
   const commonMenu = [
     { icon: 'share-social-outline',    label: 'Refer & Earn',        onPress: () => nav.navigate('Referral') },
     { icon: 'help-circle-outline',     label: 'Help & Support',      onPress: () => {} },
-    { icon: 'information-circle-outline', label: '{t('admin')}', onPress: () => {} },
+    { icon: 'information-circle-outline', label: t('admin'), onPress: () => {} },
   ];
 
   const menuItems = [...(isSeeker ? seekerMenu : employerMenu), ...commonMenu];
