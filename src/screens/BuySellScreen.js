@@ -343,9 +343,7 @@ export default function BuySellScreen({ route }) {
   const [search,      setSearch]      = useState(route?.params?.searchQuery || '');
   const [condition,   setCondition]   = useState('Any');
   const [priceRange,  setPriceRange]  = useState(PRICE_RANGES[0]);
-  const [sortBy,      setSortBy]      = useState('recent');
   const [showFilters, setShowFilters] = useState(false);
-  const [showSort,    setShowSort]    = useState(false);
   const [items,       setItems]       = useState(SAMPLE_ITEMS);
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
@@ -425,11 +423,9 @@ export default function BuySellScreen({ route }) {
       const matchPrice     = item.priceNum >= priceRange.min && item.priceNum <= priceRange.max;
       return matchCat && matchSearch && matchCondition && matchPrice;
     });
-    if (sortBy === 'priceAsc')  list = [...list].sort((a, b) => a.priceNum - b.priceNum);
-    if (sortBy === 'priceDesc') list = [...list].sort((a, b) => b.priceNum - a.priceNum);
-    if (sortBy === 'recent')    list = [...list].sort((a, b) => b.postedAt - a.postedAt);
+    list = [...list].sort((a, b) => b.postedAt - a.postedAt);
     return list;
-  }, [items, activeCat, search, condition, priceRange, sortBy]);
+  }, [items, activeCat, search, condition, priceRange]);
 
   const activeFilters = [
     activeCat !== 'All'        ? activeCat        : null,
@@ -451,20 +447,7 @@ export default function BuySellScreen({ route }) {
             </Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            {/* On mobile only — Sort and Filter buttons; on web, Sort is in the right sidebar */}
-            {!IS_WEB && (
-              <TouchableOpacity
-                style={[s.iconBtn, showSort && s.iconBtnActive]}
-                onPress={() => setShowSort(true)}
-              >
-                <Ionicons name="swap-vertical-outline" size={16} color={showSort ? '#fff' : '#555'} />
-                {activeFilters.length > 0 && (
-                  <View style={s.filterBadge}>
-                    <Text style={s.filterBadgeTxt}>{activeFilters.length}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            )}
+            {/* Filter button on mobile */}
             {!IS_WEB && (
               <TouchableOpacity
                 style={[s.iconBtn, activeFilters.length > 0 && s.iconBtnActive]}
@@ -595,28 +578,6 @@ export default function BuySellScreen({ route }) {
         </TouchableOpacity>
       )}
     </View>
-  );
-
-  const SortModal = (
-    <Modal visible={showSort} transparent animationType="fade" onRequestClose={() => setShowSort(false)}>
-      <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowSort(false)} />
-      <View style={[s.sheet, IS_WEB && ws.centeredModal]}>
-        <View style={s.sheetHandle} />
-        <View style={s.sheetHeader}>
-          <Text style={s.sheetTitle}>Sort By</Text>
-          <TouchableOpacity onPress={() => setShowSort(false)}>
-            <Ionicons name="close" size={22} color="#888" />
-          </TouchableOpacity>
-        </View>
-        {SORT_OPTIONS.map(opt => (
-          <TouchableOpacity key={opt.value} style={[s.rangeRow, sortBy === opt.value && s.rangeActive]}
-            onPress={() => { setSortBy(opt.value); setShowSort(false); }}>
-            <Text style={[s.rangeTxt, sortBy === opt.value && { color: ORANGE, fontWeight: '700' }]}>{opt.label}</Text>
-            {sortBy === opt.value && <Ionicons name="checkmark-circle" size={18} color={ORANGE} />}
-          </TouchableOpacity>
-        ))}
-      </View>
-    </Modal>
   );
 
   const FilterModal = (
@@ -753,17 +714,6 @@ export default function BuySellScreen({ route }) {
             <View style={ws.rightSidebar}>
 
               <SideCard>
-                <Text style={ws.sideTitle}>Sort By</Text>
-                {SORT_OPTIONS.map(opt => (
-                  <TouchableOpacity key={opt.value} style={[ws.sortRow, sortBy === opt.value && ws.sortRowActive]}
-                    onPress={() => setSortBy(opt.value)}>
-                    <Text style={[ws.sortTxt, sortBy === opt.value && ws.sortTxtActive]}>{opt.label}</Text>
-                    {sortBy === opt.value && <Ionicons name="checkmark-circle" size={16} color={ORANGE} />}
-                  </TouchableOpacity>
-                ))}
-              </SideCard>
-
-              <SideCard>
                 <Text style={ws.sideTitle}>Price Range</Text>
                 {PRICE_RANGES.map(pr => (
                   <TouchableOpacity key={pr.label} style={[ws.sortRow, priceRange.label === pr.label && ws.sortRowActive]}
@@ -802,7 +752,7 @@ export default function BuySellScreen({ route }) {
           )}
         </View>
 
-        {SortModal}{FilterModal}
+        {FilterModal}
       </View>
     );
   }
@@ -831,7 +781,7 @@ export default function BuySellScreen({ route }) {
         <Text style={s.sellBtnTxt}>Sell an Item</Text>
       </TouchableOpacity>
 
-      {SortModal}{FilterModal}
+      {FilterModal}
     </View>
   );
 }
@@ -1052,7 +1002,7 @@ const ws = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  pageTitle: { fontSize: 28, fontWeight: '900', color: '#111', letterSpacing: -0.5, marginBottom: 2 },
+  pageTitle: { fontSize: 24, fontWeight: '900', color: '#111', letterSpacing: -0.5, marginBottom: 2, flexShrink: 1 },
   pageCount: { fontSize: 13, color: '#999', fontWeight: '500', marginBottom: 16 },
 
   iconBtn: {
