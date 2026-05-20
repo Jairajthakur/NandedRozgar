@@ -110,10 +110,10 @@ export default function LoginScreen() {
               <MaterialIcons name="location-city" size={28} color={ORANGE} />
             </Animated.View>
             <Text style={styles.logoText}>
-              <Text style={{ color: '#fff' }}>Nanded</Text>
-              <Text style={{ color: ORANGE }}>Rozgar</Text>
+              <Text style={{ color: '#fff' }}>Local</Text>
+              <Text style={{ color: ORANGE }}>Loop</Text>
             </Text>
-            <Text style={styles.logoSub}>Local Jobs · Local Life · Nanded</Text>
+            <Text style={styles.logoSub}>Discover Jobs · Rooms · More</Text>
           </Animated.View>
 
           {/* ── Form box ── */}
