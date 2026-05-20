@@ -274,7 +274,7 @@ function FeaturedJobCard({ job, onPress, fullWidth }) {
         </View>
       </View>
       <View style={s.featJobBottom}>
-        <Text style={s.featJobSalary}>{job.salary}</Text>
+        <Text style={s.featJobSalary} numberOfLines={1}>{job.salary}</Text>
         <TouchableOpacity style={s.applyBtn} onPress={onPress} activeOpacity={0.85}>
           <Text style={s.applyBtnTxt}>Apply</Text>
         </TouchableOpacity>
@@ -688,15 +688,33 @@ export default function HomeScreen() {
                   <Ionicons name="arrow-forward" size={14} color={ORANGE} />
                 </TouchableOpacity>
               </View>
-              <View style={[ws.featJobsGrid, isSmWeb && ws.featJobsGridSm]}>
-                {displayJobs.slice(0, 6).map(job => (
-                  <FeaturedJobCard
-                    key={String(job.id)}
-                    job={job}
-                    onPress={() => nav.navigate('JobDetail', { job })}
-                  />
-                ))}
-              </View>
+              {isSmWeb ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={ws.jobsScrollContent}
+                  style={ws.jobsScroll}
+                >
+                  {displayJobs.slice(0, 6).map(job => (
+                    <View key={String(job.id)} style={ws.jobScrollCard}>
+                      <FeaturedJobCard
+                        job={job}
+                        onPress={() => nav.navigate('JobDetail', { job })}
+                      />
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : (
+                <View style={ws.featJobsGrid}>
+                  {displayJobs.slice(0, 6).map(job => (
+                    <FeaturedJobCard
+                      key={String(job.id)}
+                      job={job}
+                      onPress={() => nav.navigate('JobDetail', { job })}
+                    />
+                  ))}
+                </View>
+              )}
             </FadeSlide>
 
             {/* ── Recent Rooms ── */}
@@ -896,16 +914,21 @@ export default function HomeScreen() {
               <Text style={s.seeAllBtn}>View All →</Text>
             </TouchableOpacity>
           </View>
-          <View style={s.mobileJobsGrid}>
-            {displayJobs.slice(0, 6).map((job, idx) => (
-              <View key={String(job.id)} style={s.mobileJobsGridItem}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.jobsScrollContent}
+            style={s.jobsScroll}
+          >
+            {displayJobs.slice(0, 6).map((job) => (
+              <View key={String(job.id)} style={s.jobScrollCard}>
                 <FeaturedJobCard
                   job={job}
                   onPress={() => nav.navigate('JobDetail', { job })}
                 />
               </View>
             ))}
-          </View>
+          </ScrollView>
         </FadeSlide>
 
         {/* Recent Rooms */}
@@ -1132,6 +1155,17 @@ const ws = StyleSheet.create({
   quickActionIcon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   quickActionLabel: { fontSize: 13, fontWeight: '600', color: '#222', flex: 1 },
 
+  // Recent Jobs horizontal scroll carousel (small web)
+  jobsScroll: { marginBottom: 4 },
+  jobsScrollContent: {
+    paddingHorizontal: 0,
+    paddingVertical: 4,
+    gap: 10,
+  },
+  jobScrollCard: {
+    width: 185,
+  },
+
   // Bottom tab nav (small web)
   bottomNav: {
     flexDirection: 'row',
@@ -1273,18 +1307,17 @@ const s = StyleSheet.create({
   viewAll:    { marginHorizontal: 16, marginTop: 4, alignItems: 'center', padding: 10 },
   viewAllTxt: { fontSize: 13, color: ORANGE, fontWeight: '700' },
 
-  // Recent Jobs single-column list (mobile)
-  mobileJobsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 12,
-    gap: 10,
-    marginBottom: 4,
+  // Recent Jobs horizontal scroll carousel (mobile)
+  mobileJobsGrid: { flexDirection: 'row' },
+  mobileJobsGridItem: { width: 180 },
+  jobsScroll: { marginBottom: 4 },
+  jobsScrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    gap: 12,
   },
-  mobileJobsGridItem: {
-    width: '47%',
-    flexGrow: 1,
-    flexShrink: 1,
+  jobScrollCard: {
+    width: 180,
   },
 });
 
