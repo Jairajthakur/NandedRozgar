@@ -11,7 +11,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, StatusBar, Alert, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Animated, Easing,
+  KeyboardAvoidingView, Platform, Animated, Easing, Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -309,6 +309,7 @@ export default function PromoteBusinessScreen() {
   const [selectedPlan, setSelectedPlan] = useState('popular');
   const [selectedBannerStyle, setSelectedBannerStyle] = useState('bold');
   const [submitting, setSubmitting] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
@@ -327,6 +328,7 @@ export default function PromoteBusinessScreen() {
     // Simulated API call — replace with real endpoint
     setTimeout(() => {
       setSubmitting(false);
+      setShowPreview(false);
       Alert.alert(
         '🎉 Promotion Submitted!',
         `Your business "${form.bizName}" will go live within 24 hours. Our team will call you on ${form.phone} to confirm payment.`,
@@ -499,24 +501,18 @@ export default function PromoteBusinessScreen() {
               </Text>
             </View>
 
-            {/* ── Submit ── */}
+            {/* ── Submit → Preview First ── */}
             <TouchableOpacity
-              style={[s.submitBtn, submitting && { opacity: 0.7 }]}
-              onPress={handleSubmit}
+              style={s.submitBtn}
+              onPress={() => { if (validate()) setShowPreview(true); }}
               activeOpacity={0.85}
-              disabled={submitting}
             >
-              {submitting
-                ? <ActivityIndicator color="#fff" size="small" />
-                : (
-                  <View style={s.submitInner}>
-                    <Ionicons name="megaphone-outline" size={18} color="#fff" />
-                    <Text style={s.submitTxt}>
-                      Submit Promotion · ₹{selectedPlanObj?.price ?? '—'}
-                    </Text>
-                  </View>
-                )
-              }
+              <View style={s.submitInner}>
+                <Ionicons name="eye-outline" size={18} color="#fff" />
+                <Text style={s.submitTxt}>
+                  Preview &amp; Submit · ₹{selectedPlanObj?.price ?? '—'}
+                </Text>
+              </View>
             </TouchableOpacity>
 
             <Text style={s.tosNote}>
@@ -525,6 +521,111 @@ export default function PromoteBusinessScreen() {
 
           </View>
         </ScrollView>
+        {/* ── Preview Modal ── */}
+        <Modal
+          visible={showPreview}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setShowPreview(false)}
+        >
+          <View style={s.modalOverlay}>
+            <View style={s.modalSheet}>
+              {/* Modal Header */}
+              <View style={s.modalHeader}>
+                <Text style={s.modalTitle}>Preview Your Promotion</Text>
+                <TouchableOpacity onPress={() => setShowPreview(false)} style={s.modalClose}>
+                  <Ionicons name="close" size={20} color="#555" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingBottom: 24 }}>
+
+                {/* Banner Preview */}
+                <View style={s.modalSection}>
+                  <Text style={s.modalSectionTitle}>📌 Banner Preview</Text>
+                  <BannerPreviewCard
+                    style={BANNER_STYLES.find(b => b.id === selectedBannerStyle)}
+                    form={form}
+                    selected={false}
+                    onSelect={() => {}}
+                  />
+                </View>
+
+                {/* Business Summary */}
+                <View style={s.modalSection}>
+                  <Text style={s.modalSectionTitle}>🏪 Business Details</Text>
+                  <View style={s.previewRow}><Text style={s.previewKey}>Name</Text><Text style={s.previewVal}>{form.bizName}</Text></View>
+                  {!!form.tagline && <View style={s.previewRow}><Text style={s.previewKey}>Tagline</Text><Text style={s.previewVal}>{form.tagline}</Text></View>}
+                  <View style={s.previewRow}><Text style={s.previewKey}>Phone</Text><Text style={s.previewVal}>{form.phone}</Text></View>
+                  <View style={s.previewRow}><Text style={s.previewKey}>Category</Text><Text style={s.previewVal}>{form.category}</Text></View>
+                  <View style={s.previewRow}><Text style={s.previewKey}>Location</Text><Text style={s.previewVal}>{form.location}</Text></View>
+                  {!!form.address && <View style={s.previewRow}><Text style={s.previewKey}>Address</Text><Text style={s.previewVal}>{form.address}</Text></View>}
+                  {!!form.website && <View style={s.previewRow}><Text style={s.previewKey}>Website</Text><Text style={s.previewVal}>{form.website}</Text></View>}
+                  {!!form.description && <View style={s.previewRow}><Text style={s.previewKey}>About</Text><Text style={s.previewVal}>{form.description}</Text></View>}
+                  <View style={s.previewRow}><Text style={s.previewKey}>Style</Text><Text style={s.previewVal}>{BANNER_STYLES.find(b => b.id === selectedBannerStyle)?.label}</Text></View>
+                </View>
+
+                {/* Plan Summary */}
+                <View style={s.modalSection}>
+                  <Text style={s.modalSectionTitle}>🚀 Selected Plan</Text>
+                  {selectedPlanObj && (
+                    <View style={[s.planSummaryCard, { borderColor: selectedPlanObj.color }]}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={[s.planSummaryName, { color: selectedPlanObj.color }]}>{selectedPlanObj.name}</Text>
+                        <Text style={[s.planSummaryPrice, { color: selectedPlanObj.color }]}>₹{selectedPlanObj.price}</Text>
+                      </View>
+                      <Text style={s.planSummaryDuration}>{selectedPlanObj.days}-day campaign</Text>
+                      {selectedPlanObj.perks.map((p, i) => (
+                        <View key={i} style={s.perkRow}>
+                          <Ionicons name="checkmark-circle" size={13} color={selectedPlanObj.color} />
+                          <Text style={s.perkTxt}>{p}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Payment note */}
+                <View style={s.paymentNote}>
+                  <Ionicons name="information-circle-outline" size={16} color="#6b7280" />
+                  <Text style={s.paymentNoteTxt}>
+                    Payment via UPI / cash after our team verifies your listing. No advance needed now.
+                  </Text>
+                </View>
+
+                {/* Action buttons */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    style={s.editBtn}
+                    onPress={() => setShowPreview(false)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="pencil-outline" size={16} color={ORANGE} />
+                    <Text style={s.editBtnTxt}>Edit</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[s.submitBtn, { flex: 1, marginTop: 0 }, submitting && { opacity: 0.7 }]}
+                    onPress={handleSubmit}
+                    activeOpacity={0.85}
+                    disabled={submitting}
+                  >
+                    {submitting
+                      ? <ActivityIndicator color="#fff" size="small" />
+                      : (
+                        <View style={s.submitInner}>
+                          <Ionicons name="megaphone-outline" size={16} color="#fff" />
+                          <Text style={[s.submitTxt, { fontSize: 14 }]}>Confirm &amp; Post</Text>
+                        </View>
+                      )
+                    }
+                  </TouchableOpacity>
+                </View>
+
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </View>
     </KeyboardAvoidingView>
   );
@@ -729,4 +830,42 @@ const s = StyleSheet.create({
   submitTxt: { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
 
   tosNote: { fontSize: 10, color: '#bbb', textAlign: 'center', lineHeight: 14 },
+
+  // Preview Modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 20, maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '900', color: '#111', letterSpacing: -0.2 },
+  modalClose: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: '#f3f4f6',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  modalSection: {
+    backgroundColor: '#f9fafb', borderRadius: 14, padding: 14, gap: 8,
+    borderWidth: 1, borderColor: '#ebebeb',
+  },
+  modalSectionTitle: { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 4 },
+  previewRow: { flexDirection: 'row', gap: 8 },
+  previewKey: { fontSize: 12, color: '#888', fontWeight: '600', width: 70, flexShrink: 0 },
+  previewVal: { fontSize: 12, color: '#222', fontWeight: '500', flex: 1 },
+  planSummaryCard: {
+    borderRadius: 12, borderWidth: 1.5, padding: 12, gap: 6, backgroundColor: '#fff',
+  },
+  planSummaryName: { fontSize: 16, fontWeight: '900' },
+  planSummaryPrice: { fontSize: 20, fontWeight: '900' },
+  planSummaryDuration: { fontSize: 12, color: '#888', marginBottom: 4 },
+  editBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 18, paddingVertical: 14,
+    borderRadius: 14, borderWidth: 2, borderColor: ORANGE,
+    backgroundColor: '#fff7ed',
+  },
+  editBtnTxt: { fontSize: 14, fontWeight: '800', color: ORANGE },
 });
