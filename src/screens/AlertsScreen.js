@@ -115,7 +115,7 @@ export default function AIScreen() {
     setSuggestions(buildSuggestions());
 
     const name = user?.name?.split(' ')[0] || 'there';
-    const greeting = `Hi ${name}! 👋 I'm your NandedRozgar AI assistant. There are ${activeJobs.length} active listings on the platform right now. Ask me anything — jobs, salaries, descriptions, market tips.`;
+    const greeting = `Hi ${name}! 👋 I'm your LocalLoop AI assistant. There are ${activeJobs.length} active listings on the platform right now. Ask me anything — jobs, salaries, descriptions, market tips.`;
 
     setMessages([{ id: 'greeting', role: 'assistant', content: greeting, timestamp: Date.now() }]);
 
