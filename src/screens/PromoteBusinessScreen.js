@@ -1,832 +1,789 @@
+/**
+ * PromoteBusinessScreen.js — Business promotion / sponsored listing form
+ *
+ * ✅ Web  (sticky topBar, centred max-width, card layout)
+ * ✅ Mobile / APK  (SafeArea, KeyboardAvoidingView, step form)
+ *
+ * Place at:  src/screens/PromoteBusinessScreen.js
+ */
+
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, StatusBar, Alert, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Switch, Modal, Pressable,
+  KeyboardAvoidingView, Platform, Animated, Easing,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Toast from 'react-native-toast-message';
-import { useAuth } from '../context/AuthContext';
 import { http } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
-const ORANGE = '#f97316';
-const TOTAL_STEPS = 5;
+const ORANGE  = '#f97316';
+const PURPLE  = '#7c3aed';
+const IS_WEB  = Platform.OS === 'web';
 
-// ── Static Data ───────────────────────────────────────────────────────────────
-
-const INDUSTRIES = [
-  'Delivery & Logistics', 'Driver', 'Security', 'Construction',
-  'Domestic Help', 'TeleCaller', 'Shop Assistant', 'Data Entry',
-  'Teaching', 'Other',
+// ─── Plans ────────────────────────────────────────────────────────────────────
+const PLANS = [
+  {
+    id: 'basic',
+    name: 'Basic',
+    price: 99,
+    days: 7,
+    color: '#2563eb',
+    bg: '#eff6ff',
+    border: '#bfdbfe',
+    badge: null,
+    perks: ['Banner on 1 listing screen', 'Reach up to 2,000 users', '7-day campaign'],
+  },
+  {
+    id: 'popular',
+    name: 'Popular',
+    price: 249,
+    days: 15,
+    color: ORANGE,
+    bg: '#fff7ed',
+    border: '#fed7aa',
+    badge: '🔥 MOST POPULAR',
+    perks: ['Banner on ALL listing screens', 'Reach up to 8,000 users', '15-day campaign', 'Priority placement'],
+  },
+  {
+    id: 'premium',
+    name: 'Premium',
+    price: 499,
+    days: 30,
+    color: PURPLE,
+    bg: '#faf5ff',
+    border: '#e9d5ff',
+    badge: '⭐ BEST VALUE',
+    perks: ['Banner on ALL screens + Home', 'Reach up to 20,000 users', '30-day campaign', 'Priority + featured tag', 'WhatsApp enquiries'],
+  },
 ];
 
-const INDUSTRY_TO_CAT = {
-  'Delivery & Logistics': 'Delivery',
-  'Driver': 'Driver',
-  'Security': 'Security',
-  'Construction': 'Construction',
-  'Domestic Help': 'Domestic Help',
-  'TeleCaller': 'TeleCaller',
-  'Shop Assistant': 'Shop Assistant',
-  'Data Entry': 'Data Entry',
-  'Teaching': 'Teaching',
-  'Other': 'Other',
-};
-
-const JOB_TYPES = [
-  { id: 'Full-time',        label: 'Full-time',       sub: 'Regular fixed hours, 5–6 days/week' },
-  { id: 'Part-time',        label: 'Part-time',        sub: 'Flexible hours, fewer days' },
-  { id: 'Contract',         label: 'Contract / Temp',  sub: 'Short-term project work' },
-  { id: 'Freshers Welcome', label: 'Freshers Welcome', sub: 'No prior experience required' },
+const CATEGORIES = [
+  'Restaurant / Food', 'Retail / Shop', 'Education / Coaching',
+  'Healthcare / Clinic', 'Salon / Beauty', 'Real Estate',
+  'Transport / Logistics', 'IT / Tech Services', 'Hotel / Lodge', 'Other',
 ];
-
-const OPENINGS_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '10+'];
 
 const LOCATIONS = [
   'Nanded City', 'Vazirabad', 'Shivajinagar', 'Vishnupuri', 'Taroda Naka',
-  'Cidco', 'Gangapur', 'Naigaon', 'Ardhapur', 'Mukhed', 'Hadgaon',
-  'Bhokar', 'Kinwat', 'Deglur', 'Biloli', 'Other',
+  'Cidco', 'Gangapur', 'Naigaon', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Other',
 ];
 
-const EDUCATION_OPTIONS = [
-  { id: 'none',     label: 'No Minimum',       sub: 'Any educational background' },
-  { id: '10th',     label: '10th Pass (SSC)',   sub: '' },
-  { id: '12th',     label: '12th Pass (HSC)',   sub: '' },
-  { id: 'graduate', label: 'Graduate / Degree', sub: '' },
-  { id: 'diploma',  label: 'Diploma / ITI',     sub: '' },
-];
-
-const EXPERIENCE_OPTIONS = [
-  'Fresher (0 yr)', '6 Months', '1 Year', '2 Years', '3 Years', '5+ Years',
-];
-
-const WORKING_HOURS_OPTIONS = [
-  '9 AM – 6 PM', '10 AM – 7 PM', '8 AM – 5 PM', '6 AM – 2 PM',
-  '2 PM – 10 PM', 'Night Shift', 'Flexible',
-];
-
-const SKILLS_LIST = [
-  'Marathi', 'Hindi', 'English', 'MS Excel', 'Typing',
-  'Driving Licence', '2-Wheeler', '4-Wheeler', 'Computer Basics',
-  'Customer Service', 'Billing / POS', 'Cooking', 'First Aid',
-];
-
-const PLANS = [
-  { id: '7days',  days: '7 Days',  price: 49,  sub: 'listing duration – pay once' },
-  { id: '15days', days: '15 Days', price: 79,  sub: 'listing duration – pay once' },
-  { id: '30days', days: '30 Days', price: 119, sub: 'listing duration – pay once' },
-];
-
-// ── Reusable: Section Label ───────────────────────────────────────────────────
-
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function SectionLabel({ text, required }) {
   return (
     <Text style={s.sectionLabel}>
       {text}
-      {required ? <Text style={{ color: '#ef4444' }}> *</Text> : null}
+      {required && <Text style={{ color: '#ef4444' }}> *</Text>}
     </Text>
   );
 }
 
-// ── Reusable: Text Input ──────────────────────────────────────────────────────
-
-function StyledInput({ value, onChangeText, placeholder, keyboardType, multiline, numberOfLines, maxLength, prefix }) {
-  const height = multiline ? (numberOfLines || 5) * 24 : 50;
+function StyledInput({ value, onChangeText, placeholder, multiline, numberOfLines, maxLength, keyboardType }) {
+  const h = multiline ? (numberOfLines || 4) * 24 : 50;
   return (
-    <View style={[s.inputWrap, multiline && { height, alignItems: 'flex-start' }]}>
-      {prefix ? <Text style={s.inputPrefix}>{prefix}</Text> : null}
+    <View style={[s.inputWrap, multiline && { height: h, alignItems: 'flex-start' }]}>
       <TextInput
         style={[s.inputText, multiline && { textAlignVertical: 'top', paddingTop: 10 }]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#ccc"
-        keyboardType={keyboardType || 'default'}
         multiline={multiline}
         numberOfLines={numberOfLines}
         maxLength={maxLength}
+        keyboardType={keyboardType || 'default'}
       />
     </View>
   );
 }
 
-// ── Reusable: Dropdown ────────────────────────────────────────────────────────
-
-function Dropdown({ value, options, placeholder, onSelect }) {
-  const [open, setOpen] = useState(false);
+function PillSelect({ options, value, onSelect }) {
   return (
-    <>
-      <TouchableOpacity style={s.dropdown} onPress={() => setOpen(true)} activeOpacity={0.8}>
-        <Text style={[s.dropdownTxt, !value && { color: '#bbb' }]}>
-          {value || placeholder}
-        </Text>
-        <Ionicons name="chevron-down" size={16} color="#999" />
+    <View style={s.pillGrid}>
+      {options.map(opt => {
+        const active = value === opt;
+        return (
+          <TouchableOpacity
+            key={opt}
+            onPress={() => onSelect(opt)}
+            style={[s.pill, active && s.pillActive]}
+            activeOpacity={0.7}
+          >
+            <Text style={[s.pillTxt, active && s.pillTxtActive]}>{opt}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Plan Card ────────────────────────────────────────────────────────────────
+function PlanCard({ plan, selected, onSelect }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const onPressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 22, bounciness: 8 }).start();
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={() => onSelect(plan.id)}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={[
+          s.planCard,
+          { backgroundColor: plan.bg, borderColor: selected ? plan.color : '#e5e7eb' },
+          selected && s.planCardActive,
+        ]}
+      >
+        {plan.badge && (
+          <View style={[s.planBadge, { backgroundColor: plan.color + '18', borderColor: plan.border }]}>
+            <Text style={[s.planBadgeTxt, { color: plan.color }]}>{plan.badge}</Text>
+          </View>
+        )}
+
+        <View style={s.planRow}>
+          <View style={[s.planDot, { backgroundColor: selected ? plan.color : '#d1d5db' }]}>
+            {selected && <Ionicons name="checkmark" size={12} color="#fff" />}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.planName, { color: plan.color }]}>{plan.name}</Text>
+            <Text style={s.planDuration}>{plan.days}-day campaign</Text>
+          </View>
+          <View style={s.planPriceWrap}>
+            <Text style={[s.planPrice, { color: plan.color }]}>₹{plan.price}</Text>
+            <Text style={s.planPriceSub}>one-time</Text>
+          </View>
+        </View>
+
+        <View style={s.planPerks}>
+          {plan.perks.map((perk, i) => (
+            <View key={i} style={s.perkRow}>
+              <Ionicons name="checkmark-circle" size={14} color={plan.color} />
+              <Text style={s.perkTxt}>{perk}</Text>
+            </View>
+          ))}
+        </View>
       </TouchableOpacity>
-
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={s.overlay} onPress={() => setOpen(false)}>
-          <Pressable style={s.modalBox} onPress={() => {}}>
-            <Text style={s.modalTitle}>{placeholder}</Text>
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }}>
-              {options.map(opt => (
-                <TouchableOpacity
-                  key={opt}
-                  style={[s.modalRow, value === opt && s.modalRowActive]}
-                  onPress={() => { onSelect(opt); setOpen(false); }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[s.modalRowTxt, value === opt && { color: ORANGE, fontWeight: '700' }]}>
-                    {opt}
-                  </Text>
-                  {value === opt && <Ionicons name="checkmark" size={16} color={ORANGE} />}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </>
+    </Animated.View>
   );
 }
 
-// ── Reusable: Radio Row ───────────────────────────────────────────────────────
+// ─── Preview Banner ───────────────────────────────────────────────────────────
+// ─── Banner Style Picker ──────────────────────────────────────────────────────
+const BANNER_STYLES = [
+  { id: 'bold',   label: 'Bold Dark',      accent: '#e82828', bg: '#1a1a1a', textColor: '#fff' },
+  { id: 'clean',  label: 'Clean White',    accent: '#f97316', bg: '#f8f8f8', textColor: '#111' },
+  { id: 'vivid',  label: 'Vibrant Orange', accent: '#1a1a1a', bg: '#f97316', textColor: '#fff' },
+];
 
-function RadioRow({ label, sub, active, onPress }) {
+function BannerStylePicker({ form, selectedStyle, onSelect }) {
   return (
-    <TouchableOpacity
-      style={[s.radioRow, active && s.radioRowActive]}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <View style={[s.radioOuter, active && s.radioOuterActive]}>
-        {active && <View style={s.radioInner} />}
+    <View style={s.bannerPickerWrap}>
+      <View style={s.sectionHead}>
+        <Ionicons name="image-outline" size={17} color={ORANGE} />
+        <Text style={s.sectionTitle}>Choose Banner Style</Text>
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[s.radioLabel, active && { color: ORANGE }]}>{label}</Text>
-        {!!sub && <Text style={s.radioSub}>{sub}</Text>}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-// ── Step Header Banner ────────────────────────────────────────────────────────
-
-function StepBanner({ step, title, subtitle, onBack }) {
-  return (
-    <View style={s.banner}>
-      <View style={s.dotsRow}>
-        {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-          <View key={i} style={[s.dot, i < step && s.dotFilled]} />
+      <Text style={s.sectionSub}>Select a design for your promotion banner</Text>
+      <View style={s.bannerOptions}>
+        {BANNER_STYLES.map(style => (
+          <BannerPreviewCard
+            key={style.id}
+            style={style}
+            form={form}
+            selected={selectedStyle === style.id}
+            onSelect={() => onSelect(style.id)}
+          />
         ))}
-        <Text style={s.stepBadge}>Step {step} of {TOTAL_STEPS}</Text>
       </View>
-      <TouchableOpacity style={s.bannerBack} onPress={onBack} activeOpacity={0.8}>
-        <Ionicons name="arrow-back" size={18} color="#fff" />
-      </TouchableOpacity>
-      <Text style={s.bannerTitle}>{title}</Text>
-      <Text style={s.bannerSub}>{subtitle}</Text>
-      <View style={s.deco1} pointerEvents="none" />
-      <View style={s.deco2} pointerEvents="none" />
     </View>
   );
 }
 
-// ── Review Row ────────────────────────────────────────────────────────────────
+function BannerPreviewCard({ style, form, selected, onSelect }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 22, bounciness: 6 }).start();
 
-function ReviewRow({ label, value }) {
+  const biz   = form.bizName  || 'Your Business';
+  const offer = form.tagline  || 'Big Sale!';
+  const loc   = form.location || 'Nanded';
+
   return (
-    <View style={s.revRow}>
-      <Text style={s.revLabel}>{label}</Text>
-      <Text style={s.revValue} numberOfLines={2}>{value}</Text>
-    </View>
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={onSelect}
+        onPressIn={onIn}
+        onPressOut={onOut}
+        style={[s.bannerCardWrap, selected && { borderColor: ORANGE, borderWidth: 2.5 }]}
+      >
+        {/* ── Bold Dark ── */}
+        {style.id === 'bold' && (
+          <View style={[s.bannerCanvas, { backgroundColor: '#1a1a1a' }]}>
+            <View style={[s.bannerStripe, { backgroundColor: '#e82828' }]} />
+            <View style={s.bannerLeft}>
+              <View style={s.bannerLogoBox}>
+                <Text style={s.bannerLogoTxt}>LOGO</Text>
+              </View>
+              <Text style={[s.bannerBizBold, { color: '#fff' }]} numberOfLines={1}>{biz}</Text>
+              <Text style={[s.bannerOfferBold, { color: '#e82828' }]} numberOfLines={1}>{offer}</Text>
+              <Text style={s.bannerLocBold} numberOfLines={1}>📍 {loc}</Text>
+            </View>
+            <View style={s.bannerRight}>
+              <View style={[s.bannerOfferBox, { backgroundColor: '#e82828' }]}>
+                <Text style={s.bannerOfferBoxLabel}>SPECIAL</Text>
+                <Text style={s.bannerOfferBoxVal} numberOfLines={1}>{offer.length > 8 ? offer.slice(0,8)+'…' : offer}</Text>
+              </View>
+              <View style={[s.bannerCTA, { backgroundColor: '#fff' }]}>
+                <Text style={[s.bannerCTATxt, { color: '#e82828' }]}>CONTACT NOW</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* ── Clean White ── */}
+        {style.id === 'clean' && (
+          <View style={[s.bannerCanvas, { backgroundColor: '#f8f8f8', borderWidth: 1, borderColor: '#e0e0e0' }]}>
+            <View style={s.bannerCleanLeft}>
+              <View style={[s.bannerCleanLogo, { backgroundColor: '#111' }]}>
+                <Text style={s.bannerLogoTxt}>LOGO</Text>
+              </View>
+              <Text style={[s.bannerBizClean, { color: '#111' }]} numberOfLines={1}>{biz}</Text>
+              <View style={[s.bannerUnderline, { backgroundColor: ORANGE }]} />
+              <Text style={s.bannerLocClean} numberOfLines={1}>📍 {loc}</Text>
+            </View>
+            <View style={[s.bannerDivider, { backgroundColor: '#e5e5e5' }]} />
+            <View style={s.bannerCleanRight}>
+              <Text style={s.bannerLimitedTxt}>LIMITED OFFER</Text>
+              <Text style={[s.bannerOfferClean, { color: '#111' }]} numberOfLines={1}>{offer.length > 12 ? offer.slice(0,12)+'…' : offer}</Text>
+              <View style={[s.bannerCTA, { backgroundColor: ORANGE, marginTop: 6 }]}>
+                <Text style={[s.bannerCTATxt, { color: '#fff' }]}>SHOP NOW</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* ── Vibrant Orange ── */}
+        {style.id === 'vivid' && (
+          <View style={[s.bannerCanvas, { backgroundColor: ORANGE }]}>
+            <View style={[s.bannerVividLeft, { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10 }]}>
+              <Text style={[s.bannerBizBold, { color: '#fff' }]} numberOfLines={1}>{biz}</Text>
+              <Text style={s.bannerLocVivid} numberOfLines={1}>📍 {loc}</Text>
+              <View style={[s.bannerCTA, { backgroundColor: 'rgba(0,0,0,0.25)', marginTop: 6 }]}>
+                <Text style={[s.bannerCTATxt, { color: '#fff' }]}>GET IN TOUCH</Text>
+              </View>
+            </View>
+            <View style={s.bannerVividRight}>
+              <Text style={s.bannerMegaTxt}>MEGA OFFER</Text>
+              <Text style={[s.bannerOfferVivid, { color: '#fff' }]} numberOfLines={1}>{offer.length > 10 ? offer.slice(0,10)+'…' : offer}</Text>
+              <View style={[s.bannerCTA, { backgroundColor: '#1a1a1a', marginTop: 6 }]}>
+                <Text style={[s.bannerCTATxt, { color: ORANGE }]}>BOOK NOW</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Selected checkmark */}
+        {selected && (
+          <View style={s.bannerCheck}>
+            <Ionicons name="checkmark-circle" size={22} color={ORANGE} />
+          </View>
+        )}
+        <Text style={s.bannerStyleLabel}>{style.label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// Main Screen
-// ══════════════════════════════════════════════════════════════════════════════
-
-export default function PostJobScreen() {
-  const nav = useNavigation();
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+export default function PromoteBusinessScreen() {
+  const nav    = useNavigation();
   const insets = useSafeAreaInsets();
-  const { user, loadJobs } = useAuth();
-  const scrollRef = useRef(null);
+  const { user } = useAuth();
 
   // Redirect to Login if not authenticated
   useEffect(() => {
     if (!user) {
       Alert.alert(
         'Login Required',
-        'Please log in to post a job.',
+        'Please log in to promote your business.',
         [{ text: 'Log In', onPress: () => nav.navigate('Login') }]
       );
     }
   }, [user]);
 
-  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({
+    bizName: '', tagline: '', phone: '', category: '', location: '',
+    address: '', website: '', description: '',
+  });
+  const [selectedPlan, setSelectedPlan] = useState('popular');
+  const [selectedBannerStyle, setSelectedBannerStyle] = useState('bold');
   const [submitting, setSubmitting] = useState(false);
 
-  // Step 1
-  const [multiplePos, setMultiplePos] = useState(false);
-  const [company,     setCompany]     = useState(user?.company || '');
-  const [industry,    setIndustry]    = useState('');
-  const [title,       setTitle]       = useState('');
-  const [jobType,     setJobType]     = useState('Full-time');
-  const [openings,    setOpenings]    = useState('1');
+  const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
-  // Multiple positions list (used when multiplePos === true)
-  const [positions, setPositions] = useState([
-    { id: 1, title: '', vacancies: '1' },
-  ]);
-  const addPosition = () =>
-    setPositions(p => [...p, { id: Date.now(), title: '', vacancies: '1' }]);
-  const removePosition = id =>
-    setPositions(p => p.filter(x => x.id !== id));
-  const updatePosition = (id, key, val) =>
-    setPositions(p => p.map(x => x.id === id ? { ...x, [key]: val } : x));
-
-  const handleMultiToggle = val => {
-    setMultiplePos(val);
-    // seed with current single title if switching on
-    if (val && title.trim()) {
-      setPositions([{ id: Date.now(), title: title.trim(), vacancies: openings }]);
-    } else if (!val) {
-      // restore first position back to single fields
-      if (positions[0]) { setTitle(positions[0].title); setOpenings(positions[0].vacancies); }
-    }
+  const validate = () => {
+    if (!form.bizName.trim())  { Alert.alert('Required', 'Please enter your business name.'); return false; }
+    if (!form.phone.trim())    { Alert.alert('Required', 'Please enter a contact number.');  return false; }
+    if (!form.category)        { Alert.alert('Required', 'Please select a business category.'); return false; }
+    if (!form.location)        { Alert.alert('Required', 'Please select your location.'); return false; }
+    if (!selectedPlan)         { Alert.alert('Required', 'Please select a promotion plan.'); return false; }
+    return true;
   };
 
-  // Step 2
-  const [location,   setLocation]   = useState('Nanded City');
-  const [salaryMin,  setSalaryMin]  = useState('');
-  const [salaryMax,  setSalaryMax]  = useState('');
-  const [education,  setEducation]  = useState('10th');
-  const [experience, setExperience] = useState('Fresher (0 yr)');
-  const [workHours,  setWorkHours]  = useState('9 AM – 6 PM');
-
-  // Step 3
-  const [skills,        setSkills]        = useState([]);
-  const [description,   setDescription]   = useState('');
-  const [requirements,  setRequirements]  = useState('');
-  const [whatsapp,      setWhatsapp]      = useState(user?.phone || '');
-  const [email,         setEmail]         = useState('');
-
-  // Step 4
-  const [plan, setPlan] = useState('15days');
-
-  function toggleSkill(skill) {
-    setSkills(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]);
-  }
-
-  function scrollTop() {
-    setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 50);
-  }
-
-  function goNext() {
-    if (step === 1) {
-      if (!company.trim()) return Alert.alert('Required', 'Please enter company / employer name.');
-      if (!industry)        return Alert.alert('Required', 'Please select an industry / category.');
-      if (multiplePos) {
-        const empty = positions.find(p => !p.title.trim());
-        if (empty) return Alert.alert('Required', 'Please enter a job title for every position.');
-      } else {
-        if (!title.trim()) return Alert.alert('Required', 'Please enter a job title.');
-      }
+  const handleSubmit = async () => {
+    if (!user) {
+      Alert.alert(
+        'Login Required',
+        'Please log in to promote your business.',
+        [{ text: 'Log In', onPress: () => nav.navigate('Login') }]
+      );
+      return;
     }
-    if (step === 3) {
-      if (!description.trim()) return Alert.alert('Required', 'Please add a job description.');
-      if (!whatsapp.trim())    return Alert.alert('Required', 'Please enter a WhatsApp number.');
-    }
-    setStep(s => s + 1);
-    scrollTop();
-  }
-
-  function goBack() {
-    if (step > 1) { setStep(s => s - 1); scrollTop(); }
-    else nav.goBack();
-  }
-
-  async function handleSubmit() {
+    if (!validate()) return;
     setSubmitting(true);
     try {
-      const selectedPlan = PLANS.find(p => p.id === plan);
-      const salaryStr = salaryMin
-        ? salaryMax ? `₹${salaryMin}–₹${salaryMax}/mo` : `₹${salaryMin}/mo`
-        : '';
+      const res = await http('POST', '/api/promotions', {
+        bizName:     form.bizName,
+        tagline:     form.tagline,
+        phone:       form.phone,
+        category:    form.category,
+        location:    form.location,
+        address:     form.address,
+        website:     form.website,
+        description: form.description,
+        plan:        selectedPlan,
+        bannerStyle: selectedBannerStyle,
+      });
 
-      const basePayload = {
-        company:     company.trim(),
-        category:    INDUSTRY_TO_CAT[industry] || 'Other',
-        type:        jobType,
-        location,
-        salary:      salaryStr,
-        phone:       whatsapp.trim(),
-        whatsapp:    whatsapp.trim(),
-        email:       email.trim(),
-        description: description.trim(),
-        skills:      skills.join(', '),
-        requirements: requirements.trim(),
-        experience,
-        education:   EDUCATION_OPTIONS.find(e => e.id === education)?.label || '',
-        hours:       workHours,
-        featured:    false,
-        urgent:      false,
-        planDays:    selectedPlan ? parseInt(selectedPlan.days) : 15,
-        planLabel:   selectedPlan?.days || '15 Days',
-        planPrice:   selectedPlan?.price || 79,
-      };
-
-      const jobs = multiplePos
-        ? positions.map(p => ({ title: p.title.trim(), openings: p.vacancies }))
-        : [{ title: title.trim(), openings }];
-
-      let allOk = true;
-      for (const job of jobs) {
-        const res = await http('POST', '/api/jobs', { ...basePayload, title: job.title, openings: job.openings });
-        if (!res?.ok) {
-          allOk = false;
-          if (res?.status === 401 || res?.error?.toLowerCase().includes('not authenticated') || res?.error?.toLowerCase().includes('invalid token')) {
-            Alert.alert('Session Expired', 'Please log in again to post a job.', [{ text: 'Log In', onPress: () => nav.navigate('Login') }]);
-          } else {
-            Alert.alert('Error', res?.error || 'Failed to post job. Please try again.');
-          }
-          break;
+      if (!res.ok) {
+        // Handle auth / session errors specifically
+        if (
+          res.status === 401 ||
+          res.error?.toLowerCase().includes('unauthorized') ||
+          res.error?.toLowerCase().includes('invalid token') ||
+          res.error?.toLowerCase().includes('no token') ||
+          res.error?.toLowerCase().includes('not authenticated')
+        ) {
+          Alert.alert(
+            'Session Expired',
+            'Please log in again to continue.',
+            [{ text: 'Log In', onPress: () => nav.navigate('Login') }]
+          );
+          return;
         }
+        Alert.alert('Error', res.error || 'Failed to submit. Please try again.');
+        return;
       }
 
-      if (allOk) {
-        await loadJobs?.();
-        const count = jobs.length;
-        Toast.show({ type: 'success', text1: count > 1 ? `✅ ${count} jobs posted!` : '✅ Job posted!', text2: 'Your listing is now live.' });
-        nav.goBack();
-      }
-    } catch {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      Alert.alert(
+        '🎉 Promotion Submitted!',
+        `Your business "${form.bizName}" will go live on all listing screens within 24 hours.\n\nOur team will call you on ${form.phone} to confirm payment via UPI / cash.`,
+        [{ text: 'Done', onPress: () => nav.goBack() }]
+      );
+    } catch (err) {
+      Alert.alert('Error', 'Something went wrong. Please check your connection.');
     } finally {
       setSubmitting(false);
     }
-  }
+  };
 
-  const eduLabel = EDUCATION_OPTIONS.find(e => e.id === education)?.label || '';
-  const selPlan  = PLANS.find(p => p.id === plan);
-
-  // ── Render ──────────────────────────────────────────────────────────────────
+  const selectedPlanObj = PLANS.find(p => p.id === selectedPlan);
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#f2f2f2' }}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" backgroundColor={ORANGE} />
-      <View style={{ height: insets.top, backgroundColor: ORANGE }} />
+      <View style={[s.root, { paddingTop: IS_WEB ? 0 : insets.top }]}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 50 }}
-      >
-
-        {/* ══════════ STEP 1 – JOB BASICS ══════════ */}
-        {step === 1 && <>
-          <StepBanner step={1} title="Job Basics" subtitle="Tell us about the position(s)" onBack={goBack} />
-          <View style={s.card}>
-            {/* Multiple positions toggle */}
-            <View style={s.toggleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.toggleLabel}>Post Multiple Positions?</Text>
-                <Text style={s.toggleHint}>Hire for different roles in one go</Text>
-              </View>
-              <Switch
-                value={multiplePos}
-                onValueChange={handleMultiToggle}
-                trackColor={{ false: '#e0e0e0', true: '#fed7aa' }}
-                thumbColor={multiplePos ? ORANGE : '#ddd'}
-              />
-            </View>
-            <View style={s.divider} />
-
-            <SectionLabel text="COMPANY / EMPLOYER NAME" required />
-            <StyledInput value={company} onChangeText={setCompany} placeholder="e.g. Dhanraj Enterprises" maxLength={100} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="INDUSTRY / CATEGORY" required />
-            <Dropdown value={industry} options={INDUSTRIES} placeholder="Select Category" onSelect={setIndustry} />
-
-            {/* ── Single position ── */}
-            {!multiplePos && <>
-              <View style={{ height: 18 }} />
-              <SectionLabel text="JOB TITLE" required />
-              <StyledInput value={title} onChangeText={setTitle} placeholder="e.g. Delivery Executive, Telecaller" maxLength={100} />
-
-              <View style={{ height: 18 }} />
-              <SectionLabel text="NUMBER OF OPENINGS" />
-              <Dropdown value={openings} options={OPENINGS_OPTIONS} placeholder="Select openings" onSelect={setOpenings} />
-            </>}
-
-            {/* ── Multiple positions ── */}
-            {multiplePos && <>
-              <View style={{ height: 18 }} />
-              <SectionLabel text="POSITIONS (JOB TITLE + VACANCIES)" required />
-              {positions.map((pos, idx) => (
-                <View key={pos.id} style={s.posCard}>
-                  <View style={s.posHeader}>
-                    <Text style={s.posIndex}>Position {idx + 1}</Text>
-                    {positions.length > 1 && (
-                      <TouchableOpacity onPress={() => removePosition(pos.id)} style={s.posRemove}>
-                        <Ionicons name="close-circle" size={20} color="#f87171" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <StyledInput
-                    value={pos.title}
-                    onChangeText={v => updatePosition(pos.id, 'title', v)}
-                    placeholder="e.g. Delivery Executive, Telecaller"
-                    maxLength={100}
-                  />
-                  <View style={{ height: 10 }} />
-                  <Text style={s.posVacLbl}>VACANCIES</Text>
-                  <View style={s.posVacRow}>
-                    {OPENINGS_OPTIONS.map(n => (
-                      <TouchableOpacity
-                        key={n}
-                        style={[s.posVacBtn, pos.vacancies === n && s.posVacBtnOn]}
-                        onPress={() => updatePosition(pos.id, 'vacancies', n)}>
-                        <Text style={[s.posVacTxt, pos.vacancies === n && s.posVacTxtOn]}>{n}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              ))}
-              <TouchableOpacity style={s.addPosBtn} onPress={addPosition}>
-                <Ionicons name="add-circle-outline" size={20} color={ORANGE} />
-                <Text style={s.addPosTxt}>Add Another Position</Text>
-              </TouchableOpacity>
-            </>}
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="JOB TYPE" />
-            {JOB_TYPES.map(jt => (
-              <RadioRow key={jt.id} label={jt.label} sub={jt.sub} active={jobType === jt.id} onPress={() => setJobType(jt.id)} />
-            ))}
-          </View>
-        </>}
-
-        {/* ══════════ STEP 2 – LOCATION & PAY ══════════ */}
-        {step === 2 && <>
-          <StepBanner step={2} title="Location & Pay" subtitle="Set location, salary & requirements" onBack={goBack} />
-          <View style={s.card}>
-            <SectionLabel text="WORK LOCATION" required />
-            <Dropdown value={location} options={LOCATIONS} placeholder="Select location" onSelect={setLocation} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="MINIMUM MONTHLY SALARY (₹)" />
-            <StyledInput value={salaryMin} onChangeText={setSalaryMin} placeholder="e.g. 10000" keyboardType="number-pad" prefix="₹" maxLength={8} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="MAXIMUM MONTHLY SALARY (₹)" />
-            <StyledInput value={salaryMax} onChangeText={setSalaryMax} placeholder="e.g. 15000" keyboardType="number-pad" prefix="₹" maxLength={8} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="EDUCATION REQUIRED" />
-            {EDUCATION_OPTIONS.map(opt => (
-              <RadioRow key={opt.id} label={opt.label} sub={opt.sub} active={education === opt.id} onPress={() => setEducation(opt.id)} />
-            ))}
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="EXPERIENCE REQUIRED" />
-            <Dropdown value={experience} options={EXPERIENCE_OPTIONS} placeholder="Select experience" onSelect={setExperience} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="WORKING HOURS" />
-            <Dropdown value={workHours} options={WORKING_HOURS_OPTIONS} placeholder="Select hours" onSelect={setWorkHours} />
-          </View>
-        </>}
-
-        {/* ══════════ STEP 3 – SKILLS & INFO ══════════ */}
-        {step === 3 && <>
-          <StepBanner step={3} title="Skills & Info" subtitle="Add required skills and contact" onBack={goBack} />
-          <View style={s.card}>
-            <SectionLabel text="SKILLS REQUIRED" />
-            <View style={s.chipsWrap}>
-              {SKILLS_LIST.map(skill => {
-                const on = skills.includes(skill);
-                return (
-                  <TouchableOpacity key={skill} style={[s.chip, on && s.chipOn]} onPress={() => toggleSkill(skill)} activeOpacity={0.8}>
-                    <Text style={[s.chipTxt, on && s.chipTxtOn]}>{skill}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <View style={{ height: 20 }} />
-            <SectionLabel text="JOB DESCRIPTION" required />
-            <StyledInput value={description} onChangeText={setDescription} placeholder="Describe responsibilities, daily tasks, shift timings, perks, any other requirements..." multiline numberOfLines={5} maxLength={1000} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="REQUIREMENTS (one per line, optional)" />
-            <StyledInput value={requirements} onChangeText={setRequirements} placeholder={"e.g.\nMinimum 10th pass or above\nGood communication skills\nSmartphone required"} multiline numberOfLines={4} maxLength={800} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="WHATSAPP NUMBER" required />
-            <StyledInput value={whatsapp} onChangeText={setWhatsapp} placeholder="+91 98765 43210" keyboardType="phone-pad" maxLength={15} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="EMAIL ADDRESS (OPTIONAL)" />
-            <StyledInput value={email} onChangeText={setEmail} placeholder="yourname@email.com" keyboardType="email-address" maxLength={100} />
-          </View>
-        </>}
-
-        {/* ══════════ STEP 4 – CHOOSE PLAN ══════════ */}
-        {step === 4 && <>
-          <StepBanner step={4} title="Choose Plan" subtitle="How long should your listing stay live?" onBack={goBack} />
-          <View style={s.card}>
-            <Text style={s.planQ}>How long should your listing stay live?</Text>
-            <Text style={s.planHint}>Your listing is automatically removed after the selected period.</Text>
-
-            {PLANS.map(p => (
-              <TouchableOpacity key={p.id} style={[s.planCard, plan === p.id && s.planCardOn]} onPress={() => setPlan(p.id)} activeOpacity={0.85}>
-                <View style={s.planLeft}>
-                  <Ionicons name="calendar-outline" size={22} color={plan === p.id ? ORANGE : '#aaa'} />
-                  <View style={{ marginLeft: 12 }}>
-                    <Text style={[s.planDays, plan === p.id && { color: ORANGE }]}>{p.days}</Text>
-                    <Text style={s.planSub}>{p.sub}</Text>
-                  </View>
-                </View>
-                <View style={s.planRight}>
-                  <Text style={[s.planPrice, plan === p.id && { color: ORANGE }]}>₹{p.price}</Text>
-                  <View style={[s.planRadio, plan === p.id && s.planRadioOn]}>
-                    {plan === p.id && <View style={s.planDot} />}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-
-            {/* Feature strip */}
-            <View style={s.featureStrip}>
-              {[
-                { icon: 'flash-outline',            label: 'INSTANT\nACTIVATION' },
-                { icon: 'shield-checkmark-outline',  label: 'SECURE UPI\n/ CARD' },
-                { icon: 'refresh-outline',           label: 'RENEWABLE\nANYTIME' },
-              ].map((f, i) => (
-                <React.Fragment key={f.label}>
-                  {i > 0 && <View style={s.featureSep} />}
-                  <View style={s.featureItem}>
-                    <Ionicons name={f.icon} size={20} color={ORANGE} />
-                    <Text style={s.featureTxt}>{f.label}</Text>
-                  </View>
-                </React.Fragment>
-              ))}
-            </View>
-          </View>
-        </>}
-
-        {/* ══════════ STEP 5 – REVIEW & POST ══════════ */}
-        {step === 5 && <>
-          <StepBanner step={5} title="Review & Post" subtitle="Confirm your listing before going live" onBack={goBack} />
-          <View style={s.card}>
-            <Text style={s.revHead}>Review your job listing before going live:</Text>
-
-            <View style={s.revGroup}>
-              <ReviewRow label="COMPANY"  value={company  || 'Not set'} />
-              <ReviewRow label="CATEGORY" value={industry || 'Not set'} />
-              <ReviewRow label="TYPE"     value={jobType} />
-              {multiplePos
-                ? positions.map((p, i) => (
-                    <ReviewRow key={p.id} label={`POSITION ${i+1}`} value={`${p.title || 'Untitled'} — ${p.vacancies} opening${p.vacancies === '1' ? '' : 's'}`} />
-                  ))
-                : <>
-                    <ReviewRow label="TITLE"    value={title    || 'Not set'} />
-                    <ReviewRow label="OPENINGS" value={openings} />
-                  </>
-              }
-            </View>
-
-            <View style={[s.revGroup, { marginTop: 12 }]}>
-              <ReviewRow label="LOCATION"   value={location} />
-              <ReviewRow label="SALARY"     value={salaryMin ? `₹${salaryMin}${salaryMax ? `–₹${salaryMax}` : ''}/mo` : 'Not specified'} />
-              <ReviewRow label="EXPERIENCE" value={experience} />
-              <ReviewRow label="EDUCATION"  value={eduLabel} />
-              <ReviewRow label="HOURS"      value={workHours} />
-            </View>
-
-            <View style={[s.revGroup, { marginTop: 12 }]}>
-              <ReviewRow label="SKILLS"    value={skills.length ? skills.join(', ') : 'None'} />
-              <ReviewRow label="WHATSAPP"  value={whatsapp || 'Not set'} />
-              {!!email && <ReviewRow label="EMAIL" value={email} />}
-            </View>
-
-            {!!description && (
-              <View style={[s.revGroup, { marginTop: 12 }]}>
-                <Text style={[s.revLabel, { padding: 14, paddingBottom: 4 }]}>DESCRIPTION</Text>
-                <Text style={s.revDesc}>{description}</Text>
-              </View>
-            )}
-
-            <View style={s.planSummaryBox}>
-              <Ionicons name="calendar-outline" size={18} color={ORANGE} />
-              <Text style={s.planSummaryTxt}>
-                {selPlan?.days} plan — ₹{selPlan?.price}
-              </Text>
-            </View>
-          </View>
-        </>}
-
-        {/* ══════════ BOTTOM BUTTONS ══════════ */}
-        <View style={s.btnRow}>
-          {step > 1 && (
-            <TouchableOpacity style={s.backBtn} onPress={goBack} activeOpacity={0.8}>
-              <Text style={s.backBtnTxt}>Back</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={[s.continueBtn, step === 1 && { flex: 1 }, submitting && { opacity: 0.7 }]}
-            onPress={step === TOTAL_STEPS ? handleSubmit : goNext}
-            activeOpacity={0.85}
-            disabled={submitting}
-          >
-            {submitting
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={s.continueTxt}>{step === TOTAL_STEPS ? 'Post Job' : 'Continue'}</Text>
-            }
+        {/* Top bar */}
+        <View style={s.topBar}>
+          <TouchableOpacity onPress={() => nav.goBack()} style={s.backBtn} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={20} color="#111" />
           </TouchableOpacity>
+          <Text style={s.topBarTitle}>Promote Business</Text>
+          <View style={s.backBtn} />
         </View>
 
-      </ScrollView>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          overScrollMode="never"
+          contentContainerStyle={[s.scroll, IS_WEB && s.scrollWeb]}
+        >
+          {/* Hero header */}
+          <View style={s.hero}>
+            <View style={s.heroDecoA} pointerEvents="none" />
+            <View style={s.heroDecoB} pointerEvents="none" />
+            <View style={s.heroIconWrap}>
+              <Ionicons name="megaphone-outline" size={28} color={ORANGE} />
+            </View>
+            <Text style={s.heroTitle}>Grow your business{'\n'}in <Text style={s.heroAccent}>Nanded</Text></Text>
+            <Text style={s.heroSub}>Get your banner seen by 10,000+ locals on NandedRozgar</Text>
+            <View style={s.heroPills}>
+              <View style={s.heroPill}><Text style={s.heroPillTxt}>📍 Hyperlocal reach</Text></View>
+              <View style={s.heroPill}><Text style={s.heroPillTxt}>⚡ Live in 24 hrs</Text></View>
+              <View style={s.heroPill}><Text style={s.heroPillTxt}>🇮🇳 Marathi + Hindi</Text></View>
+            </View>
+          </View>
+
+          <View style={s.body}>
+
+            {/* ── Business Details ── */}
+            <View style={s.section}>
+              <View style={s.sectionHead}>
+                <Ionicons name="storefront-outline" size={17} color={ORANGE} />
+                <Text style={s.sectionTitle}>Business Details</Text>
+              </View>
+
+              <SectionLabel text="Business Name" required />
+              <StyledInput
+                value={form.bizName}
+                onChangeText={v => set('bizName', v)}
+                placeholder="e.g. Sharma Electronics, Nanded"
+                maxLength={80}
+              />
+
+              <SectionLabel text="Tagline / Offer (shown on banner)" />
+              <StyledInput
+                value={form.tagline}
+                onChangeText={v => set('tagline', v)}
+                placeholder="e.g. 20% off this week · Best price in Nanded"
+                maxLength={80}
+              />
+
+              <SectionLabel text="Contact Number" required />
+              <StyledInput
+                value={form.phone}
+                onChangeText={v => set('phone', v)}
+                placeholder="10-digit mobile number"
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
+
+              <SectionLabel text="Website / Social Link" />
+              <StyledInput
+                value={form.website}
+                onChangeText={v => set('website', v)}
+                placeholder="https:// or Instagram handle"
+              />
+            </View>
+
+            {/* ── Category ── */}
+            <View style={s.section}>
+              <View style={s.sectionHead}>
+                <Ionicons name="grid-outline" size={17} color={ORANGE} />
+                <Text style={s.sectionTitle}>Business Category</Text>
+              </View>
+              <SectionLabel text="Select category" required />
+              <PillSelect options={CATEGORIES} value={form.category} onSelect={v => set('category', v)} />
+            </View>
+
+            {/* ── Location ── */}
+            <View style={s.section}>
+              <View style={s.sectionHead}>
+                <Ionicons name="location-outline" size={17} color={ORANGE} />
+                <Text style={s.sectionTitle}>Location</Text>
+              </View>
+              <SectionLabel text="Area / Locality" required />
+              <PillSelect options={LOCATIONS} value={form.location} onSelect={v => set('location', v)} />
+
+              <SectionLabel text="Full Address" />
+              <StyledInput
+                value={form.address}
+                onChangeText={v => set('address', v)}
+                placeholder="Shop no, street, landmark..."
+                multiline
+                numberOfLines={2}
+                maxLength={150}
+              />
+            </View>
+
+            {/* ── Description ── */}
+            <View style={s.section}>
+              <View style={s.sectionHead}>
+                <Ionicons name="document-text-outline" size={17} color={ORANGE} />
+                <Text style={s.sectionTitle}>About your Business</Text>
+              </View>
+              <SectionLabel text="Short description (optional)" />
+              <StyledInput
+                value={form.description}
+                onChangeText={v => set('description', v)}
+                placeholder="Tell people what you offer, your USP, timings, etc."
+                multiline
+                numberOfLines={4}
+                maxLength={300}
+              />
+            </View>
+
+            {/* ── Banner Style Picker ── */}
+            <BannerStylePicker
+              form={form}
+              selectedStyle={selectedBannerStyle}
+              onSelect={setSelectedBannerStyle}
+            />
+
+            {/* ── Plans ── */}
+            <View style={s.section}>
+              <View style={s.sectionHead}>
+                <Ionicons name="rocket-outline" size={17} color={ORANGE} />
+                <Text style={s.sectionTitle}>Choose a Promotion Plan</Text>
+              </View>
+              <Text style={s.sectionSub}>Select the plan that fits your budget and goals.</Text>
+              <View style={s.plansWrap}>
+                {PLANS.map(plan => (
+                  <PlanCard
+                    key={plan.id}
+                    plan={plan}
+                    selected={selectedPlan === plan.id}
+                    onSelect={setSelectedPlan}
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* ── Payment note ── */}
+            <View style={s.paymentNote}>
+              <Ionicons name="information-circle-outline" size={16} color="#6b7280" />
+              <Text style={s.paymentNoteTxt}>
+                Payment is collected via UPI / cash after our team verifies your listing. No advance needed now.
+              </Text>
+            </View>
+
+            {/* ── Submit ── */}
+            <TouchableOpacity
+              style={[s.submitBtn, submitting && { opacity: 0.7 }]}
+              onPress={handleSubmit}
+              activeOpacity={0.85}
+              disabled={submitting}
+            >
+              {submitting
+                ? <ActivityIndicator color="#fff" size="small" />
+                : (
+                  <View style={s.submitInner}>
+                    <Ionicons name="megaphone-outline" size={18} color="#fff" />
+                    <Text style={s.submitTxt}>
+                      Submit Promotion · ₹{selectedPlanObj?.price ?? '—'}
+                    </Text>
+                  </View>
+                )
+              }
+            </TouchableOpacity>
+
+            <Text style={s.tosNote}>
+              By submitting, you agree to our community guidelines. Promotions are reviewed within 24 hours.
+            </Text>
+
+          </View>
+        </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  // Banner
-  banner: {
-    backgroundColor: ORANGE,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 30,
-    overflow: 'hidden',
-  },
-  dotsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
-  dot:      { flex: 1, height: 3, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)' },
-  dotFilled:{ backgroundColor: '#fff' },
-  stepBadge:{
-    fontSize: 11, fontWeight: '700', color: '#fff',
-    backgroundColor: 'rgba(0,0,0,0.18)', paddingHorizontal: 10,
-    paddingVertical: 3, borderRadius: 20, overflow: 'hidden',
-  },
-  bannerBack:{
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 10,
-  },
-  bannerTitle: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  bannerSub:   { fontSize: 13, color: 'rgba(255,255,255,0.85)' },
-  deco1: {
-    position: 'absolute', width: 130, height: 130, borderRadius: 65,
-    backgroundColor: 'rgba(255,255,255,0.08)', right: -20, top: -20,
-  },
-  deco2: {
-    position: 'absolute', width: 80, height: 80, borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.06)', right: 55, bottom: -30,
-  },
 
-  // Card
-  card: {
-    backgroundColor: '#fff', marginHorizontal: 14, marginTop: -16,
-    borderRadius: 16, padding: 20,
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 }, elevation: 3,
-  },
+  root:   { flex: 1, backgroundColor: '#f7f7f7' },
+  scroll: { paddingBottom: 40 },
+  scrollWeb: { maxWidth: 680, alignSelf: 'center', width: '100%' },
 
-  // Section label
-  sectionLabel: {
-    fontSize: 11, fontWeight: '700', color: '#aaa',
-    letterSpacing: 0.8, marginBottom: 8,
+  // Top bar
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
+    paddingHorizontal: 14, paddingVertical: 12,
   },
+  backBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#e8e8e8',
+  },
+  topBarTitle: { fontSize: 16, fontWeight: '800', color: '#111', letterSpacing: -0.2 },
+
+  // Hero
+  hero: {
+    backgroundColor: '#fff', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28,
+    borderBottomWidth: 1, borderBottomColor: '#f0f0f0', overflow: 'hidden', position: 'relative',
+  },
+  heroDecoA: {
+    position: 'absolute', top: -50, right: -50,
+    width: 180, height: 180, borderRadius: 90,
+    backgroundColor: 'rgba(249,115,22,.07)',
+  },
+  heroDecoB: {
+    position: 'absolute', top: 20, right: 30,
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: 'rgba(124,58,237,.05)',
+  },
+  heroIconWrap: {
+    width: 52, height: 52, borderRadius: 16,
+    backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 14, borderWidth: 1, borderColor: '#fed7aa',
+  },
+  heroTitle: { fontSize: 26, fontWeight: '900', color: '#111', lineHeight: 32, letterSpacing: -0.3 },
+  heroAccent: { color: ORANGE },
+  heroSub: { fontSize: 13, color: '#888', marginTop: 6, lineHeight: 18 },
+  heroPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  heroPill: {
+    paddingVertical: 5, paddingHorizontal: 11,
+    backgroundColor: '#f9fafb', borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb',
+  },
+  heroPillTxt: { fontSize: 11, fontWeight: '600', color: '#444' },
+
+  body: { paddingHorizontal: 16, paddingTop: 16, gap: 14 },
+
+  // Sections
+  section: {
+    backgroundColor: '#fff', borderRadius: 18,
+    borderWidth: 1, borderColor: '#ebebeb',
+    padding: 16, gap: 10,
+    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 }, elevation: 1,
+  },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#111', letterSpacing: -0.1 },
+  sectionSub: { fontSize: 12, color: '#888', marginTop: -4, marginBottom: 4 },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#555', letterSpacing: 0.1, marginTop: 2 },
 
   // Input
   inputWrap: {
+    height: 50, backgroundColor: '#f9f9f9', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#e8e8e8',
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f8f8f8', borderRadius: 10,
-    borderWidth: 1, borderColor: '#ececec',
-    paddingHorizontal: 14, minHeight: 50,
+    paddingHorizontal: 14,
   },
-  inputPrefix: { fontSize: 16, color: '#888', marginRight: 6 },
-  inputText:   { flex: 1, fontSize: 14, color: '#111', paddingVertical: 0 },
+  inputText: { flex: 1, fontSize: 14, color: '#111', fontWeight: '500' },
 
-  // Dropdown
-  dropdown: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f8f8f8', borderRadius: 10,
-    borderWidth: 1, borderColor: '#ececec',
-    paddingHorizontal: 14, height: 50, justifyContent: 'space-between',
+  // Pill select
+  pillGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pill: {
+    paddingVertical: 7, paddingHorizontal: 13,
+    backgroundColor: '#f3f4f6', borderRadius: 20,
+    borderWidth: 1.5, borderColor: '#e5e7eb',
   },
-  dropdownTxt: { fontSize: 14, color: '#111', flex: 1 },
+  pillActive: { backgroundColor: '#fff7ed', borderColor: ORANGE },
+  pillTxt: { fontSize: 12, fontWeight: '600', color: '#555' },
+  pillTxtActive: { color: ORANGE },
 
-  // Modal
-  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'flex-end' },
-  modalBox:  { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 34 },
-  modalTitle:{ fontSize: 11, fontWeight: '700', color: '#aaa', letterSpacing: 0.8, paddingHorizontal: 20, marginBottom: 8 },
-  modalRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
-  modalRowActive: { backgroundColor: '#fff7ed' },
-  modalRowTxt: { fontSize: 15, color: '#333' },
-
-  // Toggle
-  toggleRow:   { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  toggleLabel: { fontSize: 15, fontWeight: '700', color: '#111' },
-  toggleHint:  { fontSize: 12, color: '#aaa', marginTop: 2 },
-  divider:     { height: 1, backgroundColor: '#f2f2f2', marginBottom: 16 },
-
-  // Radio
-  radioRow: {
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderColor: '#ececec', borderRadius: 12,
-    padding: 14, marginBottom: 10, backgroundColor: '#fafafa', gap: 12,
+  // Banner Style Picker
+  bannerPickerWrap: {
+    backgroundColor: '#fff', borderRadius: 18,
+    borderWidth: 1, borderColor: '#ebebeb', padding: 16, gap: 10,
+    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 }, elevation: 1,
   },
-  radioRowActive: { borderColor: ORANGE, backgroundColor: '#fff7ed' },
-  radioOuter:     { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#ccc', alignItems: 'center', justifyContent: 'center' },
-  radioOuterActive:{ borderColor: ORANGE },
-  radioInner:     { width: 10, height: 10, borderRadius: 5, backgroundColor: ORANGE },
-  radioLabel:     { fontSize: 14, fontWeight: '700', color: '#333' },
-  radioSub:       { fontSize: 12, color: '#aaa', marginTop: 2 },
+  bannerOptions: { gap: 12 },
+  bannerCardWrap: {
+    borderRadius: 14, borderWidth: 1.5, borderColor: '#e5e7eb', overflow: 'hidden',
+  },
+  bannerCanvas: {
+    height: 110, flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10, overflow: 'hidden',
+  },
+  bannerStripe: {
+    position: 'absolute', left: 0, top: 16, bottom: 16, width: 4, borderRadius: 2,
+  },
+  bannerLeft: { flex: 1, paddingLeft: 8, justifyContent: 'center', gap: 3 },
+  bannerRight: { width: 100, alignItems: 'center', gap: 8 },
+  bannerLogoBox: {
+    backgroundColor: '#e82828', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4,
+    alignSelf: 'flex-start', marginBottom: 4,
+  },
+  bannerLogoTxt: { fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 1 },
+  bannerBizBold: { fontSize: 14, fontWeight: '900', letterSpacing: -0.3 },
+  bannerOfferBold: { fontSize: 11, fontWeight: '700' },
+  bannerLocBold: { fontSize: 9, color: '#aaa', marginTop: 2 },
+  bannerOfferBox: {
+    width: 90, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
+  },
+  bannerOfferBoxLabel: { fontSize: 8, color: '#ffcccc', fontWeight: '700', letterSpacing: 1 },
+  bannerOfferBoxVal: { fontSize: 12, color: '#fff', fontWeight: '800' },
+  bannerCTA: {
+    paddingVertical: 5, paddingHorizontal: 10, borderRadius: 20,
+  },
+  bannerCTATxt: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
 
-  // Skill chips
-  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip:    { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20, backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#e5e5e5' },
-  chipOn:  { backgroundColor: '#fff7ed', borderColor: ORANGE },
-  chipTxt: { fontSize: 13, fontWeight: '600', color: '#666' },
-  chipTxtOn:{ color: ORANGE },
+  // Clean style
+  bannerCleanLeft: { width: 110, justifyContent: 'center', gap: 3 },
+  bannerCleanLogo: {
+    width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  },
+  bannerBizClean: { fontSize: 13, fontWeight: '800' },
+  bannerUnderline: { height: 2, width: 60, borderRadius: 1, marginVertical: 2 },
+  bannerLocClean: { fontSize: 9, color: '#888' },
+  bannerDivider: { width: 1, height: 80, marginHorizontal: 4 },
+  bannerCleanRight: { flex: 1, justifyContent: 'center', gap: 2 },
+  bannerLimitedTxt: { fontSize: 8, color: '#aaa', fontWeight: '700', letterSpacing: 1.5 },
+  bannerOfferClean: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
 
-  // Plan cards
-  planQ:    { fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 4 },
-  planHint: { fontSize: 12, color: '#aaa', marginBottom: 16 },
+  // Vivid style
+  bannerVividLeft: { width: 110, padding: 8, justifyContent: 'center', gap: 3 },
+  bannerLocVivid: { fontSize: 9, color: '#fff7ed', marginTop: 2 },
+  bannerVividRight: { flex: 1, alignItems: 'flex-end', justifyContent: 'center', gap: 3 },
+  bannerMegaTxt: { fontSize: 8, color: '#fff7ed', fontWeight: '700', letterSpacing: 1.5 },
+  bannerOfferVivid: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
+
+  bannerCheck: {
+    position: 'absolute', top: 8, right: 8,
+    backgroundColor: '#fff', borderRadius: 12,
+  },
+  bannerStyleLabel: {
+    fontSize: 11, fontWeight: '700', color: '#555', textAlign: 'center',
+    backgroundColor: '#f9f9f9', paddingVertical: 5, borderTopWidth: 1, borderTopColor: '#f0f0f0',
+  },
+
+  // Plans
+  plansWrap: { gap: 12 },
   planCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1.5, borderColor: '#ececec', borderRadius: 14,
-    padding: 16, marginBottom: 10, backgroundColor: '#fafafa',
+    borderRadius: 16, borderWidth: 2, padding: 14, gap: 10,
   },
-  planCardOn: { borderColor: ORANGE, backgroundColor: '#fff7ed' },
-  planLeft:   { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  planRight:  { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  planDays:   { fontSize: 16, fontWeight: '800', color: '#333' },
-  planSub:    { fontSize: 11, color: '#aaa', marginTop: 2 },
-  planPrice:  { fontSize: 18, fontWeight: '800', color: '#333' },
-  planRadio:  { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#ccc', alignItems: 'center', justifyContent: 'center' },
-  planRadioOn:{ borderColor: ORANGE },
-  planDot:    { width: 10, height: 10, borderRadius: 5, backgroundColor: ORANGE },
-
-  // Feature strip
-  featureStrip: {
-    flexDirection: 'row', backgroundColor: '#fff8f3',
-    borderRadius: 12, borderWidth: 1, borderColor: '#ffe4cc',
-    padding: 14, marginTop: 4, alignItems: 'center',
+  planCardActive: {
+    shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
-  featureItem: { flex: 1, alignItems: 'center', gap: 6 },
-  featureTxt:  { fontSize: 10, fontWeight: '700', color: '#888', textAlign: 'center', letterSpacing: 0.2 },
-  featureSep:  { width: 1, height: 36, backgroundColor: '#f0ddd0', marginHorizontal: 4 },
-
-  // Review
-  revHead:  { fontSize: 14, color: '#555', marginBottom: 14 },
-  revGroup: { backgroundColor: '#f9f9f9', borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#f0f0f0' },
-  revRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  revLabel: { fontSize: 11, fontWeight: '700', color: '#aaa', letterSpacing: 0.5 },
-  revValue: { fontSize: 13, fontWeight: '600', color: '#333', flex: 1, textAlign: 'right', marginLeft: 8 },
-  revDesc:  { fontSize: 13, color: '#555', paddingHorizontal: 14, paddingBottom: 14, lineHeight: 20 },
-
-  planSummaryBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14,
-    backgroundColor: '#fff7ed', borderRadius: 10, padding: 14,
-    borderWidth: 1, borderColor: '#fed7aa',
+  planBadge: {
+    alignSelf: 'flex-start', paddingVertical: 3, paddingHorizontal: 10,
+    borderRadius: 20, borderWidth: 1, marginBottom: 2,
   },
-  planSummaryTxt: { fontSize: 14, fontWeight: '700', color: ORANGE },
+  planBadgeTxt: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+  planRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  planDot: {
+    width: 24, height: 24, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  planName: { fontSize: 16, fontWeight: '900', letterSpacing: -0.2 },
+  planDuration: { fontSize: 12, color: '#888', marginTop: 1 },
+  planPriceWrap: { marginLeft: 'auto', alignItems: 'flex-end' },
+  planPrice: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  planPriceSub: { fontSize: 10, color: '#aaa', fontWeight: '500' },
+  planPerks: { gap: 6, paddingLeft: 36 },
+  perkRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  perkTxt: { fontSize: 12, color: '#444', fontWeight: '500' },
 
-  // Bottom buttons
-  btnRow:      { flexDirection: 'row', paddingHorizontal: 14, paddingTop: 18, gap: 12 },
-  backBtn:     { flex: 1, height: 52, borderRadius: 12, borderWidth: 1.5, borderColor: '#ddd', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  backBtnTxt:  { fontSize: 15, fontWeight: '700', color: '#555' },
-  continueBtn: {
-    flex: 2, height: 52, borderRadius: 12, backgroundColor: ORANGE,
+  // Payment note
+  paymentNote: {
+    flexDirection: 'row', gap: 8, alignItems: 'flex-start',
+    backgroundColor: '#f0fdf4', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: '#bbf7d0',
+  },
+  paymentNoteTxt: { flex: 1, fontSize: 12, color: '#166534', lineHeight: 17, fontWeight: '500' },
+
+  // Submit
+  submitBtn: {
+    backgroundColor: ORANGE, borderRadius: 16, paddingVertical: 16,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: ORANGE, shadowOpacity: 0.3, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 }, elevation: 5,
+    shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 }, elevation: 4,
+    marginTop: 4,
   },
-  continueTxt: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  submitInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  submitTxt: { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
 
-  // Multiple positions
-  posCard:    { backgroundColor: '#fafafa', borderWidth: 1.5, borderColor: '#ececec', borderRadius: 14, padding: 14, marginBottom: 12 },
-  posHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  posIndex:   { fontSize: 12, fontWeight: '800', color: ORANGE, letterSpacing: 0.5, textTransform: 'uppercase' },
-  posRemove:  { padding: 2 },
-  posVacLbl:  { fontSize: 11, fontWeight: '700', color: '#aaa', letterSpacing: 0.6, marginBottom: 8 },
-  posVacRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  posVacBtn:  { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: '#f0f0f0', borderWidth: 1.5, borderColor: '#e0e0e0' },
-  posVacBtnOn:{ backgroundColor: '#fff7ed', borderColor: ORANGE },
-  posVacTxt:  { fontSize: 13, fontWeight: '700', color: '#666' },
-  posVacTxtOn:{ color: ORANGE },
-  addPosBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 4, justifyContent: 'center', borderWidth: 1.5, borderColor: ORANGE, borderStyle: 'dashed', borderRadius: 12, marginTop: 2, backgroundColor: '#fff8f3' },
-  addPosTxt:  { fontSize: 14, fontWeight: '700', color: ORANGE },
+  tosNote: { fontSize: 10, color: '#bbb', textAlign: 'center', lineHeight: 14 },
 });
