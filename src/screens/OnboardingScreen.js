@@ -157,7 +157,7 @@ export default function OnboardingScreen({ onDone }) {
         </Animated.View>
       </View>
 
-      <Text style={os.brand}><Text style={{ color: '#111' }}>Nanded</Text><Text style={{ color: ORANGE }}>Rozgar</Text></Text>
+      <Text style={os.brand}><Text style={{ color: "#111" }}>Local</Text><Text style={{ color: ORANGE }}>Loop</Text></Text>
     </View>
   );
 }
