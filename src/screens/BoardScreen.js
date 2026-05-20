@@ -260,22 +260,18 @@ export default function BoardScreen({ route }) {
   // ── Header (shared mobile + web) ───────────────────────────────────────────
   const Header = (
     <View style={IS_WEB ? ws.header : s.header}>
-      {/* Title row — animates on scroll */}
-      <Animated.View style={[s.titleRow, {
-        transform: [{ scale: titleScale }],
-        opacity: titleOpacity,
-        transformOrigin: 'left center',
-      }]}>
-        <View>
-          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
+      {/* Title row */}
+      <View style={s.titleRow}>
+        <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
+          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
             Jobs in{' '}
             <Text style={{ color: ORANGE }}>Nanded</Text>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
             {filtered.length} jobs found
           </Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+        </Animated.View>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexShrink: 0 }}>
           {/* Sort button */}
           <TouchableOpacity
             style={[s.iconBtn, IS_WEB && ws.iconBtn]}
@@ -300,7 +296,7 @@ export default function BoardScreen({ route }) {
             )}
           </TouchableOpacity>
         </View>
-      </Animated.View>
+      </View>
 
       {/* Search — animates on scroll */}
       <Animated.View style={[
@@ -1123,7 +1119,7 @@ const s = StyleSheet.create({
   },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 20,
     paddingBottom: 10,
