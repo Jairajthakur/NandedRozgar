@@ -2,29 +2,19 @@
  * PromoBanner.js — Sponsored business promotion banner
  * Shown on all listing screens (Jobs, Rooms, Cars, BuySell)
  *
- * Place at:  src/components/PromoBanner.js
+ * Fetches a live active promotion from GET /api/promotions/active.
+ * Falls back silently if no promotion is active (renders nothing).
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Animated, Easing,
+  View, Text, TouchableOpacity, StyleSheet, Animated, Easing, Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { http } from '../utils/api';
 
 const ORANGE = '#f97316';
-const PINK   = '#ec4899';
-
-// Sample promoted business — in production this would come from the API
-const PROMO_SAMPLE = {
-  id: 'promo_1',
-  bizName: 'Sharma Electronics',
-  tagline: '20% off this week · Best price in Nanded',
-  location: 'Cidco, Nanded',
-  category: 'Electronics',
-  phone: '9876543210',
-  accentColor: '#2563eb',
-};
 
 function PulseDot({ color }) {
   const scale = useRef(new Animated.Value(1)).current;
@@ -44,19 +34,45 @@ function PulseDot({ color }) {
   );
 }
 
-export default function PromoBanner({ promo = PROMO_SAMPLE, style }) {
+export default function PromoBanner({ style }) {
   const nav   = useNavigation();
   const fadeY = useRef(new Animated.Value(12)).current;
   const fadeO = useRef(new Animated.Value(0)).current;
+  const [promo, setPromo] = useState(null);
 
+  // Fetch an active promotion on mount
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await http('GET', '/api/promotions/active');
+        if (!cancelled && res.ok && res.promotion) {
+          setPromo(res.promotion);
+        }
+      } catch {
+        // Silently fail — no banner if API unreachable
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Animate in once promo loads
+  useEffect(() => {
+    if (!promo) return;
     Animated.parallel([
       Animated.timing(fadeY, { toValue: 0, duration: 420, delay: 120, useNativeDriver: true, easing: Easing.out(Easing.back(1.2)) }),
       Animated.timing(fadeO, { toValue: 1, duration: 350, delay: 120, useNativeDriver: true }),
     ]).start();
-  }, []);
+  }, [promo]);
 
-  const color = promo.accentColor || PINK;
+  // Render nothing if no active promotion
+  if (!promo) return null;
+
+  const color = promo.accentColor || ORANGE;
+
+  const handleCall = () => {
+    if (promo.phone) Linking.openURL(`tel:${promo.phone}`);
+  };
 
   return (
     <Animated.View style={[s.wrap, style, { opacity: fadeO, transform: [{ translateY: fadeY }] }]}>
@@ -77,7 +93,7 @@ export default function PromoBanner({ promo = PROMO_SAMPLE, style }) {
       {/* Banner card */}
       <TouchableOpacity
         activeOpacity={0.88}
-        onPress={() => {/* open detail or call */ }}
+        onPress={handleCall}
         style={[s.card, { borderColor: color + '30' }]}
       >
         {/* Left accent bar */}
@@ -91,7 +107,9 @@ export default function PromoBanner({ promo = PROMO_SAMPLE, style }) {
         {/* Info */}
         <View style={s.info}>
           <Text style={[s.bizName, { color }]} numberOfLines={1}>{promo.bizName}</Text>
-          <Text style={s.tagline} numberOfLines={1}>{promo.tagline}</Text>
+          {!!promo.tagline && (
+            <Text style={s.tagline} numberOfLines={1}>{promo.tagline}</Text>
+          )}
           <View style={s.meta}>
             <Ionicons name="location-outline" size={10} color="#aaa" />
             <Text style={s.metaTxt}>{promo.location}</Text>
@@ -102,6 +120,7 @@ export default function PromoBanner({ promo = PROMO_SAMPLE, style }) {
         <TouchableOpacity
           style={[s.ctaBtn, { backgroundColor: color }]}
           activeOpacity={0.8}
+          onPress={handleCall}
         >
           <Text style={s.ctaTxt}>Call</Text>
           <Ionicons name="call-outline" size={11} color="#fff" />
