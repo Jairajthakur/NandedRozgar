@@ -1163,7 +1163,7 @@ const ws = StyleSheet.create({
     gap: 10,
   },
   jobScrollCard: {
-    width: 185,
+    width: 200,
   },
 
   // Bottom tab nav (small web)
@@ -1251,7 +1251,7 @@ const s = StyleSheet.create({
   tickerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   tickerText: { color: '#ffffff', fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
 
-  featJobCard:    { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0' },
+  featJobCard:    { backgroundColor: '#fff', borderRadius: 14, padding: 14, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0' },
   featJobCardGrid:{ flex: 1, width: 'auto' },
   featJobTop:     { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   featJobIcon:    { width: 38, height: 38, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
@@ -1309,7 +1309,7 @@ const s = StyleSheet.create({
 
   // Recent Jobs horizontal scroll carousel (mobile)
   mobileJobsGrid: { flexDirection: 'row' },
-  mobileJobsGridItem: { width: 180 },
+  mobileJobsGridItem: { width: SCREEN_W * 0.56 },
   jobsScroll: { marginBottom: 4 },
   jobsScrollContent: {
     paddingHorizontal: 16,
@@ -1317,7 +1317,7 @@ const s = StyleSheet.create({
     gap: 12,
   },
   jobScrollCard: {
-    width: 180,
+    width: SCREEN_W * 0.56,
   },
 });
 
