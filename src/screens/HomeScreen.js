@@ -502,8 +502,8 @@ export default function HomeScreen() {
           <View style={[ws.topNavInner, isSmWeb && ws.topNavInnerSm]}>
             {!isSmWeb && <View style={ws.brandRow}>
               <Text style={ws.brandText}>
-                <Text style={ws.brandNanded}>Nanded</Text>
-                <Text style={ws.brandRozgar}>Rozgar</Text>
+                <Text style={ws.brandName}>Local</Text>
+                <Text style={ws.brandLoop}>Loop</Text>
               </Text>
               <View style={ws.locRow}>
                 <Ionicons name="location-sharp" size={12} color={ORANGE} />
@@ -765,8 +765,8 @@ export default function HomeScreen() {
         <View style={s.headerTop}>
           <View>
             <Text style={s.brandText}>
-              <Text style={s.brandNanded}>Nanded</Text>
-              <Text style={s.brandRozgar}>Rozgar</Text>
+              <Text style={s.brandName}>Local</Text>
+              <Text style={s.brandLoop}>Loop</Text>
             </Text>
             <View style={s.locRow}>
               <Ionicons name="location-sharp" size={12} color={ORANGE} />
@@ -917,8 +917,8 @@ const ws = StyleSheet.create({
   topNavInnerSm: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   brandRow:   { width: 210, flexShrink: 0, flexGrow: 0, paddingHorizontal: 16 },
   brandText:  { fontSize: 20, fontWeight: '900', letterSpacing: 0.2 },
-  brandNanded:{ color: '#111111' },
-  brandRozgar:{ color: ORANGE },
+  brandName:{ color: '#111111' },
+  brandLoop:{ color: ORANGE },
   locRow:     { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   locText:    { color: '#888', fontSize: 11, fontWeight: '500' },
 
@@ -1122,8 +1122,8 @@ const s = StyleSheet.create({
   },
   headerTop:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brandText:       { fontSize: 20, fontWeight: '900', letterSpacing: 0.2 },
-  brandNanded:     { color: '#111111' },
-  brandRozgar:     { color: ORANGE },
+  brandName:     { color: '#111111' },
+  brandLoop:     { color: ORANGE },
   locRow:          { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   locText:         { color: '#888', fontSize: 11, fontWeight: '500' },
   profileBtn:      { width: 36, height: 36, borderRadius: 18, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
