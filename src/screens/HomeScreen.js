@@ -693,7 +693,6 @@ export default function HomeScreen() {
                   <FeaturedJobCard
                     key={String(job.id)}
                     job={job}
-                    fullWidth={isSmWeb}
                     onPress={() => nav.navigate('JobDetail', { job })}
                   />
                 ))}
@@ -1095,9 +1094,9 @@ const ws = StyleSheet.create({
 
   // Featured jobs grid — 2 col
   featJobsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
-  featJobsGridSm:{ gap: 8, marginBottom: 16 },
+  featJobsGridSm:{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   featJobCard:  { width: '47.5%', backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
-  featJobCardSmWeb: { width: '100%' },
+  featJobCardSmWeb: { width: '47%' },
   featJobCardSm:{ width: '100%' },
 
   // Recent jobs
