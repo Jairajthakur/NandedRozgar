@@ -894,16 +894,17 @@ export default function HomeScreen() {
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>Recent Jobs</Text>
             <TouchableOpacity onPress={() => nav.navigate('Jobs')}>
-              <Text style={s.seeAllBtn}>See all ›</Text>
+              <Text style={s.seeAllBtn}>View All →</Text>
             </TouchableOpacity>
           </View>
           <View style={s.mobileJobsGrid}>
-            {displayJobs.slice(0, 6).map(job => (
-              <FeaturedJobCard
-                key={String(job.id)}
-                job={job}
-                onPress={() => nav.navigate('JobDetail', { job })}
-              />
+            {displayJobs.slice(0, 6).map((job, idx) => (
+              <View key={String(job.id)} style={s.mobileJobsGridItem}>
+                <FeaturedJobCard
+                  job={job}
+                  onPress={() => nav.navigate('JobDetail', { job })}
+                />
+              </View>
             ))}
           </View>
         </FadeSlide>
@@ -1275,10 +1276,16 @@ const s = StyleSheet.create({
 
   // Recent Jobs single-column list (mobile)
   mobileJobsGrid: {
-    flexDirection: 'column',
-    paddingHorizontal: 16,
-    gap: 0,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
+    gap: 10,
     marginBottom: 4,
+  },
+  mobileJobsGridItem: {
+    width: '47%',
+    flexGrow: 1,
+    flexShrink: 1,
   },
 });
 
