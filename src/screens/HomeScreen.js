@@ -499,49 +499,92 @@ export default function HomeScreen() {
 
         {/* ── Top Nav Bar ── */}
         <View style={ws.topNav}>
-          <View style={[ws.topNavInner, isSmWeb && ws.topNavInnerSm]}>
-            {!isSmWeb && <View style={ws.brandRow}>
-              <Text style={ws.brandText}>
-                <Text style={ws.brandNanded}>Local</Text>
-                <Text style={ws.brandRozgar}>Loop</Text>
-              </Text>
-              <View style={ws.locRow}>
-                <Ionicons name="location-sharp" size={12} color={ORANGE} />
-                <Text style={ws.locText}>Nanded, Maharashtra</Text>
+          {isSmWeb ? (
+            /* ── Mobile web: 2-row header ── */
+            <View style={ws.topNavSm}>
+              {/* Row 1: Brand + icons */}
+              <View style={ws.topNavSmRow1}>
+                <View>
+                  <Text style={ws.brandText}>
+                    <Text style={ws.brandNanded}>Local</Text>
+                    <Text style={ws.brandRozgar}>Loop</Text>
+                  </Text>
+                  <View style={ws.locRow}>
+                    <Ionicons name="location-sharp" size={11} color={ORANGE} />
+                    <Text style={ws.locText}>Nanded, Maharashtra</Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity onPress={() => nav.navigate('Profile')} activeOpacity={0.8} style={ws.bellBtn}>
+                    <Ionicons name="notifications-outline" size={20} color="#555" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={ws.profileBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
+                    <Text style={ws.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'T'}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>}
-
-            {/* Center search */}
-            <View style={ws.topSearchWrap}>
-              <Ionicons name="search" size={16} color="#aaa" style={{ marginLeft: 14 }} />
-              <TextInput
-                style={ws.topSearchInput}
-                placeholder="Search jobs, rooms, vehicles, items..."
-                placeholderTextColor="#bbb"
-                value={searchText}
-                onChangeText={setSearchText}
-                onSubmitEditing={handleSearch}
-                returnKeyType="search"
-              />
-              <TouchableOpacity style={[ws.topSearchBtn, isSmWeb && ws.topSearchBtnSm]} onPress={handleSearch} activeOpacity={0.9}>
-                <Text style={ws.topSearchBtnTxt}>Search</Text>
-              </TouchableOpacity>
+              {/* Row 2: Search bar */}
+              <View style={ws.topNavSmRow2}>
+                <View style={ws.topSearchWrap}>
+                  <Ionicons name="search" size={16} color="#aaa" style={{ marginLeft: 12 }} />
+                  <TextInput
+                    style={ws.topSearchInput}
+                    placeholder="Search jobs, rooms, cars..."
+                    placeholderTextColor="#bbb"
+                    value={searchText}
+                    onChangeText={setSearchText}
+                    onSubmitEditing={handleSearch}
+                    returnKeyType="search"
+                  />
+                  <TouchableOpacity style={ws.topSearchBtnSm} onPress={handleSearch} activeOpacity={0.9}>
+                    <Ionicons name="search" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-
-            <View style={ws.topNavRight}>
-              {!isSmWeb && <TouchableOpacity style={ws.langBtn} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
-                <Ionicons name="language" size={13} color={ORANGE} />
-                <Text style={ws.langBtnTxt}>{langBtnLabel}</Text>
-                <Ionicons name="chevron-down" size={11} color={ORANGE} />
-              </TouchableOpacity>}
-              <TouchableOpacity onPress={() => nav.navigate('Profile')} activeOpacity={0.8} style={ws.bellBtn}>
-                <Ionicons name="notifications-outline" size={20} color="#555" />
-              </TouchableOpacity>
-              <TouchableOpacity style={ws.profileBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
-                <Text style={ws.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'T'}</Text>
-              </TouchableOpacity>
+          ) : (
+            /* ── Desktop web: single row ── */
+            <View style={ws.topNavInner}>
+              <View style={ws.brandRow}>
+                <Text style={ws.brandText}>
+                  <Text style={ws.brandNanded}>Local</Text>
+                  <Text style={ws.brandRozgar}>Loop</Text>
+                </Text>
+                <View style={ws.locRow}>
+                  <Ionicons name="location-sharp" size={12} color={ORANGE} />
+                  <Text style={ws.locText}>Nanded, Maharashtra</Text>
+                </View>
+              </View>
+              <View style={ws.topSearchWrap}>
+                <Ionicons name="search" size={16} color="#aaa" style={{ marginLeft: 14 }} />
+                <TextInput
+                  style={ws.topSearchInput}
+                  placeholder="Search jobs, rooms, vehicles, items..."
+                  placeholderTextColor="#bbb"
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  onSubmitEditing={handleSearch}
+                  returnKeyType="search"
+                />
+                <TouchableOpacity style={ws.topSearchBtn} onPress={handleSearch} activeOpacity={0.9}>
+                  <Text style={ws.topSearchBtnTxt}>Search</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={ws.topNavRight}>
+                <TouchableOpacity style={ws.langBtn} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
+                  <Ionicons name="language" size={13} color={ORANGE} />
+                  <Text style={ws.langBtnTxt}>{langBtnLabel}</Text>
+                  <Ionicons name="chevron-down" size={11} color={ORANGE} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => nav.navigate('Profile')} activeOpacity={0.8} style={ws.bellBtn}>
+                  <Ionicons name="notifications-outline" size={20} color="#555" />
+                </TouchableOpacity>
+                <TouchableOpacity style={ws.profileBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
+                  <Text style={ws.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'T'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          )}
         </View>
 
         <LangModal visible={showLangPicker} current={lang} onSelect={changeLang} onClose={() => setShowLangPicker(false)} />
@@ -915,6 +958,14 @@ const ws = StyleSheet.create({
     gap: 0,
   },
   topNavInnerSm: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
+
+  /* Mobile web 2-row header */
+  topNavSm: { paddingHorizontal: 16, paddingVertical: 10, gap: 10 },
+  topNavSmRow1: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  topNavSmRow2: { width: '100%' },
   brandRow:   { width: 210, flexShrink: 0, flexGrow: 0, paddingHorizontal: 16 },
   brandText:  { fontSize: 20, fontWeight: '900', letterSpacing: 0.2 },
   brandNanded:{ color: '#111111' },
@@ -930,7 +981,7 @@ const ws = StyleSheet.create({
   },
   topSearchInput: { flex: 1, height: 44, paddingHorizontal: 10, fontSize: 14, color: '#333', outlineStyle: 'none' },
   topSearchBtn:   { height: 44, paddingHorizontal: 24, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
-  topSearchBtnSm:  { paddingHorizontal: 12 },
+  topSearchBtnSm:  { width: 44, height: 44, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
   topSearchBtnTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 
   topNavRight: { width: 220, flexShrink: 0, flexGrow: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, paddingHorizontal: 16 },
