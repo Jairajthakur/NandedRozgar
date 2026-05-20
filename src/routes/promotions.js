@@ -62,7 +62,7 @@ router.post('/', auth, async (req, res) => {
     res.json({ ok: true, promotion: rows[0] });
   } catch (err) {
     console.error('POST /promotions error:', err);
-    res.json({ ok: false, error: 'Failed to submit promotion. Please try again.' });
+    res.status(500).json({ ok: false, error: 'Failed to submit promotion. Please try again.' });
   }
 });
 
