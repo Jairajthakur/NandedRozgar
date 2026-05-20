@@ -79,6 +79,7 @@ const linking = {
 };
 
 
+const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 const ORANGE = '#f97316';
 
