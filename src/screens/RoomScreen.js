@@ -750,13 +750,17 @@ export default function RoomScreen({ route }) {
 
           {/* ── MAIN COLUMN ── */}
           <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
+            {/* Name + search bar stays pinned — FlatList scrolls below it */}
+            <View style={ws.stickySearchHeader}>
+              {Header}
+            </View>
             <FlatList
               data={filtered}
               keyExtractor={r => r.id}
               contentContainerStyle={ws.list}
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchRooms(true)} tintColor={ORANGE} colors={[ORANGE]} />}
-              ListHeaderComponent={<>{Header}{ListHeader}</>}
+              ListHeaderComponent={<>{ListHeader}</>}
               ListEmptyComponent={Empty}
               renderItem={({ item, index }) => (
                 <RoomCard item={item} index={index} onPress={() => nav.navigate('RoomDetail', { room: item })} />
@@ -1059,12 +1063,13 @@ const s = StyleSheet.create({
 
 /* ─────────────────────────── WEB STYLES (mirrors BoardScreen ws exactly) ─────────────────────────── */
 const ws = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f7f7f7' },
+  root: { flex: 1, backgroundColor: '#f7f7f7', height: '100vh', overflow: 'hidden' },
 
   body: {
     flex: 1, flexDirection: 'row',
     maxWidth: 1400, width: '100%', alignSelf: 'center',
     paddingTop: 12, paddingHorizontal: 16, gap: 16,
+    overflow: 'hidden',
   },
 
   leftSidebar: {
@@ -1072,7 +1077,12 @@ const ws = StyleSheet.create({
     alignSelf: 'flex-start', position: 'sticky', top: 70,
     maxHeight: 'calc(100vh - 82px)', overflowY: 'auto', paddingBottom: 16,
   },
-  mainCol: { flex: 1, minWidth: 0, flexShrink: 1 },
+  mainCol: { flex: 1, minWidth: 0, flexShrink: 1, overflow: 'hidden' },
+  stickySearchHeader: {
+    backgroundColor: '#f7f7f7',
+    zIndex: 10,
+    paddingBottom: 4,
+  },
   rightSidebar: {
     width: 220, flexShrink: 0, gap: 12,
     alignSelf: 'flex-start', position: 'sticky', top: 70,
