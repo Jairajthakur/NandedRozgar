@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffe
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, RefreshControl, Modal,
-  Animated, Easing, Platform, useWindowDimensions, Image,
+  Animated, Easing, Platform, StatusBar, useWindowDimensions, Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -453,16 +453,6 @@ export default function RoomScreen({ route }) {
 
   const showSidebar = IS_WEB && width >= 900;
 
-  // State — declared first so hooks below can safely reference them
-  const [roomType,   setRoomType]   = useState('All');
-  const [search,     setSearch]     = useState(route?.params?.searchQuery || '');
-  const [sortBy,     setSortBy]     = useState('recent');
-  const [rentRange,  setRentRange]  = useState(RENT_RANGES[0]);
-  const [showSort,   setShowSort]   = useState(false);
-  const [showFilter, setShowFilter] = useState(false);
-  const [rooms,      setRooms]      = useState(ROOMS);
-  const [refreshing, setRefreshing] = useState(false);
-
   // FlatList ref — scroll to top when filters change
   const flatListRef = useRef(null);
   useEffect(() => {
@@ -471,6 +461,20 @@ export default function RoomScreen({ route }) {
 
   // Scroll animation — drives sticky mini-header (same as Jobs/Cars/BuySell)
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  const titleScale = scrollY.interpolate({
+    inputRange: [0, 80], outputRange: [1, 0.88], extrapolate: 'clamp',
+  });
+  const titleOpacity = scrollY.interpolate({
+    inputRange: [0, 100], outputRange: [1, 0.6], extrapolate: 'clamp',
+  });
+  const searchTranslate = scrollY.interpolate({
+    inputRange: [0, 60], outputRange: [0, -4], extrapolate: 'clamp',
+  });
+  const searchOpacity = scrollY.interpolate({
+    inputRange: [0, 120], outputRange: [1, 0.85], extrapolate: 'clamp',
+  });
+
   const STICKY_THRESHOLD = 160;
   const stickyOpacity = scrollY.interpolate({
     inputRange: [STICKY_THRESHOLD, STICKY_THRESHOLD + 40],
@@ -482,6 +486,15 @@ export default function RoomScreen({ route }) {
     outputRange: [-56, 0],
     extrapolate: 'clamp',
   });
+
+  const [roomType,   setRoomType]   = useState('All');
+  const [search,     setSearch]     = useState(route?.params?.searchQuery || '');
+  const [sortBy,     setSortBy]     = useState('recent');
+  const [rentRange,  setRentRange]  = useState(RENT_RANGES[0]);
+  const [showSort,   setShowSort]   = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
+  const [rooms,      setRooms]      = useState(ROOMS);
+  const [refreshing, setRefreshing] = useState(false);
 
   const sheetY = useRef(new Animated.Value(400)).current;
   useEffect(() => {
@@ -542,7 +555,12 @@ export default function RoomScreen({ route }) {
   /* ── Shared header ── */
   const Header = (
     <View style={IS_WEB ? ws.header : s.header}>
-      <View style={s.titleRow}>
+      {/* Title row — animates on scroll */}
+      <Animated.View style={[s.titleRow, {
+        transform: [{ scale: titleScale }],
+        opacity: titleOpacity,
+        transformOrigin: 'left center',
+      }]}>
         <View>
           <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
             Rooms in <Text style={{ color: ORANGE }}>Nanded</Text>
@@ -567,9 +585,13 @@ export default function RoomScreen({ route }) {
             )}
           </TouchableOpacity>
         </View>
-      </View>
+      </Animated.View>
 
-      <View style={[s.searchWrap, IS_WEB && ws.searchWrap]}>
+      {/* Search — animates on scroll */}
+      <Animated.View style={[
+        s.searchWrap, IS_WEB && ws.searchWrap,
+        { transform: [{ translateY: searchTranslate }], opacity: searchOpacity },
+      ]}>
         <Ionicons name="search-outline" size={18} color="#bbb" style={{ marginLeft: 14 }} />
         <TextInput
           style={[s.searchInput, IS_WEB && ws.searchInput]}
@@ -591,7 +613,7 @@ export default function RoomScreen({ route }) {
           <Ionicons name="filter-outline" size={17} color={ORANGE} />
           {IS_WEB && <Text style={ws.filterBtnTxt}>Filters</Text>}
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       <ScrollView
         horizontal showsHorizontalScrollIndicator={false}
@@ -733,7 +755,7 @@ export default function RoomScreen({ route }) {
     </Animated.View>
   );
   /* ── Web 3-column layout (matches Jobs page exactly) ── */
-  if (IS_WEB && width >= 600) {
+  if (IS_WEB) {
     return (
       <View style={ws.root}>
 
@@ -903,7 +925,9 @@ export default function RoomScreen({ route }) {
 
   /* ── Mobile layout ── */
   return (
-    <View style={s.container}>
+    <View style={[s.root, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f7f7f7" />
+      {StickyHeader}
       <FlatList
         ref={flatListRef}
         data={filtered}
@@ -911,6 +935,11 @@ export default function RoomScreen({ route }) {
         ListHeaderComponent={<>{Header}{ListHeader}</>}
         contentContainerStyle={s.list}
         ListEmptyComponent={Empty}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        horizontal={false}
+        bounces={false}
+        overScrollMode="never"
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
@@ -921,7 +950,6 @@ export default function RoomScreen({ route }) {
           <RoomCard item={item} index={index} onPress={() => nav.navigate('RoomDetail', { room: item })} />
         )}
       />
-      {StickyHeader}
       {SortModal}{FilterModal}
     </View>
   );
@@ -929,11 +957,11 @@ export default function RoomScreen({ route }) {
 
 /* ─────────────────────────── MOBILE STYLES ─────────────────────────── */
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  root: { flex: 1, backgroundColor: '#f7f7f7', overflow: 'hidden' },
   stickyBar: {
-    position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999,
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 999,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 }, elevation: 8,
   },
   stickyInner: {
@@ -947,24 +975,30 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#e8e8e8', overflow: 'hidden',
   },
   stickyInput: { flex: 1, height: 38, paddingHorizontal: 8, fontSize: 13, color: '#111' },
-  list: { paddingHorizontal: 12, paddingBottom: 48 },
+  list: { paddingHorizontal: 14, paddingTop: 0, paddingBottom: 40 },
 
   header: {
-    backgroundColor: '#fff', borderRadius: 16,
-    margin: 12, marginBottom: 0, padding: 18,
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    backgroundColor: '#f7f7f7',
+    paddingHorizontal: 16,
+    paddingBottom: 6,
   },
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
   pageTitle: { fontSize: 26, fontWeight: '900', color: '#111', letterSpacing: -0.5, marginBottom: 2 },
   pageCount: { fontSize: 13, color: '#999', fontWeight: '500', marginBottom: 14 },
 
   iconBtn: {
-    height: 40, paddingHorizontal: 14, borderRadius: 10,
-    backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e8e8e8',
-    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4,
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: '#ececec',
+    alignItems: 'center', justifyContent: 'center',
+    position: 'relative',
   },
-  iconBtnActive: { backgroundColor: ORANGE, borderColor: ORANGE },
+  iconBtnActive: { backgroundColor: '#111' },
   filterBadge: {
     position: 'absolute', top: -4, right: -4,
     width: 16, height: 16, borderRadius: 8, backgroundColor: '#ef4444',
@@ -974,14 +1008,17 @@ const s = StyleSheet.create({
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f8f8f8', borderRadius: 12, height: 48,
-    borderWidth: 1.5, borderColor: '#ebebeb', marginBottom: 14, overflow: 'hidden',
+    backgroundColor: '#fff', borderRadius: 16,
+    borderWidth: 1, borderColor: '#e8e8e8',
+    marginTop: 4, marginBottom: 14, height: 52,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  searchInput: { flex: 1, height: 48, paddingHorizontal: 10, fontSize: 14, color: '#111' },
+  searchInput: { flex: 1, paddingHorizontal: 10, fontSize: 14, color: '#111' },
   searchFilterBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    height: 48, paddingHorizontal: 16,
-    backgroundColor: '#fff7f0', borderLeftWidth: 1, borderLeftColor: '#ebebeb',
+    width: 48, height: 52,
+    alignItems: 'center', justifyContent: 'center',
+    borderLeftWidth: 1, borderLeftColor: '#ececec',
   },
 
   pillsRow: { gap: 8, paddingBottom: 4, alignItems: 'center' },
@@ -994,26 +1031,32 @@ const s = StyleSheet.create({
   pillTxtActive: { color: '#fff' },
 
   trendingBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#fff7f0', borderRadius: 14, padding: 14,
-    marginBottom: 10, marginTop: 10,
-    borderWidth: 1.5, borderColor: '#fed7aa',
-    position: 'relative', overflow: 'hidden',
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff9f3', borderRadius: 16,
+    borderWidth: 1, borderColor: '#fddcb5',
+    marginBottom: 12, overflow: 'hidden',
+    paddingVertical: 14, paddingRight: 14,
   },
-  trendingAccent:   { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: ORANGE, borderRadius: 2 },
+  trendingAccent: {
+    width: 5, alignSelf: 'stretch',
+    backgroundColor: ORANGE,
+    borderTopLeftRadius: 14, borderBottomLeftRadius: 14,
+    marginRight: 10,
+  },
   trendingIconWrap: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: '#fed7aa',
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: '#fff3e0',
+    alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
   trendingTitle: { fontSize: 14, fontWeight: '800', color: ORANGE },
-  trendingSub:   { fontSize: 12, color: '#c2410c', marginTop: 1, fontWeight: '500' },
+  trendingSub:   { fontSize: 11, color: '#999', marginTop: 2 },
   liveBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#fff', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10,
-    borderWidth: 1.5, borderColor: '#bbf7d0',
+    backgroundColor: '#f0fdf4', borderRadius: 20,
+    paddingVertical: 4, paddingHorizontal: 10,
+    borderWidth: 1, borderColor: '#bbf7d0',
   },
-  liveTxt: { fontSize: 11, fontWeight: '800', color: '#16a34a' },
+  liveTxt: { fontSize: 10, fontWeight: '800', color: '#16a34a' },
 
   /* Mobile card */
   card: {
@@ -1233,9 +1276,9 @@ const ws = StyleSheet.create({
   },
   searchInput: { flex: 1, height: 48, paddingHorizontal: 10, fontSize: 14, color: '#111', outlineStyle: 'none' },
   searchFilterBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    height: 48, paddingHorizontal: 16,
-    backgroundColor: '#fff7f0', borderLeftWidth: 1, borderLeftColor: '#ebebeb',
+    width: 48, height: 52,
+    alignItems: 'center', justifyContent: 'center',
+    borderLeftWidth: 1, borderLeftColor: '#ececec',
   },
   filterBtnTxt: { fontSize: 13, fontWeight: '700', color: ORANGE },
 
