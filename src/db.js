@@ -220,6 +220,30 @@ async function runMigrations() {
       );
     `);
 
+    // ── BUSINESS PROMOTIONS ───────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS business_promotions (
+        id           SERIAL PRIMARY KEY,
+        user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        biz_name     VARCHAR(100) NOT NULL,
+        tagline      VARCHAR(100),
+        phone        VARCHAR(15) NOT NULL,
+        category     VARCHAR(60),
+        location     VARCHAR(60),
+        address      TEXT,
+        website      VARCHAR(200),
+        description  TEXT,
+        plan         VARCHAR(20) NOT NULL,
+        plan_price   INTEGER NOT NULL,
+        plan_days    INTEGER NOT NULL,
+        banner_style VARCHAR(20) DEFAULT 'bold',
+        accent_color VARCHAR(20),
+        status       VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','active','rejected','expired')),
+        expires_at   TIMESTAMPTZ,
+        created_at   TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     // ── SEEKER PROFILES ───────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS seeker_profiles (
@@ -287,6 +311,7 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_ratings_rated     ON ratings(rated_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_alerts_user       ON job_alerts(user_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_seeker_user       ON seeker_profiles(user_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_promos_status     ON business_promotions(status);`);
 
     // Fix any legacy invalid role values
     await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');`);
