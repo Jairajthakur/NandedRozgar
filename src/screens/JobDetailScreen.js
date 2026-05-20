@@ -238,7 +238,7 @@ export default function JobDetailScreen({ route, navigation }) {
               {!!job.urgent && (
                 <View style={[s.infoBadge, { backgroundColor: '#fef2f2', borderColor: '#fca5a5' }]}>
                   <Ionicons name="flame" size={12} color="#ef4444" />
-                  <Text style={[s.infoBadgeTxt, { color: '#ef4444' }]}>Urgent</Text>
+                  <Text style={[s.infoBadgeTxt, { color: '#ef4444' }]}>{t('urgent')}</Text>
                 </View>
               )}
             </View>
@@ -249,7 +249,7 @@ export default function JobDetailScreen({ route, navigation }) {
         {!!job.description && (
           <FadeSection delay={80}>
             <View style={s.section}>
-              <Text style={s.sectionHead}>JOB DESCRIPTION</Text>
+              <Text style={s.sectionHead}>{t('jobDescription')}</Text>
               <Text style={s.descText}>{job.description}</Text>
             </View>
           </FadeSection>
@@ -259,7 +259,7 @@ export default function JobDetailScreen({ route, navigation }) {
         {skills.length > 0 && (
           <FadeSection delay={140}>
             <View style={s.section}>
-              <Text style={s.sectionHead}>SKILLS REQUIRED</Text>
+              <Text style={s.sectionHead}>{t('skillsRequired')}</Text>
               <View style={s.skillsRow}>
                 {skills.map((sk, i) => <SkillChip key={i} label={sk} />)}
               </View>
@@ -271,7 +271,7 @@ export default function JobDetailScreen({ route, navigation }) {
         {requirements.length > 0 && (
           <FadeSection delay={200}>
             <View style={s.section}>
-              <Text style={s.sectionHead}>REQUIREMENTS</Text>
+              <Text style={s.sectionHead}>{t('requirements')}</Text>
               {requirements.map((req, i) => (
                 <View key={i} style={s.requirementRow}>
                   <View style={s.bulletDot} />
@@ -295,7 +295,7 @@ export default function JobDetailScreen({ route, navigation }) {
                   {!!job.poster_verified && (
                     <View style={s.verifiedBadge}>
                       <Ionicons name="checkmark-circle" size={12} color="#fff" />
-                      <Text style={s.verifiedBadgeTxt}>Verified Employer</Text>
+                      <Text style={s.verifiedBadgeTxt}>{t('verifiedEmployer')}</Text>
                     </View>
                   )}
                 </View>
@@ -363,7 +363,7 @@ export default function JobDetailScreen({ route, navigation }) {
       {ratingModal && (
         <View style={s.reportOverlay}>
           <View style={s.reportBox}>
-            <Text style={s.reportTitle}>Rate this Employer</Text>
+            <Text style={s.reportTitle}>{t('rateThisEmployer')}</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
               {[1,2,3,4,5].map(star => (
                 <TouchableOpacity key={star} onPress={() => setMyRating(star)}>
@@ -373,7 +373,7 @@ export default function JobDetailScreen({ route, navigation }) {
             </View>
             <TextInput
               style={{ borderWidth:1, borderColor:'#ebebeb', borderRadius:10, padding:10, fontSize:13, marginBottom:14, minHeight:60, textAlignVertical:'top' }}
-              placeholder="Leave a comment (optional)"
+              placeholder={t('leaveComment')}
               value={ratingComment}
               onChangeText={setRatingComment}
               multiline
@@ -388,7 +388,7 @@ export default function JobDetailScreen({ route, navigation }) {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.cancelBtn} onPress={() => setRatingModal(false)}>
-              <Text style={s.cancelTxt}>Cancel</Text>
+              <Text style={s.cancelTxt}>{t('cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -398,7 +398,7 @@ export default function JobDetailScreen({ route, navigation }) {
       {showReport && (
         <View style={s.reportOverlay}>
           <View style={s.reportBox}>
-            <Text style={s.reportTitle}>Report Listing</Text>
+            <Text style={s.reportTitle}>{t('reportListing')}</Text>
             {['Spam or fake', 'Fraud / scam', 'Inappropriate content', 'Job already filled', 'Other'].map(reason => (
               <TouchableOpacity key={reason} style={s.reportOption} onPress={() => submitReport(reason)}>
                 <Ionicons name="alert-circle-outline" size={16} color="#ef4444" />
@@ -406,7 +406,7 @@ export default function JobDetailScreen({ route, navigation }) {
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={s.cancelBtn} onPress={() => setShowReport(false)}>
-              <Text style={s.cancelTxt}>Cancel</Text>
+              <Text style={s.cancelTxt}>{t('cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
