@@ -41,7 +41,44 @@ import ChatListScreen       from './src/screens/ChatListScreen';
 import ChatScreen           from './src/screens/ChatScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
 
-const Stack = createNativeStackNavigator();
+const linking = {
+  prefixes: ['https://nandedrozgar-production.up.railway.app', 'http://localhost:19006', 'http://localhost:8081'],
+  config: {
+    screens: {
+      Main: {
+        screens: {
+          Home:  '',
+          Jobs:  'jobs',
+          Post:  'post',
+          Rooms: 'rooms',
+          Cars:  'cars',
+        },
+      },
+      Login:         'login',
+      JobDetail:     'job/:id',
+      CarDetail:     'car/:id',
+      RoomDetail:    'room/:id',
+      BuySell:       'buy-sell',
+      BuySellDetail: 'buy-sell/:id',
+      PostJob:       'post-job',
+      PostCar:       'post-car',
+      PostRoom:      'post-room',
+      PostItem:      'post-item',
+      Profile:       'profile',
+      AIMatch:       'ai-match',
+      AdminPanel:    'admin',
+      Referral:      'referral',
+      MyApplications:'my-applications',
+      SeekerProfile: 'seeker-profile',
+      Analytics:     'analytics',
+      Alerts:        'alerts',
+      ChatList:      'messages',
+      Chat:          'chat/:id',
+    },
+  },
+};
+
+
 const Tab   = createBottomTabNavigator();
 const ORANGE = '#f97316';
 
@@ -244,7 +281,7 @@ export default function App() {
         <SafeAreaProvider>
           <AuthProvider>
             <LangProvider>
-            <NavigationContainer>
+            <NavigationContainer linking={linking}>
               <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
               <RootNavigator />
             </NavigationContainer>
