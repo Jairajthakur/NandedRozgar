@@ -171,42 +171,129 @@ function PlanCard({ plan, selected, onSelect }) {
 }
 
 // ─── Preview Banner ───────────────────────────────────────────────────────────
-function PreviewBanner({ form, plan }) {
-  const pulse = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.2, duration: 700, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
-        Animated.timing(pulse, { toValue: 1,   duration: 700, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
-      ])
-    ).start();
-  }, []);
+// ─── Banner Style Picker ──────────────────────────────────────────────────────
+const BANNER_STYLES = [
+  { id: 'bold',   label: 'Bold Dark',      accent: '#e82828', bg: '#1a1a1a', textColor: '#fff' },
+  { id: 'clean',  label: 'Clean White',    accent: '#f97316', bg: '#f8f8f8', textColor: '#111' },
+  { id: 'vivid',  label: 'Vibrant Orange', accent: '#1a1a1a', bg: '#f97316', textColor: '#fff' },
+];
 
-  const planColor = plan ? PLANS.find(p => p.id === plan)?.color || ORANGE : ORANGE;
+function BannerStylePicker({ form, selectedStyle, onSelect }) {
+  return (
+    <View style={s.bannerPickerWrap}>
+      <View style={s.sectionHead}>
+        <Ionicons name="image-outline" size={17} color={ORANGE} />
+        <Text style={s.sectionTitle}>Choose Banner Style</Text>
+      </View>
+      <Text style={s.sectionSub}>Select a design for your promotion banner</Text>
+      <View style={s.bannerOptions}>
+        {BANNER_STYLES.map(style => (
+          <BannerPreviewCard
+            key={style.id}
+            style={style}
+            form={form}
+            selected={selectedStyle === style.id}
+            onSelect={() => onSelect(style.id)}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function BannerPreviewCard({ style, form, selected, onSelect }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 22, bounciness: 6 }).start();
+
+  const biz   = form.bizName  || 'Your Business';
+  const offer = form.tagline  || 'Big Sale!';
+  const loc   = form.location || 'Nanded';
 
   return (
-    <View style={s.previewWrap}>
-      <Text style={s.previewLabel}>PREVIEW — how your banner will look</Text>
-      <View style={[s.previewBanner, { borderColor: planColor + '40' }]}>
-        <View style={[s.previewAccent, { backgroundColor: planColor }]} />
-        <View style={[s.previewIconWrap, { backgroundColor: planColor + '18' }]}>
-          <Ionicons name="storefront-outline" size={22} color={planColor} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.previewBizName, { color: planColor }]} numberOfLines={1}>
-            {form.bizName || 'Your Business Name'}
-          </Text>
-          <Text style={s.previewTagline} numberOfLines={1}>
-            {form.tagline || 'Your tagline / offer goes here'}
-          </Text>
-        </View>
-        <View style={[s.previewAdTag, { backgroundColor: planColor }]}>
-          <Animated.View style={[s.previewDot, { transform: [{ scale: pulse }] }]} />
-          <Text style={s.previewAdTxt}>AD</Text>
-        </View>
-      </View>
-      <Text style={s.previewHint}>This banner will appear across listing screens in Nanded.</Text>
-    </View>
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={onSelect}
+        onPressIn={onIn}
+        onPressOut={onOut}
+        style={[s.bannerCardWrap, selected && { borderColor: ORANGE, borderWidth: 2.5 }]}
+      >
+        {/* ── Bold Dark ── */}
+        {style.id === 'bold' && (
+          <View style={[s.bannerCanvas, { backgroundColor: '#1a1a1a' }]}>
+            <View style={[s.bannerStripe, { backgroundColor: '#e82828' }]} />
+            <View style={s.bannerLeft}>
+              <View style={s.bannerLogoBox}>
+                <Text style={s.bannerLogoTxt}>LOGO</Text>
+              </View>
+              <Text style={[s.bannerBizBold, { color: '#fff' }]} numberOfLines={1}>{biz}</Text>
+              <Text style={[s.bannerOfferBold, { color: '#e82828' }]} numberOfLines={1}>{offer}</Text>
+              <Text style={s.bannerLocBold} numberOfLines={1}>📍 {loc}</Text>
+            </View>
+            <View style={s.bannerRight}>
+              <View style={[s.bannerOfferBox, { backgroundColor: '#e82828' }]}>
+                <Text style={s.bannerOfferBoxLabel}>SPECIAL</Text>
+                <Text style={s.bannerOfferBoxVal} numberOfLines={1}>{offer.length > 8 ? offer.slice(0,8)+'…' : offer}</Text>
+              </View>
+              <View style={[s.bannerCTA, { backgroundColor: '#fff' }]}>
+                <Text style={[s.bannerCTATxt, { color: '#e82828' }]}>CONTACT NOW</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* ── Clean White ── */}
+        {style.id === 'clean' && (
+          <View style={[s.bannerCanvas, { backgroundColor: '#f8f8f8', borderWidth: 1, borderColor: '#e0e0e0' }]}>
+            <View style={s.bannerCleanLeft}>
+              <View style={[s.bannerCleanLogo, { backgroundColor: '#111' }]}>
+                <Text style={s.bannerLogoTxt}>LOGO</Text>
+              </View>
+              <Text style={[s.bannerBizClean, { color: '#111' }]} numberOfLines={1}>{biz}</Text>
+              <View style={[s.bannerUnderline, { backgroundColor: ORANGE }]} />
+              <Text style={s.bannerLocClean} numberOfLines={1}>📍 {loc}</Text>
+            </View>
+            <View style={[s.bannerDivider, { backgroundColor: '#e5e5e5' }]} />
+            <View style={s.bannerCleanRight}>
+              <Text style={s.bannerLimitedTxt}>LIMITED OFFER</Text>
+              <Text style={[s.bannerOfferClean, { color: '#111' }]} numberOfLines={1}>{offer.length > 12 ? offer.slice(0,12)+'…' : offer}</Text>
+              <View style={[s.bannerCTA, { backgroundColor: ORANGE, marginTop: 6 }]}>
+                <Text style={[s.bannerCTATxt, { color: '#fff' }]}>SHOP NOW</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* ── Vibrant Orange ── */}
+        {style.id === 'vivid' && (
+          <View style={[s.bannerCanvas, { backgroundColor: ORANGE }]}>
+            <View style={[s.bannerVividLeft, { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10 }]}>
+              <Text style={[s.bannerBizBold, { color: '#fff' }]} numberOfLines={1}>{biz}</Text>
+              <Text style={s.bannerLocVivid} numberOfLines={1}>📍 {loc}</Text>
+              <View style={[s.bannerCTA, { backgroundColor: 'rgba(0,0,0,0.25)', marginTop: 6 }]}>
+                <Text style={[s.bannerCTATxt, { color: '#fff' }]}>GET IN TOUCH</Text>
+              </View>
+            </View>
+            <View style={s.bannerVividRight}>
+              <Text style={s.bannerMegaTxt}>MEGA OFFER</Text>
+              <Text style={[s.bannerOfferVivid, { color: '#fff' }]} numberOfLines={1}>{offer.length > 10 ? offer.slice(0,10)+'…' : offer}</Text>
+              <View style={[s.bannerCTA, { backgroundColor: '#1a1a1a', marginTop: 6 }]}>
+                <Text style={[s.bannerCTATxt, { color: ORANGE }]}>BOOK NOW</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Selected checkmark */}
+        {selected && (
+          <View style={s.bannerCheck}>
+            <Ionicons name="checkmark-circle" size={22} color={ORANGE} />
+          </View>
+        )}
+        <Text style={s.bannerStyleLabel}>{style.label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -220,6 +307,7 @@ export default function PromoteBusinessScreen() {
     address: '', website: '', description: '',
   });
   const [selectedPlan, setSelectedPlan] = useState('popular');
+  const [selectedBannerStyle, setSelectedBannerStyle] = useState('bold');
   const [submitting, setSubmitting] = useState(false);
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
@@ -377,8 +465,12 @@ export default function PromoteBusinessScreen() {
               />
             </View>
 
-            {/* ── Banner Preview ── */}
-            <PreviewBanner form={form} plan={selectedPlan} />
+            {/* ── Banner Style Picker ── */}
+            <BannerStylePicker
+              form={form}
+              selectedStyle={selectedBannerStyle}
+              onSelect={setSelectedBannerStyle}
+            />
 
             {/* ── Plans ── */}
             <View style={s.section}>
@@ -523,37 +615,71 @@ const s = StyleSheet.create({
   pillTxt: { fontSize: 12, fontWeight: '600', color: '#555' },
   pillTxtActive: { color: ORANGE },
 
-  // Preview
-  previewWrap: {
+  // Banner Style Picker
+  bannerPickerWrap: {
     backgroundColor: '#fff', borderRadius: 18,
-    borderWidth: 1, borderColor: '#ebebeb', padding: 16,
+    borderWidth: 1, borderColor: '#ebebeb', padding: 16, gap: 10,
     shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 }, elevation: 1,
   },
-  previewLabel: { fontSize: 10, fontWeight: '800', color: '#aaa', letterSpacing: 1, marginBottom: 10 },
-  previewBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fafafa', borderRadius: 14,
-    borderWidth: 1.5, padding: 12, overflow: 'hidden', position: 'relative',
+  bannerOptions: { gap: 12 },
+  bannerCardWrap: {
+    borderRadius: 14, borderWidth: 1.5, borderColor: '#e5e7eb', overflow: 'hidden',
   },
-  previewAccent: {
-    position: 'absolute', left: 0, top: 10, bottom: 10,
-    width: 4, borderRadius: 2,
+  bannerCanvas: {
+    height: 110, flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10, overflow: 'hidden',
   },
-  previewIconWrap: {
-    width: 44, height: 44, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-    marginLeft: 6,
+  bannerStripe: {
+    position: 'absolute', left: 0, top: 16, bottom: 16, width: 4, borderRadius: 2,
   },
-  previewBizName: { fontSize: 14, fontWeight: '800', letterSpacing: -0.1 },
-  previewTagline: { fontSize: 11, color: '#666', marginTop: 2 },
-  previewAdTag: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    borderRadius: 6, paddingVertical: 3, paddingHorizontal: 7, flexShrink: 0,
+  bannerLeft: { flex: 1, paddingLeft: 8, justifyContent: 'center', gap: 3 },
+  bannerRight: { width: 100, alignItems: 'center', gap: 8 },
+  bannerLogoBox: {
+    backgroundColor: '#e82828', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4,
+    alignSelf: 'flex-start', marginBottom: 4,
   },
-  previewDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#fff' },
-  previewAdTxt: { fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
-  previewHint: { fontSize: 11, color: '#aaa', marginTop: 8, textAlign: 'center', fontStyle: 'italic' },
+  bannerLogoTxt: { fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 1 },
+  bannerBizBold: { fontSize: 14, fontWeight: '900', letterSpacing: -0.3 },
+  bannerOfferBold: { fontSize: 11, fontWeight: '700' },
+  bannerLocBold: { fontSize: 9, color: '#aaa', marginTop: 2 },
+  bannerOfferBox: {
+    width: 90, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
+  },
+  bannerOfferBoxLabel: { fontSize: 8, color: '#ffcccc', fontWeight: '700', letterSpacing: 1 },
+  bannerOfferBoxVal: { fontSize: 12, color: '#fff', fontWeight: '800' },
+  bannerCTA: {
+    paddingVertical: 5, paddingHorizontal: 10, borderRadius: 20,
+  },
+  bannerCTATxt: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+
+  // Clean style
+  bannerCleanLeft: { width: 110, justifyContent: 'center', gap: 3 },
+  bannerCleanLogo: {
+    width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  },
+  bannerBizClean: { fontSize: 13, fontWeight: '800' },
+  bannerUnderline: { height: 2, width: 60, borderRadius: 1, marginVertical: 2 },
+  bannerLocClean: { fontSize: 9, color: '#888' },
+  bannerDivider: { width: 1, height: 80, marginHorizontal: 4 },
+  bannerCleanRight: { flex: 1, justifyContent: 'center', gap: 2 },
+  bannerLimitedTxt: { fontSize: 8, color: '#aaa', fontWeight: '700', letterSpacing: 1.5 },
+  bannerOfferClean: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
+
+  // Vivid style
+  bannerVividLeft: { width: 110, padding: 8, justifyContent: 'center', gap: 3 },
+  bannerLocVivid: { fontSize: 9, color: '#fff7ed', marginTop: 2 },
+  bannerVividRight: { flex: 1, alignItems: 'flex-end', justifyContent: 'center', gap: 3 },
+  bannerMegaTxt: { fontSize: 8, color: '#fff7ed', fontWeight: '700', letterSpacing: 1.5 },
+  bannerOfferVivid: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
+
+  bannerCheck: {
+    position: 'absolute', top: 8, right: 8,
+    backgroundColor: '#fff', borderRadius: 12,
+  },
+  bannerStyleLabel: {
+    fontSize: 11, fontWeight: '700', color: '#555', textAlign: 'center',
+    backgroundColor: '#f9f9f9', paddingVertical: 5, borderTopWidth: 1, borderTopColor: '#f0f0f0',
+  },
 
   // Plans
   plansWrap: { gap: 12 },
