@@ -37,6 +37,7 @@ import MyApplicationsScreen from './src/screens/MyApplicationsScreen';
 import SeekerProfileScreen  from './src/screens/SeekerProfileScreen';
 import AnalyticsScreen      from './src/screens/AnalyticsScreen';
 import AlertsScreen         from './src/screens/AlertsScreen';
+import PromoteBusinessScreen from './src/screens/PromoteBusinessScreen';
 import ChatListScreen       from './src/screens/ChatListScreen';
 import ChatScreen           from './src/screens/ChatScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
@@ -223,6 +224,7 @@ function RootNavigator() {
       <Stack.Screen name="BuySell"    component={BuySellScreen}       options={{ headerShown: true, headerTitle: t('buySell'), ...HEADER }} />
       <Stack.Screen name="BuySellDetail" component={BuySellDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="PostItem"   component={PostItemScreen}       options={{ headerShown: false }} />
+      <Stack.Screen name="PromoteBusiness" component={PromoteBusinessScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Profile"    component={ProfileScreen}    options={{ headerShown: true, headerTitle: t('myProfile'), ...HEADER }} />
       <Stack.Screen name="AIMatch"    component={AIScreen}         options={{ headerShown: true, headerTitle: t('aiJobMatch'), ...HEADER }} />
       <Stack.Screen name="AdminPanel"  component={AdminScreen}      options={{ headerShown: true, headerTitle: t('admin'), ...HEADER }} />
