@@ -453,6 +453,26 @@ export default function RoomScreen({ route }) {
 
   const showSidebar = IS_WEB && width >= 900;
 
+  // FlatList ref — scroll to top when filters change
+  const flatListRef = useRef(null);
+  useEffect(() => {
+    flatListRef.current?.scrollToOffset?.({ offset: 0, animated: true });
+  }, [roomType, search, sortBy]);
+
+  // Scroll animation — drives sticky mini-header (same as Jobs/Cars/BuySell)
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const STICKY_THRESHOLD = 160;
+  const stickyOpacity = scrollY.interpolate({
+    inputRange: [STICKY_THRESHOLD, STICKY_THRESHOLD + 40],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const stickyTranslate = scrollY.interpolate({
+    inputRange: [STICKY_THRESHOLD, STICKY_THRESHOLD + 40],
+    outputRange: [-56, 0],
+    extrapolate: 'clamp',
+  });
+
   const [roomType,   setRoomType]   = useState('All');
   const [search,     setSearch]     = useState(route?.params?.searchQuery || '');
   const [sortBy,     setSortBy]     = useState('recent');
@@ -677,36 +697,55 @@ export default function RoomScreen({ route }) {
     </View>
   );
 
+
+  // Sticky mini-header — fades in after scrolling 160px (same as Jobs/Cars/BuySell)
+  const StickyHeader = (
+    <Animated.View
+      pointerEvents="box-none"
+      style={[
+        IS_WEB ? ws.stickyBar : s.stickyBar,
+        !IS_WEB && { top: insets.top },
+        { opacity: stickyOpacity, transform: [{ translateY: stickyTranslate }] },
+      ]}
+    >
+      <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
+        <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
+          Rooms in <Text style={{ color: ORANGE }}>Nanded</Text>
+        </Text>
+        <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
+          <Ionicons name="search-outline" size={15} color="#bbb" style={{ marginLeft: 10 }} />
+          <TextInput
+            style={IS_WEB ? ws.stickyInput : s.stickyInput}
+            placeholder="Search area, type, amenity..."
+            placeholderTextColor="#bbb"
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} style={{ paddingHorizontal: 6 }}>
+              <Ionicons name="close-circle" size={15} color="#ccc" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </Animated.View>
+  );
   /* ── Web 3-column layout (matches Jobs page exactly) ── */
   if (IS_WEB && width >= 600) {
     return (
       <View style={ws.root}>
 
-        {/* Sticky top bar — title + search (mirrors Jobs page) */}
+        {/* Simple top bar — just back + title */}
         <View style={ws.topBar}>
           <TouchableOpacity onPress={() => nav.navigate('Home')} style={ws.topBarBack} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={20} color="#111" />
           </TouchableOpacity>
-          <Text style={ws.topBarTitle}>
-            Rooms in <Text style={{ color: ORANGE }}>Nanded</Text>
-          </Text>
-          <View style={ws.topBarSearch}>
-            <Ionicons name="search-outline" size={16} color="#bbb" style={{ marginLeft: 12 }} />
-            <TextInput
-              style={ws.topBarSearchInput}
-              placeholder="Search area, type, amenity..."
-              placeholderTextColor="#bbb"
-              value={search}
-              onChangeText={setSearch}
-              returnKeyType="search"
-            />
-            {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch('')} style={{ paddingHorizontal: 8 }}>
-                <Ionicons name="close-circle" size={16} color="#ccc" />
-              </TouchableOpacity>
-            )}
-          </View>
+          <Text style={ws.topBarTitle}>Rooms</Text>
         </View>
+
+        {/* Sticky mini-header — slides in after scrolling 160px */}
+        {StickyHeader}
 
         <View style={ws.body}>
 
@@ -768,17 +807,19 @@ export default function RoomScreen({ route }) {
 
           {/* ── MAIN COLUMN ── */}
           <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
-            {/* Name + search bar stays pinned — FlatList scrolls below it */}
-            <View style={ws.stickySearchHeader}>
-              {Header}
-            </View>
             <FlatList
+              ref={flatListRef}
               data={filtered}
               keyExtractor={r => r.id}
               contentContainerStyle={ws.list}
               showsVerticalScrollIndicator={true}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                { useNativeDriver: false }
+              )}
+              scrollEventThrottle={16}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchRooms(true)} tintColor={ORANGE} colors={[ORANGE]} />}
-              ListHeaderComponent={<>{ListHeader}</>}
+              ListHeaderComponent={<>{Header}{ListHeader}</>}
               ListEmptyComponent={Empty}
               renderItem={({ item, index }) => (
                 <RoomCard item={item} index={index} onPress={() => nav.navigate('RoomDetail', { room: item })} />
@@ -863,17 +904,23 @@ export default function RoomScreen({ route }) {
   return (
     <View style={s.container}>
       <FlatList
+        ref={flatListRef}
         data={filtered}
         keyExtractor={r => r.id}
-        stickyHeaderIndices={[0]}
         ListHeaderComponent={<>{Header}{ListHeader}</>}
         contentContainerStyle={s.list}
         ListEmptyComponent={Empty}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchRooms(true)} tintColor={ORANGE} colors={[ORANGE]} />}
         renderItem={({ item, index }) => (
           <RoomCard item={item} index={index} onPress={() => nav.navigate('RoomDetail', { room: item })} />
         )}
       />
+      {StickyHeader}
       {SortModal}{FilterModal}
     </View>
   );
@@ -882,6 +929,23 @@ export default function RoomScreen({ route }) {
 /* ─────────────────────────── MOBILE STYLES ─────────────────────────── */
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
+  stickyBar: {
+    position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999,
+    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 }, elevation: 8,
+  },
+  stickyInner: {
+    flexDirection: 'row', alignItems: 'center',
+    gap: 12, paddingHorizontal: 16, paddingVertical: 10,
+  },
+  stickyTitle: { fontSize: 16, fontWeight: '900', color: '#111', flexShrink: 0 },
+  stickySearch: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#f5f5f5', borderRadius: 10, height: 38,
+    borderWidth: 1, borderColor: '#e8e8e8', overflow: 'hidden',
+  },
+  stickyInput: { flex: 1, height: 38, paddingHorizontal: 8, fontSize: 13, color: '#111' },
   list: { paddingHorizontal: 12, paddingBottom: 48 },
 
   header: {
@@ -1096,11 +1160,6 @@ const ws = StyleSheet.create({
     maxHeight: 'calc(100vh - 82px)', overflowY: 'auto', paddingBottom: 16,
   },
   mainCol: { flex: 1, minWidth: 0, flexShrink: 1, overflow: 'hidden' },
-  stickySearchHeader: {
-    backgroundColor: '#f7f7f7',
-    zIndex: 10,
-    paddingBottom: 4,
-  },
   rightSidebar: {
     width: 220, flexShrink: 0, gap: 12,
     alignSelf: 'flex-start', position: 'sticky', top: 70,
@@ -1122,17 +1181,36 @@ const ws = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9',
   },
-  topBarSearch: {
-    flex: 1, flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f3f4f6', borderRadius: 10,
-    borderWidth: 1, borderColor: '#e8e8e8', height: 38,
-  },
-  topBarSearchInput: {
-    flex: 1, height: 38, paddingHorizontal: 10,
-    fontSize: 14, color: '#111', outlineStyle: 'none',
-  },
   topBarBackTxt: { fontSize: 13, fontWeight: '700', color: '#111' },
   topBarTitle:   { fontSize: 15, fontWeight: '800', color: '#111' },
+
+  /* ── Sticky mini-header (slides in on scroll, same as Jobs/Cars/BuySell) ── */
+  stickyBar: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    zIndex: 999,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 }, elevation: 8,
+  },
+  stickyInner: {
+    flexDirection: 'row', alignItems: 'center',
+    gap: 10, paddingHorizontal: 16, paddingVertical: 10,
+  },
+  stickyTitle: {
+    fontSize: 15, fontWeight: '900', color: '#111',
+    letterSpacing: -0.2, flexShrink: 0,
+  },
+  stickySearch: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#f5f5f5', borderRadius: 10,
+    height: 36, borderWidth: 1, borderColor: '#e8e8e8', overflow: 'hidden',
+  },
+  stickyInput: {
+    flex: 1, height: 36, paddingHorizontal: 8,
+    fontSize: 13, color: '#111', outlineStyle: 'none',
+  },
 
   header: {
     backgroundColor: '#fff', borderRadius: 16, marginBottom: 12, padding: 20,
