@@ -5,6 +5,7 @@ import {
   Animated, Easing, Platform, useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useLang } from '../utils/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
@@ -82,12 +83,12 @@ function TopVehiclesBanner() {
         <Ionicons name="car-sport" size={20} color={ORANGE} />
       </Animated.View>
       <View style={{ flex: 1 }}>
-        <Text style={s.trendingTitle}>Top Listings This Week</Text>
-        <Text style={s.trendingSub}>Cars, Bikes & Autos available in Nanded</Text>
+        <Text style={s.trendingTitle}>{t('topListingsThisWeek')}</Text>
+        <Text style={s.trendingSub}>{t('carsTagline')}</Text>
       </View>
       <View style={s.liveBadge}>
         <PulseDot />
-        <Text style={s.liveTxt}>LIVE</Text>
+        <Text style={s.liveTxt}>{t('live')}</Text>
       </View>
     </View>
   );
@@ -198,7 +199,7 @@ function VehicleCard({ item, index, onPress }) {
                 </View>
                 <Text style={ws.ownerName} numberOfLines={1}>{item.owner?.name || 'Owner'}</Text>
               </View>
-              <View style={ws.viewBtn}><Text style={ws.viewBtnTxt}>View Details</Text></View>
+              <View style={ws.viewBtn}><Text style={ws.viewBtnTxt}>{t('viewDetails')}</Text></View>
             </View>
           </View>
         </TouchableOpacity>
@@ -255,6 +256,7 @@ function VehicleCard({ item, index, onPress }) {
 /* ─── Main Screen ─── */
 export default function CarsScreen({ route }) {
   const nav    = useNavigation();
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
 
@@ -346,7 +348,7 @@ export default function CarsScreen({ route }) {
         <View style={IS_WEB ? null : s.titleRow}>
           <View>
             <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
-              Vehicles in <Text style={{ color: ORANGE }}>Nanded</Text>
+              Vehicles in <Text style={{ color: ORANGE }}>LocalLoop</Text>
             </Text>
             <Text style={IS_WEB ? ws.pageCount : s.pageCount}>{filtered.length} listings found</Text>
           </View>
@@ -358,7 +360,7 @@ export default function CarsScreen({ route }) {
               </TouchableOpacity>
               <TouchableOpacity style={[s.iconBtn, activeFilters.length > 0 && s.iconBtnActive]} onPress={() => setShowFilters(true)}>
                 <Ionicons name="options-outline" size={16} color={activeFilters.length > 0 ? '#fff' : '#555'} />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: activeFilters.length > 0 ? '#fff' : '#555' }}>Filter</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: activeFilters.length > 0 ? '#fff' : '#555' }}>{t('filter')}</Text>
                 {activeFilters.length > 0 && (
                   <View style={s.filterBadge}><Text style={s.filterBadgeTxt}>{activeFilters.length}</Text></View>
                 )}
@@ -371,7 +373,7 @@ export default function CarsScreen({ route }) {
           <Ionicons name="search-outline" size={16} color="#bbb" style={{ marginLeft: 12 }} />
           <TextInput
             style={IS_WEB ? ws.searchInput : s.searchInput}
-            placeholder="Search vehicle, area, type…"
+            placeholder={t('searchVehiclePlaceholder')}
             placeholderTextColor="#bbb"
             value={search}
             onChangeText={setSearch}
@@ -432,13 +434,13 @@ export default function CarsScreen({ route }) {
     >
       <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
         <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-          Cars in <Text style={{ color: ORANGE }}>Nanded</Text>
+          Cars in <Text style={{ color: ORANGE }}>LocalLoop</Text>
         </Text>
         <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
           <Ionicons name="search-outline" size={15} color="#bbb" style={{ marginLeft: 10 }} />
           <TextInput
             style={IS_WEB ? ws.stickyInput : s.stickyInput}
-            placeholder="Search vehicle, area, type…"
+            placeholder={t('searchVehiclePlaceholder')}
             placeholderTextColor="#bbb"
             value={search}
             onChangeText={setSearch}
@@ -457,13 +459,13 @@ export default function CarsScreen({ route }) {
   const Empty = (
     <View style={s.emptyWrap}>
       <Ionicons name="car-outline" size={52} color="#d1d5db" />
-      <Text style={s.emptyTxt}>No vehicles listed yet</Text>
+      <Text style={s.emptyTxt}>{t('noCarsFound')}</Text>
       <Text style={{ color: '#d1d5db', fontSize: 12, marginTop: 4 }}>
         {search || vehicleType !== 'All' ? 'Try adjusting your filters' : 'Be the first to list your vehicle!'}
       </Text>
       {(search || vehicleType !== 'All') && (
         <TouchableOpacity onPress={() => { setSearch(''); setVehicleType('All'); setPriceRange(PRICE_RANGES[0]); }}>
-          <Text style={s.emptyClear}>Clear filters</Text>
+          <Text style={s.emptyClear}>{t('clearFilters')}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -475,7 +477,7 @@ export default function CarsScreen({ route }) {
       <View style={[s.sheet, IS_WEB && ws.centeredModal]}>
         <View style={s.sheetHandle} />
         <View style={s.sheetHeader}>
-          <Text style={s.sheetTitle}>Sort By</Text>
+          <Text style={s.sheetTitle}>{t('sortBy')}</Text>
           <TouchableOpacity onPress={() => setShowSort(false)}><Ionicons name="close" size={22} color="#888" /></TouchableOpacity>
         </View>
         {SORT_OPTIONS.map(opt => (
@@ -495,12 +497,12 @@ export default function CarsScreen({ route }) {
       <View style={[s.sheet, IS_WEB && ws.centeredModal]}>
         <View style={s.sheetHandle} />
         <View style={s.sheetHeader}>
-          <Text style={s.sheetTitle}>Filters</Text>
+          <Text style={s.sheetTitle}>{t('filters')}</Text>
           <TouchableOpacity onPress={() => { setVehicleType('All'); setPriceRange(PRICE_RANGES[0]); }}>
-            <Text style={s.resetTxt}>Reset</Text>
+            <Text style={s.resetTxt}>{t('reset')}</Text>
           </TouchableOpacity>
         </View>
-        <Text style={s.filterLabel}>Vehicle Type</Text>
+        <Text style={s.filterLabel}>{t('vehicleType')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 16 }}>
           {VEHICLE_TYPES.map(vt => (
             <TouchableOpacity key={vt} onPress={() => setVehicleType(vt)}
@@ -509,7 +511,7 @@ export default function CarsScreen({ route }) {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        <Text style={s.filterLabel}>Price Range</Text>
+        <Text style={s.filterLabel}>{t('priceRange')}</Text>
         {PRICE_RANGES.map(pr => (
           <TouchableOpacity key={pr.label} style={[s.rangeRow, priceRange.label === pr.label && s.rangeActive]}
             onPress={() => setPriceRange(pr)}>
@@ -518,7 +520,7 @@ export default function CarsScreen({ route }) {
           </TouchableOpacity>
         ))}
         <TouchableOpacity style={s.applyFilterBtn} onPress={() => setShowFilters(false)}>
-          <Text style={s.applyFilterTxt}>Apply Filters</Text>
+          <Text style={s.applyFilterTxt}>{t('applyFilters')}</Text>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -543,12 +545,12 @@ export default function CarsScreen({ route }) {
               <SideCard style={ws.ctaCard}>
                 <View style={ws.ctaCircle1} />
                 <View style={ws.ctaCircle2} />
-                <Text style={ws.ctaEyebrow}>VEHICLE OWNER?</Text>
-                <Text style={ws.ctaTitle}>List Your Vehicle</Text>
-                <Text style={ws.ctaSub}>Reach thousands of renters in Nanded. Free to list!</Text>
+                <Text style={ws.ctaEyebrow}>{t('vehicleOwner')}</Text>
+                <Text style={ws.ctaTitle}>{t('listYourVehicle')}</Text>
+                <Text style={ws.ctaSub}>{t('reachThousands')}</Text>
                 <TouchableOpacity style={ws.ctaBtn} onPress={() => nav.navigate('PostCar')}>
                   <Ionicons name="add-circle-outline" size={15} color="#fff" />
-                  <Text style={ws.ctaBtnTxt}>Post a Vehicle</Text>
+                  <Text style={ws.ctaBtnTxt}>{t('postAVehicle')}</Text>
                 </TouchableOpacity>
               </SideCard>
 
@@ -571,9 +573,9 @@ export default function CarsScreen({ route }) {
 
               <SideCard>
                 <Text style={ws.sideTitle}>Explore More</Text>
-                <QuickAction icon="briefcase-outline" label="Find a Job"  color={ORANGE}  onPress={() => nav.navigate('Jobs')} />
-                <QuickAction icon="home-outline"      label="Find a Room" color="#0d9488" onPress={() => nav.navigate('Rooms')} />
-                <QuickAction icon="pricetag-outline"  label="Buy & Sell"  color="#0ea5e9" onPress={() => nav.navigate('BuySell')} />
+                <QuickAction icon="briefcase-outline" label={t('findAJob')}  color={ORANGE}  onPress={() => nav.navigate('Jobs')} />
+                <QuickAction icon="home-outline"      label={t('findARoom')} color="#0d9488" onPress={() => nav.navigate('Rooms')} />
+                <QuickAction icon="pricetag-outline"  label={t('buySell')}  color="#0ea5e9" onPress={() => nav.navigate('BuySell')} />
               </SideCard>
             </View>
           )}
@@ -601,7 +603,7 @@ export default function CarsScreen({ route }) {
           {showSidebar && (
             <View style={ws.rightSidebar}>
               <SideCard>
-                <Text style={ws.sideTitle}>Sort By</Text>
+                <Text style={ws.sideTitle}>{t('sortBy')}</Text>
                 {SORT_OPTIONS.map(opt => (
                   <TouchableOpacity key={opt.value} style={[ws.sortRow, sortBy === opt.value && ws.sortRowActive]}
                     onPress={() => setSortBy(opt.value)}>
@@ -612,7 +614,7 @@ export default function CarsScreen({ route }) {
               </SideCard>
 
               <SideCard>
-                <Text style={ws.sideTitle}>Price Range</Text>
+                <Text style={ws.sideTitle}>{t('priceRange')}</Text>
                 {PRICE_RANGES.map(pr => (
                   <TouchableOpacity key={pr.label} style={[ws.sortRow, priceRange.label === pr.label && ws.sortRowActive]}
                     onPress={() => setPriceRange(pr)}>
@@ -623,7 +625,7 @@ export default function CarsScreen({ route }) {
               </SideCard>
 
               <SideCard>
-                <Text style={ws.sideTitle}>Vehicle Type</Text>
+                <Text style={ws.sideTitle}>{t('vehicleType')}</Text>
                 {VEHICLE_TYPES.map(vt => (
                   <TouchableOpacity key={vt} style={[ws.sortRow, vehicleType === vt && ws.sortRowActive]}
                     onPress={() => setVehicleType(vt)}>
