@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "NandedRozgar",
-    "slug": "nanded",
+    "name": "LocalLoop",
+    "slug": "localloop",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,22 +19,22 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "single",
-      "name": "NandedRozgar",
-      "shortName": "NandedRozgar",
-      "description": "Local Jobs · Local Life · Nanded",
+      "name": "LocalLoop",
+      "shortName": "LocalLoop",
+      "description": "Local Jobs · Rooms · Buy 0026 Sell",
       "themeColor": "#f97316",
       "backgroundColor": "#111111"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.nandedrozgar.app"
+      "bundleIdentifier": "com.localloop.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#111111"
       },
-      "package": "com.nandedrozgar.app",
+      "package": "com.localloop.app",
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -71,8 +71,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow NandedRozgar to access your photos.",
-          "cameraPermission": "Allow NandedRozgar to use your camera."
+          "photosPermission": "Allow LocalLoop to access your photos.",
+          "cameraPermission": "Allow LocalLoop to use your camera."
         }
       ]
     ],
