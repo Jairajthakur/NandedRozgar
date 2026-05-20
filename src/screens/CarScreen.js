@@ -531,17 +531,8 @@ export default function CarsScreen({ route }) {
         <View style={ws.topBar}>
           <TouchableOpacity style={ws.topBarBack} onPress={() => nav.goBack()}>
             <Ionicons name="arrow-back" size={16} color="#333" />
-            <Text style={ws.topBarBackTxt}>Back</Text>
           </TouchableOpacity>
           <Text style={ws.topBarTitle}>Cars</Text>
-          <TouchableOpacity style={[ws.iconBtn, { marginLeft: 'auto' }]} onPress={() => nav.navigate('PostCar')}>
-            <Ionicons name="add" size={15} color={ORANGE} />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: ORANGE }}>List Vehicle</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={ws.iconBtn} onPress={() => setShowSort(true)}>
-            <Ionicons name="swap-vertical-outline" size={15} color="#555" />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#555' }}>Sort</Text>
-          </TouchableOpacity>
         </View>
 
         {StickyHeader}
@@ -903,9 +894,9 @@ const ws = StyleSheet.create({
     position: 'sticky', top: 0, zIndex: 100,
   },
   topBarBack: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingVertical: 6, paddingHorizontal: 14,
-    borderRadius: 20, borderWidth: 1.5, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9',
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9',
   },
   topBarBackTxt: { fontSize: 13, fontWeight: '700', color: '#111' },
   topBarTitle:   { fontSize: 15, fontWeight: '800', color: '#111' },
