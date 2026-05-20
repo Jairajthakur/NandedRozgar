@@ -5,6 +5,7 @@ import {
   Animated, Easing, Platform, useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useLang } from '../utils/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
@@ -142,12 +143,12 @@ function TopDealsBanner() {
         <Ionicons name="pricetag" size={20} color={ORANGE} />
       </Animated.View>
       <View style={{ flex: 1 }}>
-        <Text style={s.trendingTitle}>Top Deals This Week</Text>
-        <Text style={s.trendingSub}>Electronics, Furniture & more in Nanded</Text>
+        <Text style={s.trendingTitle}>{t('topDealsThisWeek')}</Text>
+        <Text style={s.trendingSub}>Electronics, Furniture & more on LocalLoop</Text>
       </View>
       <View style={s.liveBadge}>
         <PulseDot />
-        <Text style={s.liveTxt}>LIVE</Text>
+        <Text style={s.liveTxt}>{t('live')}</Text>
       </View>
     </View>
   );
@@ -265,7 +266,7 @@ function ItemCard({ item, index, onPress }) {
               {item.seller?.verified && (
                 <View style={[ws.tag, ws.tagBlue]}>
                   <Ionicons name="shield-checkmark" size={10} color="#0891b2" style={{ marginRight: 3 }} />
-                  <Text style={[ws.tagTxt, { color: '#0891b2' }]}>Verified</Text>
+                  <Text style={[ws.tagTxt, { color: '#0891b2' }]}>{t('verified')}</Text>
                 </View>
               )}
             </View>
@@ -278,7 +279,7 @@ function ItemCard({ item, index, onPress }) {
                 <Text style={ws.ownerName} numberOfLines={1}>{item.seller?.name || 'Seller'}</Text>
               </View>
               <TouchableOpacity style={ws.viewBtn} onPress={handlePress}>
-                <Text style={ws.viewBtnTxt}>View Details</Text>
+                <Text style={ws.viewBtnTxt}>{t('viewDetails')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -336,6 +337,7 @@ function ItemCard({ item, index, onPress }) {
 ═══════════════════════════════════════════ */
 export default function BuySellScreen({ route }) {
   const nav    = useNavigation();
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
 
@@ -444,7 +446,7 @@ export default function BuySellScreen({ route }) {
         <View style={s.titleRow}>
           <View>
             <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
-              Buy & Sell in <Text style={{ color: ORANGE }}>Nanded</Text>
+              Buy & Sell in <Text style={{ color: ORANGE }}>LocalLoop</Text>
             </Text>
             <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
               {filtered.length} item{filtered.length !== 1 ? 's' : ''} listed
@@ -485,7 +487,7 @@ export default function BuySellScreen({ route }) {
           <Ionicons name="search-outline" size={16} color="#bbb" style={{ marginLeft: 12 }} />
           <TextInput
             style={[s.searchInput, IS_WEB && ws.searchInput]}
-            placeholder="Search items, area, category…"
+            placeholder={t('searchItemsPlaceholder')}
             placeholderTextColor="#bbb"
             value={search}
             onChangeText={setSearch}
@@ -499,7 +501,7 @@ export default function BuySellScreen({ route }) {
           {IS_WEB && (
             <TouchableOpacity style={ws.searchFilterBtn} onPress={() => setShowFilters(true)}>
               <Ionicons name="options-outline" size={15} color={ORANGE} />
-              <Text style={ws.filterBtnTxt}>Filters</Text>
+              <Text style={ws.filterBtnTxt}>{t('filters')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -560,13 +562,13 @@ export default function BuySellScreen({ route }) {
     >
       <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
         <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-          Buy &amp; Sell in <Text style={{ color: ORANGE }}>Nanded</Text>
+          Buy &amp; Sell in <Text style={{ color: ORANGE }}>LocalLoop</Text>
         </Text>
         <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
           <Ionicons name="search-outline" size={15} color="#bbb" style={{ marginLeft: 10 }} />
           <TextInput
             style={IS_WEB ? ws.stickyInput : s.stickyInput}
-            placeholder="Search items…"
+            placeholder={t('searchItemsShort')}
             placeholderTextColor="#bbb"
             value={search}
             onChangeText={setSearch}
@@ -585,13 +587,13 @@ export default function BuySellScreen({ route }) {
   const Empty = (
     <View style={s.emptyWrap}>
       <Ionicons name="pricetag-outline" size={52} color="#d1d5db" />
-      <Text style={s.emptyTxt}>No items found</Text>
+      <Text style={s.emptyTxt}>{t('noItemsFound')}</Text>
       <Text style={{ color: '#d1d5db', fontSize: 12, marginTop: 4 }}>
         {search || activeCat !== 'All' ? 'Try adjusting your filters' : 'Be the first to list an item!'}
       </Text>
       {(search || activeCat !== 'All') && (
         <TouchableOpacity onPress={() => { setSearch(''); setActiveCat('All'); setCondition('Any'); setPriceRange(PRICE_RANGES[0]); }}>
-          <Text style={s.emptyClear}>Clear filters</Text>
+          <Text style={s.emptyClear}>{t('clearFilters')}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -603,7 +605,7 @@ export default function BuySellScreen({ route }) {
       <View style={[s.sheet, IS_WEB && ws.centeredModal]}>
         <View style={s.sheetHandle} />
         <View style={s.sheetHeader}>
-          <Text style={s.sheetTitle}>Sort By</Text>
+          <Text style={s.sheetTitle}>{t('sortBy')}</Text>
           <TouchableOpacity onPress={() => setShowSort(false)}>
             <Ionicons name="close" size={22} color="#888" />
           </TouchableOpacity>
@@ -625,13 +627,13 @@ export default function BuySellScreen({ route }) {
       <Animated.View style={[s.sheet, IS_WEB && ws.centeredModal, { transform: [{ translateY: IS_WEB ? 0 : sheetY }] }]}>
         <View style={s.sheetHandle} />
         <View style={s.sheetHeader}>
-          <Text style={s.sheetTitle}>Filters</Text>
+          <Text style={s.sheetTitle}>{t('filters')}</Text>
           <TouchableOpacity onPress={() => { setActiveCat('All'); setCondition('Any'); setPriceRange(PRICE_RANGES[0]); }}>
-            <Text style={s.resetTxt}>Reset All</Text>
+            <Text style={s.resetTxt}>{t('resetAll')}</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={s.filterLabel}>Category</Text>
+        <Text style={s.filterLabel}>{t('category')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
           {CATEGORIES.map(({ key, label }) => (
             <TouchableOpacity key={key} onPress={() => setActiveCat(key)}
@@ -641,7 +643,7 @@ export default function BuySellScreen({ route }) {
           ))}
         </ScrollView>
 
-        <Text style={[s.filterLabel, { marginTop: 16 }]}>Condition</Text>
+        <Text style={[s.filterLabel, { marginTop: 16 }]}>{t('condition')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
           {CONDITIONS.map(c => (
             <TouchableOpacity key={c} onPress={() => setCondition(c)}
@@ -651,7 +653,7 @@ export default function BuySellScreen({ route }) {
           ))}
         </ScrollView>
 
-        <Text style={[s.filterLabel, { marginTop: 16 }]}>Price Range</Text>
+        <Text style={[s.filterLabel, { marginTop: 16 }]}>{t('priceRange')}</Text>
         {PRICE_RANGES.map(pr => (
           <TouchableOpacity key={pr.label} style={[s.rangeRow, priceRange.label === pr.label && s.rangeActive]}
             onPress={() => setPriceRange(pr)}>
@@ -661,7 +663,7 @@ export default function BuySellScreen({ route }) {
         ))}
 
         <TouchableOpacity style={s.applyFilterBtn} onPress={() => setShowFilters(false)}>
-          <Text style={s.applyFilterTxt}>Apply Filters</Text>
+          <Text style={s.applyFilterTxt}>{t('applyFilters')}</Text>
         </TouchableOpacity>
       </Animated.View>
     </Modal>
@@ -692,18 +694,18 @@ export default function BuySellScreen({ route }) {
               <SideCard style={ws.ctaCard}>
                 <View style={ws.ctaCircle1} />
                 <View style={ws.ctaCircle2} />
-                <Text style={ws.ctaEyebrow}>HAVE SOMETHING?</Text>
-                <Text style={ws.ctaTitle}>Sell It Free</Text>
-                <Text style={ws.ctaSub}>Reach thousands of buyers in Nanded instantly. Zero listing fees!</Text>
+                <Text style={ws.ctaEyebrow}>{t('haveSomething')}</Text>
+                <Text style={ws.ctaTitle}>{t('sellItFree')}</Text>
+                <Text style={ws.ctaSub}>{t('reachThousands')}</Text>
                 <TouchableOpacity style={ws.ctaBtn} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
                   <Ionicons name="add-circle-outline" size={15} color="#fff" />
-                  <Text style={ws.ctaBtnTxt}>Post an Item</Text>
+                  <Text style={ws.ctaBtnTxt}>{t('postAnItem')}</Text>
                 </TouchableOpacity>
               </SideCard>
 
               {/* Browse Categories */}
               <SideCard>
-                <Text style={ws.sideTitle}>Categories</Text>
+                <Text style={ws.sideTitle}>{t('categories')}</Text>
                 {CATEGORIES.map(({ key, label, icon }) => (
                   <TouchableOpacity key={key} style={ws.catRow} onPress={() => setActiveCat(key)} activeOpacity={0.75}>
                     <View style={ws.catIconWrap}>
@@ -718,9 +720,9 @@ export default function BuySellScreen({ route }) {
               {/* Explore More */}
               <SideCard>
                 <Text style={ws.sideTitle}>Explore More</Text>
-                <QuickAction icon="briefcase-outline" label="Find a Job"     color={ORANGE}   onPress={() => nav.navigate('Jobs')} />
-                <QuickAction icon="home-outline"      label="Find a Room"    color="#0d9488"  onPress={() => nav.navigate('Rooms')} />
-                <QuickAction icon="car-sport-outline" label="Rent a Vehicle" color="#9333ea"  onPress={() => nav.navigate('Cars')} />
+                <QuickAction icon="briefcase-outline" label={t('findAJob')}     color={ORANGE}   onPress={() => nav.navigate('Jobs')} />
+                <QuickAction icon="home-outline"      label={t('findARoom')}    color="#0d9488"  onPress={() => nav.navigate('Rooms')} />
+                <QuickAction icon="car-sport-outline" label={t('rentAVehicle')} color="#9333ea"  onPress={() => nav.navigate('Cars')} />
               </SideCard>
             </View>
           )}
@@ -753,7 +755,7 @@ export default function BuySellScreen({ route }) {
             <View style={ws.rightSidebar}>
 
               <SideCard>
-                <Text style={ws.sideTitle}>Sort By</Text>
+                <Text style={ws.sideTitle}>{t('sortBy')}</Text>
                 {SORT_OPTIONS.map(opt => (
                   <TouchableOpacity key={opt.value} style={[ws.sortRow, sortBy === opt.value && ws.sortRowActive]}
                     onPress={() => setSortBy(opt.value)}>
@@ -764,7 +766,7 @@ export default function BuySellScreen({ route }) {
               </SideCard>
 
               <SideCard>
-                <Text style={ws.sideTitle}>Price Range</Text>
+                <Text style={ws.sideTitle}>{t('priceRange')}</Text>
                 {PRICE_RANGES.map(pr => (
                   <TouchableOpacity key={pr.label} style={[ws.sortRow, priceRange.label === pr.label && ws.sortRowActive]}
                     onPress={() => setPriceRange(pr)}>
@@ -775,7 +777,7 @@ export default function BuySellScreen({ route }) {
               </SideCard>
 
               <SideCard>
-                <Text style={ws.sideTitle}>Condition</Text>
+                <Text style={ws.sideTitle}>{t('condition')}</Text>
                 {CONDITIONS.map(c => (
                   <TouchableOpacity key={c} style={[ws.sortRow, condition === c && ws.sortRowActive]}
                     onPress={() => setCondition(c)}>
@@ -828,7 +830,7 @@ export default function BuySellScreen({ route }) {
       {/* Sell FAB */}
       <TouchableOpacity style={s.sellBtn} activeOpacity={0.9} onPress={() => nav.navigate('Post')}>
         <Ionicons name="add-circle-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
-        <Text style={s.sellBtnTxt}>Sell an Item</Text>
+        <Text style={s.sellBtnTxt}>{t('sellAnItem')}</Text>
       </TouchableOpacity>
 
       {SortModal}{FilterModal}
