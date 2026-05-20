@@ -55,7 +55,7 @@ export default function ProfileScreen() {
   const commonMenu = [
     { icon: 'share-social-outline',    label: 'Refer & Earn',        onPress: () => nav.navigate('Referral') },
     { icon: 'help-circle-outline',     label: 'Help & Support',      onPress: () => {} },
-    { icon: 'information-circle-outline', label: 'About NandedRozgar', onPress: () => {} },
+    { icon: 'information-circle-outline', label: 'About LocalLoop', onPress: () => {} },
   ];
 
   const menuItems = [...(isSeeker ? seekerMenu : employerMenu), ...commonMenu];
@@ -121,7 +121,7 @@ export default function ProfileScreen() {
         <Text style={styles.signOutTxt}>Sign Out</Text>
       </TouchableOpacity>
 
-      <Text style={styles.version}>NandedRozgar v1.2.0 · Nanded, Maharashtra</Text>
+      <Text style={styles.version}>LocalLoop v1.2.0 · Nanded, Maharashtra</Text>
     </ScrollView>
   );
 }
