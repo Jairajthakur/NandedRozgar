@@ -12,7 +12,7 @@ import { http } from '../utils/api';
 const ORANGE  = '#f97316';
 const IS_WEB  = Platform.OS === 'web';
 
-ScrollVelocity is web-only (uses DOM APIs)
+// ScrollVelocity is web-only (uses DOM APIs)
 let ScrollVelocity = null;
 if (IS_WEB) {
   try { ScrollVelocity = require('../components/ScrollVelocity').default; } catch (_) {}
@@ -483,27 +483,33 @@ export default function BuySellScreen({ route }) {
             </Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <TouchableOpacity
-              style={[s.iconBtn, IS_WEB && ws.iconBtn, showSort && s.iconBtnActive]}
-              onPress={() => setShowSort(true)}
-            >
-              <Ionicons name="swap-vertical-outline" size={16} color={showSort ? '#fff' : '#555'} />
-              {IS_WEB && <Text style={{ fontSize: 12, fontWeight: '700', color: showSort ? '#fff' : '#555' }}>Sort</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.iconBtn, IS_WEB && ws.iconBtn, activeFilters.length > 0 && s.iconBtnActive]}
-              onPress={() => setShowFilters(true)}
-            >
-              <Ionicons name="options-outline" size={16} color={activeFilters.length > 0 ? '#fff' : '#555'} />
-              {IS_WEB && <Text style={{ fontSize: 12, fontWeight: '700', color: activeFilters.length > 0 ? '#fff' : '#555' }}>
-                Filter{activeFilters.length > 0 ? ` (${activeFilters.length})` : ''}
-              </Text>}
-              {activeFilters.length > 0 && !IS_WEB && (
-                <View style={s.filterBadge}>
-                  <Text style={s.filterBadgeTxt}>{activeFilters.length}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            {/* On mobile only — Sort and Filter buttons; on web, Sort is in the right sidebar */}
+            {!IS_WEB && (
+              <TouchableOpacity
+                style={[s.iconBtn, showSort && s.iconBtnActive]}
+                onPress={() => setShowSort(true)}
+              >
+                <Ionicons name="swap-vertical-outline" size={16} color={showSort ? '#fff' : '#555'} />
+                {activeFilters.length > 0 && (
+                  <View style={s.filterBadge}>
+                    <Text style={s.filterBadgeTxt}>{activeFilters.length}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
+            {!IS_WEB && (
+              <TouchableOpacity
+                style={[s.iconBtn, activeFilters.length > 0 && s.iconBtnActive]}
+                onPress={() => setShowFilters(true)}
+              >
+                <Ionicons name="options-outline" size={16} color={activeFilters.length > 0 ? '#fff' : '#555'} />
+                {activeFilters.length > 0 && (
+                  <View style={s.filterBadge}>
+                    <Text style={s.filterBadgeTxt}>{activeFilters.length}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
