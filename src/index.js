@@ -42,7 +42,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/seeker',    require('./routes/seeker'));
 
 // Health check
-app.get('/health', (req, res) => res.json({ ok: true, status: 'NandedRozgar API running 🚀' }));
+app.get('/health', (req, res) => res.json({ ok: true, status: 'LocalLoop API running 🚀' }));
 
 // ── Serve Expo web build ──────────────────────────────────────────────────────
 const WEB_BUILD = path.join(__dirname, '..', 'dist');
