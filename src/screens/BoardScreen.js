@@ -26,10 +26,10 @@ const SALARY_RANGES = [
   { label: '₹20k–₹40k', min: 20000, max: 40000 },
   { label: 'Above ₹40k', min: 40000, max: Infinity },
 ];
-const SORT_OPTIONS = [
-  { label: t('mostRecent'),    value: 'recent' },
-  { label: t('highestSalary'), value: 'salary' },
-  { label: t('featuredFirst'), value: 'featured' },
+const SORT_OPTIONS_KEYS = [
+  { key: 'mostRecent',    value: 'recent' },
+  { key: 'highestSalary', value: 'salary' },
+  { key: 'featuredFirst', value: 'featured' },
 ];
 
 function parseSalary(s = '') {
@@ -134,6 +134,7 @@ function QuickAction({ icon, label, color, onPress }) {
 export default function BoardScreen({ route }) {
   const { jobs, loadJobs, role } = useAuth();
   const { t } = useLang();
+  const SORT_OPTIONS = SORT_OPTIONS_KEYS.map(o => ({ label: t(o.key), value: o.value }));
   const nav    = useNavigation();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
