@@ -376,7 +376,7 @@ export default function PromoteBusinessScreen() {
           );
           return;
         }
-        Alert.alert('Error', res.error || 'Failed to submit. Please try again.');
+        Alert.alert('Submission Failed', res.error || 'Something went wrong. Please try again.');
         return;
       }
 
