@@ -71,6 +71,7 @@ export default function JobDetailScreen({ route, navigation }) {
   const [job, setJob]   = useState(initial);
   const [showReport, setShowReport] = useState(false);
   const { user, role, loadJobs } = useAuth();
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
 
   const [ratingModal, setRatingModal] = useState(false);
