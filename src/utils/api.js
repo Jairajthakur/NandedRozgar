@@ -1,7 +1,7 @@
 import storage from './storage';
 import { BASE_URL } from './constants';
 
-const TOKEN_KEY = 'nanded_token';
+const TOKEN_KEY = 'localloop_token';
 
 export async function saveToken(token) {
   await storage.setItem(TOKEN_KEY, token);
