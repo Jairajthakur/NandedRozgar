@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
+import PromoBanner from '../components/PromoBanner';
 
 const ORANGE  = '#f97316';
 const IS_WEB  = Platform.OS === 'web';
@@ -529,7 +530,7 @@ export default function BuySellScreen({ route }) {
     </FadeIn>
   );
 
-  const ListHeader = null;
+  const ListHeader = <PromoBanner />;
 
   // ── Sticky mini-header (floats above scroll) ────────────────────────────
   const StickyHeader = (
