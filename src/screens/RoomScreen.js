@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
-import PromoBanner from '../components/PromoBanner';
+import PromoBanner, { BannerCard } from '../components/PromoBanner';
 
 const ORANGE = '#f97316';
 const TEAL   = '#0d9488';
@@ -461,6 +461,7 @@ export default function RoomScreen({ route }) {
   const [showFilter, setShowFilter] = useState(false);
   const [rooms,      setRooms]      = useState(ROOMS);
   const [refreshing, setRefreshing] = useState(false);
+  const [promos,     setPromos]     = useState([]);
 
   // FlatList ref — scroll to top when filters change
   const flatListRef = useRef(null);
@@ -530,6 +531,9 @@ export default function RoomScreen({ route }) {
           vacancies: r.vacancies || 0,
         })));
       }
+      http('GET', '/api/promotions/all').then(pRes => {
+        if (pRes?.ok && Array.isArray(pRes.promotions)) setPromos(pRes.promotions);
+      });
     } catch (_) {}
     finally { setRefreshing(false); }
   }, []);
@@ -642,7 +646,43 @@ export default function RoomScreen({ route }) {
     </View>
   );
 
-  const ListHeader = <><FadeIn delay={180}><TrendingBanner /></FadeIn><PromoBanner /></>;
+  const defaultRoomPromo = {
+    name:        'Advertise Your Rental Property',
+    tagline:     'Reach thousands of room seekers in Nanded!',
+    description: 'List your PG, hostel, flat or room and get inquiries from verified tenants daily.',
+    category:    'real estate',
+    phone:       '',
+    location:    'Nanded, Maharashtra',
+    plan:        'popular',
+  };
+
+  const SponsoredLabel = () => (
+    <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
+      <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>SPONSORED</Text>
+    </View>
+  );
+
+  const ListHeader = (
+    <>
+      <FadeIn delay={180}><TrendingBanner /></FadeIn>
+      <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+        {promos.length > 0
+          ? promos.map(p => (
+              <View key={p.id} style={{ marginBottom: 10 }}>
+                <SponsoredLabel />
+                <BannerCard promo={p} />
+              </View>
+            ))
+          : (
+              <>
+                <SponsoredLabel />
+                <PromoBanner data={defaultRoomPromo} />
+              </>
+            )}
+      </View>
+    </>
+  );
 
   const FilterModal = (
     <Modal visible={showFilter} transparent animationType="none" onRequestClose={() => setShowFilter(false)}>
