@@ -267,6 +267,15 @@ async function runMigrations() {
       );
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS otp_sessions (
+        phone       VARCHAR(15) PRIMARY KEY,
+        otp_hash    TEXT        NOT NULL,
+        expires_at  TIMESTAMPTZ NOT NULL,
+        attempts    INT         DEFAULT 0
+      );
+    `);
+
     // ── Safe ALTER for existing deployments (must run BEFORE indexes) ────────
     const safeAlters = [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium          BOOLEAN DEFAULT FALSE`,
