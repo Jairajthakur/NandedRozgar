@@ -63,7 +63,7 @@ function FloatingOrb({ size, color, x, y, delay, duration }) {
   }, []);
 
   const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [0, -18] });
-  const opacity    = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.07, 0.18, 0.07] });
+  const opacity    = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.18, 0.38, 0.18] });
 
   return (
     <Animated.View
@@ -287,10 +287,10 @@ export default function ProfileScreen() {
         <Animated.View style={[styles.hero, { opacity: heroOpacity, transform: [{ scale: heroScale }] }]}>
 
           {/* Floating orbs */}
-          <FloatingOrb size={120} color={ORANGE}   x={-30}          y={-20}  delay={0}    duration={3200} />
-          <FloatingOrb size={80}  color={AMBER}    x={SCREEN_W-60}  y={10}   delay={800}  duration={2800} />
-          <FloatingOrb size={60}  color={'#818cf8'} x={SCREEN_W*0.5} y={60}  delay={400}  duration={3600} />
-          <FloatingOrb size={40}  color={ORANGE}   x={SCREEN_W*0.2} y={120}  delay={1200} duration={2400} />
+          <FloatingOrb size={120} color={'#ea580c'}  x={-30}          y={-20}  delay={0}    duration={3200} />
+          <FloatingOrb size={80}  color={'#d97706'}  x={SCREEN_W-60}  y={10}   delay={800}  duration={2800} />
+          <FloatingOrb size={60}  color={'#4f46e5'}  x={SCREEN_W*0.5} y={60}   delay={400}  duration={3600} />
+          <FloatingOrb size={40}  color={'#c2410c'}  x={SCREEN_W*0.2} y={120}  delay={1200} duration={2400} />
 
           {/* Mesh gradient overlay */}
           <View style={styles.heroGradient} />
@@ -340,12 +340,6 @@ export default function ProfileScreen() {
           <Text style={styles.name}>{user?.name || 'User'}</Text>
           {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
           {user?.phone ? <Text style={styles.phone}>+91 {user.phone}</Text> : null}
-
-          {/* Role pill */}
-          <View style={[styles.rolePill, { borderColor: roleColor + '40', backgroundColor: roleColor + '18' }]}>
-            <Ionicons name={roleIcon} size={12} color={roleColor} />
-            <Text style={[styles.roleTxt, { color: roleColor }]}>{roleLabel}</Text>
-          </View>
 
           {/* Member since */}
           <Text style={styles.memberSince}>
