@@ -435,12 +435,22 @@ export default function CarsScreen({ route }) {
     </View>
   );
 
+  const defaultPromo = {
+    name:        'Advertise Your Vehicle Business',
+    tagline:     'Reach thousands of customers in Nanded!',
+    description: 'Rent cars, bikes & autos to people who need them. List your vehicle or promote your transport business here.',
+    category:    'transport',
+    phone:       '',
+    location:    'Nanded, Maharashtra',
+    plan:        'popular',
+  };
+
   const ListHeader = (
     <>
       <FadeIn delay={180}><TopVehiclesBanner /></FadeIn>
       {promos.length > 0
         ? promos.map(p => <BannerCard key={p.id} promo={p} />)
-        : <PromoBanner />}
+        : <PromoBanner data={defaultPromo} />}
     </>
   );
 
