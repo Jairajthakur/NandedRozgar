@@ -51,6 +51,7 @@
     "scheme": "nandedrozgar",
     "plugins": [
       "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       "expo-secure-store",
       [
         "expo-notifications",
