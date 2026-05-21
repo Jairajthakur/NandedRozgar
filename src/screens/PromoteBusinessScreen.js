@@ -381,8 +381,8 @@ export default function PromoteBusinessScreen() {
       }
 
       Alert.alert(
-        '🎉 Promotion Submitted!',
-        `Your business "${form.bizName}" will go live on all listing screens within 24 hours.\n\nOur team will call you on ${form.phone} to confirm payment via UPI / cash.`,
+        '🎉 Promotion is Live!',
+        `Your business "${form.bizName}" is now posted on Jobs, Rooms, Cars & Buy-Sell pages!\n\nOur team will call you on ${form.phone} to confirm payment via UPI / cash.`,
         [{ text: 'Done', onPress: () => nav.goBack() }]
       );
     } catch (err) {
@@ -577,7 +577,7 @@ export default function PromoteBusinessScreen() {
             </TouchableOpacity>
 
             <Text style={s.tosNote}>
-              By submitting, you agree to our community guidelines. Promotions are reviewed within 24 hours.
+              By submitting, you agree to our community guidelines. Your promotion goes live instantly on all pages.
             </Text>
 
           </View>
