@@ -379,10 +379,19 @@ export default function LoginScreen() {
             <View style={S.pulseWrap}>
               <Animated.View style={[S.pulseRing, { transform: [{ scale: pulse }], opacity: pulseOp }]} />
               <View style={S.logoMark}>
-                <View style={S.logoInner}>
-                  <View style={S.logoDot} />
-                  <View style={S.logoRing} />
-                </View>
+                {/* Network graph lines */}
+                <View style={[S.netLine, { width: 21, left: 15, top: 20, transform: [{ rotate: '-18deg' }] }]} />
+                <View style={[S.netLine, { width: 16, left: 27, top: 21, transform: [{ rotate: '66deg' }] }]} />
+                <View style={[S.netLine, { width: 19, left: 18, top: 35, transform: [{ rotate: '148deg' }] }]} />
+                <View style={[S.netLine, { width: 22, left: 13, top: 26, transform: [{ rotate: '65deg' }] }]} />
+                {/* Network graph nodes */}
+                <View style={[S.netNode, { left: 11, top: 16 }]} />
+                <View style={[S.netNode, { left: 31, top: 10 }]} />
+                <View style={[S.netNode, { left: 39, top: 26 }]} />
+                <View style={[S.netNode, { left: 20, top: 38 }]} />
+                {/* Accent dots on top nodes */}
+                <View style={[S.netAccent, { left: 14, top: 19 }]} />
+                <View style={[S.netAccent, { left: 34, top: 13 }]} />
               </View>
             </View>
             <Text style={S.logoName}>
@@ -535,7 +544,6 @@ export default function LoginScreen() {
             {/* Phone OTP */}
             {tab === 'phone' && (
               <View>
-                {IS_WEB && <div id="recaptcha-container" />}
                 <View style={S.fw}>
                   <Text style={S.flabel}>Mobile Number *</Text>
                   <View style={[S.irow, focusedField === 'otpPhone' && S.irowF]}>
@@ -642,24 +650,6 @@ export default function LoginScreen() {
             </View>
           </Animated.View>
 
-          {/* Trust badges */}
-          <Animated.View style={[S.badgeRow, { opacity: footOpacity }]}>
-            {[
-              { icon: 'shield-checkmark', label: 'Secure Auth' },
-              { icon: 'lock-closed',      label: 'Encrypted' },
-              { icon: 'people',           label: '50K+ Users' },
-            ].map(b => (
-              <View key={b.label} style={S.badge}>
-                <Ionicons name={b.icon} size={11} color={ORANGE} style={{ marginRight: 5 }} />
-                <Text style={S.badgeTxt}>{b.label}</Text>
-              </View>
-            ))}
-          </Animated.View>
-
-          <Animated.Text style={[S.footerTxt, { opacity: footOpacity }]}>
-            Connecting Nanded's workforce since 2024
-          </Animated.Text>
-
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -745,18 +735,29 @@ const S = StyleSheet.create({
   pulseWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   pulseRing: {
     position: 'absolute', width: 88, height: 88, borderRadius: 44,
-    borderWidth: 2, borderColor: 'rgba(249,115,22,0.45)',
+    borderWidth: 2, borderColor: 'rgba(249,115,22,0.5)',
   },
   logoMark: {
     width: 72, height: 72, borderRadius: 22,
-    backgroundColor: CARD,
-    borderWidth: 1.5, borderColor: BORDER,
+    backgroundColor: ORANGE,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: ORANGE, shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 10,
+    shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  logoInner: { alignItems: 'center', justifyContent: 'center', width: 36, height: 36 },
-  logoDot:   { width: 14, height: 14, borderRadius: 7, backgroundColor: ORANGE, position: 'absolute' },
-  logoRing:  { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: ORANGE, borderStyle: 'dashed', opacity: 0.55 },
+  netLine: {
+    position: 'absolute', height: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 1,
+  },
+  netNode: {
+    position: 'absolute', width: 9, height: 9, borderRadius: 4.5,
+    backgroundColor: '#fff',
+  },
+  netAccent: {
+    position: 'absolute', width: 3.5, height: 3.5, borderRadius: 2,
+    backgroundColor: ORANGE2,
+  },
   logoName:  { fontSize: 30, fontWeight: '900', letterSpacing: 0.3, marginBottom: 6 },
   tagRow:    { flexDirection: 'row', alignItems: 'center', gap: 7 },
   tagDot:    { width: 4, height: 4, borderRadius: 2, backgroundColor: ORANGE },
