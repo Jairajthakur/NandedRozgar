@@ -430,7 +430,8 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
 
     const smsRes = await fetch(smsUrl, { method: 'GET', headers: { 'cache-control': 'no-cache' } });
     const smsData = await smsRes.json();
-    if (!smsData.return) throw new Error(smsData.message || 'SMS delivery failed');
+    console.log('[Fast2SMS response]', JSON.stringify(smsData)); // DEBUG — remove after fixing
+    if (!smsData.return) throw new Error(smsData.message?.[0] || smsData.message || 'SMS delivery failed');
 
     return res.json({ ok: true });
   } catch (err) {
