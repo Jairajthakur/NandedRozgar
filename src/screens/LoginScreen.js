@@ -1,118 +1,205 @@
 /**
- * LokalLoop — LoginScreen.js
- * Secure auth: Email/Password + Google OAuth + Phone OTP + Biometrics + Forgot Password
- * Fixed: Google OAuth works on web + native; Phone OTP tab hidden on web (uses Firebase Web SDK)
+ * NandedRozgar — LoginScreen.js  (Redesigned)
+ * Bold dark-orange brand identity with animated mesh background,
+ * floating orbs, staggered entrance, and polished form card.
+ * Works on web + Android APK (React Native / Expo).
  */
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform, StatusBar,
   Animated, Easing, Modal, TextInput, ActivityIndicator,
+  Dimensions,
 } from 'react-native';
-import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
-import { Input, Btn, Spinner } from '../components/UI';
 
 WebBrowser.maybeCompleteAuthSession();
 
-// ── Constants ────────────────────────────────────────────────────────────────
-const ORANGE = '#f97316';
-const BG     = '#0f0f0f';
-const CARD   = '#1a1a1a';
+// ── Brand tokens ──────────────────────────────────────────────────────────────
+const ORANGE   = '#f97316';
+const ORANGE2  = '#fb923c';
+const BG       = '#0a0a0a';
+const CARD     = '#141414';
+const BORDER   = '#242424';
+const TEXT      = '#f5f5f5';
+const TEXT_DIM  = '#71717a';
+const TEXT_MID  = '#a1a1aa';
+const SUCCESS   = '#22c55e';
+const DANGER    = '#ef4444';
 
-// Google OAuth discovery
+const { width: SW, height: SH } = Dimensions.get('window');
+const IS_WEB = Platform.OS === 'web';
+
+// ── Google discovery ──────────────────────────────────────────────────────────
 const GOOGLE_DISCOVERY = {
   authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
   tokenEndpoint:         'https://oauth2.googleapis.com/token',
   revocationEndpoint:    'https://oauth2.googleapis.com/revoke',
 };
 
-// Password strength helper
+const GOOGLE_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+const ALL_TABS = [
+  { key: 'login',    label: 'Sign In',   icon: 'log-in-outline' },
+  { key: 'register', label: 'Register',  icon: 'person-add-outline' },
+  { key: 'phone',    label: 'Phone OTP', icon: 'phone-portrait-outline' },
+];
+const TABS = IS_WEB ? ALL_TABS.filter(t => t.key !== 'phone') : ALL_TABS;
+
+// ── Password strength ─────────────────────────────────────────────────────────
 function getPasswordStrength(pw) {
-  if (!pw) return { score: 0, label: '', color: '#e5e5e5' };
+  if (!pw) return { score: 0, label: '', color: BORDER };
   let score = 0;
-  if (pw.length >= 8)              score++;
-  if (/[A-Z]/.test(pw))           score++;
-  if (/[0-9]/.test(pw))           score++;
-  if (/[^A-Za-z0-9]/.test(pw))   score++;
+  if (pw.length >= 8)           score++;
+  if (/[A-Z]/.test(pw))        score++;
+  if (/[0-9]/.test(pw))        score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
   const map = [
-    { label: 'Very Weak', color: '#ef4444' },
-    { label: 'Weak',      color: '#f97316' },
-    { label: 'Fair',      color: '#eab308' },
-    { label: 'Strong',    color: '#22c55e' },
+    { label: 'Very Weak',   color: '#ef4444' },
+    { label: 'Weak',        color: '#f97316' },
+    { label: 'Fair',        color: '#eab308' },
+    { label: 'Strong',      color: '#22c55e' },
     { label: 'Very Strong', color: '#16a34a' },
   ];
   return { score, ...map[score] };
 }
 
-// ── Tabs — Phone OTP hidden on web (Firebase native SDK not available) ────────
-const ALL_TABS = [
-  { key: 'login',    label: 'Sign In' },
-  { key: 'register', label: 'Register' },
-  { key: 'phone',    label: 'Phone OTP' },
-];
-const TABS = Platform.OS === 'web'
-  ? ALL_TABS.filter(t => t.key !== 'phone')
-  : ALL_TABS;
+// ── Animated floating orb ─────────────────────────────────────────────────────
+function Orb({ size, color, top, left, right, bottom, duration = 4500 }) {
+  const y = useRef(new Animated.Value(0)).current;
+  const x = useRef(new Animated.Value(0)).current;
+  const sc = useRef(new Animated.Value(1)).current;
 
-// ── Google Client ID — web uses Web client ID, native uses Web client ID too
-// (expo-auth-session handles the redirect; Android OAuth client validates via SHA-1 on Google's side)
-const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
-  || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+  useEffect(() => {
+    Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(y, { toValue: -20, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(y, { toValue: 0,   duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.timing(x, { toValue: 12, duration: duration * 1.4, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(x, { toValue: 0,  duration: duration * 1.4, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.timing(sc, { toValue: 1.1, duration: duration * 0.9, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(sc, { toValue: 1,   duration: duration * 0.9, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ])
+    ).start();
+  }, []);
 
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        width: size, height: size,
+        borderRadius: size / 2,
+        backgroundColor: color,
+        top, left, right, bottom,
+        transform: [{ translateY: y }, { translateX: x }, { scale: sc }],
+      }}
+      pointerEvents="none"
+    />
+  );
+}
+
+// ── Native grid dots ──────────────────────────────────────────────────────────
+function GridDots() {
+  if (IS_WEB) return null;
+  const items = [];
+  const cols = 7, rows = 10;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      items.push(
+        <View
+          key={`${r}-${c}`}
+          style={{
+            position: 'absolute',
+            width: 2, height: 2, borderRadius: 1,
+            backgroundColor: 'rgba(249,115,22,0.1)',
+            left: (SW / cols) * c + 24,
+            top:  (SH / rows) * r + 24,
+          }}
+        />
+      );
+    }
+  }
+  return <View style={StyleSheet.absoluteFill} pointerEvents="none">{items}</View>;
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function LoginScreen() {
-  const { login, register, loginWithGoogle, sendOTP, verifyOTP, forgotPassword, loginWithBiometrics } = useAuth();
-  const [tab, setTab]       = useState('login');
-  const [form, setForm]     = useState({ email: '', password: '', name: '', phone: '', confirmPassword: '' });
-  const [otpPhone, setOtpPhone] = useState('');
-  const [otp, setOtp]       = useState('');
-  const [otpSent, setOtpSent] = useState(false);
+  const {
+    login, register, loginWithGoogle,
+    sendOTP, verifyOTP, forgotPassword, loginWithBiometrics,
+  } = useAuth();
+
+  const [tab, setTab]             = useState('login');
+  const [form, setForm]           = useState({ email: '', password: '', name: '', phone: '', confirmPassword: '' });
+  const [otpPhone, setOtpPhone]   = useState('');
+  const [otp, setOtp]             = useState('');
+  const [otpSent, setOtpSent]     = useState(false);
   const [otpConfirmation, setOtpConfirmation] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState('');
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
   const [showPass, setShowPass]   = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
-  // Forgot password modal
-  const [forgotVisible, setForgotVisible] = useState(false);
-  const [forgotEmail, setForgotEmail]     = useState('');
-  const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotDone, setForgotDone]       = useState(false);
+  const [forgotVisible, setForgotVisible]   = useState(false);
+  const [forgotEmail, setForgotEmail]       = useState('');
+  const [forgotLoading, setForgotLoading]   = useState(false);
+  const [forgotDone, setForgotDone]         = useState(false);
+  const [focusedField, setFocusedField]     = useState(null);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // ── Animations ───────────────────────────────────────────────────────────
-  const logoScale   = useRef(new Animated.Value(0.7)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoY       = useRef(new Animated.Value(-24)).current;
-  const boxY        = useRef(new Animated.Value(40)).current;
-  const boxOpacity  = useRef(new Animated.Value(0)).current;
-  const floatY      = useRef(new Animated.Value(0)).current;
-  const shake       = useRef(new Animated.Value(0)).current;
-  const tabX        = useRef(new Animated.Value(0)).current;
+  // ── Entrance animations ───────────────────────────────────────────────────
+  const logoOpacity   = useRef(new Animated.Value(0)).current;
+  const logoY         = useRef(new Animated.Value(-28)).current;
+  const logoScale     = useRef(new Animated.Value(0.82)).current;
+  const cardOpacity   = useRef(new Animated.Value(0)).current;
+  const cardY         = useRef(new Animated.Value(44)).current;
+  const footOpacity   = useRef(new Animated.Value(0)).current;
+  const shake         = useRef(new Animated.Value(0)).current;
+  const tabX          = useRef(new Animated.Value(0)).current;
+  const pulse         = useRef(new Animated.Value(1)).current;
+  const pulseOp       = useRef(new Animated.Value(0.55)).current;
 
   useEffect(() => {
     Animated.sequence([
       Animated.parallel([
-        Animated.spring(logoScale,   { toValue: 1, damping: 10, stiffness: 100, useNativeDriver: true }),
-        Animated.timing(logoOpacity, { toValue: 1, duration: 350, useNativeDriver: true }),
-        Animated.timing(logoY,       { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.spring(logoScale,   { toValue: 1,    damping: 12, stiffness: 120, useNativeDriver: true }),
+        Animated.timing(logoOpacity, { toValue: 1,    duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(logoY,       { toValue: 0,    duration: 400, easing: Easing.out(Easing.back(1.1)), useNativeDriver: true }),
       ]),
       Animated.parallel([
-        Animated.timing(boxY,       { toValue: 0, duration: 380, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(boxOpacity, { toValue: 1, duration: 380, useNativeDriver: true }),
+        Animated.timing(cardOpacity, { toValue: 1, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(cardY,       { toValue: 0, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       ]),
+      Animated.timing(footOpacity, { toValue: 1, duration: 320, useNativeDriver: true }),
     ]).start();
 
     Animated.loop(
       Animated.sequence([
-        Animated.timing(floatY, { toValue: -7, duration: 1700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(floatY, { toValue: 0,  duration: 1700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.parallel([
+          Animated.timing(pulse, { toValue: 1.6, duration: 1600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(pulseOp, { toValue: 0, duration: 1600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(pulse, { toValue: 1, duration: 0, useNativeDriver: true }),
+          Animated.timing(pulseOp, { toValue: 0.55, duration: 0, useNativeDriver: true }),
+        ]),
+        Animated.delay(700),
       ])
     ).start();
 
@@ -120,7 +207,7 @@ export default function LoginScreen() {
   }, []);
 
   async function checkBiometrics() {
-    if (Platform.OS === 'web') return; // biometrics not supported on web
+    if (IS_WEB) return;
     try {
       const compatible = await LocalAuthentication.hasHardwareAsync();
       const enrolled   = await LocalAuthentication.isEnrolledAsync();
@@ -131,18 +218,16 @@ export default function LoginScreen() {
   function triggerShake() {
     shake.setValue(0);
     Animated.sequence(
-      [-10, 10, -7, 7, -4, 4, 0].map(v =>
-        Animated.timing(shake, { toValue: v, duration: 52, useNativeDriver: true })
+      [-12, 12, -8, 8, -4, 4, 0].map(v =>
+        Animated.timing(shake, { toValue: v, duration: 50, useNativeDriver: true })
       )
     ).start();
   }
 
   function switchTab(t) {
     const idx = TABS.findIndex(x => x.key === t);
-    Animated.spring(tabX, { toValue: idx, damping: 16, stiffness: 200, useNativeDriver: false }).start();
-    setTab(t);
-    setError('');
-    setOtpSent(false);
+    Animated.spring(tabX, { toValue: idx, damping: 18, stiffness: 220, useNativeDriver: false }).start();
+    setTab(t); setError(''); setOtpSent(false); setFocusedField(null);
   }
 
   const tabCount = TABS.length;
@@ -151,57 +236,32 @@ export default function LoginScreen() {
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
-  // ── Google OAuth ─────────────────────────────────────────────────────────
-  // useProxy: true — always routes through auth.expo.io proxy
-  // This works for both web and native with the Web OAuth client ID
-  // For native production: also add Android OAuth client in Google Console (SHA-1 from expo.dev)
-  const redirectUri = AuthSession.makeRedirectUri({
-    scheme:   'nandedrozgar',
-    useProxy: true, // always use proxy — works on web + native dev + native production
-  });
-
+  // ── Google ────────────────────────────────────────────────────────────────
+  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'nandedrozgar', useProxy: true });
   const [googleRequest, googleResponse, promptGoogleAsync] = AuthSession.useAuthRequest(
-    {
-      clientId:     GOOGLE_CLIENT_ID,
-      redirectUri,
-      scopes:       ['openid', 'profile', 'email'],
-      responseType: AuthSession.ResponseType.Token,
-      usePKCE:      false,
-    },
+    { clientId: GOOGLE_CLIENT_ID, redirectUri, scopes: ['openid', 'profile', 'email'], responseType: AuthSession.ResponseType.Token, usePKCE: false },
     GOOGLE_DISCOVERY
   );
-
   useEffect(() => {
-    if (googleResponse?.type === 'success') {
-      handleGoogleSuccess(googleResponse.authentication.accessToken);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (googleResponse?.type === 'success') handleGoogleSuccess(googleResponse.authentication.accessToken);
   }, [googleResponse]);
 
   async function handleGoogleSuccess(accessToken) {
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     const r = await loginWithGoogle(accessToken);
     setLoading(false);
     if (!r.ok) { setError(r.error || 'Google sign-in failed'); triggerShake(); }
   }
 
   function handleGooglePress() {
-    if (!GOOGLE_CLIENT_ID) {
-      setError('Google sign-in not configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in .env');
-      return;
-    }
+    if (!GOOGLE_CLIENT_ID) { setError('Google sign-in not configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID'); return; }
     promptGoogleAsync();
   }
 
-  // ── Biometric login ───────────────────────────────────────────────────────
+  // ── Biometric ─────────────────────────────────────────────────────────────
   async function handleBiometric() {
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Verify your identity to sign in',
-      fallbackLabel: 'Use password',
-      cancelLabel:   'Cancel',
-    });
-    if (result.success) {
+    const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Verify your identity', fallbackLabel: 'Use password' });
+    if (res.success) {
       setLoading(true);
       const r = await loginWithBiometrics();
       setLoading(false);
@@ -209,7 +269,7 @@ export default function LoginScreen() {
     }
   }
 
-  // ── Email / Password submit ───────────────────────────────────────────────
+  // ── Submit ────────────────────────────────────────────────────────────────
   async function handleSubmit() {
     setError('');
     if (tab === 'login') {
@@ -218,14 +278,12 @@ export default function LoginScreen() {
       const r = await login(form.email, form.password);
       setLoading(false);
       if (!r.ok) { setError(r.error || 'Login failed'); triggerShake(); }
-
-    } else if (tab === 'register') {
+    } else {
       if (!form.name || !form.email || !form.password) { setError('Fill all required fields'); triggerShake(); return; }
       if (form.password.length < 8) { setError('Password must be at least 8 characters'); triggerShake(); return; }
       if (form.password !== form.confirmPassword) { setError('Passwords do not match'); triggerShake(); return; }
       if (!termsAccepted) { setError('Please accept Terms & Privacy Policy'); triggerShake(); return; }
-      const strength = getPasswordStrength(form.password);
-      if (strength.score < 2) { setError('Password is too weak — add numbers & symbols'); triggerShake(); return; }
+      if (getPasswordStrength(form.password).score < 2) { setError('Password too weak — add numbers & symbols'); triggerShake(); return; }
       setLoading(true);
       const r = await register({ name: form.name, email: form.email, password: form.password, role: 'user', phone: form.phone });
       setLoading(false);
@@ -233,19 +291,14 @@ export default function LoginScreen() {
     }
   }
 
-  // ── OTP flow ──────────────────────────────────────────────────────────────
+  // ── OTP ───────────────────────────────────────────────────────────────────
   async function handleSendOTP() {
-    if (!otpPhone || otpPhone.length < 10) { setError('Enter a valid 10-digit phone number'); triggerShake(); return; }
+    if (!otpPhone || otpPhone.length < 10) { setError('Enter a valid 10-digit number'); triggerShake(); return; }
     setLoading(true); setError('');
     const r = await sendOTP(otpPhone);
     setLoading(false);
-    if (r.ok) {
-      setOtpSent(true);
-      setOtpConfirmation(r.confirmation);
-    } else {
-      setError(r.error || 'Failed to send OTP');
-      triggerShake();
-    }
+    if (r.ok) { setOtpSent(true); setOtpConfirmation(r.confirmation); }
+    else { setError(r.error || 'Failed to send OTP'); triggerShake(); }
   }
 
   async function handleVerifyOTP() {
@@ -257,7 +310,7 @@ export default function LoginScreen() {
     if (!r.ok) { setError(r.error || 'Invalid OTP'); triggerShake(); }
   }
 
-  // ── Forgot password ───────────────────────────────────────────────────────
+  // ── Forgot ────────────────────────────────────────────────────────────────
   async function handleForgotPassword() {
     if (!forgotEmail) return;
     setForgotLoading(true);
@@ -267,405 +320,397 @@ export default function LoginScreen() {
   }
 
   const pwStrength = getPasswordStrength(form.password);
-  const tabWidth   = `${100 / tabCount}%`;
+  const tabW = `${100 / tabCount}%`;
 
+  // ── Field component ───────────────────────────────────────────────────────
+  const Field = ({ label, icon, value, onChange, placeholder, secure, rightIcon, rightPress, keyboard, maxLen, editable = true, fkey }) => {
+    const focused = focusedField === fkey;
+    return (
+      <View style={S.fw}>
+        <Text style={S.flabel}>{label}</Text>
+        <View style={[S.irow, focused && S.irowF]}>
+          <Ionicons name={icon} size={16} color={focused ? ORANGE2 : TEXT_DIM} style={S.ficon} />
+          <TextInput
+            style={S.tinput}
+            value={value}
+            onChangeText={onChange}
+            placeholder={placeholder}
+            placeholderTextColor={TEXT_DIM}
+            secureTextEntry={!!secure}
+            keyboardType={keyboard || 'default'}
+            autoCapitalize="none"
+            maxLength={maxLen}
+            editable={editable !== false}
+            onFocus={() => setFocusedField(fkey)}
+            onBlur={() => setFocusedField(null)}
+          />
+          {rightIcon && (
+            <TouchableOpacity onPress={rightPress} style={S.eyeBtn}>
+              <Ionicons name={rightIcon} size={17} color={TEXT_DIM} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.bg}>
+    <View style={S.bg}>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-          {/* ── Logo ── */}
-          <Animated.View style={[styles.logoWrap, { opacity: logoOpacity, transform: [{ scale: logoScale }, { translateY: logoY }] }]}>
-            <Animated.View style={[styles.logoMark, { transform: [{ translateY: floatY }] }]}>
-              <Text style={styles.logoEmoji}>📍</Text>
-            </Animated.View>
-            <Text style={styles.logoText}>
-              <Text style={{ color: '#fff' }}>lokal</Text>
-              <Text style={{ color: ORANGE }}>loop</Text>
+      {/* BG orbs */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Orb size={320} color="rgba(249,115,22,0.08)"  top={-100} right={-80} duration={5200} />
+        <Orb size={240} color="rgba(249,115,22,0.065)" bottom={40} left={-70}  duration={4100} />
+        <Orb size={150} color="rgba(251,146,60,0.055)" top={SH * 0.4} right={-30} duration={3700} />
+        {/* diagonal lines */}
+        <View style={S.dline1} />
+        <View style={S.dline2} />
+      </View>
+
+      <GridDots />
+
+      <KeyboardAvoidingView
+        behavior={IS_WEB ? undefined : (Platform.OS === 'ios' ? 'padding' : undefined)}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={S.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+
+          {/* ── LOGO ── */}
+          <Animated.View style={[S.logoWrap, { opacity: logoOpacity, transform: [{ translateY: logoY }, { scale: logoScale }] }]}>
+            <Animated.View style={[S.pulseRing, { transform: [{ scale: pulse }], opacity: pulseOp }]} />
+            <View style={S.logoMark}>
+              <Text style={{ fontSize: 34 }}>📍</Text>
+            </View>
+            <Text style={S.logoName}>
+              <Text style={{ color: TEXT }}>Nanded</Text>
+              <Text style={{ color: ORANGE }}>Rozgar</Text>
             </Text>
-            <Text style={styles.logoSub}>Local Jobs · Local Life · Your City</Text>
+            <View style={S.tagRow}>
+              <View style={S.tagDot} /><Text style={S.tagline}>Local Jobs · Local Life · Nanded</Text><View style={S.tagDot} />
+            </View>
           </Animated.View>
 
-          {/* ── Form Card ── */}
-          <Animated.View style={[styles.box, { opacity: boxOpacity, transform: [{ translateY: boxY }, { translateX: shake }] }]}>
+          {/* ── CARD ── */}
+          <Animated.View style={[S.card, { opacity: cardOpacity, transform: [{ translateY: cardY }, { translateX: shake }] }]}>
 
-            {/* ── Tab switcher ── */}
-            <View style={styles.tabRow}>
-              <Animated.View style={[styles.tabIndicator, { left: tabLeft, width: tabWidth }]} />
+            {/* top accent */}
+            <View style={S.accentBar} />
+
+            {/* ── TABS ── */}
+            <View style={S.tabRow}>
+              <Animated.View style={[S.tabSlider, { left: tabLeft, width: tabW }]} />
               {TABS.map(t => (
-                <TouchableOpacity key={t.key} onPress={() => switchTab(t.key)} style={styles.tabBtn} activeOpacity={0.8}>
-                  <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.label}</Text>
+                <TouchableOpacity key={t.key} onPress={() => switchTab(t.key)} style={S.tabBtn} activeOpacity={0.75}>
+                  <Ionicons name={t.icon} size={13} color={tab === t.key ? ORANGE : TEXT_DIM} />
+                  <Text style={[S.tabTxt, tab === t.key && S.tabTxtOn]}>{t.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            {/* ── Social login (shown on sign-in and register) ── */}
+            {/* ── GOOGLE ── */}
             {tab !== 'phone' && (
-              <View style={styles.socialRow}>
-                <TouchableOpacity
-                  style={[styles.socialBtn, !GOOGLE_CLIENT_ID && { opacity: 0.4 }]}
-                  onPress={handleGooglePress}
-                  disabled={(!googleRequest && !!GOOGLE_CLIENT_ID) || loading}
-                  activeOpacity={0.85}
-                >
-                  <MaterialCommunityIcons name="google" size={18} color="#EA4335" />
-                  <Text style={styles.socialBtnText}>
-                    {tab === 'login' ? 'Sign in with Google' : 'Continue with Google'}
-                  </Text>
-                </TouchableOpacity>
+              <TouchableOpacity
+                style={[S.googleBtn, !GOOGLE_CLIENT_ID && { opacity: 0.4 }]}
+                onPress={handleGooglePress}
+                disabled={(!googleRequest && !!GOOGLE_CLIENT_ID) || loading}
+                activeOpacity={0.82}
+              >
+                <MaterialCommunityIcons name="google" size={18} color="#EA4335" />
+                <Text style={S.googleTxt}>{tab === 'login' ? 'Continue with Google' : 'Sign up with Google'}</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* ── DIVIDER ── */}
+            {tab !== 'phone' && (
+              <View style={S.divRow}>
+                <View style={S.divLine} /><Text style={S.divTxt}>or with email</Text><View style={S.divLine} />
               </View>
             )}
 
-            {/* ── OR divider ── */}
+            {/* Register-only: name */}
+            {tab === 'register' && (
+              <Field fkey="name" label="Full Name *" icon="person-outline" value={form.name} onChange={v => set('name', v)} placeholder="Your full name" />
+            )}
+
+            {/* Email */}
             {tab !== 'phone' && (
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or continue with email</Text>
-                <View style={styles.dividerLine} />
+              <Field fkey="email" label="Email Address *" icon="mail-outline" value={form.email} onChange={v => set('email', v)} placeholder="you@email.com" keyboard="email-address" />
+            )}
+
+            {/* Password */}
+            {tab !== 'phone' && (
+              <View style={S.fw}>
+                <View style={S.passLabelRow}>
+                  <Text style={S.flabel}>Password *</Text>
+                  {tab === 'login' && <TouchableOpacity onPress={() => setForgotVisible(true)}><Text style={S.forgotLink}>Forgot?</Text></TouchableOpacity>}
+                </View>
+                <View style={[S.irow, focusedField === 'pass' && S.irowF]}>
+                  <Ionicons name="lock-closed-outline" size={16} color={focusedField === 'pass' ? ORANGE2 : TEXT_DIM} style={S.ficon} />
+                  <TextInput
+                    style={S.tinput}
+                    value={form.password}
+                    onChangeText={v => set('password', v)}
+                    placeholder="Enter password"
+                    placeholderTextColor={TEXT_DIM}
+                    secureTextEntry={!showPass}
+                    autoCapitalize="none"
+                    onFocus={() => setFocusedField('pass')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                  <TouchableOpacity onPress={() => setShowPass(p => !p)} style={S.eyeBtn}>
+                    <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={17} color={TEXT_DIM} />
+                  </TouchableOpacity>
+                </View>
+                {tab === 'register' && form.password.length > 0 && (
+                  <View style={{ marginTop: 6 }}>
+                    <View style={S.strTrack}>
+                      {[0,1,2,3].map(i => (
+                        <View key={i} style={[S.strSeg, { backgroundColor: i < pwStrength.score ? pwStrength.color : BORDER }]} />
+                      ))}
+                    </View>
+                    <Text style={[S.strLabel, { color: pwStrength.color }]}>{pwStrength.label}</Text>
+                  </View>
+                )}
               </View>
             )}
 
-            {/* ── Register: extra fields ── */}
+            {/* Register extras */}
             {tab === 'register' && (
               <>
-                <View style={styles.fieldWrap}>
-                  <Text style={styles.label}>Full Name *</Text>
-                  <View style={styles.inputRow}>
-                    <Ionicons name="person-outline" size={16} color="#999" style={styles.inputIcon} />
+                <View style={S.fw}>
+                  <Text style={S.flabel}>Confirm Password *</Text>
+                  <View style={[S.irow, focusedField === 'conf' && S.irowF]}>
+                    <Ionicons name="shield-checkmark-outline" size={16} color={focusedField === 'conf' ? ORANGE2 : TEXT_DIM} style={S.ficon} />
                     <TextInput
-                      style={styles.input}
-                      value={form.name}
-                      onChangeText={v => set('name', v)}
-                      placeholder="Your full name"
-                      placeholderTextColor="#aaa"
-                    />
-                  </View>
-                </View>
-                <View style={styles.fieldWrap}>
-                  <Text style={styles.label}>Phone Number</Text>
-                  <View style={styles.inputRow}>
-                    <Text style={styles.flagPrefix}>🇮🇳 +91</Text>
-                    <TextInput
-                      style={[styles.input, { paddingLeft: 4 }]}
-                      value={form.phone}
-                      onChangeText={v => set('phone', v)}
-                      placeholder="9XXXXXXXXX"
-                      placeholderTextColor="#aaa"
-                      keyboardType="phone-pad"
-                      maxLength={10}
-                    />
-                  </View>
-                </View>
-              </>
-            )}
-
-            {/* ── Email / Password (login & register tabs) ── */}
-            {tab !== 'phone' && (
-              <>
-                <View style={styles.fieldWrap}>
-                  <Text style={styles.label}>Email Address *</Text>
-                  <View style={styles.inputRow}>
-                    <Ionicons name="mail-outline" size={16} color="#999" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={form.email}
-                      onChangeText={v => set('email', v)}
-                      placeholder="you@email.com"
-                      placeholderTextColor="#aaa"
-                      keyboardType="email-address"
+                      style={S.tinput}
+                      value={form.confirmPassword}
+                      onChangeText={v => set('confirmPassword', v)}
+                      placeholder="Re-enter password"
+                      placeholderTextColor={TEXT_DIM}
+                      secureTextEntry={!showConfirm}
                       autoCapitalize="none"
-                      autoCorrect={false}
+                      onFocus={() => setFocusedField('conf')}
+                      onBlur={() => setFocusedField(null)}
                     />
-                  </View>
-                </View>
-
-                <View style={styles.fieldWrap}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <Text style={styles.label}>Password *</Text>
-                    {tab === 'login' && (
-                      <TouchableOpacity onPress={() => setForgotVisible(true)}>
-                        <Text style={styles.forgotLink}>Forgot password?</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <View style={styles.inputRow}>
-                    <Ionicons name="lock-closed-outline" size={16} color="#999" style={styles.inputIcon} />
-                    <TextInput
-                      style={[styles.input, { flex: 1 }]}
-                      value={form.password}
-                      onChangeText={v => set('password', v)}
-                      placeholder={tab === 'register' ? 'Min 8 chars, mix letters & numbers' : 'Your password'}
-                      placeholderTextColor="#aaa"
-                      secureTextEntry={!showPass}
-                      autoCapitalize="none"
-                    />
-                    <TouchableOpacity onPress={() => setShowPass(p => !p)} style={styles.eyeBtn}>
-                      <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color="#999" />
+                    <TouchableOpacity onPress={() => setShowConfirm(p => !p)} style={S.eyeBtn}>
+                      <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={17} color={TEXT_DIM} />
                     </TouchableOpacity>
                   </View>
-                  {tab === 'register' && form.password.length > 0 && (
-                    <View style={{ marginTop: 6 }}>
-                      <View style={styles.strengthTrack}>
-                        {[0,1,2,3].map(i => (
-                          <View
-                            key={i}
-                            style={[styles.strengthSegment, { backgroundColor: i < pwStrength.score ? pwStrength.color : '#e5e5e5' }]}
-                          />
-                        ))}
-                      </View>
-                      <Text style={[styles.strengthLabel, { color: pwStrength.color }]}>{pwStrength.label}</Text>
+                  {form.confirmPassword.length > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+                      <Ionicons
+                        name={form.password === form.confirmPassword ? 'checkmark-circle' : 'close-circle'}
+                        size={13}
+                        color={form.password === form.confirmPassword ? SUCCESS : DANGER}
+                      />
+                      <Text style={{ fontSize: 11, color: form.password === form.confirmPassword ? SUCCESS : DANGER, marginLeft: 4 }}>
+                        {form.password === form.confirmPassword ? 'Passwords match' : 'Passwords do not match'}
+                      </Text>
                     </View>
                   )}
                 </View>
 
-                {tab === 'register' && (
-                  <View style={styles.fieldWrap}>
-                    <Text style={styles.label}>Confirm Password *</Text>
-                    <View style={styles.inputRow}>
-                      <Ionicons name="shield-checkmark-outline" size={16} color="#999" style={styles.inputIcon} />
-                      <TextInput
-                        style={[styles.input, { flex: 1 }]}
-                        value={form.confirmPassword}
-                        onChangeText={v => set('confirmPassword', v)}
-                        placeholder="Re-enter password"
-                        placeholderTextColor="#aaa"
-                        secureTextEntry={!showConfirm}
-                        autoCapitalize="none"
-                      />
-                      <TouchableOpacity onPress={() => setShowConfirm(p => !p)} style={styles.eyeBtn}>
-                        <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={18} color="#999" />
-                      </TouchableOpacity>
-                    </View>
-                    {form.confirmPassword.length > 0 && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
-                        <Ionicons
-                          name={form.password === form.confirmPassword ? 'checkmark-circle' : 'close-circle'}
-                          size={13}
-                          color={form.password === form.confirmPassword ? '#22c55e' : '#ef4444'}
-                        />
-                        <Text style={{ fontSize: 11, color: form.password === form.confirmPassword ? '#22c55e' : '#ef4444' }}>
-                          {form.password === form.confirmPassword ? 'Passwords match' : 'Passwords do not match'}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                )}
+                <Field fkey="regPhone" label="Phone (optional)" icon="call-outline" value={form.phone} onChange={v => set('phone', v)} placeholder="+91 XXXXXXXXXX" keyboard="phone-pad" />
 
-                {tab === 'register' && (
-                  <TouchableOpacity style={styles.termsRow} onPress={() => setTermsAccepted(p => !p)} activeOpacity={0.8}>
-                    <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
-                      {termsAccepted && <Ionicons name="checkmark" size={12} color="#fff" />}
-                    </View>
-                    <Text style={styles.termsText}>
-                      I agree to the{' '}
-                      <Text style={styles.termsLink}>Terms of Service</Text>
-                      {' '}and{' '}
-                      <Text style={styles.termsLink}>Privacy Policy</Text>
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity style={S.termsRow} onPress={() => setTermsAccepted(p => !p)} activeOpacity={0.8}>
+                  <View style={[S.chk, termsAccepted && S.chkOn]}>
+                    {termsAccepted && <Ionicons name="checkmark" size={11} color="#fff" />}
+                  </View>
+                  <Text style={S.termsTxt}>
+                    I agree to the <Text style={S.termsLink}>Terms of Service</Text> and <Text style={S.termsLink}>Privacy Policy</Text>
+                  </Text>
+                </TouchableOpacity>
               </>
             )}
 
-            {/* ── Phone OTP tab (native only) ── */}
+            {/* Phone OTP */}
             {tab === 'phone' && (
               <View>
-                {/* Invisible reCAPTCHA anchor for web (no-op on native) */}
-                {Platform.OS === 'web' && <div id="recaptcha-container" />}
-
-                <View style={styles.fieldWrap}>
-                  <Text style={styles.label}>Mobile Number *</Text>
-                  <View style={styles.inputRow}>
-                    <Text style={styles.flagPrefix}>🇮🇳 +91</Text>
+                {IS_WEB && <div id="recaptcha-container" />}
+                <View style={S.fw}>
+                  <Text style={S.flabel}>Mobile Number *</Text>
+                  <View style={[S.irow, focusedField === 'otpPhone' && S.irowF]}>
+                    <Text style={S.flagPfx}>🇮🇳 +91</Text>
                     <TextInput
-                      style={[styles.input, { flex: 1, paddingLeft: 4 }]}
+                      style={[S.tinput, { paddingLeft: 4 }]}
                       value={otpPhone}
                       onChangeText={v => { setOtpPhone(v); setOtpSent(false); setOtp(''); setOtpConfirmation(null); }}
-                      placeholder="10-digit mobile number"
-                      placeholderTextColor="#aaa"
+                      placeholder="10-digit number"
+                      placeholderTextColor={TEXT_DIM}
                       keyboardType="phone-pad"
                       maxLength={10}
                       editable={!otpSent}
+                      onFocus={() => setFocusedField('otpPhone')}
+                      onBlur={() => setFocusedField(null)}
                     />
                   </View>
                 </View>
-
                 {otpSent && (
-                  <View style={styles.fieldWrap}>
-                    <Text style={styles.label}>Enter OTP</Text>
-                    <View style={styles.inputRow}>
-                      <Ionicons name="keypad-outline" size={16} color="#999" style={styles.inputIcon} />
+                  <View style={S.fw}>
+                    <Text style={S.flabel}>Enter OTP</Text>
+                    <View style={[S.irow, focusedField === 'otpCode' && S.irowF]}>
+                      <Ionicons name="keypad-outline" size={16} color={focusedField === 'otpCode' ? ORANGE2 : TEXT_DIM} style={S.ficon} />
                       <TextInput
-                        style={styles.input}
+                        style={S.tinput}
                         value={otp}
                         onChangeText={setOtp}
                         placeholder="4–6 digit OTP"
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={TEXT_DIM}
                         keyboardType="number-pad"
                         maxLength={6}
+                        onFocus={() => setFocusedField('otpCode')}
+                        onBlur={() => setFocusedField(null)}
                       />
                     </View>
                     <TouchableOpacity onPress={handleSendOTP} style={{ marginTop: 4 }}>
-                      <Text style={styles.resendText}>Didn't receive OTP? <Text style={{ color: ORANGE, fontWeight: '700' }}>Resend</Text></Text>
+                      <Text style={S.resendTxt}>Didn't receive? <Text style={{ color: ORANGE, fontWeight: '700' }}>Resend OTP</Text></Text>
                     </TouchableOpacity>
                   </View>
                 )}
-
-                <View style={styles.otpInfoBox}>
-                  <Ionicons name="shield-checkmark-outline" size={14} color="#22c55e" style={{ marginRight: 6 }} />
-                  <Text style={styles.otpInfoText}>A one-time password will be sent to your number via SMS. Powered by Firebase — completely free.</Text>
+                <View style={S.otpInfo}>
+                  <Ionicons name="shield-checkmark-outline" size={14} color={SUCCESS} style={{ marginRight: 8 }} />
+                  <Text style={S.otpInfoTxt}>OTP sent via SMS · Powered by Firebase</Text>
                 </View>
               </View>
             )}
 
-            {/* ── Error ── */}
-            {error ? (
-              <View style={styles.errorBox}>
-                <Ionicons name="alert-circle" size={14} color="#ef4444" />
-                <Text style={styles.errorText}>{error}</Text>
+            {/* Error */}
+            {!!error && (
+              <View style={S.errBox}>
+                <Ionicons name="alert-circle" size={15} color={DANGER} />
+                <Text style={S.errTxt}>{error}</Text>
               </View>
-            ) : null}
+            )}
 
-            {/* ── Submit button ── */}
+            {/* Submit */}
             {loading ? (
-              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <View style={S.loadRow}>
                 <ActivityIndicator size="small" color={ORANGE} />
+                <Text style={{ color: TEXT_MID, fontSize: 13, marginLeft: 10 }}>Please wait…</Text>
               </View>
             ) : (
               <>
                 {tab === 'login' && (
-                  <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.88}>
-                    <Ionicons name="log-in-outline" size={18} color="#fff" />
-                    <Text style={styles.submitText}>Sign In</Text>
+                  <TouchableOpacity style={S.submitBtn} onPress={handleSubmit} activeOpacity={0.87}>
+                    <Text style={S.submitTxt}>Sign In</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#fff" />
                   </TouchableOpacity>
                 )}
                 {tab === 'register' && (
-                  <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.88}>
-                    <Ionicons name="person-add-outline" size={18} color="#fff" />
-                    <Text style={styles.submitText}>Create Account</Text>
+                  <TouchableOpacity style={S.submitBtn} onPress={handleSubmit} activeOpacity={0.87}>
+                    <Text style={S.submitTxt}>Create Account</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#fff" />
                   </TouchableOpacity>
                 )}
                 {tab === 'phone' && (
-                  <TouchableOpacity style={styles.submitBtn} onPress={otpSent ? handleVerifyOTP : handleSendOTP} activeOpacity={0.88}>
+                  <TouchableOpacity style={S.submitBtn} onPress={otpSent ? handleVerifyOTP : handleSendOTP} activeOpacity={0.87}>
                     <Ionicons name={otpSent ? 'checkmark-circle-outline' : 'send-outline'} size={18} color="#fff" />
-                    <Text style={styles.submitText}>{otpSent ? 'Verify OTP' : 'Send OTP'}</Text>
+                    <Text style={S.submitTxt}>{otpSent ? 'Verify OTP' : 'Send OTP'}</Text>
                   </TouchableOpacity>
                 )}
               </>
             )}
 
-            {/* ── Biometric button (login tab only, native only) ── */}
-            {tab === 'login' && biometricAvailable && Platform.OS !== 'web' && (
-              <TouchableOpacity style={styles.biometricBtn} onPress={handleBiometric} activeOpacity={0.8}>
+            {/* Biometric */}
+            {tab === 'login' && biometricAvailable && !IS_WEB && (
+              <TouchableOpacity style={S.bioBtn} onPress={handleBiometric} activeOpacity={0.8}>
                 <Ionicons name="finger-print-outline" size={20} color={ORANGE} />
-                <Text style={styles.biometricText}>Sign in with Biometrics</Text>
+                <Text style={S.bioTxt}>Sign in with Biometrics</Text>
               </TouchableOpacity>
             )}
 
-            {/* ── Switch tab link ── */}
-            <View style={styles.switchRow}>
+            {/* Switch tab */}
+            <View style={S.switchRow}>
               {tab === 'login' && (
-                <>
-                  <Text style={styles.switchText}>New to LokalLoop? </Text>
-                  <TouchableOpacity onPress={() => switchTab('register')}>
-                    <Text style={styles.switchLink}>Create account</Text>
-                  </TouchableOpacity>
-                </>
+                <><Text style={S.switchTxt}>New here? </Text><TouchableOpacity onPress={() => switchTab('register')}><Text style={S.switchLink}>Create account →</Text></TouchableOpacity></>
               )}
               {tab === 'register' && (
-                <>
-                  <Text style={styles.switchText}>Already have an account? </Text>
-                  <TouchableOpacity onPress={() => switchTab('login')}>
-                    <Text style={styles.switchLink}>Sign in</Text>
-                  </TouchableOpacity>
-                </>
+                <><Text style={S.switchTxt}>Have an account? </Text><TouchableOpacity onPress={() => switchTab('login')}><Text style={S.switchLink}>Sign in →</Text></TouchableOpacity></>
               )}
               {tab === 'phone' && (
-                <>
-                  <Text style={styles.switchText}>Prefer email? </Text>
-                  <TouchableOpacity onPress={() => switchTab('login')}>
-                    <Text style={styles.switchLink}>Sign in with email</Text>
-                  </TouchableOpacity>
-                </>
+                <><Text style={S.switchTxt}>Prefer email? </Text><TouchableOpacity onPress={() => switchTab('login')}><Text style={S.switchLink}>Sign in with email →</Text></TouchableOpacity></>
               )}
             </View>
           </Animated.View>
 
-          {/* ── Trust badges ── */}
-          <View style={styles.trustRow}>
-            {[
-              { icon: 'shield-checkmark', label: 'Secure Auth' },
-              { icon: 'lock-closed',      label: 'Encrypted' },
-              { icon: 'people',           label: '50K+ Users' },
-            ].map(b => (
-              <View key={b.label} style={styles.trustItem}>
-                <Ionicons name={b.icon} size={12} color={ORANGE} style={{ marginRight: 4 }} />
-                <Text style={styles.trustText}>{b.label}</Text>
+          {/* Trust badges */}
+          <Animated.View style={[S.badgeRow, { opacity: footOpacity }]}>
+            {[{ icon: 'shield-checkmark', label: 'Secure Auth' }, { icon: 'lock-closed', label: 'Encrypted' }, { icon: 'people', label: '50K+ Users' }].map(b => (
+              <View key={b.label} style={S.badge}>
+                <Ionicons name={b.icon} size={11} color={ORANGE2} style={{ marginRight: 5 }} />
+                <Text style={S.badgeTxt}>{b.label}</Text>
               </View>
             ))}
-          </View>
+          </Animated.View>
+
+          <Animated.Text style={[S.footerTxt, { opacity: footOpacity }]}>
+            Connecting Nanded's workforce since 2024
+          </Animated.Text>
 
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ── Forgot Password Modal ── */}
+      {/* ── FORGOT PASSWORD MODAL ── */}
       <Modal
         visible={forgotVisible}
         transparent
         animationType="slide"
         onRequestClose={() => { setForgotVisible(false); setForgotDone(false); setForgotEmail(''); }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <TouchableOpacity style={styles.modalClose} onPress={() => { setForgotVisible(false); setForgotDone(false); setForgotEmail(''); }}>
-              <Ionicons name="close" size={22} color="#555" />
+        <View style={S.modalOverlay}>
+          <View style={S.modalCard}>
+            <View style={S.modalHandle} />
+            <TouchableOpacity style={S.modalClose} onPress={() => { setForgotVisible(false); setForgotDone(false); setForgotEmail(''); }}>
+              <Ionicons name="close" size={20} color={TEXT_DIM} />
             </TouchableOpacity>
 
             {forgotDone ? (
-              <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-                <View style={styles.successCircle}>
-                  <Ionicons name="checkmark" size={32} color="#22c55e" />
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <View style={S.successRing}>
+                  <Ionicons name="checkmark" size={30} color={SUCCESS} />
                 </View>
-                <Text style={styles.modalTitle}>Email Sent!</Text>
-                <Text style={styles.modalSub}>Check your inbox for a password reset link. It expires in 1 hour.</Text>
-                <TouchableOpacity
-                  style={[styles.submitBtn, { marginTop: 20, backgroundColor: '#111' }]}
-                  onPress={() => { setForgotVisible(false); setForgotDone(false); setForgotEmail(''); }}
-                >
-                  <Text style={styles.submitText}>Back to Sign In</Text>
+                <Text style={S.modalTitle}>Email Sent!</Text>
+                <Text style={S.modalSub}>Check your inbox for a password reset link. Expires in 1 hour.</Text>
+                <TouchableOpacity style={[S.submitBtn, { marginTop: 24, marginHorizontal: 0, width: '100%' }]} onPress={() => { setForgotVisible(false); setForgotDone(false); setForgotEmail(''); }}>
+                  <Text style={S.submitTxt}>Back to Sign In</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <>
-                <View style={styles.modalIconWrap}>
-                  <Ionicons name="key-outline" size={28} color={ORANGE} />
+                <View style={S.modalIcon}>
+                  <Ionicons name="key-outline" size={26} color={ORANGE} />
                 </View>
-                <Text style={styles.modalTitle}>Reset Password</Text>
-                <Text style={styles.modalSub}>Enter your registered email and we'll send you a reset link.</Text>
-
-                <View style={[styles.fieldWrap, { marginTop: 16 }]}>
-                  <Text style={styles.label}>Email Address</Text>
-                  <View style={styles.inputRow}>
-                    <Ionicons name="mail-outline" size={16} color="#999" style={styles.inputIcon} />
+                <Text style={S.modalTitle}>Reset Password</Text>
+                <Text style={S.modalSub}>Enter your registered email and we'll send a reset link.</Text>
+                <View style={[S.fw, { marginHorizontal: 0, marginTop: 18 }]}>
+                  <Text style={S.flabel}>Email Address</Text>
+                  <View style={[S.irow, focusedField === 'fgEmail' && S.irowF]}>
+                    <Ionicons name="mail-outline" size={16} color={focusedField === 'fgEmail' ? ORANGE2 : TEXT_DIM} style={S.ficon} />
                     <TextInput
-                      style={styles.input}
+                      style={S.tinput}
                       value={forgotEmail}
                       onChangeText={setForgotEmail}
                       placeholder="you@email.com"
-                      placeholderTextColor="#aaa"
+                      placeholderTextColor={TEXT_DIM}
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      onFocus={() => setFocusedField('fgEmail')}
+                      onBlur={() => setFocusedField(null)}
                     />
                   </View>
                 </View>
-
                 {forgotLoading ? (
-                  <ActivityIndicator size="small" color={ORANGE} style={{ marginTop: 8 }} />
+                  <ActivityIndicator size="small" color={ORANGE} style={{ marginTop: 14 }} />
                 ) : (
-                  <TouchableOpacity style={styles.submitBtn} onPress={handleForgotPassword} activeOpacity={0.88}>
-                    <Ionicons name="paper-plane-outline" size={18} color="#fff" />
-                    <Text style={styles.submitText}>Send Reset Link</Text>
+                  <TouchableOpacity style={[S.submitBtn, { marginTop: 6, marginHorizontal: 0 }]} onPress={handleForgotPassword} activeOpacity={0.87}>
+                    <Ionicons name="paper-plane-outline" size={17} color="#fff" />
+                    <Text style={S.submitTxt}>Send Reset Link</Text>
                   </TouchableOpacity>
                 )}
               </>
@@ -677,94 +722,142 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// ── StyleSheet ────────────────────────────────────────────────────────────────
+const S = StyleSheet.create({
   bg:     { flex: 1, backgroundColor: BG },
-  scroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40, paddingHorizontal: 20 },
+  scroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: IS_WEB ? 24 : 18 },
+
+  // BG decoration
+  dline1: { position: 'absolute', width: 2, height: '55%', backgroundColor: 'rgba(249,115,22,0.06)', top: '8%',  left: '12%', transform: [{ rotate: '20deg' }] },
+  dline2: { position: 'absolute', width: 1, height: '38%', backgroundColor: 'rgba(249,115,22,0.04)', bottom: '4%', right: '18%', transform: [{ rotate: '-25deg' }] },
 
   // Logo
-  logoWrap: { alignItems: 'center', marginBottom: 28 },
-  logoMark: { width: 70, height: 70, backgroundColor: '#1e1e1e', borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 14, borderWidth: 1.5, borderColor: '#2e2e2e' },
-  logoEmoji: { fontSize: 30 },
-  logoText:  { fontSize: 28, fontWeight: '900', letterSpacing: 0.5 },
-  logoSub:   { color: '#666', fontSize: 12, marginTop: 5 },
+  logoWrap: { alignItems: 'center', marginBottom: 30 },
+  pulseRing: { position: 'absolute', width: 92, height: 92, borderRadius: 46, borderWidth: 2, borderColor: 'rgba(249,115,22,0.5)', top: -7 },
+  logoMark: {
+    width: 78, height: 78, borderRadius: 24,
+    backgroundColor: '#181818', borderWidth: 1.5, borderColor: '#272727',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+    shadowColor: ORANGE, shadowOpacity: 0.28, shadowRadius: 22, shadowOffset: { width: 0, height: 8 }, elevation: 14,
+  },
+  logoName: { fontSize: 30, fontWeight: '900', letterSpacing: 0.5, marginBottom: 8 },
+  tagRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tagDot:   { width: 4, height: 4, borderRadius: 2, backgroundColor: ORANGE },
+  tagline:  { color: TEXT_DIM, fontSize: 12, fontWeight: '500', letterSpacing: 0.5 },
 
   // Card
-  box: { backgroundColor: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 420, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 24, elevation: 12 },
+  card: {
+    backgroundColor: CARD, borderRadius: 28, width: '100%', maxWidth: 440,
+    borderWidth: 1, borderColor: BORDER, overflow: 'hidden',
+    shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 32, shadowOffset: { width: 0, height: 18 }, elevation: 22,
+  },
+  accentBar: { height: 3, backgroundColor: ORANGE },
 
   // Tabs
-  tabRow:       { flexDirection: 'row', borderRadius: 12, backgroundColor: '#f4f4f4', marginBottom: 22, padding: 3, position: 'relative', overflow: 'hidden' },
-  tabIndicator: { position: 'absolute', top: 3, bottom: 3, backgroundColor: '#fff', borderRadius: 9, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, elevation: 2 },
-  tabBtn:       { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 9, zIndex: 1 },
-  tabText:      { fontSize: 12, fontWeight: '600', color: '#aaa' },
-  tabTextActive: { color: '#111', fontWeight: '800' },
+  tabRow: { flexDirection: 'row', backgroundColor: '#0d0d0d', borderBottomWidth: 1, borderBottomColor: BORDER, position: 'relative', paddingTop: 4 },
+  tabSlider: { position: 'absolute', bottom: 0, height: 2.5, backgroundColor: ORANGE, borderRadius: 2 },
+  tabBtn:    { flex: 1, paddingVertical: 12, alignItems: 'center', gap: 3 },
+  tabTxt:    { fontSize: 11.5, fontWeight: '600', color: TEXT_DIM },
+  tabTxtOn:  { color: TEXT, fontWeight: '800' },
 
-  // Social
-  socialRow:     { gap: 10 },
-  socialBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1.5, borderColor: '#e5e5e5', borderRadius: 12, paddingVertical: 12, backgroundColor: '#fff' },
-  socialBtnText: { fontSize: 13, fontWeight: '700', color: '#111' },
+  // Google
+  googleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingVertical: 13,
+    backgroundColor: '#1a1a1a', marginHorizontal: 20, marginTop: 20,
+  },
+  googleTxt: { fontSize: 14, fontWeight: '700', color: TEXT },
 
   // Divider
-  dividerRow:  { flexDirection: 'row', alignItems: 'center', marginVertical: 16, gap: 10 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#ebebeb' },
-  dividerText: { fontSize: 11, color: '#bbb', fontWeight: '500' },
+  divRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginVertical: 14, gap: 10 },
+  divLine: { flex: 1, height: 1, backgroundColor: BORDER },
+  divTxt:  { fontSize: 11, color: TEXT_DIM, fontWeight: '500' },
 
   // Fields
-  fieldWrap:  { marginBottom: 14 },
-  label:      { fontSize: 12, fontWeight: '700', color: '#444', marginBottom: 6, letterSpacing: 0.2 },
-  inputRow:   { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#e5e5e5', borderRadius: 12, backgroundColor: '#fdfdfd', paddingHorizontal: 12 },
-  inputIcon:  { marginRight: 8 },
-  input:      { flex: 1, paddingVertical: 12, fontSize: 14, color: '#111' },
-  eyeBtn:     { padding: 4 },
-  flagPrefix: { fontSize: 13, color: '#555', fontWeight: '600', marginRight: 6 },
+  fw:          { marginHorizontal: 20, marginBottom: 14 },
+  flabel:      { fontSize: 12, fontWeight: '700', color: TEXT_MID, marginBottom: 7, letterSpacing: 0.2 },
+  passLabelRow:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
+  forgotLink:  { fontSize: 12, fontWeight: '700', color: ORANGE },
+  irow: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1.5, borderColor: BORDER, borderRadius: 13,
+    backgroundColor: '#111', paddingHorizontal: 13, minHeight: 50,
+  },
+  irowF: { borderColor: ORANGE, backgroundColor: '#161616' },
+  ficon:   { marginRight: 9 },
+  tinput:  { flex: 1, paddingVertical: 12, fontSize: 14, color: TEXT },
+  eyeBtn:  { padding: 5 },
+  flagPfx: { fontSize: 14, color: TEXT_MID, fontWeight: '600', marginRight: 8 },
 
-  // Password strength
-  strengthTrack:   { flexDirection: 'row', gap: 3 },
-  strengthSegment: { flex: 1, height: 3, borderRadius: 2 },
-  strengthLabel:   { fontSize: 10, fontWeight: '700', marginTop: 3 },
+  // Strength
+  strTrack: { flexDirection: 'row', gap: 4, marginTop: 5 },
+  strSeg:   { flex: 1, height: 3, borderRadius: 2 },
+  strLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 4 },
 
   // Terms
-  termsRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
-  checkbox:     { width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: '#ddd', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
-  checkboxActive: { backgroundColor: ORANGE, borderColor: ORANGE },
-  termsText:    { fontSize: 12, color: '#666', flex: 1, lineHeight: 18 },
-  termsLink:    { color: ORANGE, fontWeight: '700' },
+  termsRow: { flexDirection: 'row', alignItems: 'flex-start', marginHorizontal: 20, marginBottom: 16, gap: 10 },
+  chk:      { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: BORDER, alignItems: 'center', justifyContent: 'center', marginTop: 1, backgroundColor: '#111' },
+  chkOn:    { backgroundColor: ORANGE, borderColor: ORANGE },
+  termsTxt: { fontSize: 12, color: TEXT_DIM, flex: 1, lineHeight: 18 },
+  termsLink:{ color: ORANGE, fontWeight: '700' },
 
   // OTP
-  otpInfoBox:   { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginBottom: 14 },
-  otpInfoText:  { fontSize: 12, color: '#166534', flex: 1, lineHeight: 17 },
-  resendText:   { fontSize: 12, color: '#888', textAlign: 'right' },
+  otpInfo:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0c1a0c', borderRadius: 10, padding: 12, marginHorizontal: 20, marginBottom: 14 },
+  otpInfoTxt: { fontSize: 12, color: '#86efac', flex: 1 },
+  resendTxt:  { fontSize: 12, color: TEXT_DIM, marginTop: 4 },
 
   // Error
-  errorBox:  { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#fef2f2', borderRadius: 10, padding: 11, marginBottom: 12 },
-  errorText: { color: '#ef4444', fontSize: 12, fontWeight: '600', flex: 1 },
+  errBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#1c0808', borderRadius: 12, padding: 12,
+    marginHorizontal: 20, marginBottom: 12,
+    borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)',
+  },
+  errTxt: { color: DANGER, fontSize: 13, fontWeight: '600', flex: 1 },
+
+  // Loading
+  loadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, marginHorizontal: 20 },
 
   // Submit
-  submitBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ORANGE, borderRadius: 12, paddingVertical: 14, marginTop: 2 },
-  submitText: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
+  submitBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: ORANGE, borderRadius: 14, paddingVertical: 15, marginHorizontal: 20,
+    shadowColor: ORANGE, shadowOpacity: 0.38, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, elevation: 9,
+  },
+  submitTxt: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
 
   // Biometric
-  biometricBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: '#ffe8d6', backgroundColor: '#fff7f0', borderRadius: 12, paddingVertical: 12, marginTop: 12 },
-  biometricText: { color: ORANGE, fontWeight: '700', fontSize: 13 },
+  bioBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.28)',
+    backgroundColor: 'rgba(249,115,22,0.06)',
+    borderRadius: 14, paddingVertical: 12, marginHorizontal: 20, marginTop: 12,
+  },
+  bioTxt: { color: ORANGE2, fontWeight: '700', fontSize: 13 },
 
   // Switch
-  switchRow:  { flexDirection: 'row', justifyContent: 'center', marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#f5f5f5' },
-  switchText: { fontSize: 12, color: '#999' },
-  switchLink: { fontSize: 12, fontWeight: '800', color: ORANGE },
+  switchRow: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    marginTop: 18, marginBottom: 20, paddingTop: 16,
+    borderTopWidth: 1, borderTopColor: BORDER, marginHorizontal: 20,
+  },
+  switchTxt:  { fontSize: 13, color: TEXT_DIM },
+  switchLink: { fontSize: 13, fontWeight: '800', color: ORANGE },
 
-  // Forgot
-  forgotLink: { fontSize: 12, fontWeight: '700', color: ORANGE },
+  // Badges
+  badgeRow: { flexDirection: 'row', marginTop: 22, gap: 10, flexWrap: 'wrap', justifyContent: 'center' },
+  badge:    { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
+  badgeTxt: { color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600' },
 
-  // Trust badges
-  trustRow:  { flexDirection: 'row', marginTop: 20, gap: 10, flexWrap: 'wrap', justifyContent: 'center' },
-  trustItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  trustText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600' },
+  footerTxt: { color: 'rgba(255,255,255,0.17)', fontSize: 11, marginTop: 14, letterSpacing: 0.4 },
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  modalCard:    { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 28, paddingBottom: 40 },
-  modalClose:   { position: 'absolute', top: 18, right: 20, zIndex: 10 },
-  modalIconWrap: { width: 56, height: 56, backgroundColor: '#fff7f0', borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  modalTitle: { fontSize: 20, fontWeight: '900', color: '#111', marginBottom: 6 },
-  modalSub:   { fontSize: 13, color: '#888', lineHeight: 19, marginBottom: 4 },
-  successCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
+  modalCard:    { backgroundColor: '#161616', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 28, paddingBottom: 44, borderTopWidth: 1, borderColor: BORDER },
+  modalHandle:  { width: 40, height: 4, borderRadius: 2, backgroundColor: BORDER, alignSelf: 'center', marginBottom: 22 },
+  modalClose:   { position: 'absolute', top: 20, right: 22, zIndex: 10 },
+  modalIcon:    { width: 58, height: 58, backgroundColor: 'rgba(249,115,22,0.1)', borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginBottom: 14, borderWidth: 1, borderColor: 'rgba(249,115,22,0.2)' },
+  modalTitle:   { fontSize: 22, fontWeight: '900', color: TEXT, marginBottom: 6 },
+  modalSub:     { fontSize: 13, color: TEXT_DIM, lineHeight: 19, marginBottom: 4 },
+  successRing:  { width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(34,197,94,0.1)', borderWidth: 2, borderColor: 'rgba(34,197,94,0.3)', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
 });
