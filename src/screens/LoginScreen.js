@@ -1,6 +1,7 @@
 /**
  * LokalLoop — LoginScreen.js
  * Secure auth: Email/Password + Google OAuth + Phone OTP + Biometrics + Forgot Password
+ * Fixed: Google OAuth works on web + native; Phone OTP tab hidden on web (uses Firebase Web SDK)
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
@@ -48,12 +49,20 @@ function getPasswordStrength(pw) {
   return { score, ...map[score] };
 }
 
-// ── Tab values ────────────────────────────────────────────────────────────────
-const TABS = [
+// ── Tabs — Phone OTP hidden on web (Firebase native SDK not available) ────────
+const ALL_TABS = [
   { key: 'login',    label: 'Sign In' },
   { key: 'register', label: 'Register' },
   { key: 'phone',    label: 'Phone OTP' },
 ];
+const TABS = Platform.OS === 'web'
+  ? ALL_TABS.filter(t => t.key !== 'phone')
+  : ALL_TABS;
+
+// ── Google Client ID — web uses Web client ID, native uses Web client ID too
+// (expo-auth-session handles the redirect; Android OAuth client validates via SHA-1 on Google's side)
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+  || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
 export default function LoginScreen() {
   const { login, register, loginWithGoogle, sendOTP, verifyOTP, forgotPassword, loginWithBiometrics } = useAuth();
@@ -62,7 +71,7 @@ export default function LoginScreen() {
   const [otpPhone, setOtpPhone] = useState('');
   const [otp, setOtp]       = useState('');
   const [otpSent, setOtpSent] = useState(false);
-  const [otpConfirmation, setOtpConfirmation] = useState(null); // Firebase confirmation object
+  const [otpConfirmation, setOtpConfirmation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState('');
   const [showPass, setShowPass]   = useState(false);
@@ -111,6 +120,7 @@ export default function LoginScreen() {
   }, []);
 
   async function checkBiometrics() {
+    if (Platform.OS === 'web') return; // biometrics not supported on web
     try {
       const compatible = await LocalAuthentication.hasHardwareAsync();
       const enrolled   = await LocalAuthentication.isEnrolledAsync();
@@ -135,21 +145,24 @@ export default function LoginScreen() {
     setOtpSent(false);
   }
 
+  const tabCount = TABS.length;
   const tabLeft = tabX.interpolate({
-    inputRange: [0, 1, 2],
-    outputRange: ['0%', '33.33%', '66.66%'],
+    inputRange: TABS.map((_, i) => i),
+    outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
   // ── Google OAuth ─────────────────────────────────────────────────────────
-  // In Expo Go / development: useProxy=true routes through auth.expo.io
-  // In production builds: uses the app scheme (nandedrozgar://)
+  // useProxy: true — always routes through auth.expo.io proxy
+  // This works for both web and native with the Web OAuth client ID
+  // For native production: also add Android OAuth client in Google Console (SHA-1 from expo.dev)
   const redirectUri = AuthSession.makeRedirectUri({
     scheme:   'nandedrozgar',
-    useProxy: __DEV__,
+    useProxy: true, // always use proxy — works on web + native dev + native production
   });
+
   const [googleRequest, googleResponse, promptGoogleAsync] = AuthSession.useAuthRequest(
     {
-      clientId:     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+      clientId:     GOOGLE_CLIENT_ID,
       redirectUri,
       scopes:       ['openid', 'profile', 'email'],
       responseType: AuthSession.ResponseType.Token,
@@ -170,6 +183,14 @@ export default function LoginScreen() {
     const r = await loginWithGoogle(accessToken);
     setLoading(false);
     if (!r.ok) { setError(r.error || 'Google sign-in failed'); triggerShake(); }
+  }
+
+  function handleGooglePress() {
+    if (!GOOGLE_CLIENT_ID) {
+      setError('Google sign-in not configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in .env');
+      return;
+    }
+    promptGoogleAsync();
   }
 
   // ── Biometric login ───────────────────────────────────────────────────────
@@ -219,7 +240,7 @@ export default function LoginScreen() {
     setLoading(false);
     if (r.ok) {
       setOtpSent(true);
-      setOtpConfirmation(r.confirmation); // store Firebase confirmation object
+      setOtpConfirmation(r.confirmation);
     } else {
       setError(r.error || 'Failed to send OTP');
       triggerShake();
@@ -230,7 +251,7 @@ export default function LoginScreen() {
     if (!otp || otp.length < 4) { setError('Enter the OTP'); triggerShake(); return; }
     if (!otpConfirmation) { setError('Please request a new OTP'); triggerShake(); return; }
     setLoading(true); setError('');
-    const r = await verifyOTP(otpConfirmation, otp); // pass confirmation, not phone
+    const r = await verifyOTP(otpConfirmation, otp);
     setLoading(false);
     if (!r.ok) { setError(r.error || 'Invalid OTP'); triggerShake(); }
   }
@@ -245,6 +266,7 @@ export default function LoginScreen() {
   }
 
   const pwStrength = getPasswordStrength(form.password);
+  const tabWidth   = `${100 / tabCount}%`;
 
   return (
     <View style={styles.bg}>
@@ -269,7 +291,7 @@ export default function LoginScreen() {
 
             {/* ── Tab switcher ── */}
             <View style={styles.tabRow}>
-              <Animated.View style={[styles.tabIndicator, { left: tabLeft }]} />
+              <Animated.View style={[styles.tabIndicator, { left: tabLeft, width: tabWidth }]} />
               {TABS.map(t => (
                 <TouchableOpacity key={t.key} onPress={() => switchTab(t.key)} style={styles.tabBtn} activeOpacity={0.8}>
                   <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.label}</Text>
@@ -281,15 +303,9 @@ export default function LoginScreen() {
             {tab !== 'phone' && (
               <View style={styles.socialRow}>
                 <TouchableOpacity
-                  style={[styles.socialBtn, !process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID && { opacity: 0.4 }]}
-                  onPress={() => {
-                    if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID) {
-                      setError('Google sign-in not configured. Set EXPO_PUBLIC_GOOGLE_CLIENT_ID in .env');
-                      return;
-                    }
-                    promptGoogleAsync();
-                  }}
-                  disabled={(!googleRequest && !!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID) || loading}
+                  style={[styles.socialBtn, !GOOGLE_CLIENT_ID && { opacity: 0.4 }]}
+                  onPress={handleGooglePress}
+                  disabled={(!googleRequest && !!GOOGLE_CLIENT_ID) || loading}
                   activeOpacity={0.85}
                 >
                   <MaterialCommunityIcons name="google" size={18} color="#EA4335" />
@@ -387,7 +403,6 @@ export default function LoginScreen() {
                       <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color="#999" />
                     </TouchableOpacity>
                   </View>
-                  {/* Password strength bar (register only) */}
                   {tab === 'register' && form.password.length > 0 && (
                     <View style={{ marginTop: 6 }}>
                       <View style={styles.strengthTrack}>
@@ -403,7 +418,6 @@ export default function LoginScreen() {
                   )}
                 </View>
 
-                {/* Confirm password (register) */}
                 {tab === 'register' && (
                   <View style={styles.fieldWrap}>
                     <Text style={styles.label}>Confirm Password *</Text>
@@ -437,7 +451,6 @@ export default function LoginScreen() {
                   </View>
                 )}
 
-                {/* Terms checkbox (register) */}
                 {tab === 'register' && (
                   <TouchableOpacity style={styles.termsRow} onPress={() => setTermsAccepted(p => !p)} activeOpacity={0.8}>
                     <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
@@ -454,9 +467,12 @@ export default function LoginScreen() {
               </>
             )}
 
-            {/* ── Phone OTP tab ── */}
+            {/* ── Phone OTP tab (native only) ── */}
             {tab === 'phone' && (
               <View>
+                {/* Invisible reCAPTCHA anchor for web (no-op on native) */}
+                {Platform.OS === 'web' && <div id="recaptcha-container" />}
+
                 <View style={styles.fieldWrap}>
                   <Text style={styles.label}>Mobile Number *</Text>
                   <View style={styles.inputRow}>
@@ -538,8 +554,8 @@ export default function LoginScreen() {
               </>
             )}
 
-            {/* ── Biometric button (login tab only, if available) ── */}
-            {tab === 'login' && biometricAvailable && (
+            {/* ── Biometric button (login tab only, native only) ── */}
+            {tab === 'login' && biometricAvailable && Platform.OS !== 'web' && (
               <TouchableOpacity style={styles.biometricBtn} onPress={handleBiometric} activeOpacity={0.8}>
                 <Ionicons name="finger-print-outline" size={20} color={ORANGE} />
                 <Text style={styles.biometricText}>Sign in with Biometrics</Text>
@@ -676,7 +692,7 @@ const styles = StyleSheet.create({
 
   // Tabs
   tabRow:       { flexDirection: 'row', borderRadius: 12, backgroundColor: '#f4f4f4', marginBottom: 22, padding: 3, position: 'relative', overflow: 'hidden' },
-  tabIndicator: { position: 'absolute', top: 3, bottom: 3, width: '33.33%', backgroundColor: '#fff', borderRadius: 9, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, elevation: 2 },
+  tabIndicator: { position: 'absolute', top: 3, bottom: 3, backgroundColor: '#fff', borderRadius: 9, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, elevation: 2 },
   tabBtn:       { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 9, zIndex: 1 },
   tabText:      { fontSize: 12, fontWeight: '600', color: '#aaa' },
   tabTextActive: { color: '#111', fontWeight: '800' },
