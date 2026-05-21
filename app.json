@@ -27,7 +27,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.nandedrozgar.app"
+      "bundleIdentifier": "com.localloop.app"
     },
     "android": {
       "adaptiveIcon": {
