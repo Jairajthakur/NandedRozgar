@@ -89,6 +89,7 @@ export default function ProfileScreen() {
   const roleLabel = isAdmin ? '⚡ Admin' : isSeeker ? '👤 Job Seeker' : '🏢 Employer';
   const initials  = user?.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
+
   return (
     <View style={styles.root}>
       <ScrollView
@@ -96,35 +97,30 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.inner}>
-
-          {/* ── Profile Card ── */}
-          <View style={styles.profileCard}>
-            {/* Background decoration */}
-            <View style={styles.cardBg} />
-
-            <View style={styles.avatarWrap}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarTxt}>{initials}</Text>
-              </View>
-              <View style={styles.onlineDot} />
+        {/* ── Profile Card — full bleed across entire width ── */}
+        <View style={styles.profileCard}>
+          <View style={styles.cardBg} />
+          <View style={styles.avatarWrap}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarTxt}>{initials}</Text>
             </View>
-
-            <Text style={styles.name}>{user?.name || 'User'}</Text>
-            <Text style={styles.email}>{user?.email || ''}</Text>
-            {user?.phone ? <Text style={styles.phone}>📱 +91 {user.phone}</Text> : null}
-
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleTxt}>{roleLabel}</Text>
-            </View>
-
-            {/* Member since */}
-            <Text style={styles.memberSince}>
-              Member since {user?.created_at
-                ? new Date(user.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-                : 'recently'}
-            </Text>
+            <View style={styles.onlineDot} />
           </View>
+          <Text style={styles.name}>{user?.name || 'User'}</Text>
+          <Text style={styles.email}>{user?.email || ''}</Text>
+          {user?.phone ? <Text style={styles.phone}>📱 +91 {user.phone}</Text> : null}
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleTxt}>{roleLabel}</Text>
+          </View>
+          <Text style={styles.memberSince}>
+            Member since {user?.created_at
+              ? new Date(user.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+              : 'recently'}
+          </Text>
+        </View>
+
+        {/* ── Centered content below ── */}
+        <View style={styles.inner}>
 
           {/* ── Stats Row ── */}
           {loading ? (
@@ -157,10 +153,7 @@ export default function ProfileScreen() {
               {menuItems.map((item, i) => (
                 <TouchableOpacity
                   key={i}
-                  style={[
-                    styles.menuItem,
-                    i === menuItems.length - 1 && styles.menuItemLast,
-                  ]}
+                  style={[styles.menuItem, i === menuItems.length - 1 && styles.menuItemLast]}
                   onPress={item.onPress}
                   activeOpacity={0.75}
                 >
@@ -232,18 +225,20 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   root:         { flex: 1, backgroundColor: BG },
   scroll:       { flex: 1 },
-  scrollContent:{ flexGrow: 1, alignItems: 'center', paddingBottom: 40 },
-  inner:        { width: '100%', maxWidth: 640, paddingHorizontal: 0 },
+  scrollContent:{ flexGrow: 1, alignItems: 'stretch', paddingBottom: 40 },
 
-  // ── Profile card
+  // inner — centered with maxWidth, sits below full-bleed profile card
+  inner:        { width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 0 },
+
+  // ── Profile card — always full width, no maxWidth
   profileCard:  {
     alignItems: 'center',
     backgroundColor: DARK,
     paddingTop: 40,
     paddingBottom: 28,
     paddingHorizontal: 24,
-    marginBottom: 0,
     overflow: 'hidden',
+    width: '100%',
   },
   cardBg: {
     position: 'absolute', top: -40, left: -40, right: -40,
