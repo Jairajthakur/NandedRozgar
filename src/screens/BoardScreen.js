@@ -13,7 +13,8 @@ import JobCard from '../components/JobCard';
 import { Empty } from '../components/UI';
 import { CAT_ICONS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
-import PromoBanner from '../components/PromoBanner';
+import PromoBanner, { BannerCard } from '../components/PromoBanner';
+import { http, timeAgo } from '../utils/api';
 
 const ORANGE = '#f97316';
 const TEAL   = '#0d9488';
@@ -239,9 +240,39 @@ export default function BoardScreen({ route }) {
     (jobType !== 'All' ? 1 : 0) +
     (salaryRange.label !== 'Any' ? 1 : 0);
 
+  // ── Live promotions fetch ─────────────────────────────────────────────────
+  const [livePromos, setLivePromos] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await http('GET', '/api/promotions/all');
+        if (res.ok && Array.isArray(res.promotions)) setLivePromos(res.promotions);
+      } catch { /* use empty */ }
+    })();
+  }, []);
+
+  // ── Interleaved feed: merge jobs + promos by created_at timing ────────────
+  // Each promotion is inserted at the position matching its post time in the feed.
+  // Result items: { type: 'job', data: job } | { type: 'promo', data: promo }
+  const interleavedFeed = useMemo(() => {
+    if (livePromos.length === 0) {
+      return filtered.map(j => ({ type: 'job', data: j, id: 'job_' + j.id }));
+    }
+
+    // Build a merged timeline sorted by created_at/timestamp DESC
+    const jobItems   = filtered.map(j => ({ type: 'job',   data: j, id: 'job_'   + j.id,   ts: j.timestamp || 0 }));
+    const promoItems = livePromos.map(p => ({ type: 'promo', data: p, id: 'promo_' + p.id, ts: new Date(p.createdAt).getTime() }));
+
+    return [...jobItems, ...promoItems].sort((a, b) => b.ts - a.ts);
+  }, [filtered, livePromos]);
+
   async function onRefresh() {
     setRefreshing(true);
     await loadJobs();
+    try {
+      const res = await http('GET', '/api/promotions/all');
+      if (res.ok && Array.isArray(res.promotions)) setLivePromos(res.promotions);
+    } catch {}
     setRefreshing(false);
   }
 
@@ -364,8 +395,7 @@ export default function BoardScreen({ route }) {
       <FadeIn delay={180}>
         <HiringBanner onPress={() => {}} />
       </FadeIn>
-      <PromoBanner />
-    </>
+
   );
 
   // ── Filter Modal ───────────────────────────────────────────────────────────
@@ -531,11 +561,10 @@ export default function BoardScreen({ route }) {
           <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
             <FlatList
               ref={flatListRef}
-              data={filtered}
-              keyExtractor={j => String(j.id)}
-              numColumns={winW >= 1280 ? 2 : 1}
-              key={winW >= 1280 ? 'two-col' : 'one-col'}
-              columnWrapperStyle={winW >= 1280 ? { gap: 12 } : null}
+              data={interleavedFeed}
+              keyExtractor={item => item.id}
+              numColumns={1}
+              key="one-col"
               contentContainerStyle={ws.list}
               showsVerticalScrollIndicator={false}
               showsHorizontalScrollIndicator={false}
@@ -556,15 +585,26 @@ export default function BoardScreen({ route }) {
                   {ListHeader}
                 </>
               }
-              renderItem={({ item, index }) => (
-                <View style={winW >= 1280 ? { flex: 1 } : {}}>
+              renderItem={({ item, index }) => {
+                if (item.type === 'promo') {
+                  return (
+                    <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+                      <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>SPONSORED</Text>
+                      </View>
+                      <BannerCard promo={item.data} />
+                    </View>
+                  );
+                }
+                return (
                   <JobCard
-                    job={item}
+                    job={item.data}
                     index={index}
-                    onPress={() => nav.navigate('JobDetail', { job: item })}
+                    onPress={() => nav.navigate('JobDetail', { job: item.data })}
                   />
-                </View>
-              )}
+                );
+              }}
               ListEmptyComponent={
                 <Empty
                   icon="search"
@@ -649,8 +689,8 @@ export default function BoardScreen({ route }) {
       {StickyHeader}
       <FlatList
         ref={flatListRef}
-        data={filtered}
-        keyExtractor={j => j.id}
+        data={interleavedFeed}
+        keyExtractor={item => item.id}
         contentContainerStyle={s.list}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
@@ -671,13 +711,26 @@ export default function BoardScreen({ route }) {
             {ListHeader}
           </>
         }
-        renderItem={({ item, index }) => (
-          <JobCard
-            job={item}
-            index={index}
-            onPress={() => nav.navigate('JobDetail', { job: item })}
-          />
-        )}
+        renderItem={({ item, index }) => {
+          if (item.type === 'promo') {
+            return (
+              <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+                <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>SPONSORED</Text>
+                </View>
+                <BannerCard promo={item.data} />
+              </View>
+            );
+          }
+          return (
+            <JobCard
+              job={item.data}
+              index={index}
+              onPress={() => nav.navigate('JobDetail', { job: item.data })}
+            />
+          );
+        }}
         ListEmptyComponent={
           <Empty
             icon="search"
