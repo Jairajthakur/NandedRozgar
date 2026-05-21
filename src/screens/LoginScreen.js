@@ -1,7 +1,7 @@
 /**
- * NandedRozgar — LoginScreen.js  (Redesigned)
- * Bold dark-orange brand identity with animated mesh background,
- * floating orbs, staggered entrance, and polished form card.
+ * LocalLoop — LoginScreen.js  (Light Theme, Animated)
+ * Warm light brand identity · staggered entrance animations
+ * · floating orbs · polished form card
  * Works on web + Android APK (React Native / Expo).
  */
 
@@ -20,17 +20,20 @@ import { useAuth } from '../context/AuthContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
-// ── Brand tokens ──────────────────────────────────────────────────────────────
-const ORANGE   = '#f97316';
-const ORANGE2  = '#fb923c';
-const BG       = '#0a0a0a';
-const CARD     = '#141414';
-const BORDER   = '#242424';
-const TEXT      = '#f5f5f5';
-const TEXT_DIM  = '#71717a';
-const TEXT_MID  = '#a1a1aa';
-const SUCCESS   = '#22c55e';
-const DANGER    = '#ef4444';
+// ── Brand tokens (Light Theme) ────────────────────────────────────────────────
+const ORANGE     = '#f97316';
+const ORANGE2    = '#fb923c';
+const ORANGE_SOFT= '#fff7ed';
+const BG         = '#fbf9f6';
+const CARD       = '#ffffff';
+const BORDER     = '#e8e4dd';
+const BORDER_FOC = '#f97316';
+const TEXT       = '#1a1a18';
+const TEXT_DIM   = '#888780';
+const TEXT_MID   = '#5f5e5a';
+const SURFACE    = '#f4f2ee';
+const SUCCESS    = '#16a34a';
+const DANGER     = '#dc2626';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const IS_WEB = Platform.OS === 'web';
@@ -63,47 +66,43 @@ function getPasswordStrength(pw) {
   if (/[0-9]/.test(pw))        score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
   const map = [
-    { label: 'Very Weak',   color: '#ef4444' },
+    { label: 'Very Weak',   color: '#dc2626' },
     { label: 'Weak',        color: '#f97316' },
-    { label: 'Fair',        color: '#eab308' },
-    { label: 'Strong',      color: '#22c55e' },
-    { label: 'Very Strong', color: '#16a34a' },
+    { label: 'Fair',        color: '#ca8a04' },
+    { label: 'Strong',      color: '#16a34a' },
+    { label: 'Very Strong', color: '#15803d' },
   ];
   return { score, ...map[score] };
 }
 
-// ── Animated floating orb ─────────────────────────────────────────────────────
+// ── Floating orb ──────────────────────────────────────────────────────────────
 function Orb({ size, color, top, left, right, bottom, duration = 4500 }) {
-  const y = useRef(new Animated.Value(0)).current;
-  const x = useRef(new Animated.Value(0)).current;
+  const y  = useRef(new Animated.Value(0)).current;
+  const x  = useRef(new Animated.Value(0)).current;
   const sc = useRef(new Animated.Value(1)).current;
-
   useEffect(() => {
     Animated.loop(
       Animated.parallel([
         Animated.sequence([
-          Animated.timing(y, { toValue: -20, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(y, { toValue: 0,   duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(y,  { toValue: -18, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(y,  { toValue: 0,   duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
         ]),
         Animated.sequence([
-          Animated.timing(x, { toValue: 12, duration: duration * 1.4, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(x, { toValue: 0,  duration: duration * 1.4, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(x,  { toValue: 10,  duration: duration * 1.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(x,  { toValue: 0,   duration: duration * 1.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
         ]),
         Animated.sequence([
-          Animated.timing(sc, { toValue: 1.1, duration: duration * 0.9, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(sc, { toValue: 1,   duration: duration * 0.9, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(sc, { toValue: 1.08, duration: duration * 0.9, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(sc, { toValue: 1,    duration: duration * 0.9, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
         ]),
       ])
     ).start();
   }, []);
-
   return (
     <Animated.View
       style={{
-        position: 'absolute',
-        width: size, height: size,
-        borderRadius: size / 2,
-        backgroundColor: color,
+        position: 'absolute', width: size, height: size,
+        borderRadius: size / 2, backgroundColor: color,
         top, left, right, bottom,
         transform: [{ translateY: y }, { translateX: x }, { scale: sc }],
       }}
@@ -112,7 +111,7 @@ function Orb({ size, color, top, left, right, bottom, duration = 4500 }) {
   );
 }
 
-// ── Native grid dots ──────────────────────────────────────────────────────────
+// ── Dot grid (native only) ────────────────────────────────────────────────────
 function GridDots() {
   if (IS_WEB) return null;
   const items = [];
@@ -120,16 +119,11 @@ function GridDots() {
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       items.push(
-        <View
-          key={`${r}-${c}`}
-          style={{
-            position: 'absolute',
-            width: 2, height: 2, borderRadius: 1,
-            backgroundColor: 'rgba(249,115,22,0.1)',
-            left: (SW / cols) * c + 24,
-            top:  (SH / rows) * r + 24,
-          }}
-        />
+        <View key={`${r}-${c}`} style={{
+          position: 'absolute', width: 2, height: 2, borderRadius: 1,
+          backgroundColor: 'rgba(249,115,22,0.12)',
+          left: (SW / cols) * c + 24, top: (SH / rows) * r + 24,
+        }} />
       );
     }
   }
@@ -164,42 +158,42 @@ export default function LoginScreen() {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   // ── Entrance animations ───────────────────────────────────────────────────
-  const logoOpacity   = useRef(new Animated.Value(0)).current;
-  const logoY         = useRef(new Animated.Value(-28)).current;
-  const logoScale     = useRef(new Animated.Value(0.82)).current;
-  const cardOpacity   = useRef(new Animated.Value(0)).current;
-  const cardY         = useRef(new Animated.Value(44)).current;
-  const footOpacity   = useRef(new Animated.Value(0)).current;
-  const shake         = useRef(new Animated.Value(0)).current;
-  const tabX          = useRef(new Animated.Value(0)).current;
-  const pulse         = useRef(new Animated.Value(1)).current;
-  const pulseOp       = useRef(new Animated.Value(0.55)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoY       = useRef(new Animated.Value(-24)).current;
+  const logoScale   = useRef(new Animated.Value(0.85)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const cardY       = useRef(new Animated.Value(40)).current;
+  const footOpacity = useRef(new Animated.Value(0)).current;
+  const shake       = useRef(new Animated.Value(0)).current;
+  const tabX        = useRef(new Animated.Value(0)).current;
+  const pulse       = useRef(new Animated.Value(1)).current;
+  const pulseOp     = useRef(new Animated.Value(0.6)).current;
 
   useEffect(() => {
     Animated.sequence([
       Animated.parallel([
-        Animated.spring(logoScale,   { toValue: 1,    damping: 12, stiffness: 120, useNativeDriver: true }),
-        Animated.timing(logoOpacity, { toValue: 1,    duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(logoY,       { toValue: 0,    duration: 400, easing: Easing.out(Easing.back(1.1)), useNativeDriver: true }),
+        Animated.spring(logoScale,   { toValue: 1, damping: 13, stiffness: 130, useNativeDriver: true }),
+        Animated.timing(logoOpacity, { toValue: 1, duration: 380, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(logoY,       { toValue: 0, duration: 380, easing: Easing.out(Easing.back(1.1)), useNativeDriver: true }),
       ]),
       Animated.parallel([
-        Animated.timing(cardOpacity, { toValue: 1, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(cardY,       { toValue: 0, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(cardOpacity, { toValue: 1, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(cardY,       { toValue: 0, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       ]),
-      Animated.timing(footOpacity, { toValue: 1, duration: 320, useNativeDriver: true }),
+      Animated.timing(footOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
     ]).start();
 
     Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(pulse, { toValue: 1.6, duration: 1600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-          Animated.timing(pulseOp, { toValue: 0, duration: 1600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(pulse,   { toValue: 1.7, duration: 1500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(pulseOp, { toValue: 0,   duration: 1500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
         ]),
         Animated.parallel([
-          Animated.timing(pulse, { toValue: 1, duration: 0, useNativeDriver: true }),
-          Animated.timing(pulseOp, { toValue: 0.55, duration: 0, useNativeDriver: true }),
+          Animated.timing(pulse,   { toValue: 1, duration: 0, useNativeDriver: true }),
+          Animated.timing(pulseOp, { toValue: 0.6, duration: 0, useNativeDriver: true }),
         ]),
-        Animated.delay(700),
+        Animated.delay(800),
       ])
     ).start();
 
@@ -218,8 +212,8 @@ export default function LoginScreen() {
   function triggerShake() {
     shake.setValue(0);
     Animated.sequence(
-      [-12, 12, -8, 8, -4, 4, 0].map(v =>
-        Animated.timing(shake, { toValue: v, duration: 50, useNativeDriver: true })
+      [-10, 10, -7, 7, -4, 4, 0].map(v =>
+        Animated.timing(shake, { toValue: v, duration: 48, useNativeDriver: true })
       )
     ).start();
   }
@@ -231,8 +225,8 @@ export default function LoginScreen() {
   }
 
   const tabCount = TABS.length;
-  const tabLeft = tabX.interpolate({
-    inputRange: TABS.map((_, i) => i),
+  const tabLeft  = tabX.interpolate({
+    inputRange:  TABS.map((_, i) => i),
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
@@ -329,13 +323,13 @@ export default function LoginScreen() {
       <View style={S.fw}>
         <Text style={S.flabel}>{label}</Text>
         <View style={[S.irow, focused && S.irowF]}>
-          <Ionicons name={icon} size={16} color={focused ? ORANGE2 : TEXT_DIM} style={S.ficon} />
+          <Ionicons name={icon} size={16} color={focused ? ORANGE : TEXT_DIM} style={S.ficon} />
           <TextInput
             style={S.tinput}
             value={value}
             onChangeText={onChange}
             placeholder={placeholder}
-            placeholderTextColor={TEXT_DIM}
+            placeholderTextColor="#c5c3bb"
             secureTextEntry={!!secure}
             keyboardType={keyboard || 'default'}
             autoCapitalize="none"
@@ -357,14 +351,13 @@ export default function LoginScreen() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <View style={S.bg}>
-      <StatusBar barStyle="light-content" backgroundColor={BG} />
+      <StatusBar barStyle="dark-content" backgroundColor={BG} />
 
       {/* BG orbs */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Orb size={320} color="rgba(249,115,22,0.08)"  top={-100} right={-80} duration={5200} />
-        <Orb size={240} color="rgba(249,115,22,0.065)" bottom={40} left={-70}  duration={4100} />
-        <Orb size={150} color="rgba(251,146,60,0.055)" top={SH * 0.4} right={-30} duration={3700} />
-        {/* diagonal lines */}
+        <Orb size={300} color="rgba(249,115,22,0.07)"  top={-80}  right={-60} duration={5200} />
+        <Orb size={220} color="rgba(249,115,22,0.055)" bottom={60} left={-50}  duration={4100} />
+        <Orb size={140} color="rgba(251,146,60,0.045)" top={SH * 0.38} right={-20} duration={3700} />
         <View style={S.dline1} />
         <View style={S.dline2} />
       </View>
@@ -383,26 +376,32 @@ export default function LoginScreen() {
 
           {/* ── LOGO ── */}
           <Animated.View style={[S.logoWrap, { opacity: logoOpacity, transform: [{ translateY: logoY }, { scale: logoScale }] }]}>
-            <Animated.View style={[S.pulseRing, { transform: [{ scale: pulse }], opacity: pulseOp }]} />
-            <View style={S.logoMark}>
-              <Text style={{ fontSize: 34 }}>📍</Text>
+            <View style={S.pulseWrap}>
+              <Animated.View style={[S.pulseRing, { transform: [{ scale: pulse }], opacity: pulseOp }]} />
+              <View style={S.logoMark}>
+                <View style={S.logoInner}>
+                  <View style={S.logoDot} />
+                  <View style={S.logoRing} />
+                </View>
+              </View>
             </View>
             <Text style={S.logoName}>
-              <Text style={{ color: TEXT }}>Nanded</Text>
-              <Text style={{ color: ORANGE }}>Rozgar</Text>
+              <Text style={{ color: TEXT }}>Local</Text>
+              <Text style={{ color: ORANGE }}>Loop</Text>
             </Text>
             <View style={S.tagRow}>
-              <View style={S.tagDot} /><Text style={S.tagline}>Local Jobs · Local Life · Nanded</Text><View style={S.tagDot} />
+              <View style={S.tagDot} />
+              <Text style={S.tagline}>Local Jobs · Local Life · Nanded</Text>
+              <View style={S.tagDot} />
             </View>
           </Animated.View>
 
           {/* ── CARD ── */}
           <Animated.View style={[S.card, { opacity: cardOpacity, transform: [{ translateY: cardY }, { translateX: shake }] }]}>
 
-            {/* top accent */}
             <View style={S.accentBar} />
 
-            {/* ── TABS ── */}
+            {/* TABS */}
             <View style={S.tabRow}>
               <Animated.View style={[S.tabSlider, { left: tabLeft, width: tabW }]} />
               {TABS.map(t => (
@@ -413,7 +412,7 @@ export default function LoginScreen() {
               ))}
             </View>
 
-            {/* ── GOOGLE ── */}
+            {/* GOOGLE */}
             {tab !== 'phone' && (
               <TouchableOpacity
                 style={[S.googleBtn, !GOOGLE_CLIENT_ID && { opacity: 0.4 }]}
@@ -426,14 +425,14 @@ export default function LoginScreen() {
               </TouchableOpacity>
             )}
 
-            {/* ── DIVIDER ── */}
+            {/* DIVIDER */}
             {tab !== 'phone' && (
               <View style={S.divRow}>
                 <View style={S.divLine} /><Text style={S.divTxt}>or with email</Text><View style={S.divLine} />
               </View>
             )}
 
-            {/* Register-only: name */}
+            {/* Register name */}
             {tab === 'register' && (
               <Field fkey="name" label="Full Name *" icon="person-outline" value={form.name} onChange={v => set('name', v)} placeholder="Your full name" />
             )}
@@ -448,16 +447,20 @@ export default function LoginScreen() {
               <View style={S.fw}>
                 <View style={S.passLabelRow}>
                   <Text style={S.flabel}>Password *</Text>
-                  {tab === 'login' && <TouchableOpacity onPress={() => setForgotVisible(true)}><Text style={S.forgotLink}>Forgot?</Text></TouchableOpacity>}
+                  {tab === 'login' && (
+                    <TouchableOpacity onPress={() => setForgotVisible(true)}>
+                      <Text style={S.forgotLink}>Forgot?</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <View style={[S.irow, focusedField === 'pass' && S.irowF]}>
-                  <Ionicons name="lock-closed-outline" size={16} color={focusedField === 'pass' ? ORANGE2 : TEXT_DIM} style={S.ficon} />
+                  <Ionicons name="lock-closed-outline" size={16} color={focusedField === 'pass' ? ORANGE : TEXT_DIM} style={S.ficon} />
                   <TextInput
                     style={S.tinput}
                     value={form.password}
                     onChangeText={v => set('password', v)}
                     placeholder="Enter password"
-                    placeholderTextColor={TEXT_DIM}
+                    placeholderTextColor="#c5c3bb"
                     secureTextEntry={!showPass}
                     autoCapitalize="none"
                     onFocus={() => setFocusedField('pass')}
@@ -486,13 +489,13 @@ export default function LoginScreen() {
                 <View style={S.fw}>
                   <Text style={S.flabel}>Confirm Password *</Text>
                   <View style={[S.irow, focusedField === 'conf' && S.irowF]}>
-                    <Ionicons name="shield-checkmark-outline" size={16} color={focusedField === 'conf' ? ORANGE2 : TEXT_DIM} style={S.ficon} />
+                    <Ionicons name="shield-checkmark-outline" size={16} color={focusedField === 'conf' ? ORANGE : TEXT_DIM} style={S.ficon} />
                     <TextInput
                       style={S.tinput}
                       value={form.confirmPassword}
                       onChangeText={v => set('confirmPassword', v)}
                       placeholder="Re-enter password"
-                      placeholderTextColor={TEXT_DIM}
+                      placeholderTextColor="#c5c3bb"
                       secureTextEntry={!showConfirm}
                       autoCapitalize="none"
                       onFocus={() => setFocusedField('conf')}
@@ -542,7 +545,7 @@ export default function LoginScreen() {
                       value={otpPhone}
                       onChangeText={v => { setOtpPhone(v); setOtpSent(false); setOtp(''); setOtpConfirmation(null); }}
                       placeholder="10-digit number"
-                      placeholderTextColor={TEXT_DIM}
+                      placeholderTextColor="#c5c3bb"
                       keyboardType="phone-pad"
                       maxLength={10}
                       editable={!otpSent}
@@ -555,13 +558,13 @@ export default function LoginScreen() {
                   <View style={S.fw}>
                     <Text style={S.flabel}>Enter OTP</Text>
                     <View style={[S.irow, focusedField === 'otpCode' && S.irowF]}>
-                      <Ionicons name="keypad-outline" size={16} color={focusedField === 'otpCode' ? ORANGE2 : TEXT_DIM} style={S.ficon} />
+                      <Ionicons name="keypad-outline" size={16} color={focusedField === 'otpCode' ? ORANGE : TEXT_DIM} style={S.ficon} />
                       <TextInput
                         style={S.tinput}
                         value={otp}
                         onChangeText={setOtp}
                         placeholder="4–6 digit OTP"
-                        placeholderTextColor={TEXT_DIM}
+                        placeholderTextColor="#c5c3bb"
                         keyboardType="number-pad"
                         maxLength={6}
                         onFocus={() => setFocusedField('otpCode')}
@@ -625,7 +628,7 @@ export default function LoginScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Switch tab */}
+            {/* Switch tab link */}
             <View style={S.switchRow}>
               {tab === 'login' && (
                 <><Text style={S.switchTxt}>New here? </Text><TouchableOpacity onPress={() => switchTab('register')}><Text style={S.switchLink}>Create account →</Text></TouchableOpacity></>
@@ -641,9 +644,13 @@ export default function LoginScreen() {
 
           {/* Trust badges */}
           <Animated.View style={[S.badgeRow, { opacity: footOpacity }]}>
-            {[{ icon: 'shield-checkmark', label: 'Secure Auth' }, { icon: 'lock-closed', label: 'Encrypted' }, { icon: 'people', label: '50K+ Users' }].map(b => (
+            {[
+              { icon: 'shield-checkmark', label: 'Secure Auth' },
+              { icon: 'lock-closed',      label: 'Encrypted' },
+              { icon: 'people',           label: '50K+ Users' },
+            ].map(b => (
               <View key={b.label} style={S.badge}>
-                <Ionicons name={b.icon} size={11} color={ORANGE2} style={{ marginRight: 5 }} />
+                <Ionicons name={b.icon} size={11} color={ORANGE} style={{ marginRight: 5 }} />
                 <Text style={S.badgeTxt}>{b.label}</Text>
               </View>
             ))}
@@ -677,7 +684,10 @@ export default function LoginScreen() {
                 </View>
                 <Text style={S.modalTitle}>Email Sent!</Text>
                 <Text style={S.modalSub}>Check your inbox for a password reset link. Expires in 1 hour.</Text>
-                <TouchableOpacity style={[S.submitBtn, { marginTop: 24, marginHorizontal: 0, width: '100%' }]} onPress={() => { setForgotVisible(false); setForgotDone(false); setForgotEmail(''); }}>
+                <TouchableOpacity
+                  style={[S.submitBtn, { marginTop: 24, marginHorizontal: 0, width: '100%' }]}
+                  onPress={() => { setForgotVisible(false); setForgotDone(false); setForgotEmail(''); }}
+                >
                   <Text style={S.submitTxt}>Back to Sign In</Text>
                 </TouchableOpacity>
               </View>
@@ -691,13 +701,13 @@ export default function LoginScreen() {
                 <View style={[S.fw, { marginHorizontal: 0, marginTop: 18 }]}>
                   <Text style={S.flabel}>Email Address</Text>
                   <View style={[S.irow, focusedField === 'fgEmail' && S.irowF]}>
-                    <Ionicons name="mail-outline" size={16} color={focusedField === 'fgEmail' ? ORANGE2 : TEXT_DIM} style={S.ficon} />
+                    <Ionicons name="mail-outline" size={16} color={focusedField === 'fgEmail' ? ORANGE : TEXT_DIM} style={S.ficon} />
                     <TextInput
                       style={S.tinput}
                       value={forgotEmail}
                       onChangeText={setForgotEmail}
                       placeholder="you@email.com"
-                      placeholderTextColor={TEXT_DIM}
+                      placeholderTextColor="#c5c3bb"
                       keyboardType="email-address"
                       autoCapitalize="none"
                       onFocus={() => setFocusedField('fgEmail')}
@@ -727,34 +737,41 @@ const S = StyleSheet.create({
   bg:     { flex: 1, backgroundColor: BG },
   scroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: IS_WEB ? 24 : 18 },
 
-  // BG decoration
-  dline1: { position: 'absolute', width: 2, height: '55%', backgroundColor: 'rgba(249,115,22,0.06)', top: '8%',  left: '12%', transform: [{ rotate: '20deg' }] },
-  dline2: { position: 'absolute', width: 1, height: '38%', backgroundColor: 'rgba(249,115,22,0.04)', bottom: '4%', right: '18%', transform: [{ rotate: '-25deg' }] },
+  dline1: { position: 'absolute', width: 1.5, height: '50%', backgroundColor: 'rgba(249,115,22,0.07)', top: '10%', left: '10%', transform: [{ rotate: '18deg' }] },
+  dline2: { position: 'absolute', width: 1,   height: '34%', backgroundColor: 'rgba(249,115,22,0.05)', bottom: '6%', right: '16%', transform: [{ rotate: '-22deg' }] },
 
   // Logo
-  logoWrap: { alignItems: 'center', marginBottom: 30 },
-  pulseRing: { position: 'absolute', width: 92, height: 92, borderRadius: 46, borderWidth: 2, borderColor: 'rgba(249,115,22,0.5)', top: -7 },
-  logoMark: {
-    width: 78, height: 78, borderRadius: 24,
-    backgroundColor: '#181818', borderWidth: 1.5, borderColor: '#272727',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-    shadowColor: ORANGE, shadowOpacity: 0.28, shadowRadius: 22, shadowOffset: { width: 0, height: 8 }, elevation: 14,
+  logoWrap:  { alignItems: 'center', marginBottom: 28 },
+  pulseWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  pulseRing: {
+    position: 'absolute', width: 88, height: 88, borderRadius: 44,
+    borderWidth: 2, borderColor: 'rgba(249,115,22,0.45)',
   },
-  logoName: { fontSize: 30, fontWeight: '900', letterSpacing: 0.5, marginBottom: 8 },
-  tagRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  tagDot:   { width: 4, height: 4, borderRadius: 2, backgroundColor: ORANGE },
-  tagline:  { color: TEXT_DIM, fontSize: 12, fontWeight: '500', letterSpacing: 0.5 },
+  logoMark: {
+    width: 72, height: 72, borderRadius: 22,
+    backgroundColor: CARD,
+    borderWidth: 1.5, borderColor: BORDER,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: ORANGE, shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 10,
+  },
+  logoInner: { alignItems: 'center', justifyContent: 'center', width: 36, height: 36 },
+  logoDot:   { width: 14, height: 14, borderRadius: 7, backgroundColor: ORANGE, position: 'absolute' },
+  logoRing:  { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: ORANGE, borderStyle: 'dashed', opacity: 0.55 },
+  logoName:  { fontSize: 30, fontWeight: '900', letterSpacing: 0.3, marginBottom: 6 },
+  tagRow:    { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  tagDot:    { width: 4, height: 4, borderRadius: 2, backgroundColor: ORANGE },
+  tagline:   { color: TEXT_DIM, fontSize: 12, fontWeight: '500', letterSpacing: 0.4 },
 
   // Card
   card: {
-    backgroundColor: CARD, borderRadius: 28, width: '100%', maxWidth: 440,
+    backgroundColor: CARD, borderRadius: 24, width: '100%', maxWidth: 440,
     borderWidth: 1, borderColor: BORDER, overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 32, shadowOffset: { width: 0, height: 18 }, elevation: 22,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 12,
   },
   accentBar: { height: 3, backgroundColor: ORANGE },
 
   // Tabs
-  tabRow: { flexDirection: 'row', backgroundColor: '#0d0d0d', borderBottomWidth: 1, borderBottomColor: BORDER, position: 'relative', paddingTop: 4 },
+  tabRow:    { flexDirection: 'row', backgroundColor: SURFACE, borderBottomWidth: 1, borderBottomColor: BORDER, position: 'relative', paddingTop: 4 },
   tabSlider: { position: 'absolute', bottom: 0, height: 2.5, backgroundColor: ORANGE, borderRadius: 2 },
   tabBtn:    { flex: 1, paddingVertical: 12, alignItems: 'center', gap: 3 },
   tabTxt:    { fontSize: 11.5, fontWeight: '600', color: TEXT_DIM },
@@ -764,12 +781,12 @@ const S = StyleSheet.create({
   googleBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingVertical: 13,
-    backgroundColor: '#1a1a1a', marginHorizontal: 20, marginTop: 20,
+    backgroundColor: CARD, marginHorizontal: 20, marginTop: 20,
   },
   googleTxt: { fontSize: 14, fontWeight: '700', color: TEXT },
 
   // Divider
-  divRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginVertical: 14, gap: 10 },
+  divRow:  { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginVertical: 14, gap: 10 },
   divLine: { flex: 1, height: 1, backgroundColor: BORDER },
   divTxt:  { fontSize: 11, color: TEXT_DIM, fontWeight: '500' },
 
@@ -781,37 +798,37 @@ const S = StyleSheet.create({
   irow: {
     flexDirection: 'row', alignItems: 'center',
     borderWidth: 1.5, borderColor: BORDER, borderRadius: 13,
-    backgroundColor: '#111', paddingHorizontal: 13, minHeight: 50,
+    backgroundColor: '#fff', paddingHorizontal: 13, minHeight: 50,
   },
-  irowF: { borderColor: ORANGE, backgroundColor: '#161616' },
+  irowF:   { borderColor: BORDER_FOC, backgroundColor: ORANGE_SOFT },
   ficon:   { marginRight: 9 },
   tinput:  { flex: 1, paddingVertical: 12, fontSize: 14, color: TEXT },
   eyeBtn:  { padding: 5 },
   flagPfx: { fontSize: 14, color: TEXT_MID, fontWeight: '600', marginRight: 8 },
 
-  // Strength
+  // Password strength
   strTrack: { flexDirection: 'row', gap: 4, marginTop: 5 },
   strSeg:   { flex: 1, height: 3, borderRadius: 2 },
   strLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 4 },
 
   // Terms
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', marginHorizontal: 20, marginBottom: 16, gap: 10 },
-  chk:      { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: BORDER, alignItems: 'center', justifyContent: 'center', marginTop: 1, backgroundColor: '#111' },
+  chk:      { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: BORDER, alignItems: 'center', justifyContent: 'center', marginTop: 1, backgroundColor: '#fff' },
   chkOn:    { backgroundColor: ORANGE, borderColor: ORANGE },
   termsTxt: { fontSize: 12, color: TEXT_DIM, flex: 1, lineHeight: 18 },
   termsLink:{ color: ORANGE, fontWeight: '700' },
 
   // OTP
-  otpInfo:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0c1a0c', borderRadius: 10, padding: 12, marginHorizontal: 20, marginBottom: 14 },
-  otpInfoTxt: { fontSize: 12, color: '#86efac', flex: 1 },
+  otpInfo:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginHorizontal: 20, marginBottom: 14 },
+  otpInfoTxt: { fontSize: 12, color: '#15803d', flex: 1 },
   resendTxt:  { fontSize: 12, color: TEXT_DIM, marginTop: 4 },
 
   // Error
   errBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#1c0808', borderRadius: 12, padding: 12,
+    backgroundColor: '#fef2f2', borderRadius: 12, padding: 12,
     marginHorizontal: 20, marginBottom: 12,
-    borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)',
+    borderWidth: 1, borderColor: 'rgba(220,38,38,0.2)',
   },
   errTxt: { color: DANGER, fontSize: 13, fontWeight: '600', flex: 1 },
 
@@ -821,19 +838,19 @@ const S = StyleSheet.create({
   // Submit
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: ORANGE, borderRadius: 14, paddingVertical: 15, marginHorizontal: 20,
-    shadowColor: ORANGE, shadowOpacity: 0.38, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, elevation: 9,
+    backgroundColor: TEXT, borderRadius: 14, paddingVertical: 15, marginHorizontal: 20,
+    shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 8,
   },
   submitTxt: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
 
   // Biometric
   bioBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.28)',
-    backgroundColor: 'rgba(249,115,22,0.06)',
+    borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.3)',
+    backgroundColor: ORANGE_SOFT,
     borderRadius: 14, paddingVertical: 12, marginHorizontal: 20, marginTop: 12,
   },
-  bioTxt: { color: ORANGE2, fontWeight: '700', fontSize: 13 },
+  bioTxt: { color: ORANGE, fontWeight: '700', fontSize: 13 },
 
   // Switch
   switchRow: {
@@ -844,20 +861,20 @@ const S = StyleSheet.create({
   switchTxt:  { fontSize: 13, color: TEXT_DIM },
   switchLink: { fontSize: 13, fontWeight: '800', color: ORANGE },
 
-  // Badges
+  // Trust badges
   badgeRow: { flexDirection: 'row', marginTop: 22, gap: 10, flexWrap: 'wrap', justifyContent: 'center' },
-  badge:    { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
-  badgeTxt: { color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600' },
+  badge:    { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(249,115,22,0.06)', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 13, borderWidth: 1, borderColor: 'rgba(249,115,22,0.14)' },
+  badgeTxt: { color: TEXT_MID, fontSize: 11, fontWeight: '600' },
 
-  footerTxt: { color: 'rgba(255,255,255,0.17)', fontSize: 11, marginTop: 14, letterSpacing: 0.4 },
+  footerTxt: { color: TEXT_DIM, fontSize: 11, marginTop: 12, letterSpacing: 0.4 },
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
-  modalCard:    { backgroundColor: '#161616', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 28, paddingBottom: 44, borderTopWidth: 1, borderColor: BORDER },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
+  modalCard:    { backgroundColor: CARD, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 28, paddingBottom: 44, borderTopWidth: 1, borderColor: BORDER },
   modalHandle:  { width: 40, height: 4, borderRadius: 2, backgroundColor: BORDER, alignSelf: 'center', marginBottom: 22 },
   modalClose:   { position: 'absolute', top: 20, right: 22, zIndex: 10 },
-  modalIcon:    { width: 58, height: 58, backgroundColor: 'rgba(249,115,22,0.1)', borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginBottom: 14, borderWidth: 1, borderColor: 'rgba(249,115,22,0.2)' },
+  modalIcon:    { width: 56, height: 56, backgroundColor: ORANGE_SOFT, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 14, borderWidth: 1, borderColor: 'rgba(249,115,22,0.2)' },
   modalTitle:   { fontSize: 22, fontWeight: '900', color: TEXT, marginBottom: 6 },
   modalSub:     { fontSize: 13, color: TEXT_DIM, lineHeight: 19, marginBottom: 4 },
-  successRing:  { width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(34,197,94,0.1)', borderWidth: 2, borderColor: 'rgba(34,197,94,0.3)', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  successRing:  { width: 68, height: 68, borderRadius: 34, backgroundColor: '#f0fdf4', borderWidth: 2, borderColor: 'rgba(22,163,74,0.3)', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
 });
