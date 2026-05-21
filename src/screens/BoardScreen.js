@@ -291,8 +291,10 @@ export default function BoardScreen({ route }) {
       <View style={s.titleRow}>
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
           <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
-            Jobs in{' '}
-            <Text style={{ color: ORANGE }}>Nanded</Text>
+            <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>Jobs in{' '}
+              <Text style={{ color: ORANGE }}>Nanded</Text></Text>
+            </TouchableOpacity>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
             {filtered.length} jobs found
@@ -464,9 +466,11 @@ export default function BoardScreen({ route }) {
     >
       <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
         {/* Title */}
-        <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-          Jobs in <Text style={{ color: ORANGE }}>Nanded</Text>
-        </Text>
+        <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+          <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
+            Jobs in <Text style={{ color: ORANGE }}>Nanded</Text>
+          </Text>
+        </TouchableOpacity>
 
         {/* Search */}
         <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
@@ -500,7 +504,9 @@ export default function BoardScreen({ route }) {
           <TouchableOpacity onPress={() => nav.navigate('Home')} style={ws.topBarBack} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={20} color="#111" />
           </TouchableOpacity>
-          <Text style={ws.topBarTitle}>Jobs</Text>
+          <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+            <Text style={ws.topBarTitle}>Jobs</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Sticky mini-header — overlays on scroll */}
