@@ -364,7 +364,9 @@ export default function CarsScreen({ route }) {
       <View style={s.titleRow}>
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
           <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
-            Vehicles in <Text style={{ color: ORANGE }}>Nanded</Text>
+            <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>Vehicles in <Text style={{ color: ORANGE }}>Nanded</Text></Text>
+            </TouchableOpacity>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>{filtered.length} listings found</Text>
         </Animated.View>
@@ -484,9 +486,11 @@ export default function CarsScreen({ route }) {
       ]}
     >
       <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
-        <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-          Cars in <Text style={{ color: ORANGE }}>Nanded</Text>
-        </Text>
+        <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+          <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
+            Cars in <Text style={{ color: ORANGE }}>Nanded</Text>
+          </Text>
+        </TouchableOpacity>
         <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
           <Ionicons name="search-outline" size={15} color="#bbb" style={{ marginLeft: 10 }} />
           <TextInput
@@ -565,7 +569,9 @@ export default function CarsScreen({ route }) {
           <TouchableOpacity style={ws.topBarBack} onPress={() => nav.goBack()}>
             <Ionicons name="arrow-back" size={16} color="#333" />
           </TouchableOpacity>
-          <Text style={ws.topBarTitle}>Cars</Text>
+          <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+            <Text style={ws.topBarTitle}>Cars</Text>
+          </TouchableOpacity>
         </View>
 
         {StickyHeader}
