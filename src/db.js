@@ -14,15 +14,20 @@ async function runMigrations() {
       CREATE TABLE IF NOT EXISTS users (
         id               SERIAL PRIMARY KEY,
         name             VARCHAR(100),
-        email            VARCHAR(200) UNIQUE NOT NULL,
-        password         VARCHAR(200) NOT NULL,
-        phone            VARCHAR(15),
+        email            VARCHAR(200) UNIQUE,
+        password         VARCHAR(200),
+        phone            VARCHAR(15) UNIQUE,
         company          VARCHAR(100),
         role             VARCHAR(10) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
         premium          BOOLEAN DEFAULT FALSE,
         active           BOOLEAN DEFAULT TRUE,
         verified         BOOLEAN DEFAULT FALSE,
         referral_credits INTEGER DEFAULT 0,
+        google_id        VARCHAR(200) UNIQUE,
+        avatar_url       TEXT,
+        reset_token      VARCHAR(200),
+        reset_expires    TIMESTAMPTZ,
+        last_seen        TIMESTAMPTZ,
         created_at       TIMESTAMPTZ DEFAULT NOW()
       );
     `);
@@ -267,6 +272,15 @@ async function runMigrations() {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium          BOOLEAN DEFAULT FALSE`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS verified         BOOLEAN DEFAULT FALSE`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_credits INTEGER DEFAULT 0`,
+      // Auth feature columns — safe for existing deployments
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id     VARCHAR(200)`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url    TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token   VARCHAR(200)`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_expires TIMESTAMPTZ`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen     TIMESTAMPTZ`,
+      // Allow NULL email/password for Google & Phone OTP sign-ups
+      `ALTER TABLE users ALTER COLUMN email    DROP NOT NULL`,
+      `ALTER TABLE users ALTER COLUMN password DROP NOT NULL`,
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS whatsapp         VARCHAR(15)`,
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS skills           TEXT[]`,
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS requirements     TEXT[]`,
@@ -310,6 +324,12 @@ async function runMigrations() {
     }
 
     // ── Indexes (run AFTER alters so all columns exist) ───────────────────────
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token) WHERE reset_token IS NOT NULL`);
+
+    // (OTP storage removed — Firebase Auth handles OTP sending and verification client-side.
+    //  Our backend only verifies the Firebase ID token via firebase-admin.)
+
     await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_status      ON jobs(status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_category    ON jobs(category);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_posted_by   ON jobs(posted_by);`);
@@ -335,14 +355,14 @@ async function runMigrations() {
     // ── Seed admin user from environment variables ─────────────────────────────
     // Set ADMIN_EMAIL and ADMIN_PASSWORD in Railway — never hardcode these.
     try {
-      const bcrypt = require('bcryptjs');
-      const adminEmail = process.env.ADMIN_EMAIL || 'admin@localloop.com';
+      const bcrypt     = require('bcryptjs');
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@nandedrozgar.app';
       const adminPass  = process.env.ADMIN_PASSWORD || 'ChangeMe@2025!';
       const adminHash  = await bcrypt.hash(adminPass, 10);
       await client.query(`
         INSERT INTO users (name, email, password, role)
         VALUES ('Admin', $1, $2, 'admin')
-        ON CONFLICT (email) DO NOTHING;
+        ON CONFLICT (email) DO UPDATE SET role = 'admin';
       `, [adminEmail, adminHash]);
     } catch (e) {
       console.warn('⚠️  Admin seed warning (non-fatal):', e.message);
