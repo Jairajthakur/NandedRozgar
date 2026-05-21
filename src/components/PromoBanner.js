@@ -337,55 +337,68 @@ function getImageForPromo(promo, palette) {
 }
 
 // ─── LAYOUT 1: GLAM MAGAZINE ─────────────────────────────────────────────────
-// Full image background with bold bottom text overlay
+// Split layout: strong image right, solid branded left panel — professional ad style
 function LayoutGlamMagazine({ promo, palette, onCall }) {
   const imageUri = getImageForPromo(promo, palette);
   return (
-    <TouchableOpacity activeOpacity={0.92} onPress={onCall} style={l1.card}>
-      <ImageBackground source={{ uri: imageUri }} style={l1.image} imageStyle={l1.imageStyle}>
-        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.2)', palette.dark]} style={l1.overlay}>
-          {/* Top badge */}
-          <View style={[l1.topBadge, { backgroundColor: palette.primary }]}>
-            <Text style={l1.topBadgeTxt}>{palette.emoji} {promo.category?.toUpperCase()}</Text>
-          </View>
+    <TouchableOpacity activeOpacity={0.93} onPress={onCall} style={[l1.card, { backgroundColor: palette.dark }]}>
+      {/* Right: image with fade */}
+      <View style={l1.imagePanel}>
+        <Image source={{ uri: imageUri }} style={l1.image} />
+        <LinearGradient
+          colors={[palette.dark, palette.dark + 'aa', 'transparent']}
+          start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+          style={l1.imageFade}
+        />
+      </View>
 
-          {/* Bottom content */}
-          <View style={l1.bottom}>
-            <Text style={l1.biz} numberOfLines={1}>{promo.bizName}</Text>
-            <Text style={[l1.tagline, { color: palette.accent }]} numberOfLines={2}>
-              {promo.tagline || 'Exclusive Offer For You!'}
-            </Text>
-            <View style={l1.metaRow}>
-              <View style={l1.locRow}>
-                <Ionicons name="location-sharp" size={11} color="rgba(255,255,255,0.7)" />
-                <Text style={l1.locTxt}>{promo.location}</Text>
-              </View>
-              <TouchableOpacity style={[l1.cta, { backgroundColor: palette.primary }]} onPress={onCall}>
-                <Ionicons name="call" size={12} color="#fff" />
-                <Text style={l1.ctaTxt}>CALL</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </LinearGradient>
-      </ImageBackground>
+      {/* Left: content panel */}
+      <View style={l1.contentPanel}>
+        {/* Category pill */}
+        <View style={[l1.catPill, { backgroundColor: palette.primary }]}>
+          <Text style={l1.catPillTxt}>{palette.emoji}  {promo.category?.toUpperCase()}</Text>
+        </View>
+
+        {/* Business name */}
+        <Text style={l1.biz} numberOfLines={1}>{promo.bizName}</Text>
+
+        {/* Tagline / offer */}
+        <View style={[l1.offerBox, { borderLeftColor: palette.accent, borderLeftWidth: 3 }]}>
+          <Text style={[l1.tagline, { color: palette.accent }]} numberOfLines={2}>
+            {promo.tagline || 'Exclusive Offer For You!'}
+          </Text>
+        </View>
+
+        {/* Location */}
+        <View style={l1.locRow}>
+          <Ionicons name="location-sharp" size={11} color="rgba(255,255,255,0.5)" />
+          <Text style={l1.locTxt}>{promo.location}</Text>
+        </View>
+
+        {/* CTA */}
+        <TouchableOpacity style={[l1.cta, { backgroundColor: palette.primary }]} onPress={onCall}>
+          <Ionicons name="call" size={14} color="#fff" />
+          <Text style={l1.ctaTxt}>CALL NOW</Text>
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 }
 const l1 = StyleSheet.create({
-  card:       { borderRadius: 20, overflow: 'hidden', height: 200, elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
-  image:      { flex: 1 },
-  imageStyle: { borderRadius: 20 },
-  overlay:    { flex: 1, padding: 14, justifyContent: 'space-between' },
-  topBadge:   { alignSelf: 'flex-start', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 12 },
-  topBadgeTxt:{ fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 1 },
-  bottom:     { gap: 6 },
-  biz:        { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: -0.5, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  tagline:    { fontSize: 13, fontWeight: '700', lineHeight: 18 },
-  metaRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  locRow:     { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  locTxt:     { fontSize: 10, color: 'rgba(255,255,255,0.7)' },
-  cta:        { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 7, paddingHorizontal: 16, borderRadius: 25 },
-  ctaTxt:     { color: '#fff', fontSize: 11, fontWeight: '900', letterSpacing: 0.6 },
+  card:        { borderRadius: 18, overflow: 'hidden', height: 210, flexDirection: 'row', elevation: 10, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 18, shadowOffset: { width: 0, height: 7 } },
+  imagePanel:  { position: 'absolute', top: 0, right: 0, bottom: 0, width: '55%' },
+  image:       { flex: 1, resizeMode: 'cover' },
+  imageFade:   { position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 },
+  contentPanel:{ flex: 1, paddingHorizontal: 18, paddingVertical: 18, justifyContent: 'center', gap: 10, zIndex: 2 },
+  catPill:     { alignSelf: 'flex-start', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 10 },
+  catPillTxt:  { fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 1.2 },
+  biz:         { fontSize: 24, fontWeight: '900', color: '#fff', letterSpacing: -0.5, lineHeight: 27 },
+  offerBox:    { paddingLeft: 8 },
+  tagline:     { fontSize: 13, fontWeight: '700', lineHeight: 18 },
+  locRow:      { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  locTxt:      { fontSize: 10, color: 'rgba(255,255,255,0.5)' },
+  cta:         { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10 },
+  ctaTxt:      { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
 });
 
 // ─── LAYOUT 2: LUXURY PROPERTY ───────────────────────────────────────────────
@@ -443,84 +456,89 @@ const l2 = StyleSheet.create({
 });
 
 // ─── LAYOUT 3: FOOD FEVER ─────────────────────────────────────────────────────
-// Full-bleed with circular image cutout + fire gradient
+// Full-bleed image with a strong gradient + bold content overlay
 function LayoutFoodFever({ promo, palette, onCall }) {
   const imageUri = getImageForPromo(promo, palette);
   return (
-    <TouchableOpacity activeOpacity={0.92} onPress={onCall} style={[l3.card, { backgroundColor: '#111' }]}>
-      <LinearGradient colors={[palette.dark, '#111']} style={l3.bg}>
-        {/* Image circle — right side */}
-        <View style={l3.imgWrap}>
-          <Image source={{ uri: imageUri }} style={l3.img} />
-          <LinearGradient colors={['transparent', palette.dark + 'cc']} style={l3.imgFade} />
-        </View>
+    <TouchableOpacity activeOpacity={0.92} onPress={onCall} style={l3.card}>
+      <ImageBackground source={{ uri: imageUri }} style={l3.bg} imageStyle={{ resizeMode: 'cover' }}>
+        {/* Strong gradient so text is always readable */}
+        <LinearGradient
+          colors={[palette.dark + 'f5', palette.dark + 'cc', 'transparent']}
+          start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+          style={l3.grad}
+        >
+          <View style={l3.content}>
+            <View style={[l3.catBadge, { backgroundColor: palette.accent }]}>
+              <Text style={[l3.catTxt, { color: palette.dark }]}>{palette.emoji}  {promo.category}</Text>
+            </View>
+            <Text style={l3.biz} numberOfLines={1}>{promo.bizName}</Text>
+            <Text style={l3.tagline} numberOfLines={2}>{promo.tagline || 'Order Now & Enjoy!'}</Text>
 
-        {/* Content */}
-        <View style={l3.content}>
-          <View style={[l3.catBadge, { backgroundColor: palette.accent }]}>
-            <Text style={[l3.catTxt, { color: palette.dark }]}>{palette.emoji} {promo.category}</Text>
-          </View>
-          <Text style={l3.biz} numberOfLines={1}>{promo.bizName}</Text>
-          <Text style={l3.tagline} numberOfLines={2}>{promo.tagline || 'Order Now & Enjoy!'}</Text>
-
-          <View style={l3.bottom}>
-            <TouchableOpacity style={[l3.cta, { backgroundColor: palette.primary }]} onPress={onCall}>
-              <Ionicons name="call-outline" size={13} color="#fff" />
-              <Text style={l3.ctaTxt}>ORDER NOW</Text>
-            </TouchableOpacity>
-            <View style={l3.phone}>
-              <Ionicons name="location" size={10} color="rgba(255,255,255,0.5)" />
-              <Text style={l3.phoneTxt}>{promo.location}</Text>
+            <View style={l3.bottom}>
+              <TouchableOpacity style={[l3.cta, { backgroundColor: palette.primary }]} onPress={onCall}>
+                <Ionicons name="call" size={13} color="#fff" />
+                <Text style={l3.ctaTxt}>CALL NOW</Text>
+              </TouchableOpacity>
+              <View style={l3.locRow}>
+                <Ionicons name="location" size={10} color="rgba(255,255,255,0.5)" />
+                <Text style={l3.phoneTxt}>{promo.location}</Text>
+              </View>
             </View>
           </View>
-        </View>
-      </LinearGradient>
+        </LinearGradient>
+      </ImageBackground>
     </TouchableOpacity>
   );
 }
 const l3 = StyleSheet.create({
-  card:      { borderRadius: 20, overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
-  bg:        { minHeight: 160, flexDirection: 'row', alignItems: 'center' },
-  imgWrap:   { position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%' },
-  img:       { flex: 1, resizeMode: 'cover' },
-  imgFade:   { position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 },
-  content:   { flex: 1, padding: 16, gap: 8, zIndex: 2 },
-  catBadge:  { alignSelf: 'flex-start', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 12 },
-  catTxt:    { fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
-  biz:       { fontSize: 24, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  tagline:   { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.8)', lineHeight: 17 },
-  bottom:    { gap: 6 },
-  cta:       { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 9, paddingHorizontal: 18, borderRadius: 25 },
-  ctaTxt:    { color: '#fff', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
-  phone:     { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  card:      { borderRadius: 18, overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
+  bg:        { minHeight: 185 },
+  grad:      { flex: 1, padding: 0 },
+  content:   { flex: 1, padding: 18, gap: 9, zIndex: 2, maxWidth: '65%' },
+  catBadge:  { alignSelf: 'flex-start', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 10 },
+  catTxt:    { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  biz:       { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
+  tagline:   { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.85)', lineHeight: 18 },
+  bottom:    { gap: 8, marginTop: 2 },
+  locRow:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  cta:       { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10 },
+  ctaTxt:    { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
   phoneTxt:  { fontSize: 10, color: 'rgba(255,255,255,0.5)' },
 });
 
 // ─── LAYOUT 4: SALE BLAST ─────────────────────────────────────────────────────
-// Explosive retail layout with image + big discount callout
+// Strong retail layout — image backdrop with a bold left content zone
 function LayoutSaleBlast({ promo, palette, onCall }) {
   const imageUri = getImageForPromo(promo, palette);
   return (
     <TouchableOpacity activeOpacity={0.92} onPress={onCall} style={l4.card}>
-      <ImageBackground source={{ uri: imageUri }} style={l4.bg} imageStyle={l4.bgStyle}>
-        <LinearGradient colors={[palette.primary + 'cc', palette.dark + 'ee']} style={l4.grad}>
-          {/* Explosion badge */}
+      <ImageBackground source={{ uri: imageUri }} style={l4.bg} imageStyle={{ resizeMode: 'cover' }}>
+        {/* Stronger two-stop gradient: solid dark left, fading right */}
+        <LinearGradient
+          colors={[palette.dark + 'f8', palette.dark + 'cc', 'transparent']}
+          start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+          style={l4.grad}
+        >
+          {/* Fire badge top-right */}
           <View style={[l4.burst, { backgroundColor: palette.accent }]}>
-            <Text style={[l4.burstLine1, { color: palette.dark }]}>🔥</Text>
+            <Text style={[l4.burstLine1]}>🔥</Text>
             <Text style={[l4.burstLine2, { color: palette.dark }]}>SALE</Text>
           </View>
 
           <View style={l4.content}>
             <Text style={l4.cat}>{promo.category?.toUpperCase()}</Text>
             <Text style={l4.biz} numberOfLines={1}>{promo.bizName}</Text>
-            <Text style={l4.tagline} numberOfLines={2}>{promo.tagline || 'Best Deals in Town!'}</Text>
+            <View style={[l4.tagBox, { borderLeftColor: palette.accent, borderLeftWidth: 3 }]}>
+              <Text style={l4.tagline} numberOfLines={2}>{promo.tagline || 'Best Deals in Town!'}</Text>
+            </View>
             <View style={l4.row}>
-              <TouchableOpacity style={[l4.cta, { backgroundColor: '#fff' }]} onPress={onCall}>
-                <Ionicons name="call" size={12} color={palette.primary} />
-                <Text style={[l4.ctaTxt, { color: palette.primary }]}>CALL NOW</Text>
+              <TouchableOpacity style={[l4.cta, { backgroundColor: palette.primary }]} onPress={onCall}>
+                <Ionicons name="call" size={13} color="#fff" />
+                <Text style={l4.ctaTxt}>CALL NOW</Text>
               </TouchableOpacity>
               <View style={l4.loc}>
-                <Ionicons name="location" size={10} color="rgba(255,255,255,0.7)" />
+                <Ionicons name="location" size={10} color="rgba(255,255,255,0.5)" />
                 <Text style={l4.locTxt}>{promo.location}</Text>
               </View>
             </View>
@@ -531,22 +549,22 @@ function LayoutSaleBlast({ promo, palette, onCall }) {
   );
 }
 const l4 = StyleSheet.create({
-  card:    { borderRadius: 20, overflow: 'hidden', height: 180, elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
+  card:    { borderRadius: 18, overflow: 'hidden', height: 190, elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
   bg:      { flex: 1 },
-  bgStyle: { resizeMode: 'cover' },
-  grad:    { flex: 1, padding: 16 },
-  burst:   { position: 'absolute', top: 14, right: 14, width: 70, height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'center', zIndex: 3, transform: [{ rotate: '12deg' }] },
-  burstLine1:{ fontSize: 20 },
-  burstLine2:{ fontSize: 13, fontWeight: '900', letterSpacing: 1 },
-  content: { flex: 1, justifyContent: 'flex-end', gap: 5 },
-  cat:     { fontSize: 9, fontWeight: '900', color: 'rgba(255,255,255,0.7)', letterSpacing: 1.5 },
+  grad:    { flex: 1, paddingHorizontal: 18, paddingVertical: 18 },
+  burst:   { position: 'absolute', top: 16, right: 16, width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', zIndex: 3, transform: [{ rotate: '12deg' }] },
+  burstLine1:{ fontSize: 18 },
+  burstLine2:{ fontSize: 12, fontWeight: '900', letterSpacing: 1 },
+  content: { flex: 1, justifyContent: 'flex-end', gap: 7, maxWidth: '65%' },
+  cat:     { fontSize: 9, fontWeight: '900', color: 'rgba(255,255,255,0.55)', letterSpacing: 1.8 },
   biz:     { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: -0.6 },
-  tagline: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.85)', lineHeight: 17 },
-  row:     { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 },
-  cta:     { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 25 },
-  ctaTxt:  { fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  tagBox:  { paddingLeft: 8 },
+  tagline: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.8)', lineHeight: 17 },
+  row:     { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 4 },
+  cta:     { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10 },
+  ctaTxt:  { fontSize: 11, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
   loc:     { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  locTxt:  { fontSize: 10, color: 'rgba(255,255,255,0.7)' },
+  locTxt:  { fontSize: 10, color: 'rgba(255,255,255,0.5)' },
 });
 
 // ─── LAYOUT 5: TECH NEON ─────────────────────────────────────────────────────
@@ -1150,64 +1168,67 @@ const l14 = StyleSheet.create({
 });
 
 // ─── LAYOUT 15: BOLD SPLASH (Default / Fallback) ─────────────────────────────
-// Maximalist colorful layout
+// Clean split: branded left with gradient, image right — works for any category
 function LayoutBoldSplash({ promo, palette, onCall }) {
   const imageUri = getImageForPromo(promo, palette);
   return (
-    <TouchableOpacity activeOpacity={0.92} onPress={onCall} style={l15.card}>
-      <LinearGradient colors={palette.gradient || [palette.primary, palette.dark]} style={l15.grad}>
-        {/* Circle watermark */}
-        <View style={[l15.circle1, { borderColor: 'rgba(255,255,255,0.1)' }]} />
-        <View style={[l15.circle2, { borderColor: 'rgba(255,255,255,0.06)' }]} />
+    <TouchableOpacity activeOpacity={0.92} onPress={onCall} style={[l15.card, { backgroundColor: palette.dark }]}>
+      {/* Decorative circles for depth */}
+      <View style={[l15.circle1, { borderColor: 'rgba(255,255,255,0.06)' }]} />
+      <View style={[l15.circle2, { borderColor: 'rgba(255,255,255,0.04)' }]} />
 
-        {/* Image right */}
-        <View style={l15.imgWrap}>
-          <Image source={{ uri: imageUri }} style={l15.img} />
-          <LinearGradient colors={[palette.primary || '#e53935', 'transparent']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={l15.imgFade} />
-        </View>
+      {/* Image panel — right half */}
+      <View style={l15.imgWrap}>
+        <Image source={{ uri: imageUri }} style={l15.img} />
+        <LinearGradient
+          colors={[palette.dark, palette.dark + 'bb', 'transparent']}
+          start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+          style={l15.imgFade}
+        />
+      </View>
 
-        {/* Content */}
-        <View style={l15.content}>
-          <View style={[l15.catBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-            <Text style={l15.catTxt}>{palette.emoji} {promo.category}</Text>
-          </View>
-          <Text style={l15.biz} numberOfLines={1}>{promo.bizName}</Text>
-          <Text style={[l15.tagline, { color: palette.accent || 'rgba(255,255,255,0.85)' }]} numberOfLines={2}>
-            {promo.tagline || 'Exclusive Offer Just For You!'}
-          </Text>
-          <View style={l15.footer}>
-            <View style={l15.locRow}>
-              <Ionicons name="location" size={10} color="rgba(255,255,255,0.6)" />
-              <Text style={l15.locTxt}>{promo.location}</Text>
-            </View>
-            <TouchableOpacity style={[l15.cta, { backgroundColor: '#fff' }]} onPress={onCall}>
-              <Ionicons name="call" size={12} color={palette.primary} />
-              <Text style={[l15.ctaTxt, { color: palette.primary }]}>CALL</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Content — left panel */}
+      <View style={l15.content}>
+        <View style={[l15.catBadge, { backgroundColor: palette.primary }]}>
+          <Text style={l15.catTxt}>{palette.emoji}  {promo.category?.toUpperCase()}</Text>
         </View>
-      </LinearGradient>
+        <Text style={l15.biz} numberOfLines={1}>{promo.bizName}</Text>
+        <View style={[l15.accentBar, { backgroundColor: palette.accent }]} />
+        <Text style={[l15.tagline, { color: 'rgba(255,255,255,0.75)' }]} numberOfLines={2}>
+          {promo.tagline || 'Exclusive Offer Just For You!'}
+        </Text>
+        <View style={l15.footer}>
+          <View style={l15.locRow}>
+            <Ionicons name="location" size={10} color="rgba(255,255,255,0.4)" />
+            <Text style={l15.locTxt}>{promo.location}</Text>
+          </View>
+          <TouchableOpacity style={[l15.cta, { backgroundColor: palette.primary }]} onPress={onCall}>
+            <Ionicons name="call" size={13} color="#fff" />
+            <Text style={l15.ctaTxt}>CALL</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
 const l15 = StyleSheet.create({
-  card:      { borderRadius: 20, overflow: 'hidden', minHeight: 160, elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
-  grad:      { flex: 1 },
-  circle1:   { position: 'absolute', width: 200, height: 200, borderRadius: 100, borderWidth: 40, top: -80, right: -60 },
-  circle2:   { position: 'absolute', width: 140, height: 140, borderRadius: 70, borderWidth: 30, bottom: -50, left: -40 },
-  imgWrap:   { position: 'absolute', right: 0, top: 0, bottom: 0, width: '45%' },
+  card:      { borderRadius: 18, overflow: 'hidden', minHeight: 185, elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
+  circle1:   { position: 'absolute', width: 200, height: 200, borderRadius: 100, borderWidth: 35, top: -80, right: -50 },
+  circle2:   { position: 'absolute', width: 130, height: 130, borderRadius: 65, borderWidth: 25, bottom: -50, left: -30 },
+  imgWrap:   { position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%' },
   img:       { flex: 1, resizeMode: 'cover' },
   imgFade:   { position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 },
-  content:   { padding: 18, gap: 8, zIndex: 2 },
-  catBadge:  { alignSelf: 'flex-start', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 12 },
-  catTxt:    { fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
-  biz:       { fontSize: 24, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  tagline:   { fontSize: 12, fontWeight: '700', lineHeight: 17 },
-  footer:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  content:   { padding: 18, gap: 9, zIndex: 2, maxWidth: '60%', justifyContent: 'center', minHeight: 185 },
+  catBadge:  { alignSelf: 'flex-start', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 10 },
+  catTxt:    { fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 1.2 },
+  biz:       { fontSize: 24, fontWeight: '900', color: '#fff', letterSpacing: -0.5, lineHeight: 27 },
+  accentBar: { height: 3, width: 32, borderRadius: 2 },
+  tagline:   { fontSize: 12, fontWeight: '600', lineHeight: 17 },
+  footer:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, paddingRight: 8 },
   locRow:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  locTxt:    { fontSize: 10, color: 'rgba(255,255,255,0.6)' },
-  cta:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 25 },
-  ctaTxt:    { fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  locTxt:    { fontSize: 10, color: 'rgba(255,255,255,0.4)' },
+  cta:       { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 9, paddingHorizontal: 18, borderRadius: 10 },
+  ctaTxt:    { fontSize: 11, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
 });
 
 // ─── Layout routing ───────────────────────────────────────────────────────────
