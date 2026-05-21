@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "NandedRozgar",
+    "name": "LokalLoop",
     "slug": "nanded",
     "version": "1.0.1",
     "orientation": "portrait",
@@ -19,8 +19,8 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "single",
-      "name": "NandedRozgar",
-      "shortName": "NandedRozgar",
+      "name": "LokalLoop",
+      "shortName": "LokalLoop",
       "description": "Local Jobs · Local Life · Nanded",
       "themeColor": "#f97316",
       "backgroundColor": "#111111"
@@ -34,7 +34,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#111111"
       },
-      "package": "com.nandedrozgar.app",
+      "package": "com.localloop.app",
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -74,8 +74,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow NandedRozgar to access your photos.",
-          "cameraPermission": "Allow NandedRozgar to use your camera."
+          "photosPermission": "Allow LokalLoop to access your photos.",
+          "cameraPermission": "Allow LokalLoop to use your camera."
         }
       ]
     ],
