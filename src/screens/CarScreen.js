@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
-import PromoBanner from '../components/PromoBanner';
+import PromoBanner, { BannerCard } from '../components/PromoBanner';
 
 const ORANGE  = '#f97316';
 const IS_WEB  = Platform.OS === 'web';
@@ -266,6 +266,7 @@ export default function CarsScreen({ route }) {
   const [cars,        setCars]        = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
+  const [promos,      setPromos]      = useState([]);
 
   const showSidebar = IS_WEB && winW >= 900;
 
@@ -331,6 +332,12 @@ export default function CarsScreen({ route }) {
   }, []);
 
   useEffect(() => { fetchCars(); }, [fetchCars]);
+
+  useEffect(() => {
+    http('GET', '/api/promotions/all').then(res => {
+      if (res?.ok && Array.isArray(res.promotions)) setPromos(res.promotions);
+    }).catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
     let list = cars.filter(c => {
@@ -428,7 +435,14 @@ export default function CarsScreen({ route }) {
     </View>
   );
 
-  const ListHeader = <><FadeIn delay={180}><TopVehiclesBanner /></FadeIn><PromoBanner /></>;
+  const ListHeader = (
+    <>
+      <FadeIn delay={180}><TopVehiclesBanner /></FadeIn>
+      {promos.length > 0
+        ? promos.map(p => <BannerCard key={p.id} promo={p} />)
+        : <PromoBanner />}
+    </>
+  );
 
   // ── Sticky mini-header (floats above scroll) ────────────────────────────
   const StickyHeader = (
