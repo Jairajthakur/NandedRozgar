@@ -18,14 +18,14 @@ const { width: SCREEN_W } = Dimensions.get('window');
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const ORANGE   = '#f97316';
 const ORANGE2  = '#fb923c';
-const AMBER    = '#fbbf24';
-const BG       = '#0c0c0e';
-const SURFACE  = '#141417';
-const CARD     = '#1a1a1f';
-const BORDER   = 'rgba(255,255,255,0.07)';
-const TEXT     = '#f0f0f0';
-const MUTED    = '#6b6b7a';
-const GREEN    = '#22c55e';
+const AMBER    = '#f59e0b';
+const BG       = '#f4f4f6';
+const SURFACE  = '#ffffff';
+const CARD     = '#ffffff';
+const BORDER   = 'rgba(0,0,0,0.07)';
+const TEXT     = '#111118';
+const MUTED    = '#8e8ea0';
+const GREEN    = '#16a34a';
 
 // ── Animated stat counter ─────────────────────────────────────────────────────
 function AnimatedNumber({ value, style }) {
@@ -63,7 +63,7 @@ function FloatingOrb({ size, color, x, y, delay, duration }) {
   }, []);
 
   const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [0, -18] });
-  const opacity    = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.15, 0.35, 0.15] });
+  const opacity    = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.07, 0.18, 0.07] });
 
   return (
     <Animated.View
@@ -458,8 +458,8 @@ function SignOutButton({ onPress }) {
     ]).start();
   };
 
-  const borderColor = glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(239,68,68,0.2)', 'rgba(239,68,68,0.6)'] });
-  const bgColor     = glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(239,68,68,0.04)', 'rgba(239,68,68,0.10)'] });
+  const borderColor = glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(239,68,68,0.25)', 'rgba(239,68,68,0.65)'] });
+  const bgColor     = glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(239,68,68,0.03)', 'rgba(239,68,68,0.08)'] });
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
@@ -526,30 +526,30 @@ const styles = StyleSheet.create({
     width: '100%',
     position: 'relative',
     ...Platform.select({
-      web: { boxShadow: '0 8px 40px rgba(0,0,0,0.5)' },
-      default: { elevation: 8, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 20 },
+      web: { boxShadow: '0 4px 24px rgba(0,0,0,0.08)' },
+      default: { elevation: 6, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 16 },
     }),
   },
 
   heroGradient: {
     position: 'absolute', top: -80, left: -80,
     width: 260, height: 260, borderRadius: 130,
-    backgroundColor: 'rgba(249,115,22,0.08)',
+    backgroundColor: 'rgba(249,115,22,0.10)',
   },
   heroGradient2: {
     position: 'absolute', bottom: -60, right: -60,
     width: 200, height: 200, borderRadius: 100,
-    backgroundColor: 'rgba(99,102,241,0.06)',
+    backgroundColor: 'rgba(99,102,241,0.07)',
   },
   gridLine1: {
     position: 'absolute', top: 0, bottom: 0,
     left: '25%', width: 1,
-    backgroundColor: 'rgba(255,255,255,0.025)',
+    backgroundColor: 'rgba(0,0,0,0.04)',
   },
   gridLine2: {
     position: 'absolute', top: 0, bottom: 0,
     left: '75%', width: 1,
-    backgroundColor: 'rgba(255,255,255,0.025)',
+    backgroundColor: 'rgba(0,0,0,0.04)',
   },
 
   // ── Avatar
@@ -586,8 +586,8 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'rgba(249,115,22,0.4)',
     ...Platform.select({
-      web: { boxShadow: '0 0 30px rgba(249,115,22,0.35), 0 0 60px rgba(249,115,22,0.15)' },
-      default: { elevation: 12, shadowColor: ORANGE, shadowOpacity: 0.4, shadowRadius: 16 },
+      web: { boxShadow: '0 0 24px rgba(249,115,22,0.28), 0 4px 16px rgba(249,115,22,0.18)' },
+      default: { elevation: 10, shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 14 },
     }),
   },
   avatarTxt: { fontSize: 32, fontWeight: '900', color: '#fff', letterSpacing: 1 },
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     marginBottom: 10, marginTop: 2,
   },
   roleTxt:     { fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
-  memberSince: { fontSize: 11, color: 'rgba(255,255,255,0.2)', letterSpacing: 0.2 },
+  memberSince: { fontSize: 11, color: 'rgba(0,0,0,0.3)', letterSpacing: 0.2 },
 
   // ── Stats card
   statsCard: {
@@ -624,8 +624,8 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderWidth: 1, borderColor: BORDER,
     ...Platform.select({
-      web: { boxShadow: '0 4px 24px rgba(0,0,0,0.3)' },
-      default: { elevation: 6, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 12 },
+      web: { boxShadow: '0 4px 20px rgba(0,0,0,0.08)' },
+      default: { elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 10 },
     }),
   },
   statItem:     { flex: 1, alignItems: 'center', gap: 4 },
@@ -650,8 +650,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: BORDER,
     overflow: 'hidden',
     ...Platform.select({
-      web: { boxShadow: '0 2px 16px rgba(0,0,0,0.25)' },
-      default: { elevation: 3, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10 },
+      web: { boxShadow: '0 2px 12px rgba(0,0,0,0.06)' },
+      default: { elevation: 2, shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8 },
     }),
   },
   menuItem: {
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14, paddingHorizontal: 16,
   },
   menuItemBorder: {
-    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)',
+    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   menuIcon: {
     width: 38, height: 38, borderRadius: 12,
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
   menuLabel:  { fontSize: 14, fontWeight: '600', color: TEXT },
   menuArrow:  {
     width: 26, height: 26, borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: 'rgba(0,0,0,0.04)',
     alignItems: 'center', justifyContent: 'center',
   },
   badge: {
@@ -693,26 +693,25 @@ const styles = StyleSheet.create({
   },
   signOutTxt:   { fontSize: 14, fontWeight: '700', color: '#ef4444' },
 
-  version: { textAlign: 'center', fontSize: 10, color: 'rgba(255,255,255,0.12)', marginTop: 24, letterSpacing: 0.5 },
+  version: { textAlign: 'center', fontSize: 10, color: 'rgba(0,0,0,0.2)', marginTop: 24, letterSpacing: 0.5 },
 
   // ── Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center', justifyContent: 'center',
     padding: 28,
-    backdropFilter: 'blur(4px)',
   },
   modalCard: {
-    backgroundColor: '#1c1c22',
+    backgroundColor: '#ffffff',
     borderRadius: 24,
     padding: 32,
     width: '100%', maxWidth: 340,
     alignItems: 'center',
     borderWidth: 1, borderColor: BORDER,
     ...Platform.select({
-      web: { boxShadow: '0 24px 80px rgba(0,0,0,0.6)' },
-      default: { elevation: 24, shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 24 },
+      web: { boxShadow: '0 24px 80px rgba(0,0,0,0.18)' },
+      default: { elevation: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 24 },
     }),
   },
   modalIconRing: {
@@ -734,9 +733,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1.5, borderColor: BORDER,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: '#f4f4f6',
   },
-  modalCancelTxt:  { fontSize: 14, fontWeight: '700', color: MUTED },
+  modalCancelTxt:  { fontSize: 14, fontWeight: '700', color: '#555' },
   modalLogoutBtn:  {
     flex: 1.2, paddingVertical: 13,
     borderRadius: 14,
