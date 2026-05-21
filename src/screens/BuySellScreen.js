@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
-import PromoBanner from '../components/PromoBanner';
+import PromoBanner, { BannerCard } from '../components/PromoBanner';
 
 const ORANGE  = '#f97316';
 const IS_WEB  = Platform.OS === 'web';
@@ -348,6 +348,7 @@ export default function BuySellScreen({ route }) {
   const [items,       setItems]       = useState(SAMPLE_ITEMS);
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
+  const [promos,      setPromos]      = useState([]);
 
   const showSidebar = IS_WEB && winW >= 900;
 
@@ -413,6 +414,12 @@ export default function BuySellScreen({ route }) {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
+  useEffect(() => {
+    http('GET', '/api/promotions/all').then(res => {
+      if (res?.ok && Array.isArray(res.promotions)) setPromos(res.promotions);
+    }).catch(() => {});
+  }, []);
+
   const filtered = useMemo(() => {
     let list = items.filter(item => {
       const matchCat       = activeCat === 'All' || item.cat === activeCat;
@@ -427,6 +434,15 @@ export default function BuySellScreen({ route }) {
     list = [...list].sort((a, b) => b.postedAt - a.postedAt);
     return list;
   }, [items, activeCat, search, condition, priceRange]);
+
+  const interleavedFeed = useMemo(() => {
+    if (promos.length === 0) {
+      return filtered.map(r => ({ type: 'item', data: r, id: 'item_' + r.id }));
+    }
+    const itemRows  = filtered.map(r => ({ type: 'item',  data: r, id: 'item_'  + r.id, ts: r.postedAt || 0 }));
+    const promoRows = promos.map(p  => ({ type: 'promo', data: p, id: 'promo_' + p.id, ts: new Date(p.createdAt).getTime() }));
+    return [...itemRows, ...promoRows].sort((a, b) => b.ts - a.ts);
+  }, [filtered, promos]);
 
   const activeFilters = [
     activeCat !== 'All'        ? activeCat        : null,
@@ -530,7 +546,42 @@ export default function BuySellScreen({ route }) {
     </FadeIn>
   );
 
-  const ListHeader = <PromoBanner />;
+  const defaultBuySellPromo = {
+    name:        'Advertise Your Business',
+    tagline:     'Reach thousands of buyers & sellers in Nanded!',
+    description: 'List your shop, service or product and get inquiries from verified buyers daily.',
+    category:    'buy & sell',
+    phone:       '',
+    location:    'Nanded, Maharashtra',
+    plan:        'popular',
+  };
+
+  const SponsoredLabel = () => (
+    <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
+      <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>SPONSORED</Text>
+    </View>
+  );
+
+  const ListHeader = (
+    <>
+      <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+        {promos.length > 0
+          ? promos.map(p => (
+              <View key={p.id} style={{ marginBottom: 10 }}>
+                <SponsoredLabel />
+                <BannerCard promo={p} />
+              </View>
+            ))
+          : (
+              <>
+                <SponsoredLabel />
+                <PromoBanner data={defaultBuySellPromo} />
+              </>
+            )}
+      </View>
+    </>
+  );
 
   // ── Sticky mini-header (floats above scroll) ────────────────────────────
   const StickyHeader = (
@@ -690,7 +741,7 @@ export default function BuySellScreen({ route }) {
           {/* MAIN COLUMN */}
           <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
             <FlatList
-              data={filtered}
+              data={interleavedFeed}
               keyExtractor={item => item.id}
               contentContainerStyle={ws.list}
               showsVerticalScrollIndicator={false}
@@ -704,9 +755,17 @@ export default function BuySellScreen({ route }) {
               }
               ListHeaderComponent={<>{Header}{ListHeader}</>}
               ListEmptyComponent={Empty}
-              renderItem={({ item, index }) => (
-                <ItemCard item={item} index={index} onPress={() => nav.navigate('BuySellDetail', { item })} />
-              )}
+              renderItem={({ item, index }) => {
+                if (item.type === 'promo') {
+                  return (
+                    <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+                      <SponsoredLabel />
+                      <BannerCard promo={item.data} />
+                    </View>
+                  );
+                }
+                return <ItemCard item={item.data} index={index} onPress={() => nav.navigate('BuySellDetail', { item: item.data })} />;
+              }}
             />
           </View>
 
@@ -762,7 +821,7 @@ export default function BuySellScreen({ route }) {
   return (
     <View style={s.container}>
       <FlatList
-        data={filtered}
+        data={interleavedFeed}
         keyExtractor={item => item.id}
         stickyHeaderIndices={[0]}
         ListHeaderComponent={<>{Header}{ListHeader}</>}
@@ -771,9 +830,17 @@ export default function BuySellScreen({ route }) {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => fetchItems(true)} tintColor={ORANGE} colors={[ORANGE]} />
         }
-        renderItem={({ item, index }) => (
-          <ItemCard item={item} index={index} onPress={() => nav.navigate('BuySellDetail', { item })} />
-        )}
+        renderItem={({ item, index }) => {
+          if (item.type === 'promo') {
+            return (
+              <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+                <SponsoredLabel />
+                <BannerCard promo={item.data} />
+              </View>
+            );
+          }
+          return <ItemCard item={item.data} index={index} onPress={() => nav.navigate('BuySellDetail', { item: item.data })} />;
+        }}
       />
 
       {/* Sell FAB */}
