@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
-import PromoBanner, { BannerCard } from '../components/PromoBanner';
+import { BannerCard } from '../components/PromoBanner';
 
 const ORANGE = '#f97316';
 const TEAL   = '#0d9488';
@@ -655,16 +655,6 @@ export default function RoomScreen({ route }) {
     </View>
   );
 
-  const defaultRoomPromo = {
-    name:        'Advertise Your Rental Property',
-    tagline:     'Reach thousands of room seekers in Nanded!',
-    description: 'List your PG, hostel, flat or room and get inquiries from verified tenants daily.',
-    category:    'real estate',
-    phone:       '',
-    location:    'Nanded, Maharashtra',
-    plan:        'popular',
-  };
-
   const SponsoredLabel = () => (
     <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
       <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
@@ -675,21 +665,6 @@ export default function RoomScreen({ route }) {
   const ListHeader = (
     <>
       <FadeIn delay={180}><TrendingBanner /></FadeIn>
-      <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
-        {promos.length > 0
-          ? promos.map(p => (
-              <View key={p.id} style={{ marginBottom: 10 }}>
-                <SponsoredLabel />
-                <BannerCard promo={p} />
-              </View>
-            ))
-          : (
-              <>
-                <SponsoredLabel />
-                <PromoBanner data={defaultRoomPromo} />
-              </>
-            )}
-      </View>
     </>
   );
 
