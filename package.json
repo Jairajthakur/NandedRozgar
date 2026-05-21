@@ -50,7 +50,10 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.12.0",
     "razorpay": "^2.9.4",
-    "motion": "^11.11.0"
+    "motion": "^11.11.0",
+    "@react-native-firebase/app": "^21.0.0",
+    "@react-native-firebase/auth": "^21.0.0",
+    "firebase-admin": "^12.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
