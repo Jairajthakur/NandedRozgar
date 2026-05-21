@@ -405,12 +405,7 @@ export function BannerCard({ promo, onCall }) {
   return <LayoutDiagonal promo={promo} palette={palette} onCall={callFn} />;
 }
 
-// ─── Dummy ads ────────────────────────────────────────────────────────────────
-const DUMMY_ADS = [
-  { id: 'dummy_1', bizName: 'Sharma Electronics', tagline: '20% Off on all TVs & ACs this week!', phone: '9876543210', category: 'Retail / Shop',    location: 'Nanded City', bannerStyle: 'bold',  accentColor: '#d97706', isDummy: true, createdAt: new Date(Date.now() - 3600000).toISOString() },
-  { id: 'dummy_2', bizName: 'Priya Beauty Salon',  tagline: 'Bridal packages starting ₹1,999 only', phone: '8765432109', category: 'Salon / Beauty',  location: 'Vazirabad',   bannerStyle: 'clean', accentColor: '#c026d3', isDummy: true, createdAt: new Date(Date.now() - 7200000).toISOString() },
-  { id: 'dummy_3', bizName: 'Nanded Properties',   tagline: 'Flats & Plots — Book your dream home', phone: '7654321098', category: 'Real Estate',     location: 'Cidco',       bannerStyle: 'vivid', accentColor: '#0369a1', isDummy: true, createdAt: new Date(Date.now() - 10800000).toISOString() },
-];
+// No dummy ads — only real paid promotions are shown.
 
 // ─── Pulse dot ────────────────────────────────────────────────────────────────
 function PulseDot({ color }) {
@@ -452,15 +447,13 @@ export default function PromoBanner({ style: propStyle, promo: inlineProp, inlin
     let cancelled = false;
     (async () => {
       try {
-        const res = await http('GET', '/api/promotions/active');
+        const res = await http('GET', '/api/promotions/all');
         if (!cancelled) {
-          const live = (res.ok && res.promotion) ? [res.promotion] : [];
-          const needed = Math.max(0, 3 - live.length);
-          setPromos([...live, ...DUMMY_ADS.slice(0, needed)]);
+          setPromos(res.ok && Array.isArray(res.promotions) ? res.promotions : []);
           setReady(true);
         }
       } catch {
-        if (!cancelled) { setPromos(DUMMY_ADS); setReady(true); }
+        if (!cancelled) { setPromos([]); setReady(true); }
       }
     })();
     return () => { cancelled = true; };
