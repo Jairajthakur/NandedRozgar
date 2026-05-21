@@ -142,24 +142,50 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // ── OTP: send ─────────────────────────────────────────────────────────────
+  // ── Phone OTP via Firebase Auth (free: 10,000/month) ─────────────────────
+  // Firebase sends the SMS. We only call our backend to exchange the
+  // Firebase ID token for our own JWT (so the user lands in our DB).
   async function sendOTP(phone) {
     try {
-      const r = await http('POST', '/api/auth/send-otp', { phone });
-      return r ?? { ok: false, error: 'Failed to send OTP.' };
-    } catch { return { ok: false, error: 'Failed to send OTP.' }; }
+      const auth     = require('@react-native-firebase/auth').default;
+      const fullPhone = `+91${phone}`;
+      // Firebase sends the OTP automatically — returns a confirmation object
+      const confirmation = await auth().signInWithPhoneNumber(fullPhone);
+      // Store it so verifyOTP can call confirmation.confirm(otp)
+      return { ok: true, confirmation };
+    } catch (e) {
+      console.warn('Firebase sendOTP error:', e.message);
+      const msg = e.code === 'auth/invalid-phone-number'
+        ? 'Enter a valid 10-digit Indian mobile number.'
+        : e.code === 'auth/too-many-requests'
+        ? 'Too many OTP requests. Please wait a few minutes.'
+        : 'Failed to send OTP. Please try again.';
+      return { ok: false, error: msg };
+    }
   }
 
-  // ── OTP: verify ───────────────────────────────────────────────────────────
-  async function verifyOTP(phone, otp) {
+  async function verifyOTP(confirmation, otp) {
     try {
-      const r = await http('POST', '/api/auth/verify-otp', { phone, otp });
+      // Step 1: confirm OTP with Firebase
+      const result   = await confirmation.confirm(otp);
+      const idToken  = await result.user.getIdToken();
+
+      // Step 2: exchange Firebase ID token for our own JWT
+      const r = await http('POST', '/api/auth/verify-firebase-otp', { idToken });
       if (!r?.ok) return r ?? { ok: false, error: 'OTP verification failed.' };
       await saveToken(r.token);
       setUser(r.user);
       await loadJobs(1);
       return r;
-    } catch { return { ok: false, error: 'OTP verification failed.' }; }
+    } catch (e) {
+      console.warn('Firebase verifyOTP error:', e.message);
+      const msg = e.code === 'auth/invalid-verification-code'
+        ? 'Incorrect OTP. Please check and try again.'
+        : e.code === 'auth/code-expired'
+        ? 'OTP expired. Please request a new one.'
+        : 'OTP verification failed. Please try again.';
+      return { ok: false, error: msg };
+    }
   }
 
   // ── Forgot password ───────────────────────────────────────────────────────
