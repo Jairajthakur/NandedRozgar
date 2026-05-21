@@ -142,23 +142,32 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // ── Phone OTP via backend (Fast2SMS) ─────────────────────────────────────
-  // No Firebase native module required — works in any Expo build.
+  // ── Phone OTP via Firebase (free · 10 K/month · no KYC needed) ──────────
+  // Firebase sends the SMS on the client — backend only validates the idToken
+  // via firebase-admin at /api/auth/verify-firebase-otp.
   async function sendOTP(phone) {
     try {
-      const r = await http('POST', '/api/auth/send-otp', { phone });
-      if (!r?.ok) return r ?? { ok: false, error: 'Failed to send OTP. Please try again.' };
-      // Pass phone in confirmation so verifyOTP can send it to the backend
-      return { ok: true, confirmation: { phone } };
+      const auth = require('@react-native-firebase/auth').default;
+      const e164 = phone.startsWith('+') ? phone : `+91${phone.trim()}`;
+      const confirmation = await auth().signInWithPhoneNumber(e164);
+      return { ok: true, confirmation };
     } catch (e) {
       console.warn('sendOTP error:', e.message);
+      if (e.code === 'auth/invalid-phone-number')
+        return { ok: false, error: 'Invalid phone number. Please check and try again.' };
+      if (e.code === 'auth/too-many-requests')
+        return { ok: false, error: 'Too many attempts. Please try again later.' };
       return { ok: false, error: 'Failed to send OTP. Please check your connection.' };
     }
   }
 
   async function verifyOTP(confirmation, otp) {
     try {
-      const r = await http('POST', '/api/auth/verify-otp', { phone: confirmation.phone, otp });
+      // confirmation is the Firebase ConfirmationResult from signInWithPhoneNumber
+      const credential = await confirmation.confirm(String(otp).trim());
+      const idToken = await credential.user.getIdToken();
+      // Exchange Firebase idToken for our app JWT
+      const r = await http('POST', '/api/auth/verify-firebase-otp', { idToken });
       if (!r?.ok) return r ?? { ok: false, error: 'OTP verification failed. Please try again.' };
       await saveToken(r.token);
       setUser(r.user);
@@ -166,6 +175,10 @@ export function AuthProvider({ children }) {
       return r;
     } catch (e) {
       console.warn('verifyOTP error:', e.message);
+      if (e.code === 'auth/invalid-verification-code')
+        return { ok: false, error: 'Incorrect OTP. Please try again.' };
+      if (e.code === 'auth/session-expired')
+        return { ok: false, error: 'OTP expired. Please request a new one.' };
       return { ok: false, error: 'OTP verification failed. Please try again.' };
     }
   }
