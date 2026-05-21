@@ -62,6 +62,7 @@ export default function LoginScreen() {
   const [otpPhone, setOtpPhone] = useState('');
   const [otp, setOtp]       = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [otpConfirmation, setOtpConfirmation] = useState(null); // Firebase confirmation object
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState('');
   const [showPass, setShowPass]   = useState(false);
@@ -140,12 +141,17 @@ export default function LoginScreen() {
   });
 
   // ── Google OAuth ─────────────────────────────────────────────────────────
-  const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
+  // In Expo Go / development: useProxy=true routes through auth.expo.io
+  // In production builds: uses the app scheme (nandedrozgar://)
+  const redirectUri = AuthSession.makeRedirectUri({
+    scheme:   'nandedrozgar',
+    useProxy: __DEV__,
+  });
   const [googleRequest, googleResponse, promptGoogleAsync] = AuthSession.useAuthRequest(
     {
-      clientId:    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+      clientId:     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
       redirectUri,
-      scopes:      ['openid', 'profile', 'email'],
+      scopes:       ['openid', 'profile', 'email'],
       responseType: AuthSession.ResponseType.Token,
     },
     GOOGLE_DISCOVERY
@@ -211,14 +217,20 @@ export default function LoginScreen() {
     setLoading(true); setError('');
     const r = await sendOTP(otpPhone);
     setLoading(false);
-    if (r.ok) { setOtpSent(true); }
-    else { setError(r.error || 'Failed to send OTP'); triggerShake(); }
+    if (r.ok) {
+      setOtpSent(true);
+      setOtpConfirmation(r.confirmation); // store Firebase confirmation object
+    } else {
+      setError(r.error || 'Failed to send OTP');
+      triggerShake();
+    }
   }
 
   async function handleVerifyOTP() {
     if (!otp || otp.length < 4) { setError('Enter the OTP'); triggerShake(); return; }
+    if (!otpConfirmation) { setError('Please request a new OTP'); triggerShake(); return; }
     setLoading(true); setError('');
-    const r = await verifyOTP(otpPhone, otp);
+    const r = await verifyOTP(otpConfirmation, otp); // pass confirmation, not phone
     setLoading(false);
     if (!r.ok) { setError(r.error || 'Invalid OTP'); triggerShake(); }
   }
@@ -269,9 +281,15 @@ export default function LoginScreen() {
             {tab !== 'phone' && (
               <View style={styles.socialRow}>
                 <TouchableOpacity
-                  style={styles.socialBtn}
-                  onPress={() => promptGoogleAsync()}
-                  disabled={!googleRequest || loading}
+                  style={[styles.socialBtn, !process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID && { opacity: 0.4 }]}
+                  onPress={() => {
+                    if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID) {
+                      setError('Google sign-in not configured. Set EXPO_PUBLIC_GOOGLE_CLIENT_ID in .env');
+                      return;
+                    }
+                    promptGoogleAsync();
+                  }}
+                  disabled={(!googleRequest && !!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID) || loading}
                   activeOpacity={0.85}
                 >
                   <MaterialCommunityIcons name="google" size={18} color="#EA4335" />
@@ -446,7 +464,7 @@ export default function LoginScreen() {
                     <TextInput
                       style={[styles.input, { flex: 1, paddingLeft: 4 }]}
                       value={otpPhone}
-                      onChangeText={v => { setOtpPhone(v); setOtpSent(false); setOtp(''); }}
+                      onChangeText={v => { setOtpPhone(v); setOtpSent(false); setOtp(''); setOtpConfirmation(null); }}
                       placeholder="10-digit mobile number"
                       placeholderTextColor="#aaa"
                       keyboardType="phone-pad"
@@ -479,7 +497,7 @@ export default function LoginScreen() {
 
                 <View style={styles.otpInfoBox}>
                   <Ionicons name="shield-checkmark-outline" size={14} color="#22c55e" style={{ marginRight: 6 }} />
-                  <Text style={styles.otpInfoText}>We'll send a one-time password to verify your number. Standard SMS rates may apply.</Text>
+                  <Text style={styles.otpInfoText}>A one-time password will be sent to your number via SMS. Powered by Firebase — completely free.</Text>
                 </View>
               </View>
             )}
