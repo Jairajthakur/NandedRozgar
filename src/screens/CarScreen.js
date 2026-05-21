@@ -777,9 +777,9 @@ const s = StyleSheet.create({
   searchInput: { flex: 1, paddingHorizontal: 10, fontSize: 14, color: '#111' },
 
   searchFilterBtn: {
-    width: 48, height: 52,
-    alignItems: 'center', justifyContent: 'center',
-    borderLeftWidth: 1, borderLeftColor: '#ececec',
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    height: 48, paddingHorizontal: 16,
+    backgroundColor: '#fff7f0', borderLeftWidth: 1, borderLeftColor: '#ebebeb',
   },
 
   pillsRow: { gap: 8, paddingBottom: 4, alignItems: 'center' },
