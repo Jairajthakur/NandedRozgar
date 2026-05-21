@@ -166,6 +166,7 @@ export default function LoginScreen() {
       redirectUri,
       scopes:       ['openid', 'profile', 'email'],
       responseType: AuthSession.ResponseType.Token,
+      usePKCE:      false,
     },
     GOOGLE_DISCOVERY
   );
