@@ -3,6 +3,7 @@
  *
  * POST /api/promotions        — submit a new promotion (auth required)
  * GET  /api/promotions/active — get a random active promotion banner (public)
+ * GET  /api/promotions/all    — get ALL active promotions ordered by created_at (public)
  * GET  /api/promotions/mine   — get the current user's promotions (auth required)
  */
 
@@ -25,8 +26,6 @@ const BANNER_COLORS = {
 };
 
 // ── POST /api/promotions ──────────────────────────────────────────────────────
-// Submit a new business promotion. Saved as 'pending' until admin approves,
-// then status is flipped to 'active' (can be done in AdminScreen or auto-approved).
 router.post('/', auth, async (req, res) => {
   try {
     const {
@@ -34,7 +33,6 @@ router.post('/', auth, async (req, res) => {
       address, website, description, plan, bannerStyle,
     } = req.body;
 
-    // Basic validation
     if (!bizName?.trim())  return res.json({ ok: false, error: 'Business name is required.' });
     if (!phone?.trim())    return res.json({ ok: false, error: 'Contact number is required.' });
     if (!category?.trim()) return res.json({ ok: false, error: 'Category is required.' });
@@ -44,12 +42,9 @@ router.post('/', auth, async (req, res) => {
     const { price, days } = PLANS[plan];
     const accentColor = BANNER_COLORS[bannerStyle] || '#f97316';
 
-    // Calculate expiry date based on plan days
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
-    // Status is set to 'active' immediately so the promotion goes live on
-    // Jobs, Rooms, Cars, and Buy & Sell pages right away.
     const { rows } = await pool.query(
       `INSERT INTO business_promotions
          (user_id, biz_name, tagline, phone, category, location, address,
@@ -74,12 +69,11 @@ router.post('/', auth, async (req, res) => {
 });
 
 // ── GET /api/promotions/active ────────────────────────────────────────────────
-// Returns ONE random active, non-expired promotion to show as a banner.
-// Called by PromoBanner.js on each listing screen.
+// Returns ONE random active promotion (legacy — kept for compatibility)
 router.get('/active', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, biz_name, tagline, phone, category, location, banner_style, accent_color
+      `SELECT id, biz_name, tagline, phone, category, location, banner_style, accent_color, created_at
        FROM business_promotions
        WHERE status = 'active'
          AND (expires_at IS NULL OR expires_at > NOW())
@@ -101,6 +95,7 @@ router.get('/active', async (req, res) => {
         location:    p.location,
         bannerStyle: p.banner_style,
         accentColor: p.accent_color || '#f97316',
+        createdAt:   p.created_at,
       },
     });
   } catch (err) {
@@ -109,8 +104,39 @@ router.get('/active', async (req, res) => {
   }
 });
 
+// ── GET /api/promotions/all ───────────────────────────────────────────────────
+// Returns ALL active promotions ordered by created_at DESC.
+// Used by screens to interleave banners with posts chronologically.
+router.get('/all', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, biz_name, tagline, phone, category, location, banner_style, accent_color, created_at
+       FROM business_promotions
+       WHERE status = 'active'
+         AND (expires_at IS NULL OR expires_at > NOW())
+       ORDER BY created_at DESC`
+    );
+
+    const promotions = rows.map(p => ({
+      id:          p.id,
+      bizName:     p.biz_name,
+      tagline:     p.tagline || '',
+      phone:       p.phone,
+      category:    p.category,
+      location:    p.location,
+      bannerStyle: p.banner_style,
+      accentColor: p.accent_color || '#f97316',
+      createdAt:   p.created_at,
+    }));
+
+    res.json({ ok: true, promotions });
+  } catch (err) {
+    console.error('GET /promotions/all error:', err);
+    res.json({ ok: false, error: 'Failed to fetch promotions.' });
+  }
+});
+
 // ── GET /api/promotions/mine ──────────────────────────────────────────────────
-// Returns all promotions submitted by the logged-in user.
 router.get('/mine', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(
