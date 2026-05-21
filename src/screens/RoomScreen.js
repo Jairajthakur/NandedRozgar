@@ -552,6 +552,15 @@ export default function RoomScreen({ route }) {
     return list;
   }, [rooms, roomType, search, rentRange]);
 
+  const interleavedFeed = useMemo(() => {
+    if (promos.length === 0) {
+      return filtered.map(r => ({ type: 'room', data: r, id: 'room_' + r.id }));
+    }
+    const roomItems  = filtered.map(r => ({ type: 'room',  data: r, id: 'room_'  + r.id, ts: r.listedDaysAgo != null ? -r.listedDaysAgo : 0 }));
+    const promoItems = promos.map(p  => ({ type: 'promo', data: p, id: 'promo_' + p.id, ts: new Date(p.createdAt).getTime() }));
+    return [...roomItems, ...promoItems].sort((a, b) => b.ts - a.ts);
+  }, [filtered, promos]);
+
   const activeFiltersCount = (roomType !== 'All' ? 1 : 0) + (rentRange.label !== 'Any' ? 1 : 0);
 
   /* ── Shared header ── */
@@ -666,21 +675,12 @@ export default function RoomScreen({ route }) {
   const ListHeader = (
     <>
       <FadeIn delay={180}><TrendingBanner /></FadeIn>
-      <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
-        {promos.length > 0
-          ? promos.map(p => (
-              <View key={p.id} style={{ marginBottom: 10 }}>
-                <SponsoredLabel />
-                <BannerCard promo={p} />
-              </View>
-            ))
-          : (
-              <>
-                <SponsoredLabel />
-                <PromoBanner data={defaultRoomPromo} />
-              </>
-            )}
-      </View>
+      {promos.length === 0 && (
+        <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+          <SponsoredLabel />
+          <PromoBanner data={defaultRoomPromo} />
+        </View>
+      )}
     </>
   );
 
@@ -843,7 +843,7 @@ export default function RoomScreen({ route }) {
           <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
             <FlatList
               ref={flatListRef}
-              data={filtered}
+              data={interleavedFeed}
               keyExtractor={r => r.id}
               contentContainerStyle={ws.list}
               showsVerticalScrollIndicator={true}
@@ -855,9 +855,17 @@ export default function RoomScreen({ route }) {
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchRooms(true)} tintColor={ORANGE} colors={[ORANGE]} />}
               ListHeaderComponent={<>{Header}{ListHeader}</>}
               ListEmptyComponent={Empty}
-              renderItem={({ item, index }) => (
-                <RoomCard item={item} index={index} onPress={() => nav.navigate('RoomDetail', { room: item })} />
-              )}
+              renderItem={({ item, index }) => {
+                if (item.type === 'promo') {
+                  return (
+                    <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+                      <SponsoredLabel />
+                      <BannerCard promo={item.data} />
+                    </View>
+                  );
+                }
+                return <RoomCard item={item.data} index={index} onPress={() => nav.navigate('RoomDetail', { room: item.data })} />;
+              }}
             />
           </View>
 
@@ -942,9 +950,17 @@ export default function RoomScreen({ route }) {
         )}
         scrollEventThrottle={16}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchRooms(true)} tintColor={ORANGE} colors={[ORANGE]} />}
-        renderItem={({ item, index }) => (
-          <RoomCard item={item} index={index} onPress={() => nav.navigate('RoomDetail', { room: item })} />
-        )}
+        renderItem={({ item, index }) => {
+          if (item.type === 'promo') {
+            return (
+              <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+                <SponsoredLabel />
+                <BannerCard promo={item.data} />
+              </View>
+            );
+          }
+          return <RoomCard item={item.data} index={index} onPress={() => nav.navigate('RoomDetail', { room: item.data })} />;
+        }}
       />
       {FilterModal}
     </View>
