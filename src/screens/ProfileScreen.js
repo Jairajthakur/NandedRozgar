@@ -241,7 +241,7 @@ export default function ProfileScreen() {
   }
 
   const seekerMenu = [
-    { icon: 'person-outline',           label: 'My Seeker Profile',   onPress: () => nav.navigate('SeekerProfile') },
+    { icon: 'person-outline',           label: 'Upload Resume',   onPress: () => nav.navigate('SeekerProfile') },
     { icon: 'checkmark-circle-outline', label: 'My Applications',     badge: stats.applied, onPress: () => nav.navigate('MyApplications') },
     { icon: 'bookmark-outline',         label: 'Saved Jobs',          badge: stats.saved,   onPress: () => nav.navigate('Jobs') },
     { icon: 'notifications-outline',    label: 'Job Alerts',          onPress: () => nav.navigate('Alerts') },
