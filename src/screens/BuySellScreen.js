@@ -456,9 +456,11 @@ export default function BuySellScreen({ route }) {
       <View style={IS_WEB ? ws.header : s.header}>
         <View style={s.titleRow}>
           <View>
-            <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
-              Buy & Sell in <Text style={{ color: ORANGE }}>Nanded</Text>
-            </Text>
+            <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
+                Buy & Sell in <Text style={{ color: ORANGE }}>Nanded</Text>
+              </Text>
+            </TouchableOpacity>
             <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
               {filtered.length} item{filtered.length !== 1 ? 's' : ''} listed
             </Text>
@@ -594,9 +596,11 @@ export default function BuySellScreen({ route }) {
       ]}
     >
       <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
-        <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-          Buy &amp; Sell in <Text style={{ color: ORANGE }}>Nanded</Text>
-        </Text>
+        <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+          <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
+            Buy &amp; Sell in <Text style={{ color: ORANGE }}>Nanded</Text>
+          </Text>
+        </TouchableOpacity>
         <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
           <Ionicons name="search-outline" size={15} color="#bbb" style={{ marginLeft: 10 }} />
           <TextInput
@@ -690,7 +694,9 @@ export default function BuySellScreen({ route }) {
           <TouchableOpacity style={ws.topBarBack} onPress={() => nav.goBack()} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={16} color="#333" />
           </TouchableOpacity>
-          <Text style={ws.topBarTitle}>Buy &amp; Sell</Text>
+          <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+            <Text style={ws.topBarTitle}>Buy &amp; Sell</Text>
+          </TouchableOpacity>
         </View>
 
         {StickyHeader}
