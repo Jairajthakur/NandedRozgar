@@ -207,13 +207,21 @@ function RootNavigator() {
     return <OnboardingScreen onDone={() => setShowOnboarding(false)} />;
   }
 
+  // ── Unauthenticated stack: only Login is accessible ─────────────────────
+  if (!user) {
+    return (
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Login" component={LoginScreen} />
+      </Stack.Navigator>
+    );
+  }
+
+  // ── Authenticated stack: all app screens ──────────────────────────────────
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!user
-        ? <Stack.Screen name="Login" component={LoginScreen} />
-        : user.role === 'admin'
-          ? <Stack.Screen name="Admin" component={AdminScreen} options={{ headerShown: true, headerTitle: 'Admin Panel', ...HEADER }} />
-          : <Stack.Screen name="Main"  component={MainTabs} />
+      {user.role === 'admin'
+        ? <Stack.Screen name="Admin" component={AdminScreen} options={{ headerShown: true, headerTitle: 'Admin Panel', ...HEADER }} />
+        : <Stack.Screen name="Main"  component={MainTabs} />
       }
       <Stack.Screen name="JobDetail"  component={JobDetailScreen}  options={{ headerShown: true, headerTitle: t('jobDetails'), ...HEADER }} />
       <Stack.Screen name="CarDetail"  component={CarDetailScreen}  options={{ headerShown: false }} />
