@@ -407,16 +407,28 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
       [phone.trim(), otpHash, expiresAt]
     );
 
-    const apiKey = process.env.FAST2SMS_API_KEY;
+    const apiKey    = process.env.FAST2SMS_API_KEY;
+    const route     = process.env.FAST2SMS_ROUTE || 'otp';      // 'otp' or 'dlt'
+    const senderId  = process.env.FAST2SMS_SENDER_ID || '';
+    const templateId= process.env.FAST2SMS_TEMPLATE_ID || '';
+
     if (!apiKey) {
       console.log(`[DEV] OTP for ${phone}: ${otp}`);
       return res.json({ ok: true, dev: true, message: 'OTP logged to console (no FAST2SMS_API_KEY set).' });
     }
 
-    const smsRes = await fetch(
-      `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&variables_values=${otp}&route=otp&numbers=${phone.trim()}`,
-      { method: 'GET', headers: { 'cache-control': 'no-cache' } }
-    );
+    let smsUrl;
+    if (route === 'dlt') {
+      // DLT route — requires registered Sender ID + approved template
+      // Template example: "Your LocalLoop OTP is {#var#}. Valid 10 mins."
+      smsUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&route=dlt&sender_id=${senderId}&message=${encodeURIComponent(process.env.FAST2SMS_MESSAGE || 'Your LocalLoop OTP is {#var#}. Valid for 10 minutes.')}&variables_values=${otp}&flash=0&numbers=${phone.trim()}`
+        + (templateId ? `&template_id=${templateId}` : '');
+    } else {
+      // OTP route — simplest, no sender ID or template needed
+      smsUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&variables_values=${otp}&route=otp&numbers=${phone.trim()}`;
+    }
+
+    const smsRes = await fetch(smsUrl, { method: 'GET', headers: { 'cache-control': 'no-cache' } });
     const smsData = await smsRes.json();
     if (!smsData.return) throw new Error(smsData.message || 'SMS delivery failed');
 
