@@ -123,8 +123,8 @@ function PillSelect({ options, value, onSelect }) {
 // ─── Plan Card ────────────────────────────────────────────────────────────────
 function PlanCard({ plan, selected, onSelect }) {
   const scale = useRef(new Animated.Value(1)).current;
-  const onPressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
-  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 22, bounciness: 8 }).start();
+  const onPressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: !IS_WEB, speed: 40, bounciness: 0 }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: !IS_WEB, speed: 22, bounciness: 8 }).start();
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
@@ -205,8 +205,8 @@ function BannerStylePicker({ form, selectedStyle, onSelect }) {
 
 function BannerPreviewCard({ style, form, selected, onSelect }) {
   const scale = useRef(new Animated.Value(1)).current;
-  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
-  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 22, bounciness: 6 }).start();
+  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: !IS_WEB, speed: 40, bounciness: 0 }).start();
+  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: !IS_WEB, speed: 22, bounciness: 6 }).start();
 
   const biz   = form.bizName  || 'Your Business';
   const offer = form.tagline  || 'Big Sale!';
@@ -308,11 +308,16 @@ export default function PromoteBusinessScreen() {
   // Redirect to Login if not authenticated
   useEffect(() => {
     if (!user) {
-      Alert.alert(
-        'Login Required',
-        'Please log in to promote your business.',
-        [{ text: 'Log In', onPress: () => nav.navigate('Login') }]
-      );
+      // On web Alert is often blocked; navigate directly instead
+      if (IS_WEB) {
+        nav.navigate('Login');
+      } else {
+        Alert.alert(
+          'Login Required',
+          'Please log in to promote your business.',
+          [{ text: 'Log In', onPress: () => nav.navigate('Login') }]
+        );
+      }
     }
   }, [user]);
 
@@ -323,28 +328,32 @@ export default function PromoteBusinessScreen() {
   const [selectedPlan, setSelectedPlan] = useState('popular');
   const [selectedBannerStyle, setSelectedBannerStyle] = useState('bold');
   const [submitting, setSubmitting] = useState(false);
+  const [errorMsg,   setErrorMsg]   = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
+  const set = (key, val) => { setErrorMsg(''); setForm(prev => ({ ...prev, [key]: val })); };
 
   const validate = () => {
-    if (!form.bizName.trim())  { Alert.alert('Required', 'Please enter your business name.'); return false; }
-    if (!form.phone.trim())    { Alert.alert('Required', 'Please enter a contact number.');  return false; }
-    if (!form.category)        { Alert.alert('Required', 'Please select a business category.'); return false; }
-    if (!form.location)        { Alert.alert('Required', 'Please select your location.'); return false; }
-    if (!selectedPlan)         { Alert.alert('Required', 'Please select a promotion plan.'); return false; }
+    if (!form.bizName.trim())  { setErrorMsg('Please enter your business name.');       return false; }
+    if (!form.phone.trim())    { setErrorMsg('Please enter a contact number.');         return false; }
+    if (!form.category)        { setErrorMsg('Please select a business category.');     return false; }
+    if (!form.location)        { setErrorMsg('Please select your location.');           return false; }
+    if (!selectedPlan)         { setErrorMsg('Please select a promotion plan.');        return false; }
     return true;
   };
 
   const handleSubmit = async () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+
     if (!user) {
-      Alert.alert(
-        'Login Required',
-        'Please log in to promote your business.',
-        [{ text: 'Log In', onPress: () => nav.navigate('Login') }]
-      );
+      setErrorMsg('You must be logged in to promote your business.');
+      // Also navigate after a short delay so user can read the message
+      setTimeout(() => nav.navigate('Login'), 1800);
       return;
     }
     if (!validate()) return;
+
     setSubmitting(true);
     try {
       const res = await http('POST', '/api/promotions', {
@@ -361,32 +370,34 @@ export default function PromoteBusinessScreen() {
       });
 
       if (!res.ok) {
-        // Handle auth / session errors specifically
-        if (
+        const isAuth =
           res.status === 401 ||
           res.error?.toLowerCase().includes('unauthorized') ||
           res.error?.toLowerCase().includes('invalid token') ||
           res.error?.toLowerCase().includes('no token') ||
-          res.error?.toLowerCase().includes('not authenticated')
-        ) {
-          Alert.alert(
-            'Session Expired',
-            'Please log in again to continue.',
-            [{ text: 'Log In', onPress: () => nav.navigate('Login') }]
-          );
-          return;
+          res.error?.toLowerCase().includes('not authenticated');
+
+        if (isAuth) {
+          setErrorMsg('Session expired. Redirecting to login…');
+          setTimeout(() => nav.navigate('Login'), 1800);
+        } else {
+          setErrorMsg(res.error || 'Something went wrong. Please try again.');
         }
-        Alert.alert('Submission Failed', res.error || 'Something went wrong. Please try again.');
         return;
       }
 
+      // ── Success ──────────────────────────────────────────────────────────────
+      setSuccessMsg(
+        `🎉 Your business "${form.bizName}" is now live on Jobs, Rooms, Cars & Buy-Sell pages!\n\nOur team will call ${form.phone} to confirm payment.`
+      );
+      // Also fire native Alert for mobile users
       Alert.alert(
         '🎉 Promotion is Live!',
         `Your business "${form.bizName}" is now posted on Jobs, Rooms, Cars & Buy-Sell pages!\n\nOur team will call you on ${form.phone} to confirm payment via UPI / cash.`,
         [{ text: 'Done', onPress: () => nav.goBack() }]
       );
     } catch (err) {
-      Alert.alert('Error', 'Something went wrong. Please check your connection.');
+      setErrorMsg('Unable to connect. Please check your internet connection.');
     } finally {
       setSubmitting(false);
     }
@@ -555,6 +566,22 @@ export default function PromoteBusinessScreen() {
                 Payment is collected via UPI / cash after our team verifies your listing. No advance needed now.
               </Text>
             </View>
+
+            {/* ── Inline Error Banner ── */}
+            {!!errorMsg && (
+              <View style={s.inlineError}>
+                <Ionicons name="alert-circle-outline" size={16} color="#dc2626" />
+                <Text style={s.inlineErrorTxt}>{errorMsg}</Text>
+              </View>
+            )}
+
+            {/* ── Inline Success Banner ── */}
+            {!!successMsg && (
+              <View style={s.inlineSuccess}>
+                <Ionicons name="checkmark-circle-outline" size={16} color="#16a34a" />
+                <Text style={s.inlineSuccessTxt}>{successMsg}</Text>
+              </View>
+            )}
 
             {/* ── Submit ── */}
             <TouchableOpacity
@@ -786,4 +813,18 @@ const s = StyleSheet.create({
   submitTxt: { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
 
   tosNote: { fontSize: 10, color: '#bbb', textAlign: 'center', lineHeight: 14 },
+
+  // Inline feedback banners (web-safe alternative to Alert)
+  inlineError: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: '#fef2f2', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: '#fecaca', marginBottom: 4,
+  },
+  inlineErrorTxt: { flex: 1, fontSize: 13, color: '#dc2626', lineHeight: 18, fontWeight: '600' },
+  inlineSuccess: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: '#f0fdf4', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: '#bbf7d0', marginBottom: 4,
+  },
+  inlineSuccessTxt: { flex: 1, fontSize: 13, color: '#16a34a', lineHeight: 18, fontWeight: '600' },
 });
