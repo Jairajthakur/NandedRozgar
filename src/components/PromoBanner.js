@@ -107,6 +107,7 @@ function LayoutFireSale({ data }) {
         <Text style={s.b1T1}>Biggest</Text>
         <Text style={s.b1T2}>Sale!</Text>
         {!!data.tagline && <Text style={s.b1Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b1Tagline} numberOfLines={2}>{data.description}</Text>}
         <View style={s.b1BottomRow}>
           <TouchableOpacity style={s.b1Btn} onPress={() => callBusiness(data.phone)} activeOpacity={0.8}>
             <Text style={s.b1BtnTxt}>Shop Now</Text>
@@ -146,9 +147,10 @@ function LayoutDarkNeon({ data }) {
           {!!data.plan     && <Badge bg="#ca8a04" color="#fef9c3" text={data.plan.toUpperCase()} />}
         </View>
         <Text style={s.b2Name}>{data.name || ''}</Text>
-        {!!data.tagline && <Text style={s.b2Tagline}>{data.tagline}</Text>}
+        {!!data.tagline     && <Text style={s.b2Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b2Tagline} numberOfLines={2}>{data.description}</Text>}
         <View style={s.featureList}>
-          {(data.features || []).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#c4b5fd" />)}
+          {(data.features || []).filter(f => f !== data.description).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#c4b5fd" />)}
         </View>
         <View style={s.b2Footer}>
           <View>
@@ -242,6 +244,7 @@ function LayoutPrestigeGold({ data }) {
         </View>
         <Text style={s.b4Name}>{data.name || ''}</Text>
         {!!data.tagline && <Text style={s.b4Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b4Tagline} numberOfLines={2}>{data.description}</Text>}
         <View style={s.featureList}>
           {(data.features || []).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#d6d3d1" />)}
         </View>
@@ -286,6 +289,7 @@ function LayoutSunsetOrange({ data }) {
         </View>
         <Text style={s.b5Name}>{data.name || ''}</Text>
         {!!data.tagline && <Text style={s.b5Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b5Tagline} numberOfLines={2}>{data.description}</Text>}
         {!!data.discountOffer && (
           <View style={s.b5OfferRow}>
             <Text style={s.b5OfferPct}>{data.discountOffer}%</Text>
@@ -331,6 +335,7 @@ function LayoutSkyAcademy({ data }) {
           </View>
           <Text style={s.b6Name}>{data.name || ''}</Text>
           {!!data.tagline && <Text style={s.b6Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b6Tagline} numberOfLines={2}>{data.description}</Text>}
           <View style={s.featureList}>
             {(data.features || []).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#1e40af" />)}
           </View>
@@ -361,6 +366,7 @@ function LayoutCrimsonFit({ data }) {
         <Text style={s.b7Pre}>POWER UP</Text>
         <Text style={s.b7Name}>{data.name || ''}</Text>
         {!!data.tagline && <Text style={s.b7Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b7Tagline} numberOfLines={2}>{data.description}</Text>}
         {!!data.discountOffer && (
           <View style={s.b7OfferPill}>
             <Text style={s.b7OfferTxt}>{data.discountOffer}% OFF Membership</Text>
@@ -447,6 +453,7 @@ function LayoutMidnightPhoto({ data }) {
         </View>
         <Text style={s.b9Name}>{data.name || ''}</Text>
         {!!data.tagline && <Text style={s.b9Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b9Tagline} numberOfLines={2}>{data.description}</Text>}
         <View style={s.featureList}>
           {(data.features || []).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#fbbf24" />)}
         </View>
@@ -481,9 +488,10 @@ function LayoutTerracottaRealty({ data }) {
           {data.verified   && <Badge bg="#166534" color="#bbf7d0" text="✓ RERA" />}
         </View>
         <Text style={s.b10Name}>{data.name || ''}</Text>
-        {!!data.tagline && <Text style={s.b10Tagline}>{data.tagline}</Text>}
+        {!!data.tagline     && <Text style={s.b10Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b10Tagline} numberOfLines={2}>{data.description}</Text>}
         <View style={s.featureList}>
-          {(data.features || []).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#fde8d8" />)}
+          {(data.features || []).filter(f => f !== data.description).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#fde8d8" />)}
         </View>
         <TouchableOpacity style={s.b10Btn} onPress={() => callBusiness(data.phone)} activeOpacity={0.8}>
           <Text style={s.b10BtnTxt}>📞 Site Visit</Text>
@@ -521,6 +529,7 @@ function LayoutElectricDigital({ data }) {
         </View>
         <Text style={s.b11Name}>{data.name || ''}</Text>
         {!!data.tagline && <Text style={s.b11Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b11Tagline} numberOfLines={2}>{data.description}</Text>}
         <View style={s.featureList}>
           {(data.features || []).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#67e8f9" />)}
         </View>
@@ -614,6 +623,7 @@ function LayoutForestEco({ data }) {
         </View>
         <Text style={s.b13Name}>{data.name || ''}</Text>
         {!!data.tagline && <Text style={s.b13Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b13Tagline} numberOfLines={2}>{data.description}</Text>}
         <View style={s.featureList}>
           {(data.features || []).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#166534" />)}
         </View>
@@ -699,6 +709,7 @@ function LayoutSteelIndustrial({ data }) {
         </View>
         <Text style={s.b15Name}>{data.name || ''}</Text>
         {!!data.tagline && <Text style={s.b15Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b15Tagline} numberOfLines={2}>{data.description}</Text>}
         <View style={s.featureList}>
           {(data.features || []).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#94a3b8" />)}
         </View>
@@ -741,6 +752,7 @@ function LayoutNavyLegal({ data }) {
         </View>
         <Text style={s.b16Name}>{data.name || ''}</Text>
         {!!data.tagline && <Text style={s.b16Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b16Tagline} numberOfLines={2}>{data.description}</Text>}
         <View style={s.featureList}>
           {(data.features || []).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#1e3a8a" />)}
         </View>
@@ -773,6 +785,7 @@ function LayoutSilverTech({ data }) {
         </View>
         <Text style={s.b17Name}>{data.name || ''}</Text>
         {!!data.tagline && <Text style={s.b17Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b17Tagline} numberOfLines={2}>{data.description}</Text>}
         <View style={s.featureList}>
           {(data.features || []).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#a5b4fc" />)}
         </View>
@@ -829,6 +842,7 @@ function LayoutGoldenHotel({ data }) {
         </View>
         <Text style={s.b18Name}>{data.name || ''}</Text>
         {!!data.tagline && <Text style={s.b18Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b18Tagline} numberOfLines={2}>{data.description}</Text>}
         <View style={s.featureList}>
           {(data.features || []).slice(0, 2).map((f, i) => <CheckItem key={i} text={f} color="#78350f" />)}
         </View>
@@ -867,6 +881,7 @@ function LayoutNeonGaming({ data }) {
         </View>
         <Text style={s.b19Name}>{data.name || ''}</Text>
         {!!data.tagline && <Text style={s.b19Tagline}>{data.tagline}</Text>}
+        {!!data.description && <Text style={s.b19Tagline} numberOfLines={2}>{data.description}</Text>}
         {!!data.discountOffer && (
           <View style={s.b19OfferPill}>
             <Text style={s.b19OfferTxt}>⚡ {data.discountOffer}% OFF Tonight!</Text>
@@ -938,6 +953,11 @@ function LayoutRoseWellness({ data }) {
 export function BannerCard({ promo }) {
   if (!promo) return null;
   // API returns: bizName, tagline, phone, category, location, address, website, description, plan
+  const features = [];
+  if (promo.description) features.push(promo.description);
+  if (promo.address)     features.push(promo.address);
+  if (promo.website)     features.push(promo.website);
+
   const data = {
     name:          promo.bizName      || promo.businessName || promo.name || '',
     tagline:       promo.tagline      || '',
@@ -945,12 +965,14 @@ export function BannerCard({ promo }) {
     category:      promo.category     || '',
     phone:         promo.phone        || '',
     whatsapp:      promo.phone        || '',
-    location:      promo.location     || promo.address || '',
+    location:      promo.location     || '',
+    address:       promo.address      || '',
+    website:       promo.website      || '',
     plan:          promo.plan         || '',
     verified:      false,
     isPopular:     promo.plan === 'premium' || promo.plan === 'popular',
     discountOffer: '',
-    features:      promo.website ? [promo.website] : [],
+    features,
   };
   return <PromoBanner data={data} />;
 }
