@@ -395,7 +395,7 @@ export default function BoardScreen({ route }) {
       <FadeIn delay={180}>
         <HiringBanner onPress={() => {}} />
       </FadeIn>
-
+    </>
   );
 
   // ── Filter Modal ───────────────────────────────────────────────────────────
