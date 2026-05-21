@@ -4,7 +4,6 @@
  * Fixed: Google OAuth web support, Firebase OTP platform detection
  */
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { http, loadToken, saveToken, clearToken } from '../utils/api';
 
@@ -12,26 +11,6 @@ const AuthContext = createContext(null);
 
 const BIOMETRIC_EMAIL_KEY = 'lokalloop_bio_email';
 const BIOMETRIC_TOKEN_KEY = 'lokalloop_bio_token';
-
-// ── Firebase Web SDK initializer (web platform only) ─────────────────────────
-let _firebaseWebApp = null;
-async function getFirebaseWebAuth() {
-  const { initializeApp, getApps, getApp } = await import('firebase/app');
-  const { getAuth } = await import('firebase/auth');
-  if (!_firebaseWebApp) {
-    if (getApps().length === 0) {
-      _firebaseWebApp = initializeApp({
-        apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-        authDomain:        process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-        projectId:         process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-        appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-      });
-    } else {
-      _firebaseWebApp = getApp();
-    }
-  }
-  return getAuth(_firebaseWebApp);
-}
 
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
@@ -163,72 +142,31 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // ── Phone OTP via Firebase Auth ───────────────────────────────────────────
-  // Native (Android/iOS): uses @react-native-firebase/auth
-  // Web: uses firebase/auth (Web SDK) with invisible reCAPTCHA
+  // ── Phone OTP via backend (Fast2SMS) ─────────────────────────────────────
+  // No Firebase native module required — works in any Expo build.
   async function sendOTP(phone) {
     try {
-      const fullPhone = `+91${phone}`;
-
-      if (Platform.OS !== 'web') {
-        // ── Native path ──────────────────────────────────────────────────────
-        const auth = require('@react-native-firebase/auth').default;
-        const confirmation = await auth().signInWithPhoneNumber(fullPhone);
-        return { ok: true, confirmation, isWeb: false };
-      } else {
-        // ── Web path ─────────────────────────────────────────────────────────
-        const { signInWithPhoneNumber, RecaptchaVerifier } = await import('firebase/auth');
-        const auth = await getFirebaseWebAuth();
-
-        // Create invisible reCAPTCHA — attaches to the div#recaptcha-container
-        if (!window._recaptchaVerifier) {
-          window._recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            size: 'invisible',
-            callback: () => {},
-          });
-        }
-
-        const confirmation = await signInWithPhoneNumber(auth, fullPhone, window._recaptchaVerifier);
-        return { ok: true, confirmation, isWeb: true };
-      }
+      const r = await http('POST', '/api/auth/send-otp', { phone });
+      if (!r?.ok) return r ?? { ok: false, error: 'Failed to send OTP. Please try again.' };
+      // Pass phone in confirmation so verifyOTP can send it to the backend
+      return { ok: true, confirmation: { phone } };
     } catch (e) {
-      console.warn('Firebase sendOTP error:', e.message);
-      // Reset web recaptcha on error so it can be retried
-      if (Platform.OS === 'web' && window._recaptchaVerifier) {
-        try { window._recaptchaVerifier.clear(); } catch {}
-        window._recaptchaVerifier = null;
-      }
-      const msg = e.code === 'auth/invalid-phone-number'
-        ? 'Enter a valid 10-digit Indian mobile number.'
-        : e.code === 'auth/too-many-requests'
-        ? 'Too many OTP requests. Please wait a few minutes.'
-        : e.code === 'auth/captcha-check-failed'
-        ? 'reCAPTCHA failed. Please refresh and try again.'
-        : 'Failed to send OTP. Please try again.';
-      return { ok: false, error: msg };
+      console.warn('sendOTP error:', e.message);
+      return { ok: false, error: 'Failed to send OTP. Please check your connection.' };
     }
   }
 
   async function verifyOTP(confirmation, otp) {
     try {
-      // Works the same for both native and web — confirmation.confirm(otp)
-      const result  = await confirmation.confirm(otp);
-      const idToken = await result.user.getIdToken();
-
-      const r = await http('POST', '/api/auth/verify-firebase-otp', { idToken });
-      if (!r?.ok) return r ?? { ok: false, error: 'OTP verification failed.' };
+      const r = await http('POST', '/api/auth/verify-otp', { phone: confirmation.phone, otp });
+      if (!r?.ok) return r ?? { ok: false, error: 'OTP verification failed. Please try again.' };
       await saveToken(r.token);
       setUser(r.user);
       await loadJobs(1);
       return r;
     } catch (e) {
-      console.warn('Firebase verifyOTP error:', e.message);
-      const msg = e.code === 'auth/invalid-verification-code'
-        ? 'Incorrect OTP. Please check and try again.'
-        : e.code === 'auth/code-expired'
-        ? 'OTP expired. Please request a new one.'
-        : 'OTP verification failed. Please try again.';
-      return { ok: false, error: msg };
+      console.warn('verifyOTP error:', e.message);
+      return { ok: false, error: 'OTP verification failed. Please try again.' };
     }
   }
 
