@@ -44,11 +44,17 @@ router.post('/', auth, async (req, res) => {
     const { price, days } = PLANS[plan];
     const accentColor = BANNER_COLORS[bannerStyle] || '#f97316';
 
+    // Calculate expiry date based on plan days
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + days);
+
+    // Status is set to 'active' immediately so the promotion goes live on
+    // Jobs, Rooms, Cars, and Buy & Sell pages right away.
     const { rows } = await pool.query(
       `INSERT INTO business_promotions
          (user_id, biz_name, tagline, phone, category, location, address,
-          website, description, plan, plan_price, plan_days, banner_style, accent_color, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'pending')
+          website, description, plan, plan_price, plan_days, banner_style, accent_color, status, expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active',$15)
        RETURNING *`,
       [
         req.user.id,
@@ -56,6 +62,7 @@ router.post('/', auth, async (req, res) => {
         category.trim(), location.trim(), address?.trim() || null,
         website?.trim() || null, description?.trim() || null,
         plan, price, days, bannerStyle || 'bold', accentColor,
+        expiresAt,
       ]
     );
 
