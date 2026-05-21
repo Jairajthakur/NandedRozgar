@@ -934,7 +934,7 @@ export default function RoomScreen({ route }) {
       {StickyHeader}
       <FlatList
         ref={flatListRef}
-        data={filtered}
+        data={interleavedFeed}
         keyExtractor={r => r.id}
         ListHeaderComponent={<>{Header}{ListHeader}</>}
         contentContainerStyle={s.list}
