@@ -937,19 +937,20 @@ function LayoutRoseWellness({ data }) {
  */
 export function BannerCard({ promo }) {
   if (!promo) return null;
+  // API returns: bizName, tagline, phone, category, location, address, website, description, plan
   const data = {
-    name:          promo.businessName || promo.name || '',
-    tagline:       promo.tagline       || '',
-    description:   promo.description   || '',
-    category:      promo.category      || '',
-    phone:         promo.phone         || promo.whatsapp || '',
-    whatsapp:      promo.whatsapp      || promo.phone    || '',
-    location:      promo.location      || promo.area     || '',
-    plan:          promo.plan          || '',
-    verified:      promo.verified      || false,
-    isPopular:     promo.isPopular     || false,
-    discountOffer: promo.discountOffer || '',
-    features:      Array.isArray(promo.features) ? promo.features : [],
+    name:          promo.bizName      || promo.businessName || promo.name || '',
+    tagline:       promo.tagline      || '',
+    description:   promo.description  || '',
+    category:      promo.category     || '',
+    phone:         promo.phone        || '',
+    whatsapp:      promo.phone        || '',
+    location:      promo.location     || promo.address || '',
+    plan:          promo.plan         || '',
+    verified:      false,
+    isPopular:     promo.plan === 'premium' || promo.plan === 'popular',
+    discountOffer: '',
+    features:      promo.website ? [promo.website] : [],
   };
   return <PromoBanner data={data} />;
 }
