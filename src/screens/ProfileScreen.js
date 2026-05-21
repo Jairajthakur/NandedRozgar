@@ -1,47 +1,233 @@
 /**
- * LokalLoop — ProfileScreen.js
- * Web-ready: responsive layout, no Alert (web-safe modal), platform-safe styles
+ * NandedRozgar — ProfileScreen.js
+ * Redesigned: Dark luxury aesthetic, animated hero, floating orbs,
+ * staggered entrance, glowing avatar ring, animated stat counters, rich micro-interactions
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Modal, Platform,
+  ActivityIndicator, Modal, Platform, Animated, Easing, Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { http } from '../utils/api';
 
-const ORANGE  = '#f97316';
-const BG      = '#f5f5f5';
-const DARK    = '#111';
-const CARD    = '#fff';
-const BORDER  = '#ebebeb';
+const { width: SCREEN_W } = Dimensions.get('window');
 
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const ORANGE   = '#f97316';
+const ORANGE2  = '#fb923c';
+const AMBER    = '#fbbf24';
+const BG       = '#0c0c0e';
+const SURFACE  = '#141417';
+const CARD     = '#1a1a1f';
+const BORDER   = 'rgba(255,255,255,0.07)';
+const TEXT     = '#f0f0f0';
+const MUTED    = '#6b6b7a';
+const GREEN    = '#22c55e';
+
+// ── Animated stat counter ─────────────────────────────────────────────────────
+function AnimatedNumber({ value, style }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    anim.setValue(0);
+    Animated.timing(anim, {
+      toValue: value,
+      duration: 900,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+    const id = anim.addListener(({ value: v }) => setDisplay(Math.floor(v)));
+    return () => anim.removeListener(id);
+  }, [value]);
+
+  return <Text style={style}>{display}</Text>;
+}
+
+// ── Floating orb ─────────────────────────────────────────────────────────────
+function FloatingOrb({ size, color, x, y, delay, duration }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true, delay }),
+        Animated.timing(anim, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [0, -18] });
+  const opacity    = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.15, 0.35, 0.15] });
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute', left: x, top: y,
+        width: size, height: size, borderRadius: size / 2,
+        backgroundColor: color,
+        transform: [{ translateY }],
+        opacity,
+      }}
+    />
+  );
+}
+
+// ── Menu row with press animation ─────────────────────────────────────────────
+function MenuRow({ item, isLast, index }) {
+  const scale   = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(16)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1, duration: 320,
+        delay: 600 + index * 55,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0, duration: 320,
+        delay: 600 + index * 55,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const onPressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 20 }).start();
+
+  // Icon bg colors per category
+  const iconColors = {
+    'person-outline':           { bg: 'rgba(249,115,22,0.12)', icon: ORANGE },
+    'checkmark-circle-outline': { bg: 'rgba(34,197,94,0.12)',  icon: GREEN  },
+    'bookmark-outline':         { bg: 'rgba(251,191,36,0.12)', icon: AMBER  },
+    'notifications-outline':    { bg: 'rgba(99,102,241,0.12)', icon: '#818cf8' },
+    'chatbubbles-outline':      { bg: 'rgba(14,165,233,0.12)', icon: '#38bdf8' },
+    'briefcase-outline':        { bg: 'rgba(249,115,22,0.12)', icon: ORANGE },
+    'bar-chart-outline':        { bg: 'rgba(34,197,94,0.12)',  icon: GREEN  },
+    'star-outline':             { bg: 'rgba(251,191,36,0.12)', icon: AMBER  },
+    'shield-checkmark-outline': { bg: 'rgba(249,115,22,0.12)', icon: ORANGE },
+    'people-outline':           { bg: 'rgba(99,102,241,0.12)', icon: '#818cf8' },
+    'share-social-outline':     { bg: 'rgba(251,191,36,0.12)', icon: AMBER  },
+    'help-circle-outline':      { bg: 'rgba(107,114,128,0.15)', icon: '#9ca3af' },
+    'information-circle-outline':{ bg: 'rgba(107,114,128,0.15)', icon: '#9ca3af' },
+  };
+  const { bg: iconBg, icon: iconColor } = iconColors[item.icon] || { bg: 'rgba(249,115,22,0.12)', icon: ORANGE };
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }, { scale }] }}>
+      <TouchableOpacity
+        style={[styles.menuItem, !isLast && styles.menuItemBorder]}
+        onPress={item.onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        activeOpacity={1}
+      >
+        <View style={[styles.menuIcon, { backgroundColor: iconBg }]}>
+          <Ionicons name={item.icon} size={18} color={iconColor} />
+        </View>
+        <Text style={styles.menuLabel}>{item.label}</Text>
+        <View style={{ flex: 1 }} />
+        {item.badge > 0 && (
+          <View style={[styles.badge, { backgroundColor: iconColor }]}>
+            <Text style={styles.badgeTxt}>{item.badge}</Text>
+          </View>
+        )}
+        <View style={styles.menuArrow}>
+          <Ionicons name="chevron-forward" size={13} color={MUTED} />
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const nav = useNavigation();
   const { user, signOut, jobs } = useAuth();
-  const [stats,   setStats]   = useState({ applied: 0, saved: 0 });
-  const [loading, setLoading] = useState(true);
+  const [stats,      setStats]      = useState({ applied: 0, saved: 0 });
+  const [loading,    setLoading]    = useState(true);
   const [logoutModal, setLogoutModal] = useState(false);
 
-  const myJobs  = jobs?.filter(j => String(j.posted_by) === String(user?.id)) || [];
-  const isSeeker   = !user?.company || user.company.trim() === '';
-  const isAdmin    = user?.role === 'admin';
+  const myJobs   = jobs?.filter(j => String(j.posted_by) === String(user?.id)) || [];
+  const isSeeker = !user?.company || user.company.trim() === '';
+  const isAdmin  = user?.role === 'admin';
+
+  // ── Entrance animations ───────────────────────────────────────────────────
+  const heroScale    = useRef(new Animated.Value(0.92)).current;
+  const heroOpacity  = useRef(new Animated.Value(0)).current;
+  const avatarScale  = useRef(new Animated.Value(0.5)).current;
+  const avatarOpacity= useRef(new Animated.Value(0)).current;
+  const ringScale    = useRef(new Animated.Value(0.6)).current;
+  const ringOpacity  = useRef(new Animated.Value(0)).current;
+  const statsY       = useRef(new Animated.Value(24)).current;
+  const statsOpacity = useRef(new Animated.Value(0)).current;
+  const pulseAnim    = useRef(new Animated.Value(1)).current;
+  const ringRotate   = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Hero fade in
+    Animated.parallel([
+      Animated.timing(heroOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.spring(heroScale,   { toValue: 1, damping: 18, stiffness: 120, useNativeDriver: true }),
+    ]).start();
+
+    // Avatar pop in
+    Animated.sequence([
+      Animated.delay(150),
+      Animated.parallel([
+        Animated.spring(avatarScale,   { toValue: 1, damping: 12, stiffness: 180, useNativeDriver: true }),
+        Animated.timing(avatarOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    // Glowing ring
+    Animated.sequence([
+      Animated.delay(300),
+      Animated.parallel([
+        Animated.spring(ringScale,   { toValue: 1, damping: 10, stiffness: 100, useNativeDriver: true }),
+        Animated.timing(ringOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    // Stats slide up
+    Animated.sequence([
+      Animated.delay(400),
+      Animated.parallel([
+        Animated.timing(statsOpacity, { toValue: 1, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(statsY,       { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    // Pulse ring
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.08, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,    duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    ).start();
+
+    // Slow ring rotation
+    Animated.loop(
+      Animated.timing(ringRotate, { toValue: 1, duration: 8000, easing: Easing.linear, useNativeDriver: true })
+    ).start();
+  }, []);
 
   useEffect(() => {
     http('GET', '/api/analytics/seeker').then(r => {
-      if (r?.ok) {
-        setStats({
-          applied: parseInt(r.applications?.total) || 0,
-          saved:   r.savedCount || 0,
-        });
-      }
+      if (r?.ok) setStats({ applied: parseInt(r.applications?.total) || 0, saved: r.savedCount || 0 });
       setLoading(false);
     });
   }, []);
 
-  // ── Web-safe confirm logout (no Alert on web) ────────────────────────────
   function confirmLogout() {
     if (Platform.OS === 'web') {
       setLogoutModal(true);
@@ -54,41 +240,40 @@ export default function ProfileScreen() {
     }
   }
 
-  // ── Menu items ────────────────────────────────────────────────────────────
   const seekerMenu = [
-    { icon: 'person-outline',           label: 'My Seeker Profile',  onPress: () => nav.navigate('SeekerProfile') },
-    { icon: 'checkmark-circle-outline', label: 'My Applications',    badge: stats.applied, onPress: () => nav.navigate('MyApplications') },
-    { icon: 'bookmark-outline',         label: 'Saved Jobs',         badge: stats.saved,   onPress: () => nav.navigate('Jobs') },
-    { icon: 'notifications-outline',    label: 'Job Alerts',         onPress: () => nav.navigate('Alerts') },
-    { icon: 'chatbubbles-outline',      label: 'My Messages',        onPress: () => nav.navigate('ChatList') },
+    { icon: 'person-outline',           label: 'My Seeker Profile',   onPress: () => nav.navigate('SeekerProfile') },
+    { icon: 'checkmark-circle-outline', label: 'My Applications',     badge: stats.applied, onPress: () => nav.navigate('MyApplications') },
+    { icon: 'bookmark-outline',         label: 'Saved Jobs',          badge: stats.saved,   onPress: () => nav.navigate('Jobs') },
+    { icon: 'notifications-outline',    label: 'Job Alerts',          onPress: () => nav.navigate('Alerts') },
+    { icon: 'chatbubbles-outline',      label: 'My Messages',         onPress: () => nav.navigate('ChatList') },
   ];
-
   const employerMenu = [
-    { icon: 'briefcase-outline',        label: 'My Job Posts',       badge: myJobs.length, onPress: () => nav.navigate('Jobs') },
-    { icon: 'bar-chart-outline',        label: 'Analytics Dashboard',onPress: () => nav.navigate('Analytics') },
-    { icon: 'chatbubbles-outline',      label: 'My Messages',        onPress: () => nav.navigate('ChatList') },
-    { icon: 'star-outline',             label: 'My Reviews',         onPress: () => nav.navigate('ChatList') },
+    { icon: 'briefcase-outline',        label: 'My Job Posts',        badge: myJobs.length, onPress: () => nav.navigate('Jobs') },
+    { icon: 'bar-chart-outline',        label: 'Analytics Dashboard', onPress: () => nav.navigate('Analytics') },
+    { icon: 'chatbubbles-outline',      label: 'My Messages',         onPress: () => nav.navigate('ChatList') },
+    { icon: 'star-outline',             label: 'My Reviews',          onPress: () => nav.navigate('ChatList') },
   ];
-
   const adminMenu = [
-    { icon: 'shield-checkmark-outline', label: 'Admin Dashboard',    onPress: () => nav.navigate('Admin') },
-    { icon: 'people-outline',           label: 'Manage Users',       onPress: () => nav.navigate('Admin') },
-    { icon: 'bar-chart-outline',        label: 'Analytics',          onPress: () => nav.navigate('Analytics') },
-    { icon: 'chatbubbles-outline',      label: 'My Messages',        onPress: () => nav.navigate('ChatList') },
+    { icon: 'shield-checkmark-outline', label: 'Admin Dashboard',     onPress: () => nav.navigate('Admin') },
+    { icon: 'people-outline',           label: 'Manage Users',        onPress: () => nav.navigate('Admin') },
+    { icon: 'bar-chart-outline',        label: 'Analytics',           onPress: () => nav.navigate('Analytics') },
+    { icon: 'chatbubbles-outline',      label: 'My Messages',         onPress: () => nav.navigate('ChatList') },
   ];
-
   const commonMenu = [
-    { icon: 'share-social-outline',     label: 'Refer & Earn',       onPress: () => nav.navigate('Referral') },
-    { icon: 'help-circle-outline',      label: 'Help & Support',     onPress: () => {} },
-    { icon: 'information-circle-outline', label: 'About LokalLoop', onPress: () => {} },
+    { icon: 'share-social-outline',       label: 'Refer & Earn',      onPress: () => nav.navigate('Referral') },
+    { icon: 'help-circle-outline',        label: 'Help & Support',    onPress: () => {} },
+    { icon: 'information-circle-outline', label: 'About NandedRozgar',onPress: () => {} },
   ];
 
-  const roleMenu = isAdmin ? adminMenu : isSeeker ? seekerMenu : employerMenu;
+  const roleMenu  = isAdmin ? adminMenu : isSeeker ? seekerMenu : employerMenu;
   const menuItems = [...roleMenu, ...commonMenu];
 
-  const roleLabel = isAdmin ? '⚡ Admin' : isSeeker ? '👤 Job Seeker' : '🏢 Employer';
+  const roleLabel = isAdmin ? 'Admin' : isSeeker ? 'Job Seeker' : 'Employer';
+  const roleIcon  = isAdmin ? 'shield-checkmark' : isSeeker ? 'person' : 'business';
+  const roleColor = isAdmin ? '#f59e0b' : isSeeker ? ORANGE : '#38bdf8';
   const initials  = user?.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
+  const ringRotateDeg = ringRotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   return (
     <View style={styles.root}>
@@ -97,95 +282,147 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Profile Card — full bleed across entire width ── */}
-        <View style={styles.profileCard}>
-          <View style={styles.cardBg} />
-          <View style={styles.avatarWrap}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarTxt}>{initials}</Text>
-            </View>
-            <View style={styles.onlineDot} />
+
+        {/* ── Hero Section ───────────────────────────────────────── */}
+        <Animated.View style={[styles.hero, { opacity: heroOpacity, transform: [{ scale: heroScale }] }]}>
+
+          {/* Floating orbs */}
+          <FloatingOrb size={120} color={ORANGE}   x={-30}          y={-20}  delay={0}    duration={3200} />
+          <FloatingOrb size={80}  color={AMBER}    x={SCREEN_W-60}  y={10}   delay={800}  duration={2800} />
+          <FloatingOrb size={60}  color={'#818cf8'} x={SCREEN_W*0.5} y={60}  delay={400}  duration={3600} />
+          <FloatingOrb size={40}  color={ORANGE}   x={SCREEN_W*0.2} y={120}  delay={1200} duration={2400} />
+
+          {/* Mesh gradient overlay */}
+          <View style={styles.heroGradient} />
+          <View style={styles.heroGradient2} />
+
+          {/* Decorative grid lines */}
+          <View style={styles.gridLine1} />
+          <View style={styles.gridLine2} />
+
+          {/* Avatar with glow ring */}
+          <View style={styles.avatarSection}>
+            {/* Outer pulse ring */}
+            <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim }] }]} />
+
+            {/* Rotating dashed ring */}
+            <Animated.View style={[styles.rotatingRing, { opacity: ringOpacity, transform: [{ scale: ringScale }, { rotate: ringRotateDeg }] }]}>
+              {[...Array(12)].map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.ringDot,
+                    {
+                      transform: [
+                        { rotate: `${i * 30}deg` },
+                        { translateY: -54 },
+                      ],
+                      opacity: i % 2 === 0 ? 1 : 0.4,
+                    },
+                  ]}
+                />
+              ))}
+            </Animated.View>
+
+            {/* Avatar */}
+            <Animated.View style={[styles.avatarWrap, { opacity: avatarOpacity, transform: [{ scale: avatarScale }] }]}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarTxt}>{initials}</Text>
+              </View>
+              {/* Online dot */}
+              <View style={styles.onlineDot}>
+                <View style={styles.onlineDotInner} />
+              </View>
+            </Animated.View>
           </View>
+
+          {/* Name & info */}
           <Text style={styles.name}>{user?.name || 'User'}</Text>
-          <Text style={styles.email}>{user?.email || ''}</Text>
-          {user?.phone ? <Text style={styles.phone}>📱 +91 {user.phone}</Text> : null}
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleTxt}>{roleLabel}</Text>
+          {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
+          {user?.phone ? <Text style={styles.phone}>+91 {user.phone}</Text> : null}
+
+          {/* Role pill */}
+          <View style={[styles.rolePill, { borderColor: roleColor + '40', backgroundColor: roleColor + '18' }]}>
+            <Ionicons name={roleIcon} size={12} color={roleColor} />
+            <Text style={[styles.roleTxt, { color: roleColor }]}>{roleLabel}</Text>
           </View>
+
+          {/* Member since */}
           <Text style={styles.memberSince}>
             Member since {user?.created_at
               ? new Date(user.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
               : 'recently'}
           </Text>
-        </View>
+        </Animated.View>
 
-        {/* ── Centered content below ── */}
-        <View style={styles.inner}>
-
-          {/* ── Stats Row ── */}
+        {/* ── Stats ──────────────────────────────────────────────── */}
+        <Animated.View style={[styles.statsCard, { opacity: statsOpacity, transform: [{ translateY: statsY }] }]}>
           {loading ? (
-            <View style={styles.statsLoading}>
-              <ActivityIndicator color={ORANGE} />
-            </View>
+            <ActivityIndicator color={ORANGE} size="small" style={{ padding: 20 }} />
           ) : (
-            <View style={styles.statsRow}>
-              <TouchableOpacity style={styles.statBox} onPress={() => nav.navigate('Jobs')} activeOpacity={0.8}>
-                <Text style={styles.statNum}>{myJobs.length}</Text>
-                <Text style={styles.statLbl}>{isSeeker ? 'Posts' : 'Jobs Posted'}</Text>
+            <>
+              <TouchableOpacity style={styles.statItem} onPress={() => nav.navigate('Jobs')} activeOpacity={0.7}>
+                <View style={[styles.statIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
+                  <Ionicons name="briefcase" size={16} color={ORANGE} />
+                </View>
+                <AnimatedNumber value={myJobs.length} style={styles.statNum} />
+                <Text style={styles.statLbl}>{isSeeker ? 'Posts' : 'Posted'}</Text>
               </TouchableOpacity>
-              <View style={styles.statDivider} />
-              <TouchableOpacity style={styles.statBox} onPress={() => isSeeker && nav.navigate('MyApplications')} activeOpacity={0.8}>
-                <Text style={styles.statNum}>{stats.applied}</Text>
+
+              <View style={styles.statSep} />
+
+              <TouchableOpacity style={styles.statItem} onPress={() => isSeeker && nav.navigate('MyApplications')} activeOpacity={0.7}>
+                <View style={[styles.statIconWrap, { backgroundColor: 'rgba(34,197,94,0.12)' }]}>
+                  <Ionicons name="checkmark-circle" size={16} color={GREEN} />
+                </View>
+                <AnimatedNumber value={stats.applied} style={styles.statNum} />
                 <Text style={styles.statLbl}>Applied</Text>
               </TouchableOpacity>
-              <View style={styles.statDivider} />
-              <TouchableOpacity style={styles.statBox} activeOpacity={0.8}>
-                <Text style={styles.statNum}>{stats.saved}</Text>
+
+              <View style={styles.statSep} />
+
+              <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
+                <View style={[styles.statIconWrap, { backgroundColor: 'rgba(251,191,36,0.12)' }]}>
+                  <Ionicons name="bookmark" size={16} color={AMBER} />
+                </View>
+                <AnimatedNumber value={stats.saved} style={styles.statNum} />
                 <Text style={styles.statLbl}>Saved</Text>
               </TouchableOpacity>
-            </View>
+            </>
           )}
+        </Animated.View>
 
-          {/* ── Menu ── */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>My Account</Text>
+        {/* ── Menu sections ──────────────────────────────────────── */}
+        <View style={styles.inner}>
+
+          <View style={styles.sectionWrap}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionDot} />
+              <Text style={styles.sectionTitle}>My Account</Text>
+            </View>
             <View style={styles.menuCard}>
               {menuItems.map((item, i) => (
-                <TouchableOpacity
+                <MenuRow
                   key={i}
-                  style={[styles.menuItem, i === menuItems.length - 1 && styles.menuItemLast]}
-                  onPress={item.onPress}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.menuIcon}>
-                    <Ionicons name={item.icon} size={19} color={ORANGE} />
-                  </View>
-                  <Text style={styles.menuLabel}>{item.label}</Text>
-                  <View style={{ flex: 1 }} />
-                  {item.badge > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeTxt}>{item.badge}</Text>
-                    </View>
-                  )}
-                  <Ionicons name="chevron-forward" size={15} color="#ccc" />
-                </TouchableOpacity>
+                  item={item}
+                  isLast={i === menuItems.length - 1}
+                  index={i}
+                />
               ))}
             </View>
           </View>
 
           {/* ── Sign Out ── */}
-          <View style={styles.section}>
-            <TouchableOpacity style={styles.signOutBtn} onPress={confirmLogout} activeOpacity={0.85}>
-              <Ionicons name="log-out-outline" size={18} color="#ef4444" />
-              <Text style={styles.signOutTxt}>Sign Out</Text>
-            </TouchableOpacity>
+          <View style={[styles.sectionWrap, { marginTop: 8 }]}>
+            <SignOutButton onPress={confirmLogout} />
           </View>
 
-          <Text style={styles.version}>LokalLoop v1.2.0 · Nanded, Maharashtra</Text>
+          <Text style={styles.version}>NandedRozgar v1.2.0 · Nanded, Maharashtra</Text>
         </View>
+
       </ScrollView>
 
-      {/* ── Web-safe Logout Modal ── */}
+      {/* ── Logout Modal ─────────────────────────────────────────── */}
       <Modal
         visible={logoutModal}
         transparent
@@ -193,196 +430,323 @@ export default function ProfileScreen() {
         onRequestClose={() => setLogoutModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalIcon}>
-              <Ionicons name="log-out-outline" size={28} color="#ef4444" />
-            </View>
-            <Text style={styles.modalTitle}>Sign Out</Text>
-            <Text style={styles.modalSub}>Are you sure you want to sign out of your account?</Text>
-            <View style={styles.modalBtns}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setLogoutModal(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.modalCancelTxt}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalLogoutBtn}
-                onPress={() => { setLogoutModal(false); signOut(); }}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.modalLogoutTxt}>Sign Out</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <LogoutModalCard
+            onCancel={() => setLogoutModal(false)}
+            onConfirm={() => { setLogoutModal(false); signOut(); }}
+          />
         </View>
       </Modal>
     </View>
   );
 }
 
+// ── Sign out button ───────────────────────────────────────────────────────────
+function SignOutButton({ onPress }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const glow  = useRef(new Animated.Value(0)).current;
+
+  const onIn  = () => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }),
+      Animated.timing(glow,  { toValue: 1, duration: 200, useNativeDriver: false }),
+    ]).start();
+  };
+  const onOut = () => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20 }),
+      Animated.timing(glow,  { toValue: 0, duration: 300, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const borderColor = glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(239,68,68,0.2)', 'rgba(239,68,68,0.6)'] });
+  const bgColor     = glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(239,68,68,0.04)', 'rgba(239,68,68,0.10)'] });
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity onPress={onPress} onPressIn={onIn} onPressOut={onOut} activeOpacity={1}>
+        <Animated.View style={[styles.signOutBtn, { borderColor, backgroundColor: bgColor }]}>
+          <View style={styles.signOutIconWrap}>
+            <Ionicons name="log-out-outline" size={17} color="#ef4444" />
+          </View>
+          <Text style={styles.signOutTxt}>Sign Out</Text>
+          <Ionicons name="chevron-forward" size={14} color="rgba(239,68,68,0.5)" style={{ marginLeft: 'auto' }} />
+        </Animated.View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// ── Logout modal card ─────────────────────────────────────────────────────────
+function LogoutModalCard({ onCancel, onConfirm }) {
+  const scale   = useRef(new Animated.Value(0.85)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale,   { toValue: 1, damping: 16, stiffness: 200, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={[styles.modalCard, { opacity, transform: [{ scale }] }]}>
+      {/* Icon */}
+      <View style={styles.modalIconRing}>
+        <View style={styles.modalIconInner}>
+          <Ionicons name="log-out-outline" size={26} color="#ef4444" />
+        </View>
+      </View>
+      <Text style={styles.modalTitle}>Sign Out?</Text>
+      <Text style={styles.modalSub}>You'll need to sign back in to access your account.</Text>
+      <View style={styles.modalBtns}>
+        <TouchableOpacity style={styles.modalCancelBtn} onPress={onCancel} activeOpacity={0.8}>
+          <Text style={styles.modalCancelTxt}>Stay</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modalLogoutBtn} onPress={onConfirm} activeOpacity={0.8}>
+          <Ionicons name="log-out-outline" size={15} color="#fff" />
+          <Text style={styles.modalLogoutTxt}>Sign Out</Text>
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
+  );
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root:         { flex: 1, backgroundColor: BG },
   scroll:       { flex: 1 },
-  scrollContent:{ flexGrow: 1, alignItems: 'stretch', paddingBottom: 40 },
+  scrollContent:{ flexGrow: 1, alignItems: 'stretch', paddingBottom: 48 },
 
-  // inner — centered with maxWidth, sits below full-bleed profile card
-  inner:        { width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 0 },
-
-  // ── Profile card — always full width, no maxWidth
-  profileCard:  {
+  // ── Hero
+  hero: {
     alignItems: 'center',
-    backgroundColor: DARK,
-    paddingTop: 40,
-    paddingBottom: 28,
-    paddingHorizontal: 24,
+    paddingTop: 44, paddingBottom: 36,
+    backgroundColor: SURFACE,
     overflow: 'hidden',
     width: '100%',
-  },
-  cardBg: {
-    position: 'absolute', top: -40, left: -40, right: -40,
-    height: 160,
-    backgroundColor: 'rgba(249,115,22,0.07)',
-    borderRadius: 100,
-    transform: [{ scaleX: 2 }],
-  },
-  avatarWrap:   { position: 'relative', marginBottom: 14 },
-  avatar:       {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: ORANGE,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: 'rgba(255,255,255,0.12)',
-  },
-  avatarTxt:    { fontSize: 28, fontWeight: '900', color: '#fff' },
-  onlineDot:    {
-    position: 'absolute', bottom: 3, right: 3,
-    width: 14, height: 14, borderRadius: 7,
-    backgroundColor: '#22c55e',
-    borderWidth: 2, borderColor: DARK,
-  },
-  name:         { fontSize: 22, fontWeight: '900', color: '#fff', marginBottom: 3 },
-  email:        { fontSize: 13, color: '#999', marginBottom: 4 },
-  phone:        { fontSize: 12, color: '#777', marginBottom: 8 },
-  roleBadge:    {
-    backgroundColor: 'rgba(249,115,22,0.15)',
-    paddingVertical: 4, paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)',
-    marginBottom: 10,
-  },
-  roleTxt:      { color: ORANGE, fontSize: 12, fontWeight: '700' },
-  memberSince:  { fontSize: 11, color: '#555' },
-
-  // ── Stats
-  statsLoading: { padding: 20, alignItems: 'center' },
-  statsRow:     {
-    flexDirection: 'row',
-    backgroundColor: CARD,
-    marginHorizontal: 16, marginTop: 16,
-    borderRadius: 14,
-    padding: 18,
-    borderWidth: 1, borderColor: BORDER,
+    position: 'relative',
     ...Platform.select({
-      web: { boxShadow: '0 2px 12px rgba(0,0,0,0.06)' },
-      default: { elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8 },
+      web: { boxShadow: '0 8px 40px rgba(0,0,0,0.5)' },
+      default: { elevation: 8, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 20 },
     }),
   },
-  statBox:      { flex: 1, alignItems: 'center' },
-  statNum:      { fontSize: 22, fontWeight: '900', color: DARK },
-  statLbl:      { fontSize: 11, color: '#888', marginTop: 3, fontWeight: '500' },
-  statDivider:  { width: 1, backgroundColor: BORDER },
+
+  heroGradient: {
+    position: 'absolute', top: -80, left: -80,
+    width: 260, height: 260, borderRadius: 130,
+    backgroundColor: 'rgba(249,115,22,0.08)',
+  },
+  heroGradient2: {
+    position: 'absolute', bottom: -60, right: -60,
+    width: 200, height: 200, borderRadius: 100,
+    backgroundColor: 'rgba(99,102,241,0.06)',
+  },
+  gridLine1: {
+    position: 'absolute', top: 0, bottom: 0,
+    left: '25%', width: 1,
+    backgroundColor: 'rgba(255,255,255,0.025)',
+  },
+  gridLine2: {
+    position: 'absolute', top: 0, bottom: 0,
+    left: '75%', width: 1,
+    backgroundColor: 'rgba(255,255,255,0.025)',
+  },
+
+  // ── Avatar
+  avatarSection: {
+    width: 120, height: 120,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 18,
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 110, height: 110, borderRadius: 55,
+    borderWidth: 1.5,
+    borderColor: 'rgba(249,115,22,0.25)',
+  },
+  rotatingRing: {
+    position: 'absolute',
+    width: 120, height: 120,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  ringDot: {
+    position: 'absolute',
+    width: 5, height: 5, borderRadius: 2.5,
+    backgroundColor: ORANGE,
+  },
+  avatarWrap: {
+    position: 'relative',
+    width: 88, height: 88,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatar: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: ORANGE,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(249,115,22,0.4)',
+    ...Platform.select({
+      web: { boxShadow: '0 0 30px rgba(249,115,22,0.35), 0 0 60px rgba(249,115,22,0.15)' },
+      default: { elevation: 12, shadowColor: ORANGE, shadowOpacity: 0.4, shadowRadius: 16 },
+    }),
+  },
+  avatarTxt: { fontSize: 32, fontWeight: '900', color: '#fff', letterSpacing: 1 },
+  onlineDot: {
+    position: 'absolute', bottom: 2, right: 2,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: SURFACE,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  onlineDotInner: {
+    width: 12, height: 12, borderRadius: 6,
+    backgroundColor: GREEN,
+  },
+
+  name:        { fontSize: 24, fontWeight: '900', color: TEXT, letterSpacing: 0.3, marginBottom: 4 },
+  email:       { fontSize: 13, color: MUTED, marginBottom: 2, letterSpacing: 0.1 },
+  phone:       { fontSize: 12, color: MUTED, marginBottom: 10 },
+
+  rolePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingVertical: 5, paddingHorizontal: 14,
+    borderRadius: 20, borderWidth: 1,
+    marginBottom: 10, marginTop: 2,
+  },
+  roleTxt:     { fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
+  memberSince: { fontSize: 11, color: 'rgba(255,255,255,0.2)', letterSpacing: 0.2 },
+
+  // ── Stats card
+  statsCard: {
+    flexDirection: 'row',
+    backgroundColor: CARD,
+    marginHorizontal: 16, marginTop: -1,
+    borderRadius: 20,
+    paddingVertical: 18,
+    borderWidth: 1, borderColor: BORDER,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 24px rgba(0,0,0,0.3)' },
+      default: { elevation: 6, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 12 },
+    }),
+  },
+  statItem:     { flex: 1, alignItems: 'center', gap: 4 },
+  statIconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  statNum:      { fontSize: 22, fontWeight: '900', color: TEXT },
+  statLbl:      { fontSize: 10, color: MUTED, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase' },
+  statSep:      { width: 1, backgroundColor: BORDER, marginVertical: 4 },
+
+  // ── Inner container
+  inner:        { width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 16 },
 
   // ── Section
-  section:      { marginTop: 16, paddingHorizontal: 16 },
-  sectionTitle: { fontSize: 11, fontWeight: '800', color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8, marginLeft: 4 },
+  sectionWrap:  { marginTop: 20 },
+  sectionHeader:{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingHorizontal: 2 },
+  sectionDot:   { width: 4, height: 4, borderRadius: 2, backgroundColor: ORANGE },
+  sectionTitle: { fontSize: 10, fontWeight: '800', color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase' },
 
   // ── Menu
-  menuCard:     {
+  menuCard: {
     backgroundColor: CARD,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1, borderColor: BORDER,
     overflow: 'hidden',
     ...Platform.select({
-      web: { boxShadow: '0 2px 12px rgba(0,0,0,0.06)' },
-      default: { elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8 },
+      web: { boxShadow: '0 2px 16px rgba(0,0,0,0.25)' },
+      default: { elevation: 3, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10 },
     }),
   },
-  menuItem:     {
+  menuItem: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 14, paddingHorizontal: 16,
-    borderBottomWidth: 1, borderBottomColor: '#f5f5f5',
   },
-  menuItemLast: { borderBottomWidth: 0 },
-  menuIcon:     {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: '#fff7ed',
+  menuItemBorder: {
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  menuIcon: {
+    width: 38, height: 38, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
     marginRight: 13,
   },
-  menuLabel:    { fontSize: 14, fontWeight: '600', color: DARK },
-  badge:        {
-    backgroundColor: ORANGE,
-    borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2,
+  menuLabel:  { fontSize: 14, fontWeight: '600', color: TEXT },
+  menuArrow:  {
+    width: 26, height: 26, borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  badge: {
+    borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2,
     marginRight: 8,
   },
-  badgeTxt:     { color: '#fff', fontSize: 11, fontWeight: '700' },
+  badgeTxt: { color: '#fff', fontSize: 10, fontWeight: '800' },
 
   // ── Sign out
-  signOutBtn:   {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    padding: 14,
-    backgroundColor: CARD,
-    borderRadius: 12,
-    borderWidth: 1.5, borderColor: '#fca5a5',
-    ...Platform.select({
-      web: { boxShadow: '0 2px 8px rgba(239,68,68,0.08)' },
-      default: {},
-    }),
+  signOutBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    gap: 12,
+  },
+  signOutIconWrap: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    alignItems: 'center', justifyContent: 'center',
   },
   signOutTxt:   { fontSize: 14, fontWeight: '700', color: '#ef4444' },
 
-  version:      { textAlign: 'center', fontSize: 11, color: '#bbb', marginTop: 20 },
+  version: { textAlign: 'center', fontSize: 10, color: 'rgba(255,255,255,0.12)', marginTop: 24, letterSpacing: 0.5 },
 
-  // ── Logout modal
+  // ── Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     alignItems: 'center', justifyContent: 'center',
-    padding: 24,
-  },
-  modalCard:    {
-    backgroundColor: CARD,
-    borderRadius: 20,
     padding: 28,
-    width: '100%', maxWidth: 360,
+    backdropFilter: 'blur(4px)',
+  },
+  modalCard: {
+    backgroundColor: '#1c1c22',
+    borderRadius: 24,
+    padding: 32,
+    width: '100%', maxWidth: 340,
     alignItems: 'center',
+    borderWidth: 1, borderColor: BORDER,
     ...Platform.select({
-      web: { boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
-      default: { elevation: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20 },
+      web: { boxShadow: '0 24px 80px rgba(0,0,0,0.6)' },
+      default: { elevation: 24, shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 24 },
     }),
   },
-  modalIcon:    {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: '#fef2f2',
+  modalIconRing: {
+    width: 72, height: 72, borderRadius: 36,
+    borderWidth: 1.5, borderColor: 'rgba(239,68,68,0.25)',
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
   },
-  modalTitle:   { fontSize: 20, fontWeight: '900', color: DARK, marginBottom: 8 },
-  modalSub:     { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 19, marginBottom: 24 },
-  modalBtns:    { flexDirection: 'row', gap: 12, width: '100%' },
+  modalIconInner: {
+    width: 54, height: 54, borderRadius: 27,
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  modalTitle: { fontSize: 21, fontWeight: '900', color: TEXT, marginBottom: 8 },
+  modalSub:   { fontSize: 13, color: MUTED, textAlign: 'center', lineHeight: 20, marginBottom: 28 },
+  modalBtns:  { flexDirection: 'row', gap: 10, width: '100%' },
   modalCancelBtn: {
-    flex: 1, padding: 13,
-    borderRadius: 12,
+    flex: 1, paddingVertical: 13,
+    borderRadius: 14,
     borderWidth: 1.5, borderColor: BORDER,
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
-  modalCancelTxt: { fontSize: 14, fontWeight: '700', color: '#555' },
-  modalLogoutBtn: {
-    flex: 1, padding: 13,
-    borderRadius: 12,
+  modalCancelTxt:  { fontSize: 14, fontWeight: '700', color: MUTED },
+  modalLogoutBtn:  {
+    flex: 1.2, paddingVertical: 13,
+    borderRadius: 14,
     backgroundColor: '#ef4444',
     alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'center', gap: 7,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 16px rgba(239,68,68,0.4)' },
+      default: { elevation: 6, shadowColor: '#ef4444', shadowOpacity: 0.4, shadowRadius: 10 },
+    }),
   },
-  modalLogoutTxt: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  modalLogoutTxt:  { fontSize: 14, fontWeight: '800', color: '#fff' },
 });
