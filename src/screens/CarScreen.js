@@ -445,12 +445,31 @@ export default function CarsScreen({ route }) {
     plan:        'popular',
   };
 
+  const SponsoredLabel = () => (
+    <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
+      <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>SPONSORED</Text>
+    </View>
+  );
+
   const ListHeader = (
     <>
       <FadeIn delay={180}><TopVehiclesBanner /></FadeIn>
-      {promos.length > 0
-        ? promos.map(p => <BannerCard key={p.id} promo={p} />)
-        : <PromoBanner data={defaultPromo} />}
+      <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+        {promos.length > 0
+          ? promos.map(p => (
+              <View key={p.id} style={{ marginBottom: 10 }}>
+                <SponsoredLabel />
+                <BannerCard promo={p} />
+              </View>
+            ))
+          : (
+              <>
+                <SponsoredLabel />
+                <PromoBanner data={defaultPromo} />
+              </>
+            )}
+      </View>
     </>
   );
 
