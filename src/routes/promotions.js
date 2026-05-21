@@ -73,7 +73,8 @@ router.post('/', auth, async (req, res) => {
 router.get('/active', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, biz_name, tagline, phone, category, location, banner_style, accent_color, created_at
+      `SELECT id, biz_name, tagline, phone, category, location, address, website, description,
+              banner_style, accent_color, plan, created_at
        FROM business_promotions
        WHERE status = 'active'
          AND (expires_at IS NULL OR expires_at > NOW())
@@ -110,7 +111,8 @@ router.get('/active', async (req, res) => {
 router.get('/all', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, biz_name, tagline, phone, category, location, banner_style, accent_color, created_at
+      `SELECT id, biz_name, tagline, phone, category, location, address, website, description,
+              banner_style, accent_color, plan, expires_at, created_at
        FROM business_promotions
        WHERE status = 'active'
          AND (expires_at IS NULL OR expires_at > NOW())
@@ -124,8 +126,13 @@ router.get('/all', async (req, res) => {
       phone:       p.phone,
       category:    p.category,
       location:    p.location,
+      address:     p.address || '',
+      website:     p.website || '',
+      description: p.description || '',
+      plan:        p.plan || 'basic',
       bannerStyle: p.banner_style,
       accentColor: p.accent_color || '#f97316',
+      expiresAt:   p.expires_at,
       createdAt:   p.created_at,
     }));
 
