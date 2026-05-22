@@ -531,11 +531,17 @@ export default function RoomScreen({ route }) {
           vacancies: r.vacancies || 0,
         })));
       }
-      http('GET', '/api/promotions/all').then(pRes => {
-        if (pRes?.ok && Array.isArray(pRes.promotions)) setPromos(pRes.promotions);
-      });
     } catch (_) {}
     finally { setRefreshing(false); }
+  }, []);
+
+  // ── Fetch on mount ────────────────────────────────────────────────────────
+  useEffect(() => { fetchRooms(); }, [fetchRooms]);
+
+  useEffect(() => {
+    http('GET', '/api/promotions/all').then(res => {
+      if (res?.ok && Array.isArray(res.promotions)) setPromos(res.promotions);
+    }).catch(() => {});
   }, []);
 
   const filtered = useMemo(() => {
