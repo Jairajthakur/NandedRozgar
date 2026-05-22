@@ -85,6 +85,7 @@ function startExpiryCleanup() {
 }
 
 
+const PORT = process.env.PORT || 3000;
 
 runMigrations()
   .then(() => {
