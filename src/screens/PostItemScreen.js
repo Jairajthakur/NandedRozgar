@@ -9,6 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import { http } from '../utils/api';
+import { useRazorpayCheckout } from '../utils/razorpay';
+import { useAuth } from '../context/AuthContext';
 
 const { width: SW } = Dimensions.get('window');
 const ORANGE = '#f97316';
@@ -537,6 +539,8 @@ function Step5({ form }) {
 // ═══════════════════════════════════════════
 export default function PostItemScreen() {
   const nav = useNavigation();
+  const { user } = useAuth();
+  const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -594,20 +598,45 @@ export default function PostItemScreen() {
     }
     setLoading(true);
     try {
-      const res = await http('POST', '/api/buysell', {
-        title:       form.title.trim(),
-        category:    form.category,
-        condition:   form.condition,
-        age:         form.age,
-        price:       parseInt(form.price) || 0,
-        negotiable:  form.negotiable,
-        area:        form.area,
-        description: form.description.trim(),
-        whatsapp:    form.whatsapp.trim(),
-        photos:      form.photos,
-        planDays:    form.plan.days,
-        planLabel:   form.plan.label,
-        planPrice:   form.plan.price,
+      const planPrice   = form.plan?.price ?? 0;
+      const amountPaise = planPrice * 100;
+
+      // ── Step 1: Payment ────────────────────────────────────────────────────
+      const payResult = await initiatePayment({
+        amount:      amountPaise,
+        description: `Buy & Sell Listing – ${form.plan?.label || '15 Days'}`,
+      });
+
+      if (!payResult.success) {
+        if (!payResult.cancelled) {
+          Alert.alert('Payment Failed', payResult.error || 'Payment not completed. Please try again.');
+        }
+        return;
+      }
+
+      // ── Step 2: Verify payment & create listing ────────────────────────────
+      const res = await http('POST', '/api/payments/verify/buysell', {
+        razorpay_order_id:   payResult.free ? undefined : payResult.razorpay_order_id,
+        razorpay_payment_id: payResult.free ? undefined : payResult.razorpay_payment_id,
+        razorpay_signature:  payResult.free ? undefined : payResult.razorpay_signature,
+        amount: amountPaise,
+        plan:   form.plan?.label || '15 Days',
+        days:   form.plan?.days  || 15,
+        item: {
+          title:       form.title.trim(),
+          category:    form.category,
+          condition:   form.condition,
+          age:         form.age,
+          price:       parseInt(form.price) || 0,
+          negotiable:  form.negotiable,
+          area:        form.area,
+          description: form.description.trim(),
+          whatsapp:    form.whatsapp.trim(),
+          photos:      form.photos,
+          planDays:    form.plan?.days   || 15,
+          planLabel:   form.plan?.label  || '15 Days',
+          planPrice:   planPrice,
+        },
       });
 
       if (res.ok) {
@@ -639,6 +668,7 @@ export default function PostItemScreen() {
 
   return (
     <View style={styles.container}>
+      {RazorpayCheckout}
       {/* Orange Hero */}
       <HeroHeader
         step={step}
