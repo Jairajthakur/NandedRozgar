@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useRazorpayCheckout } from '../utils/razorpay';
 
 const ORANGE  = '#f97316';
 const PURPLE  = '#7c3aed';
@@ -304,6 +305,7 @@ export default function PromoteBusinessScreen() {
   const nav    = useNavigation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
 
   // Redirect to Login if not authenticated
   useEffect(() => {
@@ -348,25 +350,48 @@ export default function PromoteBusinessScreen() {
 
     if (!user) {
       setErrorMsg('You must be logged in to promote your business.');
-      // Also navigate after a short delay so user can read the message
       setTimeout(() => nav.navigate('Login'), 1800);
       return;
     }
     if (!validate()) return;
 
+    const planObj     = PLANS.find(p => p.id === selectedPlan);
+    const planPrice   = planObj?.price ?? 0;
+    const amountPaise = planPrice * 100;
+
     setSubmitting(true);
     try {
-      const res = await http('POST', '/api/promotions', {
-        bizName:     form.bizName,
-        tagline:     form.tagline,
-        phone:       form.phone,
-        category:    form.category,
-        location:    form.location,
-        address:     form.address,
-        website:     form.website,
-        description: form.description,
-        plan:        selectedPlan,
-        bannerStyle: selectedBannerStyle,
+      // ── Step 1: Razorpay payment ───────────────────────────────────────────
+      const payResult = await initiatePayment({
+        amount:      amountPaise,
+        description: `Business Promotion – ${planObj?.name || selectedPlan} Plan`,
+      });
+
+      if (!payResult.success) {
+        if (!payResult.cancelled) {
+          setErrorMsg(payResult.error || 'Payment was not completed. Please try again.');
+        }
+        return;
+      }
+
+      // ── Step 2: Verify payment & create promotion ──────────────────────────
+      const res = await http('POST', '/api/payments/verify/promotion', {
+        razorpay_order_id:   payResult.free ? undefined : payResult.razorpay_order_id,
+        razorpay_payment_id: payResult.free ? undefined : payResult.razorpay_payment_id,
+        razorpay_signature:  payResult.free ? undefined : payResult.razorpay_signature,
+        amount: amountPaise,
+        promotion: {
+          bizName:     form.bizName,
+          tagline:     form.tagline,
+          phone:       form.phone,
+          category:    form.category,
+          location:    form.location,
+          address:     form.address,
+          website:     form.website,
+          description: form.description,
+          plan:        selectedPlan,
+          bannerStyle: selectedBannerStyle,
+        },
       });
 
       if (!res.ok) {
@@ -386,14 +411,13 @@ export default function PromoteBusinessScreen() {
         return;
       }
 
-      // ── Success ──────────────────────────────────────────────────────────────
+      // ── Success ─────────────────────────────────────────────────────────────
       setSuccessMsg(
-        `🎉 Your business "${form.bizName}" is now live on Jobs, Rooms, Cars & Buy-Sell pages!\n\nOur team will call ${form.phone} to confirm payment.`
+        `🎉 Your business "${form.bizName}" is now live on Jobs, Rooms, Cars & Buy-Sell pages!`
       );
-      // Also fire native Alert for mobile users
       Alert.alert(
         '🎉 Promotion is Live!',
-        `Your business "${form.bizName}" is now posted on Jobs, Rooms, Cars & Buy-Sell pages!\n\nOur team will call you on ${form.phone} to confirm payment via UPI / cash.`,
+        `Your business "${form.bizName}" is now posted across all pages!`,
         [{ text: 'Done', onPress: () => nav.goBack() }]
       );
     } catch (err) {
@@ -410,6 +434,7 @@ export default function PromoteBusinessScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {RazorpayCheckout}
       <View style={[s.root, { paddingTop: IS_WEB ? 0 : insets.top }]}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
