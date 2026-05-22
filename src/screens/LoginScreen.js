@@ -10,7 +10,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform, StatusBar,
   Animated, Easing, Modal, TextInput, ActivityIndicator,
-  Dimensions,
+  Dimensions, Image,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
@@ -338,11 +338,15 @@ export default function LoginScreen() {
 
   // ── Forgot ────────────────────────────────────────────────────────────────
   async function handleForgotPassword() {
-    if (!forgotEmail) return;
+    if (!forgotEmail) { setError('Please enter your email address'); return; }
     setForgotLoading(true);
-    await forgotPassword(forgotEmail);
+    const r = await forgotPassword(forgotEmail);
     setForgotLoading(false);
-    setForgotDone(true);
+    if (r?.ok === false) {
+      setError(r.error || 'Failed to send reset email. Please try again.');
+    } else {
+      setForgotDone(true);
+    }
   }
 
   const pwStrength = getPasswordStrength(form.password);
@@ -379,19 +383,11 @@ export default function LoginScreen() {
             <View style={S.pulseWrap}>
               <Animated.View style={[S.pulseRing, { transform: [{ scale: pulse }], opacity: pulseOp }]} />
               <View style={S.logoMark}>
-                {/* Network graph lines */}
-                <View style={[S.netLine, { width: 21, left: 15, top: 20, transform: [{ rotate: '-18deg' }] }]} />
-                <View style={[S.netLine, { width: 16, left: 27, top: 21, transform: [{ rotate: '66deg' }] }]} />
-                <View style={[S.netLine, { width: 19, left: 18, top: 35, transform: [{ rotate: '148deg' }] }]} />
-                <View style={[S.netLine, { width: 22, left: 13, top: 26, transform: [{ rotate: '65deg' }] }]} />
-                {/* Network graph nodes */}
-                <View style={[S.netNode, { left: 11, top: 16 }]} />
-                <View style={[S.netNode, { left: 31, top: 10 }]} />
-                <View style={[S.netNode, { left: 39, top: 26 }]} />
-                <View style={[S.netNode, { left: 20, top: 38 }]} />
-                {/* Accent dots on top nodes */}
-                <View style={[S.netAccent, { left: 14, top: 19 }]} />
-                <View style={[S.netAccent, { left: 34, top: 13 }]} />
+                <Image
+                  source={require('../../assets/icon.png')}
+                  style={{ width: 52, height: 52, borderRadius: 14 }}
+                  resizeMode="contain"
+                />
               </View>
             </View>
             <Text style={S.logoName}>
@@ -426,7 +422,7 @@ export default function LoginScreen() {
               <TouchableOpacity
                 style={[S.googleBtn, !GOOGLE_CLIENT_ID && { opacity: 0.4 }]}
                 onPress={handleGooglePress}
-                disabled={(!googleRequest && !!GOOGLE_CLIENT_ID) || loading}
+                disabled={loading}
                 activeOpacity={0.82}
               >
                 <MaterialCommunityIcons name="google" size={18} color="#EA4335" />
@@ -584,7 +580,7 @@ export default function LoginScreen() {
                     </TouchableOpacity>
                   </View>
                 )}
-                <View style={S.otpInfo}>
+                <View style={[S.otpInfo, { marginHorizontal: 20, marginBottom: 14 }]}>
                   <Ionicons name="shield-checkmark-outline" size={14} color={SUCCESS} style={{ marginRight: 8 }} />
                   <Text style={S.otpInfoTxt}>OTP sent via SMS · Powered by Firebase</Text>
                 </View>
@@ -839,8 +835,8 @@ const S = StyleSheet.create({
   // Submit
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: TEXT, borderRadius: 14, paddingVertical: 15, marginHorizontal: 20,
-    shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 8,
+    backgroundColor: ORANGE, borderRadius: 14, paddingVertical: 15, marginHorizontal: 20,
+    shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 8,
   },
   submitTxt: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
 
