@@ -38,7 +38,7 @@ function buildCheckoutHTML({ orderId, amount, currency, description, userName, u
       key:         "${keyId}",
       amount:      "${amount}",
       currency:    "${currency || 'INR'}",
-      name:        "NandedRozgar",
+      name:        "CityPlus",
       description: "${description || 'Listing Payment'}",
       order_id:    "${orderId}",
       prefill: {
