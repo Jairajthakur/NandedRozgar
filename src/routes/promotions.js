@@ -30,7 +30,8 @@ router.post('/', auth, async (req, res) => {
   try {
     const {
       bizName, tagline, phone, category, location,
-      address, website, description, plan, bannerStyle,
+      address, website, description, timing, plan,
+      bannerStyle, templateId,
     } = req.body;
 
     if (!bizName?.trim())  return res.json({ ok: false, error: 'Business name is required.' });
@@ -41,6 +42,7 @@ router.post('/', auth, async (req, res) => {
 
     const { price, days } = PLANS[plan];
     const accentColor = BANNER_COLORS[bannerStyle] || '#f97316';
+    const tid = templateId ? parseInt(templateId, 10) : null;
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
@@ -48,15 +50,17 @@ router.post('/', auth, async (req, res) => {
     const { rows } = await pool.query(
       `INSERT INTO business_promotions
          (user_id, biz_name, tagline, phone, category, location, address,
-          website, description, plan, plan_price, plan_days, banner_style, accent_color, status, expires_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active',$15)
+          website, description, timing, plan, plan_price, plan_days,
+          banner_style, accent_color, template_id, status, expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'active',$17)
        RETURNING *`,
       [
         req.user.id,
         bizName.trim(), tagline?.trim() || null, phone.trim(),
         category.trim(), location.trim(), address?.trim() || null,
         website?.trim() || null, description?.trim() || null,
-        plan, price, days, bannerStyle || 'bold', accentColor,
+        timing?.trim() || null,
+        plan, price, days, bannerStyle || 'bold', accentColor, tid,
         expiresAt,
       ]
     );
@@ -74,7 +78,7 @@ router.get('/active', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, biz_name, tagline, phone, category, location, address, website, description,
-              banner_style, accent_color, plan, created_at
+              timing, banner_style, accent_color, template_id, plan, created_at
        FROM business_promotions
        WHERE status = 'active'
          AND (expires_at IS NULL OR expires_at > NOW())
@@ -94,8 +98,14 @@ router.get('/active', async (req, res) => {
         phone:       p.phone,
         category:    p.category,
         location:    p.location,
+        address:     p.address || '',
+        website:     p.website || '',
+        description: p.description || '',
+        timing:      p.timing || '',
+        plan:        p.plan || 'basic',
         bannerStyle: p.banner_style,
         accentColor: p.accent_color || '#f97316',
+        templateId:  p.template_id || null,
         createdAt:   p.created_at,
       },
     });
@@ -112,7 +122,7 @@ router.get('/all', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, biz_name, tagline, phone, category, location, address, website, description,
-              banner_style, accent_color, plan, expires_at, created_at
+              timing, banner_style, accent_color, template_id, plan, expires_at, created_at
        FROM business_promotions
        WHERE status = 'active'
          AND (expires_at IS NULL OR expires_at > NOW())
@@ -129,9 +139,11 @@ router.get('/all', async (req, res) => {
       address:     p.address || '',
       website:     p.website || '',
       description: p.description || '',
+      timing:      p.timing || '',
       plan:        p.plan || 'basic',
       bannerStyle: p.banner_style,
       accentColor: p.accent_color || '#f97316',
+      templateId:  p.template_id || null,
       expiresAt:   p.expires_at,
       createdAt:   p.created_at,
     }));
