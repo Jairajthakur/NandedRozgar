@@ -1,656 +1,377 @@
-import React, { useState } from 'react';
+/**
+ * CityPlus — PromoBanner.js
+ * 18 banner layouts · user must select (no auto-pick)
+ * Same structural layout as screenshots — only colors & style change
+ */
+
+import React, { useRef, useState } from 'react';
 import {
-  StyleSheet, View, Text, TouchableOpacity,
-  ScrollView, Linking,
+  Animated, Linking, ScrollView, StyleSheet,
+  Text, TouchableOpacity, View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+const ORANGE = '#f97316';
 
 /* ═══════════════════════════════════════════════════════════════
-   20 TEMPLATES  — all share the exact same screenshot layout,
-   each with a distinct color personality.
+   18 BANNER LAYOUTS
+   Each has: id, name, bg, stripe, accent, sub, textColor,
+             ctaLabel, ctaBg, ctaText, badgeLabel, badgeBg, badgeText
 ═══════════════════════════════════════════════════════════════ */
-export const TEMPLATES = [
+export const BANNER_LAYOUTS = [
   {
-    id: 1,  name: 'Crimson',
-    bg: '#110000', stripe: '#2a0000', accent: '#e11d48',
-    sub: '#fda4af', text: '#fff', cta: 'CALL NOW',
+    id: 'bold_dark',      name: 'Bold Dark',
+    bg: '#1a1a1a',        stripe: '#2a0000',
+    accent: '#e82828',    sub: '#fca5a5',
+    ctaLabel: 'CONTACT NOW', ctaBg: '#fff',    ctaText: '#e82828',
+    badgeLabel: 'SPECIAL',   badgeBg: '#e82828', badgeText: '#fff',
+    divider: '#333',
   },
   {
-    id: 2,  name: 'Ocean',
-    bg: '#00091c', stripe: '#001433', accent: '#0ea5e9',
-    sub: '#7dd3fc', text: '#fff', cta: 'CALL NOW',
+    id: 'clean_white',    name: 'Clean White',
+    bg: '#f8f8f8',        stripe: '#e5e5e5',
+    accent: '#f97316',    sub: '#9a3412',
+    ctaLabel: 'SHOP NOW', ctaBg: '#f97316',  ctaText: '#fff',
+    badgeLabel: 'LIMITED OFFER', badgeBg: '#fff7ed', badgeText: '#c2410c',
+    divider: '#e5e5e5',
   },
   {
-    id: 3,  name: 'Emerald',
-    bg: '#001409', stripe: '#00260f', accent: '#10b981',
-    sub: '#6ee7b7', text: '#fff', cta: 'CALL NOW',
+    id: 'vivid_orange',   name: 'Vivid Orange',
+    bg: '#f97316',        stripe: '#ea580c',
+    accent: '#1a1a1a',    sub: '#fff',
+    ctaLabel: 'GET IN TOUCH', ctaBg: 'rgba(0,0,0,0.25)', ctaText: '#fff',
+    badgeLabel: 'MEGA OFFER',  badgeBg: '#1a1a1a', badgeText: '#f97316',
+    divider: 'rgba(255,255,255,0.25)',
   },
   {
-    id: 4,  name: 'Royal Purple',
-    bg: '#0b0018', stripe: '#1a0030', accent: '#8b5cf6',
-    sub: '#c4b5fd', text: '#fff', cta: 'CALL NOW',
+    id: 'royal_blue',     name: 'Royal Blue',
+    bg: '#0f172a',        stripe: '#1e3a5f',
+    accent: '#3b82f6',    sub: '#bfdbfe',
+    ctaLabel: 'LEARN MORE', ctaBg: '#3b82f6', ctaText: '#fff',
+    badgeLabel: 'FEATURED',  badgeBg: '#3b82f6', badgeText: '#fff',
+    divider: '#1e3a5f',
   },
   {
-    id: 5,  name: 'Sunset',
-    bg: '#160800', stripe: '#2c1000', accent: '#f97316',
-    sub: '#fdba74', text: '#fff', cta: 'CALL NOW',
+    id: 'emerald',        name: 'Emerald',
+    bg: '#052e16',        stripe: '#14532d',
+    accent: '#10b981',    sub: '#6ee7b7',
+    ctaLabel: 'BOOK NOW', ctaBg: '#10b981', ctaText: '#052e16',
+    badgeLabel: 'OFFER',   badgeBg: '#10b981', badgeText: '#052e16',
+    divider: '#14532d',
   },
   {
-    id: 6,  name: 'Gold',
-    bg: '#110e00', stripe: '#211b00', accent: '#d97706',
-    sub: '#fcd34d', text: '#fff', cta: 'CALL NOW',
+    id: 'royal_purple',   name: 'Royal Purple',
+    bg: '#1e0036',        stripe: '#3b0073',
+    accent: '#a855f7',    sub: '#e9d5ff',
+    ctaLabel: 'ENQUIRE',  ctaBg: '#a855f7', ctaText: '#fff',
+    badgeLabel: 'PREMIUM', badgeBg: '#a855f7', badgeText: '#fff',
+    divider: '#3b0073',
   },
   {
-    id: 7,  name: 'Hot Pink',
-    bg: '#160010', stripe: '#2c0020', accent: '#ec4899',
-    sub: '#f9a8d4', text: '#fff', cta: 'CALL NOW',
+    id: 'gold_luxury',    name: 'Gold Luxury',
+    bg: '#1c1200',        stripe: '#3d2800',
+    accent: '#d97706',    sub: '#fde68a',
+    ctaLabel: 'VISIT US', ctaBg: '#d97706', ctaText: '#1c1200',
+    badgeLabel: 'LUXURY',  badgeBg: '#d97706', badgeText: '#1c1200',
+    divider: '#3d2800',
   },
   {
-    id: 8,  name: 'Teal',
-    bg: '#001416', stripe: '#002428', accent: '#14b8a6',
-    sub: '#99f6e4', text: '#fff', cta: 'CALL NOW',
+    id: 'hot_pink',       name: 'Hot Pink',
+    bg: '#1f001a',        stripe: '#3d0033',
+    accent: '#ec4899',    sub: '#fbcfe8',
+    ctaLabel: 'BOOK NOW', ctaBg: '#ec4899', ctaText: '#fff',
+    badgeLabel: 'TRENDING', badgeBg: '#ec4899', badgeText: '#fff',
+    divider: '#3d0033',
   },
   {
-    id: 9,  name: 'Neon Cyan',
-    bg: '#000d14', stripe: '#001a24', accent: '#06b6d4',
-    sub: '#67e8f9', text: '#fff', cta: 'CALL NOW',
+    id: 'ocean_teal',     name: 'Ocean Teal',
+    bg: '#001f1e',        stripe: '#003d3a',
+    accent: '#14b8a6',    sub: '#99f6e4',
+    ctaLabel: 'CONNECT',  ctaBg: '#14b8a6', ctaText: '#001f1e',
+    badgeLabel: 'DEAL',    badgeBg: '#14b8a6', badgeText: '#001f1e',
+    divider: '#003d3a',
   },
   {
-    id: 10, name: 'Violet',
-    bg: '#080012', stripe: '#100024', accent: '#7c3aed',
-    sub: '#a78bfa', text: '#fff', cta: 'CALL NOW',
+    id: 'sunset_red',     name: 'Sunset Red',
+    bg: '#fff',           stripe: '#fff5f5',
+    accent: '#dc2626',    sub: '#7f1d1d',
+    ctaLabel: 'CALL NOW', ctaBg: '#dc2626', ctaText: '#fff',
+    badgeLabel: 'HOT DEAL', badgeBg: '#dc2626', badgeText: '#fff',
+    divider: '#fecaca',
   },
   {
-    id: 11, name: 'Lime',
-    bg: '#040d00', stripe: '#0a1a00', accent: '#84cc16',
-    sub: '#bef264', text: '#fff', cta: 'CALL NOW',
+    id: 'midnight_cyan',  name: 'Midnight Cyan',
+    bg: '#001520',        stripe: '#002b40',
+    accent: '#06b6d4',    sub: '#a5f3fc',
+    ctaLabel: 'ORDER NOW', ctaBg: '#06b6d4', ctaText: '#001520',
+    badgeLabel: 'NEW',      badgeBg: '#06b6d4', badgeText: '#001520',
+    divider: '#002b40',
   },
   {
-    id: 12, name: 'Rose',
-    bg: '#130008', stripe: '#260010', accent: '#f43f5e',
-    sub: '#fda4af', text: '#fff', cta: 'CALL NOW',
+    id: 'lime_fresh',     name: 'Lime Fresh',
+    bg: '#f7fee7',        stripe: '#d9f99d',
+    accent: '#65a30d',    sub: '#3f6212',
+    ctaLabel: 'SHOP NOW', ctaBg: '#65a30d', ctaText: '#fff',
+    badgeLabel: 'FRESH',   badgeBg: '#65a30d', badgeText: '#fff',
+    divider: '#d9f99d',
   },
   {
-    id: 13, name: 'Copper',
-    bg: '#0e0700', stripe: '#1c0e00', accent: '#b45309',
-    sub: '#fcd34d', text: '#fff', cta: 'CALL NOW',
+    id: 'rose_bloom',     name: 'Rose Bloom',
+    bg: '#fff1f2',        stripe: '#ffe4e6',
+    accent: '#f43f5e',    sub: '#9f1239',
+    ctaLabel: 'BOOK NOW', ctaBg: '#f43f5e', ctaText: '#fff',
+    badgeLabel: 'SPECIAL', badgeBg: '#f43f5e', badgeText: '#fff',
+    divider: '#fecdd3',
   },
   {
-    id: 14, name: 'Sky',
-    bg: '#000e16', stripe: '#001b28', accent: '#38bdf8',
-    sub: '#bae6fd', text: '#fff', cta: 'CALL NOW',
+    id: 'steel_modern',   name: 'Steel Modern',
+    bg: '#0f172a',        stripe: '#1e293b',
+    accent: '#64748b',    sub: '#cbd5e1',
+    ctaLabel: 'CONTACT',  ctaBg: '#64748b', ctaText: '#fff',
+    badgeLabel: 'PRO',     badgeBg: '#64748b', badgeText: '#fff',
+    divider: '#1e293b',
   },
   {
-    id: 15, name: 'Magenta',
-    bg: '#110016', stripe: '#20002c', accent: '#c026d3',
-    sub: '#e879f9', text: '#fff', cta: 'CALL NOW',
+    id: 'amber_warm',     name: 'Amber Warm',
+    bg: '#fffbeb',        stripe: '#fef3c7',
+    accent: '#f59e0b',    sub: '#78350f',
+    ctaLabel: 'ORDER NOW', ctaBg: '#f59e0b', ctaText: '#fff',
+    badgeLabel: 'TODAY',   badgeBg: '#f59e0b', badgeText: '#fff',
+    divider: '#fde68a',
   },
   {
-    id: 16, name: 'Mint',
-    bg: '#00120e', stripe: '#00241c', accent: '#34d399',
-    sub: '#a7f3d0', text: '#fff', cta: 'CALL NOW',
+    id: 'indigo_pro',     name: 'Indigo Pro',
+    bg: '#0d0b2e',        stripe: '#1a1760',
+    accent: '#4f46e5',    sub: '#c7d2fe',
+    ctaLabel: 'GET QUOTE', ctaBg: '#4f46e5', ctaText: '#fff',
+    badgeLabel: 'VERIFIED', badgeBg: '#4f46e5', badgeText: '#fff',
+    divider: '#1a1760',
   },
   {
-    id: 17, name: 'Amber',
-    bg: '#100800', stripe: '#1f1000', accent: '#f59e0b',
-    sub: '#fde68a', text: '#fff', cta: 'CALL NOW',
+    id: 'coral_pop',      name: 'Coral Pop',
+    bg: '#fff',           stripe: '#fff5f0',
+    accent: '#fb7185',    sub: '#9f1239',
+    ctaLabel: 'EXPLORE',  ctaBg: '#fb7185', ctaText: '#fff',
+    badgeLabel: 'HOT',     badgeBg: '#fb7185', badgeText: '#fff',
+    divider: '#fecdd3',
   },
   {
-    id: 18, name: 'Indigo',
-    bg: '#04001a', stripe: '#09003a', accent: '#4f46e5',
-    sub: '#a5b4fc', text: '#fff', cta: 'CALL NOW',
-  },
-  {
-    id: 19, name: 'Coral',
-    bg: '#130400', stripe: '#240800', accent: '#fb7185',
-    sub: '#fecdd3', text: '#fff', cta: 'CALL NOW',
-  },
-  {
-    id: 20, name: 'Steel',
-    bg: '#060a10', stripe: '#0d1520', accent: '#64748b',
-    sub: '#cbd5e1', text: '#fff', cta: 'CALL NOW',
+    id: 'forest_green',   name: 'Forest Green',
+    bg: '#fff',           stripe: '#f0fdf4',
+    accent: '#16a34a',    sub: '#14532d',
+    ctaLabel: 'VISIT',    ctaBg: '#16a34a', ctaText: '#fff',
+    badgeLabel: 'NATURAL', badgeBg: '#16a34a', badgeText: '#fff',
+    divider: '#bbf7d0',
   },
 ];
 
-function getTemplateById(id) {
-  return TEMPLATES.find(t => t.id === id) || TEMPLATES[0];
-}
+/* ═══════════════════════════════════════════════════════════════
+   BANNER RENDERER — exact layout from screenshots
+   Left: category tag · biz name · tagline · location · CTA · phone
+   Right: stripes · avatar circle · badge · bolt
+═══════════════════════════════════════════════════════════════ */
+export function BannerPreview({ layout, biz = 'Your Business', offer = 'Big Sale!', loc = 'Nanded', phone = '', category = '' }) {
+  const L = layout;
+  const initial = (biz || 'B').charAt(0).toUpperCase();
 
-/* ─── Auto-pick template from category ─── */
-const CATEGORY_TEMPLATE = {
-  salon: 1, beauty: 1, parlour: 1,
-  retail: 5, fashion: 7, clothing: 7, shopping: 5,
-  transport: 9, auto: 2, automobile: 2, logistics: 9,
-  electronics: 2, courier: 9,
-  food: 17, catering: 17, bakery: 13, tiffin: 6,
-  jewellery: 6, jewelry: 6, insurance: 13, finance: 6,
-  restaurant: 5, cafe: 13, dining: 17, dhaba: 5,
-  education: 2, coaching: 2, school: 2, college: 2,
-  tuition: 2, academy: 14, classes: 14,
-  gym: 12, fitness: 12, sports: 1, yoga: 3,
-  wedding: 7, florist: 7, bridal: 7, mehendi: 15, event: 15,
-  photography: 6, photo: 6, videography: 6, studio: 20,
-  'real estate': 5, realestate: 5, property: 5, builder: 5,
-  'digital marketing': 9, 'social media': 15, seo: 18, advertising: 4,
-  hospital: 4, pharmacy: 4, clinic: 4, medical: 4, doctor: 4,
-  agriculture: 3, organic: 3, nursery: 11, farm: 3,
-  coffee: 13, sweet: 6, dessert: 6, cake: 7, 'ice cream': 8,
-  engineering: 20, manufacturing: 20, hardware: 20, welding: 20,
-  legal: 18, lawyer: 18, advocate: 18, consulting: 18,
-  software: 9, technology: 14, startup: 14, app: 9,
-  hotel: 6, resort: 6, travel: 14, tourism: 8,
-  gaming: 10, entertainment: 15, club: 15,
-  spa: 7, wellness: 16, meditation: 16, ayurveda: 3,
-};
-
-function autoTemplate(category = '') {
-  const key = (category || '').toLowerCase().trim();
-  for (const [cat, id] of Object.entries(CATEGORY_TEMPLATE)) {
-    if (key.includes(cat) || cat.includes(key)) return id;
-  }
-  return 1;
-}
-
-function callBusiness(phone) {
-  if (phone) Linking.openURL(`tel:${phone}`);
-}
-
-/* ─────────────────────────────────────────────────────────────
-   SHARED BANNER — screenshot-exact layout, colour-themed
-───────────────────────────────────────────────────────────────
-  Left  : arrow category tag · business name · tagline ·
-           location · CALL NOW · phone
-  Right : diagonal stripes · avatar circle · icon badge ·
-           offer badge · lightning bolt
-───────────────────────────────────────────────────────────────*/
-function Banner({ data, tmpl }) {
-  const { bg, stripe, accent, sub, text, cta } = tmpl;
+  /* Determine text colour for biz name based on bg brightness */
+  const isDark = ['#1a1a1a','#0f172a','#052e16','#1e0036','#1c1200',
+    '#1f001a','#001f1e','#001520','#0d0b2e','#0b0028'].includes(L.bg);
+  const bizColor = isDark ? '#fff' : L.sub;
 
   return (
-    <View style={[bn.card, { backgroundColor: bg, borderColor: accent + '55' }]}>
+    <View style={[pb.card, { backgroundColor: L.bg, borderColor: L.accent + '44' }]}>
 
-      {/* ── LEFT PANEL ─────────────────────────────────── */}
-      <View style={bn.left}>
-
-        {/* Arrow category tag */}
-        {!!data.category && (
-          <View style={bn.tagRow}>
-            {/* arrow head */}
-            <View style={[bn.arrowHead, { borderRightColor: accent }]} />
-            <View style={[bn.tagBody, { backgroundColor: accent }]}>
-              <Text style={[bn.tagTxt, { color: bg }]}>
-                {data.category.toUpperCase()}
-              </Text>
-            </View>
+      {/* LEFT */}
+      <View style={pb.left}>
+        {/* Arrow category pill */}
+        <View style={pb.tagRow}>
+          <View style={[pb.arrowHead, { borderRightColor: L.accent }]} />
+          <View style={[pb.tagBody, { backgroundColor: L.accent }]}>
+            <Text style={[pb.tagTxt, { color: L.ctaBg === '#fff' ? L.bg : '#fff' }]}>
+              {(category || 'BUSINESS').toUpperCase()}
+            </Text>
           </View>
-        )}
+        </View>
 
         {/* Business name */}
-        <Text style={[bn.bizName, { color: text }]} numberOfLines={1}>
-          {data.name}
-        </Text>
+        <Text style={[pb.bizName, { color: bizColor }]} numberOfLines={1}>{biz}</Text>
 
-        {/* Tagline */}
-        {!!data.tagline && (
-          <Text style={[bn.tagline, { color: accent }]} numberOfLines={1}>
-            {data.tagline}
-          </Text>
-        )}
-
-        {/* Description */}
-        {!!data.description && (
-          <Text style={[bn.desc, { color: sub }]} numberOfLines={2}>
-            {data.description}
-          </Text>
-        )}
+        {/* Offer / tagline */}
+        <Text style={[pb.tagline, { color: L.accent }]} numberOfLines={1}>{offer}</Text>
 
         {/* Location */}
-        {!!data.location && (
-          <View style={bn.locRow}>
-            <Text style={bn.locPin}>📍</Text>
-            <Text style={[bn.locTxt, { color: sub }]} numberOfLines={1}>
-              {data.location}
-            </Text>
-          </View>
-        )}
+        <View style={pb.locRow}>
+          <Text style={pb.pin}>📍</Text>
+          <Text style={[pb.locTxt, { color: L.sub }]} numberOfLines={1}>{loc}</Text>
+        </View>
 
-        {/* Address */}
-        {!!data.address && (
-          <View style={bn.locRow}>
-            <Text style={bn.locPin}>🏢</Text>
-            <Text style={[bn.locTxt, { color: sub }]} numberOfLines={1}>
-              {data.address}
-            </Text>
-          </View>
-        )}
+        {/* CTA button */}
+        <View style={[pb.callBtn, { backgroundColor: L.ctaBg }]}>
+          <Text style={[pb.callTxt, { color: L.ctaText }]}>📞 {L.ctaLabel}</Text>
+        </View>
 
-        {/* Timing */}
-        {!!data.timing && (
-          <View style={bn.locRow}>
-            <Text style={bn.locPin}>🕐</Text>
-            <Text style={[bn.locTxt, { color: sub }]} numberOfLines={1}>
-              {data.timing}
-            </Text>
-          </View>
-        )}
-
-        {/* CALL NOW button */}
-        <TouchableOpacity
-          style={[bn.callBtn, { backgroundColor: accent }]}
-          onPress={() => callBusiness(data.phone)}
-          activeOpacity={0.8}
-        >
-          <Text style={[bn.callIcon, { color: bg }]}>📞 </Text>
-          <Text style={[bn.callTxt, { color: bg }]}>{cta}</Text>
-        </TouchableOpacity>
-
-        {/* Phone number */}
-        {!!data.phone && (
-          <Text style={[bn.phone, { color: sub }]}>{data.phone}</Text>
-        )}
+        {/* Phone */}
+        {!!phone && <Text style={[pb.phone, { color: L.sub }]}>{phone}</Text>}
       </View>
 
-      {/* ── RIGHT PANEL — diagonal accent ──────────────── */}
-      <View style={[bn.right, { backgroundColor: stripe }]}>
+      {/* RIGHT */}
+      <View style={[pb.right, { backgroundColor: L.stripe }]}>
+        {/* Diagonal decorative lines */}
+        <View style={[pb.stripe, { backgroundColor: L.accent, top: 8,  right: 16, opacity: 0.22 }]} />
+        <View style={[pb.stripe, { backgroundColor: L.accent, top: 32, right: 28, opacity: 0.13 }]} />
+        <View style={[pb.stripe, { backgroundColor: L.accent, top: 56, right: 12, opacity: 0.18 }]} />
+        <View style={[pb.stripe, { backgroundColor: L.accent, top: 80, right: 32, opacity: 0.10 }]} />
 
-        {/* Diagonal decorative stripes */}
-        <View style={[bn.stripe, { backgroundColor: accent, top: 10, right: 14, opacity: 0.22 }]} />
-        <View style={[bn.stripe, { backgroundColor: accent, top: 36, right: 26, opacity: 0.12 }]} />
-        <View style={[bn.stripe, { backgroundColor: accent, top: 62, right: 10, opacity: 0.18 }]} />
-        <View style={[bn.stripe, { backgroundColor: accent, top: 88, right: 30, opacity: 0.10 }]} />
-
-        {/* Avatar circle — large */}
-        <View style={[bn.avatar, { backgroundColor: accent, shadowColor: accent }]}>
-          <Text style={[bn.avatarTxt, { color: bg }]}>
-            {(data.name || 'B').charAt(0).toUpperCase()}
-          </Text>
+        {/* Avatar circle */}
+        <View style={[pb.avatar, { backgroundColor: L.accent, shadowColor: L.accent }]}>
+          <Text style={[pb.avatarTxt, { color: L.ctaText === '#fff' ? L.ctaBg : '#fff' }]}>{initial}</Text>
         </View>
 
-        {/* Small icon badge below avatar */}
-        <View style={[bn.iconBadge, { borderColor: accent }]}>
-          <Text style={{ fontSize: 12 }}>📲</Text>
+        {/* Small icon badge */}
+        <View style={[pb.iconBadge, { borderColor: L.accent }]}>
+          <Text style={{ fontSize: 11 }}>📲</Text>
         </View>
 
-        {/* "Exclusive Offer" or tagline badge */}
-        <View style={[bn.offerBadge, { backgroundColor: accent }]}>
-          <Text style={[bn.offerTxt, { color: bg }]}>
-            {data.tagline ? 'OFFER' : data.isPopular ? '★ TOP' : 'AD'}
-          </Text>
+        {/* Offer badge */}
+        <View style={[pb.offerBadge, { backgroundColor: L.badgeBg }]}>
+          <Text style={[pb.offerTxt, { color: L.badgeText }]}>{L.badgeLabel}</Text>
         </View>
 
-        {/* Lightning bolt — bottom right corner */}
-        <Text style={[bn.bolt, { color: accent }]}>⚡</Text>
+        {/* Bolt */}
+        <Text style={[pb.bolt, { color: L.accent }]}>⚡</Text>
       </View>
     </View>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   TEMPLATE PICKER — horizontal scrollable colour swatches
-   Usage:
-     <TemplatePicker selected={id} onSelect={id => setId(id)} />
+   BANNER STYLE PICKER
+   — shows all 18 layouts as selectable preview cards
+   — user MUST tap one; nothing is auto-selected
+   — `selected` is null until user picks
 ═══════════════════════════════════════════════════════════════ */
-export function TemplatePicker({ selected, onSelect }) {
+export function BannerStylePicker({ form, selected, onSelect }) {
+  const biz    = form?.bizName   || 'Your Business';
+  const offer  = form?.tagline   || 'Big Sale!';
+  const loc    = form?.location  || 'Nanded';
+  const phone  = form?.phone     || '';
+  const cat    = form?.category  || '';
+
   return (
-    <View style={pk.wrap}>
-      <Text style={pk.heading}>Choose Banner Style</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={pk.row}
+    <View style={sp.wrap}>
+      <View style={sp.head}>
+        <Ionicons name="image-outline" size={17} color={ORANGE} />
+        <Text style={sp.title}>Choose Banner Style</Text>
+      </View>
+      <Text style={sp.sub}>Select a design for your promotion banner</Text>
+
+      {/* Required hint */}
+      {!selected && (
+        <View style={sp.requiredHint}>
+          <Ionicons name="alert-circle-outline" size={14} color={ORANGE} />
+          <Text style={sp.requiredTxt}>Please select a banner style to continue</Text>
+        </View>
+      )}
+
+      <View style={sp.list}>
+        {BANNER_LAYOUTS.map(layout => (
+          <BannerSelectCard
+            key={layout.id}
+            layout={layout}
+            biz={biz}
+            offer={offer}
+            loc={loc}
+            phone={phone}
+            category={cat}
+            selected={selected === layout.id}
+            onSelect={() => onSelect(layout.id)}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function BannerSelectCard({ layout, biz, offer, loc, phone, category, selected, onSelect }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 22, bounciness: 6 }).start();
+
+  return (
+    <Animated.View style={{ transform: [{ scale }], marginBottom: 14 }}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={onSelect}
+        onPressIn={onIn}
+        onPressOut={onOut}
+        style={[sc.wrap, selected && { borderColor: ORANGE, borderWidth: 2.5 }]}
       >
-        {TEMPLATES.map(t => {
-          const active = selected === t.id;
-          return (
-            <TouchableOpacity
-              key={t.id}
-              onPress={() => onSelect(t.id)}
-              style={[pk.swatch, { backgroundColor: t.bg, borderColor: active ? t.accent : t.accent + '44' }]}
-              activeOpacity={0.75}
-            >
-              {/* Mini accent bar */}
-              <View style={[pk.bar, { backgroundColor: t.accent }]} />
-              {/* Mini avatar dot */}
-              <View style={[pk.dot, { backgroundColor: t.accent }]}>
-                <Text style={[pk.dotTxt, { color: t.bg }]}>A</Text>
-              </View>
-              {/* Template name */}
-              <Text style={[pk.label, { color: t.sub }]} numberOfLines={1}>
-                {t.name}
-              </Text>
-              {/* Active checkmark */}
-              {active && (
-                <View style={[pk.check, { backgroundColor: t.accent }]}>
-                  <Text style={[pk.checkTxt, { color: t.bg }]}>✓</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
+        <BannerPreview
+          layout={layout}
+          biz={biz}
+          offer={offer}
+          loc={loc}
+          phone={phone}
+          category={category}
+        />
 
-/* ═══════════════════════════════════════════════════════════════
-   RICH PROMO CARD — Category-aware, colour-coded sponsored card
-   Matches the image-2 design: coloured bg, category pill, badge,
-   emoji icon, avatar, phone/location, category-specific CTA.
-═══════════════════════════════════════════════════════════════ */
-
-const CAT_MAP = {
-  // beauty
-  salon:         { bg:'#e0faf5', accent:'#0d9488', dark:'#065f46', label:'SALON / BEAUTY',        emoji:'💅', cta:'Book Now'   },
-  beauty:        { bg:'#e0faf5', accent:'#0d9488', dark:'#065f46', label:'SALON / BEAUTY',        emoji:'💄', cta:'Book Now'   },
-  parlour:       { bg:'#e0faf5', accent:'#0d9488', dark:'#065f46', label:'SALON / BEAUTY',        emoji:'✂️', cta:'Book Now'   },
-  spa:           { bg:'#f0fdf4', accent:'#16a34a', dark:'#14532d', label:'WELLNESS / SPA',        emoji:'🧖', cta:'Book Now'   },
-  gym:           { bg:'#fff0f5', accent:'#e11d48', dark:'#881337', label:'FITNESS / GYM',         emoji:'🏋️', cta:'Book Now'   },
-  fitness:       { bg:'#fff0f5', accent:'#e11d48', dark:'#881337', label:'FITNESS / GYM',         emoji:'💪', cta:'Book Now'   },
-  yoga:          { bg:'#f0fdf4', accent:'#16a34a', dark:'#14532d', label:'YOGA / WELLNESS',       emoji:'🧘', cta:'Book Now'   },
-  // food
-  restaurant:    { bg:'#fff7ed', accent:'#ea580c', dark:'#7c2d12', label:'FOOD / RESTAURANT',     emoji:'🍽️', cta:'Order Now'  },
-  food:          { bg:'#fff7ed', accent:'#ea580c', dark:'#7c2d12', label:'FOOD / CATERING',       emoji:'🍱', cta:'Order Now'  },
-  catering:      { bg:'#fff7ed', accent:'#ea580c', dark:'#7c2d12', label:'CATERING',              emoji:'🍛', cta:'Order Now'  },
-  cafe:          { bg:'#fef3c7', accent:'#d97706', dark:'#78350f', label:'CAFÉ / BAKERY',         emoji:'☕', cta:'Visit Us'   },
-  bakery:        { bg:'#fef3c7', accent:'#d97706', dark:'#78350f', label:'BAKERY',                emoji:'🥐', cta:'Order Now'  },
-  tiffin:        { bg:'#fef3c7', accent:'#d97706', dark:'#78350f', label:'TIFFIN SERVICE',        emoji:'🥗', cta:'Subscribe'  },
-  // real estate
-  'real estate': { bg:'#fff7ed', accent:'#c2410c', dark:'#7c2d12', label:'REAL ESTATE',           emoji:'🏠', cta:'Site Visit' },
-  realestate:    { bg:'#fff7ed', accent:'#c2410c', dark:'#7c2d12', label:'REAL ESTATE',           emoji:'🏘️', cta:'Site Visit' },
-  property:      { bg:'#fff7ed', accent:'#c2410c', dark:'#7c2d12', label:'REAL ESTATE',           emoji:'🏗️', cta:'Site Visit' },
-  builder:       { bg:'#fff7ed', accent:'#c2410c', dark:'#7c2d12', label:'REAL ESTATE',           emoji:'🏢', cta:'Site Visit' },
-  // transport
-  transport:     { bg:'#eff6ff', accent:'#2563eb', dark:'#1e3a8a', label:'TRANSPORT / LOGISTICS', emoji:'🚛', cta:'Connect'    },
-  logistics:     { bg:'#eff6ff', accent:'#2563eb', dark:'#1e3a8a', label:'TRANSPORT / LOGISTICS', emoji:'📦', cta:'Connect'    },
-  auto:          { bg:'#eff6ff', accent:'#2563eb', dark:'#1e3a8a', label:'AUTO / VEHICLE',        emoji:'🛺', cta:'Book Now'   },
-  automobile:    { bg:'#eff6ff', accent:'#2563eb', dark:'#1e3a8a', label:'AUTO / VEHICLE',        emoji:'🚗', cta:'Connect'    },
-  courier:       { bg:'#eff6ff', accent:'#2563eb', dark:'#1e3a8a', label:'COURIER',               emoji:'📮', cta:'Connect'    },
-  // education
-  education:     { bg:'#eff6ff', accent:'#1d4ed8', dark:'#1e3a8a', label:'EDUCATION',             emoji:'📚', cta:'Enroll Now' },
-  coaching:      { bg:'#eff6ff', accent:'#1d4ed8', dark:'#1e3a8a', label:'COACHING',              emoji:'🎓', cta:'Enroll Now' },
-  tuition:       { bg:'#eff6ff', accent:'#1d4ed8', dark:'#1e3a8a', label:'TUITION',               emoji:'✏️', cta:'Enroll Now' },
-  academy:       { bg:'#eff6ff', accent:'#1d4ed8', dark:'#1e3a8a', label:'ACADEMY',               emoji:'🏫', cta:'Enroll Now' },
-  // medical
-  hospital:      { bg:'#f0fdf4', accent:'#16a34a', dark:'#14532d', label:'HEALTHCARE',            emoji:'🏥', cta:'Book Now'   },
-  clinic:        { bg:'#f0fdf4', accent:'#16a34a', dark:'#14532d', label:'CLINIC',                emoji:'⚕️', cta:'Book Now'   },
-  pharmacy:      { bg:'#f0fdf4', accent:'#16a34a', dark:'#14532d', label:'PHARMACY',              emoji:'💊', cta:'Contact'    },
-  // fashion / retail
-  fashion:       { bg:'#fdf4ff', accent:'#9333ea', dark:'#581c87', label:'FASHION',               emoji:'👗', cta:'Shop Now'   },
-  clothing:      { bg:'#fdf4ff', accent:'#9333ea', dark:'#581c87', label:'FASHION / CLOTHING',    emoji:'👕', cta:'Shop Now'   },
-  retail:        { bg:'#fdf4ff', accent:'#9333ea', dark:'#581c87', label:'RETAIL',                emoji:'🛍️', cta:'Shop Now'   },
-  jewellery:     { bg:'#fef9c3', accent:'#ca8a04', dark:'#713f12', label:'JEWELLERY',             emoji:'💍', cta:'Visit Us'   },
-  jewelry:       { bg:'#fef9c3', accent:'#ca8a04', dark:'#713f12', label:'JEWELLERY',             emoji:'💎', cta:'Visit Us'   },
-  // tech
-  software:      { bg:'#f0f9ff', accent:'#0284c7', dark:'#0c4a6e', label:'TECH / SOFTWARE',       emoji:'💻', cta:'Connect'    },
-  technology:    { bg:'#f0f9ff', accent:'#0284c7', dark:'#0c4a6e', label:'TECHNOLOGY',            emoji:'🖥️', cta:'Connect'    },
-  // events
-  wedding:       { bg:'#fdf4ff', accent:'#c026d3', dark:'#701a75', label:'WEDDING / EVENTS',      emoji:'💒', cta:'Book Now'   },
-  photography:   { bg:'#fdf4ff', accent:'#c026d3', dark:'#701a75', label:'PHOTOGRAPHY',           emoji:'📸', cta:'Book Now'   },
-  event:         { bg:'#fdf4ff', accent:'#c026d3', dark:'#701a75', label:'EVENTS',                emoji:'🎉', cta:'Book Now'   },
-  // default
-  default:       { bg:'#f8fafc', accent:'#f97316', dark:'#7c2d12', label:'BUSINESS',              emoji:'🏪', cta:'Contact'    },
-};
-
-function getCatConfig(category) {
-  const key = (category || '').toLowerCase().trim();
-  // exact match first
-  if (CAT_MAP[key]) return CAT_MAP[key];
-  // partial match
-  for (const [k, v] of Object.entries(CAT_MAP)) {
-    if (k === 'default') continue;
-    if (key.includes(k) || k.includes(key)) return v;
-  }
-  return CAT_MAP.default;
-}
-
-export function BannerCard({ promo }) {
-  if (!promo) return null;
-
-  const name        = promo.bizName || promo.businessName || promo.biz_name || promo.name || '';
-  const tagline     = promo.tagline || promo.offer || '';
-  const description = promo.description || '';
-  const category    = promo.category || promo.biz_category || '';
-  const phone       = promo.phone || promo.contact || '';
-  const location    = promo.location || promo.city || '';
-  const address     = promo.address || '';
-  const timing      = promo.timing || '';
-  const isPopular   = promo.plan === 'premium' || promo.plan === 'popular';
-
-  const cfg    = getCatConfig(category);
-  const avatar = (name || 'B').charAt(0).toUpperCase();
-
-  return (
-    <View style={[rc.card, { backgroundColor: cfg.bg, borderColor: cfg.accent + '33' }]}>
-
-      {/* ── Top row: category pill + plan badge ── */}
-      <View style={rc.topRow}>
-        {/* Arrow-shaped category pill */}
-        <View style={rc.pillWrap}>
-          <View style={[rc.pillArrow, { borderRightColor: cfg.accent }]} />
-          <View style={[rc.pillBody, { backgroundColor: cfg.accent }]}>
-            <Text style={rc.pillTxt}>{(category || cfg.label).toUpperCase()}</Text>
+        {/* Selected overlay checkmark */}
+        {selected && (
+          <View style={sc.checkWrap}>
+            <Ionicons name="checkmark-circle" size={24} color={ORANGE} />
           </View>
-        </View>
+        )}
 
-        {/* Plan badge */}
-        <View style={[rc.planBadge, { backgroundColor: isPopular ? '#fbbf24' : cfg.accent + '22',
-                                       borderColor: isPopular ? '#f59e0b' : cfg.accent + '55' }]}>
-          <Text style={[rc.planTxt, { color: isPopular ? '#78350f' : cfg.dark }]}>
-            {isPopular ? '★ POPULAR' : 'AD'}
-          </Text>
-        </View>
-      </View>
-
-      {/* ── Body: left content + right avatar ── */}
-      <View style={rc.body}>
-        <View style={rc.left}>
-          {/* Emoji icon */}
-          <Text style={rc.emoji}>{cfg.emoji}</Text>
-
-          {/* Business name */}
-          <Text style={[rc.name, { color: cfg.dark }]} numberOfLines={1}>{name}</Text>
-
-          {/* Tagline */}
-          {!!tagline && (
-            <Text style={[rc.tagline, { color: cfg.accent }]} numberOfLines={1}>{tagline}</Text>
-          )}
-
-          {/* Description */}
-          {!!description && (
-            <Text style={[rc.desc, { color: cfg.dark + 'cc' }]} numberOfLines={2}>{description}</Text>
-          )}
-
-          {/* Phone */}
-          {!!phone && (
-            <View style={rc.infoRow}>
-              <Text style={rc.infoIcon}>📞</Text>
-              <Text style={[rc.infoTxt, { color: cfg.dark }]}>{phone}</Text>
-            </View>
-          )}
-
-          {/* Location */}
-          {!!location && (
-            <View style={rc.infoRow}>
-              <Text style={rc.infoIcon}>📍</Text>
-              <Text style={[rc.infoTxt, { color: cfg.accent }]} numberOfLines={1}>{location}</Text>
-            </View>
-          )}
-
-          {/* Address */}
-          {!!address && (
-            <View style={rc.infoRow}>
-              <Text style={rc.infoIcon}>🏢</Text>
-              <Text style={[rc.infoTxt, { color: cfg.dark }]} numberOfLines={1}>{address}</Text>
-            </View>
-          )}
-
-          {/* Timing */}
-          {!!timing && (
-            <View style={rc.infoRow}>
-              <Text style={rc.infoIcon}>🕐</Text>
-              <Text style={[rc.infoTxt, { color: cfg.dark }]} numberOfLines={1}>{timing}</Text>
-            </View>
-          )}
-
-          {/* CTA button */}
-          <TouchableOpacity
-            style={[rc.ctaBtn, { backgroundColor: cfg.accent }]}
-            onPress={() => phone && Linking.openURL(`tel:${phone}`)}
-            activeOpacity={0.82}
-          >
-            <Text style={[rc.ctaTxt, { color: '#fff' }]}>{cfg.cta}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Right: avatar */}
-        <View style={rc.right}>
-          <View style={[rc.avatar, { backgroundColor: cfg.accent, shadowColor: cfg.accent }]}>
-            <Text style={[rc.avatarTxt, { color: '#fff' }]}>{avatar}</Text>
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-/* BannerCard styles */
-const rc = StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    borderWidth: 1.5,
-    overflow: 'hidden',
-    marginBottom: 2,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  pillWrap: { flexDirection: 'row', alignItems: 'center' },
-  pillArrow: {
-    width: 0, height: 0,
-    borderTopWidth: 9, borderBottomWidth: 9, borderRightWidth: 10,
-    borderTopColor: 'transparent', borderBottomColor: 'transparent',
-  },
-  pillBody: {
-    paddingHorizontal: 10, paddingVertical: 3,
-    borderTopRightRadius: 4, borderBottomRightRadius: 4,
-  },
-  pillTxt: { fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
-  planBadge: {
-    borderRadius: 20, borderWidth: 1,
-    paddingHorizontal: 10, paddingVertical: 3,
-  },
-  planTxt: { fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
-  body: {
-    flexDirection: 'row',
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-    paddingTop: 6,
-    alignItems: 'flex-start',
-  },
-  left: { flex: 1, gap: 4 },
-  right: { marginLeft: 12, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 4 },
-  emoji: { fontSize: 22, marginBottom: 2 },
-  name: { fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
-  tagline: { fontSize: 12, fontWeight: '700' },
-  desc: { fontSize: 11, lineHeight: 16 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  infoIcon: { fontSize: 11 },
-  infoTxt: { fontSize: 12, fontWeight: '500', flex: 1 },
-  ctaBtn: {
-    alignSelf: 'flex-start',
-    marginTop: 10,
-    paddingHorizontal: 18, paddingVertical: 9,
-    borderRadius: 24,
-  },
-  ctaTxt: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
-  avatar: {
-    width: 56, height: 56, borderRadius: 28,
-    alignItems: 'center', justifyContent: 'center',
-    elevation: 4, shadowOpacity: 0.3, shadowRadius: 6,
-  },
-  avatarTxt: { fontSize: 24, fontWeight: '900' },
-});
-
-/* ═══════════════════════════════════════════════════════════════
-   BannerWithPicker — self-contained banner + template picker
-   Usage anywhere you want users to pick a style before posting:
-     <BannerWithPicker data={bizData} onTemplateChange={id => ...} />
-═══════════════════════════════════════════════════════════════ */
-export function BannerWithPicker({ data, defaultTemplateId, onTemplateChange }) {
-  const initId = defaultTemplateId
-    ? Number(defaultTemplateId)
-    : autoTemplate(data?.category);
-  const [selectedId, setSelectedId] = useState(initId);
-
-  function handleSelect(id) {
-    setSelectedId(id);
-    if (onTemplateChange) onTemplateChange(id);
-  }
-
-  if (!data?.name) return null;
-  const tmpl = getTemplateById(selectedId);
-
-  return (
-    <View>
-      <Banner data={data} tmpl={tmpl} />
-      <TemplatePicker selected={selectedId} onSelect={handleSelect} />
-    </View>
+        {/* Layout name label */}
+        <Text style={[sc.label, selected && { color: ORANGE, fontWeight: '800' }]}>
+          {layout.name}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   MAIN DEFAULT EXPORT — simple banner, no picker
-   Accepts both camelCase (API) and snake_case (DB) field names.
-   Pass templateId prop to override auto-selection.
+   DEFAULT EXPORT — renders the live banner given a layout id
+   Used in home feed / promo cards
 ═══════════════════════════════════════════════════════════════ */
 export default function PromoBanner({ data, promo: promoAlias }) {
   const src = data || promoAlias;
   if (!src) return null;
 
-  // Support both camelCase (JS API) and snake_case (DB / raw fetch)
-  const name = src.bizName || src.businessName || src.biz_name || src.name || '';
+  const name     = src.bizName || src.businessName || src.biz_name || src.name || '';
+  const offer    = src.tagline || src.offer || '';
+  const loc      = src.location || src.city || '';
+  const phone    = src.phone || src.contact || '';
+  const category = src.category || src.biz_category || '';
+  const styleId  = src.bannerStyle || src.banner_style || 'bold_dark';
+
   if (!name) return null;
 
-  return <BannerCard promo={{
-    bizName:     name,
-    tagline:     src.tagline      || src.offer          || '',
-    description: src.description  || '',
-    category:    src.category     || src.biz_category   || '',
-    phone:       src.phone        || src.contact        || '',
-    location:    src.location     || src.city           || '',
-    address:     src.address      || '',
-    timing:      src.timing       || '',
-    // 'popular' / 'premium' show ★ POPULAR badge; everything else shows 'AD'
-    plan:        src.plan         || src.promo_type     || 'ad',
-  }} />;
+  const layout = BANNER_LAYOUTS.find(l => l.id === styleId) || BANNER_LAYOUTS[0];
+
+  return (
+    <BannerPreview
+      layout={layout}
+      biz={name}
+      offer={offer}
+      loc={loc}
+      phone={phone}
+      category={category}
+    />
+  );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   STYLES
-═══════════════════════════════════════════════════════════════ */
-const bn = StyleSheet.create({
+/* ─── BannerPreview styles ─────────────────────────────────── */
+const pb = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     overflow: 'hidden',
-    minHeight: 155,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    minHeight: 150,
   },
-  /* ── left panel ── */
   left: {
     flex: 1,
     paddingHorizontal: 14,
@@ -658,205 +379,87 @@ const bn = StyleSheet.create({
     justifyContent: 'center',
     gap: 3,
   },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
+  tagRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
   arrowHead: {
-    width: 0,
-    height: 0,
-    borderTopWidth: 10,
-    borderBottomWidth: 10,
-    borderRightWidth: 11,
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
+    width: 0, height: 0,
+    borderTopWidth: 9, borderBottomWidth: 9, borderRightWidth: 10,
+    borderTopColor: 'transparent', borderBottomColor: 'transparent',
   },
   tagBody: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderTopRightRadius: 4,
-    borderBottomRightRadius: 4,
+    paddingHorizontal: 9, paddingVertical: 3,
+    borderTopRightRadius: 4, borderBottomRightRadius: 4,
   },
-  tagTxt: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  bizName: {
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: -0.4,
-    marginBottom: 2,
-  },
-  tagline: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  desc: {
-    fontSize: 10,
-    lineHeight: 14,
-    opacity: 0.85,
-  },
-  locRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  locPin: {
-    fontSize: 11,
-    marginRight: 4,
-  },
-  locTxt: {
-    fontSize: 11,
-    fontWeight: '500',
-    flex: 1,
-  },
+  tagTxt:  { fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
+  bizName: { fontSize: 21, fontWeight: '900', letterSpacing: -0.3, marginBottom: 1 },
+  tagline: { fontSize: 12, fontWeight: '700' },
+  locRow:  { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
+  pin:     { fontSize: 11, marginRight: 4 },
+  locTxt:  { fontSize: 11, fontWeight: '500', flex: 1 },
   callBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 22,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignSelf: 'flex-start',
-    marginTop: 8,
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: 22, paddingVertical: 7, paddingHorizontal: 14,
+    alignSelf: 'flex-start', marginTop: 8,
   },
-  callIcon: {
-    fontSize: 13,
-  },
-  callTxt: {
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  phone: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 5,
-    opacity: 0.75,
-  },
-  /* ── right panel ── */
+  callTxt: { fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
+  phone:   { fontSize: 10, fontWeight: '500', marginTop: 4, opacity: 0.7 },
   right: {
-    width: 105,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    gap: 8,
-    overflow: 'hidden',
-    position: 'relative',
+    width: 100,
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 12, gap: 7,
+    overflow: 'hidden', position: 'relative',
   },
   stripe: {
-    position: 'absolute',
-    width: 2.5,
-    height: '130%',
+    position: 'absolute', width: 2.5, height: '130%',
     transform: [{ rotate: '15deg' }],
   },
   avatar: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 6,
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
+    width: 58, height: 58, borderRadius: 29,
+    alignItems: 'center', justifyContent: 'center',
+    elevation: 5, shadowOpacity: 0.4, shadowRadius: 7,
   },
-  avatarTxt: {
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  iconBadge: {
-    borderWidth: 1.5,
-    borderRadius: 14,
-    padding: 5,
-  },
+  avatarTxt: { fontSize: 26, fontWeight: '900' },
+  iconBadge: { borderWidth: 1.5, borderRadius: 13, padding: 4 },
   offerBadge: {
-    borderRadius: 22,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: 20, paddingHorizontal: 9, paddingVertical: 5,
     alignItems: 'center',
   },
-  offerTxt: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  bolt: {
-    position: 'absolute',
-    bottom: 6,
-    right: 6,
-    fontSize: 16,
-    opacity: 0.6,
-  },
+  offerTxt: { fontSize: 9, fontWeight: '900', letterSpacing: 0.4, textAlign: 'center' },
+  bolt: { position: 'absolute', bottom: 5, right: 5, fontSize: 15, opacity: 0.55 },
 });
 
-const pk = StyleSheet.create({
+/* ─── BannerStylePicker styles ─────────────────────────────── */
+const sp = StyleSheet.create({
+  wrap: { marginTop: 8 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  title: { fontSize: 15, fontWeight: '800', color: '#1a1a18' },
+  sub:   { fontSize: 12, color: '#888780', marginBottom: 12 },
+  requiredHint: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#fff7ed', borderRadius: 10, padding: 10,
+    marginBottom: 14, borderWidth: 1, borderColor: '#fed7aa',
+  },
+  requiredTxt: { fontSize: 12, color: '#c2410c', fontWeight: '600', flex: 1 },
+  list: { gap: 0 },
+});
+
+/* ─── BannerSelectCard styles ──────────────────────────────── */
+const sc = StyleSheet.create({
   wrap: {
-    marginTop: 10,
-  },
-  heading: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#9ca3af',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    paddingHorizontal: 2,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingBottom: 4,
-  },
-  swatch: {
-    width: 72,
-    height: 72,
-    borderRadius: 10,
-    borderWidth: 2,
+    borderRadius: 16, borderWidth: 1.5, borderColor: '#e8e4dd',
     overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    padding: 6,
+    backgroundColor: '#fff',
+    shadowColor: '#000', shadowOpacity: 0.06,
+    shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  bar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  dot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  dotTxt: {
-    fontSize: 13,
-    fontWeight: '900',
+  checkWrap: {
+    position: 'absolute', top: 10, right: 10,
+    backgroundColor: '#fff', borderRadius: 12, padding: 1,
   },
   label: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-    textAlign: 'center',
-  },
-  check: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkTxt: {
-    fontSize: 9,
-    fontWeight: '900',
+    textAlign: 'center', paddingVertical: 10,
+    fontSize: 13, fontWeight: '600', color: '#5f5e5a',
+    backgroundColor: '#fafaf9',
+    borderTopWidth: 0.5, borderTopColor: '#e8e4dd',
   },
 });
