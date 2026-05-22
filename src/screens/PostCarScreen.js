@@ -10,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import { http } from '../utils/api';
+import { useRazorpayCheckout } from '../utils/razorpay';
+import { useAuth } from '../context/AuthContext';
 
 const { width: SW } = Dimensions.get('window');
 const PURPLE = '#7c3aed';
@@ -123,6 +125,8 @@ function PhotoItem({ uri, label, onPress, onRemove }) {
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function PostCarScreen() {
   const nav = useNavigation();
+  const { user } = useAuth();
+  const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -233,16 +237,41 @@ export default function PostCarScreen() {
     }
     setLoading(true);
     try {
+      const planPrice   = form.plan?.price ?? 0;
+      const amountPaise = planPrice * 100;
+
+      // ── Step 1: Payment ────────────────────────────────────────────────────
+      const payResult = await initiatePayment({
+        amount:      amountPaise,
+        description: `Vehicle Listing – ${form.plan?.label || '1 Month'}`,
+      });
+
+      if (!payResult.success) {
+        if (!payResult.cancelled) {
+          Alert.alert('Payment Failed', payResult.error || 'Payment not completed. Please try again.');
+        }
+        return;
+      }
+
+      // ── Step 2: Post listing ───────────────────────────────────────────────
       const validPhotos = photos.filter(Boolean);
-      const r = await http('POST','/api/vehicles',{
-        vehicleType:form.vehicleType, name:form.name||form.vehicleType,
-        year:form.year, color:form.color, fuelType:form.fuelType,
-        seats:form.seating, dailyRate:form.dailyRate, advanceAmt:form.deposit,
-        minBooking:form.minRental, area:form.pickupLocation,
-        purpose:form.features, whatsapp:form.whatsapp,
-        description:form.notes, planDays:form.plan.days,
-        planLabel:form.plan.label, planPrice:form.plan.price,
-        photos: validPhotos,
+      const r = await http('POST','/api/payments/verify/vehicle',{
+        razorpay_order_id:   payResult.free ? undefined : payResult.razorpay_order_id,
+        razorpay_payment_id: payResult.free ? undefined : payResult.razorpay_payment_id,
+        razorpay_signature:  payResult.free ? undefined : payResult.razorpay_signature,
+        amount: amountPaise,
+        plan:   form.plan?.label || '1 Month',
+        days:   form.plan?.days  || 30,
+        vehicle: {
+          vehicleType:form.vehicleType, name:form.name||form.vehicleType,
+          year:form.year, color:form.color, fuelType:form.fuelType,
+          seats:form.seating, dailyRate:form.dailyRate, advanceAmt:form.deposit,
+          minBooking:form.minRental, area:form.pickupLocation,
+          purpose:form.features, whatsapp:form.whatsapp,
+          description:form.notes, planDays:form.plan?.days || 30,
+          planLabel:form.plan?.label || '1 Month', planPrice: planPrice,
+          photos: validPhotos,
+        },
       });
       if (r.ok) {
         Toast.show({ type:'success', text1:'✅ Vehicle listed successfully!' });
@@ -263,6 +292,7 @@ export default function PostCarScreen() {
       style={{ flex:1, backgroundColor:'#f5f5f5' }}
       behavior={Platform.OS==='ios'?'padding':undefined}
     >
+      {RazorpayCheckout}
       {/* Top nav */}
       <View style={s.topNav}>
         <TouchableOpacity onPress={back} style={s.backBtn}>
