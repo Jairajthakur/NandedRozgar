@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { BannerStylePicker } from '../components/PromoBanner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -174,133 +175,8 @@ function PlanCard({ plan, selected, onSelect }) {
 }
 
 // ─── Preview Banner ───────────────────────────────────────────────────────────
-// ─── Banner Style Picker ──────────────────────────────────────────────────────
-const BANNER_STYLES = [
-  { id: 'bold',   label: 'Bold Dark',      accent: '#e82828', bg: '#1a1a1a', textColor: '#fff' },
-  { id: 'clean',  label: 'Clean White',    accent: '#f97316', bg: '#f8f8f8', textColor: '#111' },
-  { id: 'vivid',  label: 'Vibrant Orange', accent: '#1a1a1a', bg: '#f97316', textColor: '#fff' },
-];
-
-function BannerStylePicker({ form, selectedStyle, onSelect }) {
-  return (
-    <View style={s.bannerPickerWrap}>
-      <View style={s.sectionHead}>
-        <Ionicons name="image-outline" size={17} color={ORANGE} />
-        <Text style={s.sectionTitle}>Choose Banner Style</Text>
-      </View>
-      <Text style={s.sectionSub}>Select a design for your promotion banner</Text>
-      <View style={s.bannerOptions}>
-        {BANNER_STYLES.map(style => (
-          <BannerPreviewCard
-            key={style.id}
-            style={style}
-            form={form}
-            selected={selectedStyle === style.id}
-            onSelect={() => onSelect(style.id)}
-          />
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function BannerPreviewCard({ style, form, selected, onSelect }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: !IS_WEB, speed: 40, bounciness: 0 }).start();
-  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: !IS_WEB, speed: 22, bounciness: 6 }).start();
-
-  const biz   = form.bizName  || 'Your Business';
-  const offer = form.tagline  || 'Big Sale!';
-  const loc   = form.location || 'Nanded';
-
-  return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={onSelect}
-        onPressIn={onIn}
-        onPressOut={onOut}
-        style={[s.bannerCardWrap, selected && { borderColor: ORANGE, borderWidth: 2.5 }]}
-      >
-        {/* ── Bold Dark ── */}
-        {style.id === 'bold' && (
-          <View style={[s.bannerCanvas, { backgroundColor: '#1a1a1a' }]}>
-            <View style={[s.bannerStripe, { backgroundColor: '#e82828' }]} />
-            <View style={s.bannerLeft}>
-              <View style={s.bannerLogoBox}>
-                <Text style={s.bannerLogoTxt}>LOGO</Text>
-              </View>
-              <Text style={[s.bannerBizBold, { color: '#fff' }]} numberOfLines={1}>{biz}</Text>
-              <Text style={[s.bannerOfferBold, { color: '#e82828' }]} numberOfLines={1}>{offer}</Text>
-              <Text style={s.bannerLocBold} numberOfLines={1}>📍 {loc}</Text>
-            </View>
-            <View style={s.bannerRight}>
-              <View style={[s.bannerOfferBox, { backgroundColor: '#e82828' }]}>
-                <Text style={s.bannerOfferBoxLabel}>SPECIAL</Text>
-                <Text style={s.bannerOfferBoxVal} numberOfLines={1}>{offer.length > 8 ? offer.slice(0,8)+'…' : offer}</Text>
-              </View>
-              <View style={[s.bannerCTA, { backgroundColor: '#fff' }]}>
-                <Text style={[s.bannerCTATxt, { color: '#e82828' }]}>CONTACT NOW</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* ── Clean White ── */}
-        {style.id === 'clean' && (
-          <View style={[s.bannerCanvas, { backgroundColor: '#f8f8f8', borderWidth: 1, borderColor: '#e0e0e0' }]}>
-            <View style={s.bannerCleanLeft}>
-              <View style={[s.bannerCleanLogo, { backgroundColor: '#111' }]}>
-                <Text style={s.bannerLogoTxt}>LOGO</Text>
-              </View>
-              <Text style={[s.bannerBizClean, { color: '#111' }]} numberOfLines={1}>{biz}</Text>
-              <View style={[s.bannerUnderline, { backgroundColor: ORANGE }]} />
-              <Text style={s.bannerLocClean} numberOfLines={1}>📍 {loc}</Text>
-            </View>
-            <View style={[s.bannerDivider, { backgroundColor: '#e5e5e5' }]} />
-            <View style={s.bannerCleanRight}>
-              <Text style={s.bannerLimitedTxt}>LIMITED OFFER</Text>
-              <Text style={[s.bannerOfferClean, { color: '#111' }]} numberOfLines={1}>{offer.length > 12 ? offer.slice(0,12)+'…' : offer}</Text>
-              <View style={[s.bannerCTA, { backgroundColor: ORANGE, marginTop: 6 }]}>
-                <Text style={[s.bannerCTATxt, { color: '#fff' }]}>SHOP NOW</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* ── Vibrant Orange ── */}
-        {style.id === 'vivid' && (
-          <View style={[s.bannerCanvas, { backgroundColor: ORANGE }]}>
-            <View style={[s.bannerVividLeft, { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10 }]}>
-              <Text style={[s.bannerBizBold, { color: '#fff' }]} numberOfLines={1}>{biz}</Text>
-              <Text style={s.bannerLocVivid} numberOfLines={1}>📍 {loc}</Text>
-              <View style={[s.bannerCTA, { backgroundColor: 'rgba(0,0,0,0.25)', marginTop: 6 }]}>
-                <Text style={[s.bannerCTATxt, { color: '#fff' }]}>GET IN TOUCH</Text>
-              </View>
-            </View>
-            <View style={s.bannerVividRight}>
-              <Text style={s.bannerMegaTxt}>MEGA OFFER</Text>
-              <Text style={[s.bannerOfferVivid, { color: '#fff' }]} numberOfLines={1}>{offer.length > 10 ? offer.slice(0,10)+'…' : offer}</Text>
-              <View style={[s.bannerCTA, { backgroundColor: '#1a1a1a', marginTop: 6 }]}>
-                <Text style={[s.bannerCTATxt, { color: ORANGE }]}>BOOK NOW</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Selected checkmark */}
-        {selected && (
-          <View style={s.bannerCheck}>
-            <Ionicons name="checkmark-circle" size={22} color={ORANGE} />
-          </View>
-        )}
-        <Text style={s.bannerStyleLabel}>{style.label}</Text>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-}
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ─── Main Screen ───────────────────────────────────────────────────────────
+───
 export default function PromoteBusinessScreen() {
   const nav    = useNavigation();
   const insets = useSafeAreaInsets();
@@ -328,7 +204,7 @@ export default function PromoteBusinessScreen() {
     address: '', website: '', description: '',
   });
   const [selectedPlan, setSelectedPlan] = useState('popular');
-  const [selectedBannerStyle, setSelectedBannerStyle] = useState('bold');
+  const [selectedBannerStyle, setSelectedBannerStyle] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg,   setErrorMsg]   = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -341,6 +217,7 @@ export default function PromoteBusinessScreen() {
     if (!form.category)        { setErrorMsg('Please select a business category.');     return false; }
     if (!form.location)        { setErrorMsg('Please select your location.');           return false; }
     if (!selectedPlan)         { setErrorMsg('Please select a promotion plan.');        return false; }
+    if (!selectedBannerStyle)   { setErrorMsg('Please select a banner style.');             return false; }
     return true;
   };
 
@@ -561,7 +438,7 @@ export default function PromoteBusinessScreen() {
             {/* ── Banner Style Picker ── */}
             <BannerStylePicker
               form={form}
-              selectedStyle={selectedBannerStyle}
+              selected={selectedBannerStyle}
               onSelect={setSelectedBannerStyle}
             />
 
