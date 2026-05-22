@@ -238,7 +238,7 @@ export default function JobDetailScreen({ route, navigation }) {
   async function shareJob() {
     try {
       await Share.share({
-        message: `Job: ${job.title}${job.company ? ` at ${job.company}` : ''}\n${job.location || 'Nanded'}${job.salary ? ` | ₹${job.salary}` : ''}\n\nApply on NandedRozgar!`,
+        message: `Job: ${job.title}${job.company ? ` at ${job.company}` : ''}\n${job.location || 'Nanded'}${job.salary ? ` | ₹${String(job.salary).replace(/^₹/, "")}` : ''}\n\nApply on NandedRozgar!`,
       });
     } catch {}
   }
@@ -275,7 +275,7 @@ export default function JobDetailScreen({ route, navigation }) {
       <StatusBar barStyle="light-content" backgroundColor={ORANGE} />
 
       {/* ══════════ HERO HEADER ══════════ */}
-      <Animated.View style={[s.hero, { paddingTop: insets.top + 8, opacity: heroOpacity }]}>
+      <Animated.View style={[s.hero, { paddingTop: insets.top + 52, opacity: heroOpacity }]}>
 
         {/* Decorative arcs */}
         <View style={s.arcTop} />
@@ -286,9 +286,8 @@ export default function JobDetailScreen({ route, navigation }) {
           <Particle key={i} x={p.x} size={p.size} color={p.color} delay={p.delay} />
         ))}
 
-        {/* Top nav — only save + report, back removed */}
-        <View style={s.heroNav}>
-          <View style={{ flex: 1 }} />
+        {/* Top nav — absolutely positioned top-right, no back button */}
+        <View style={[s.heroNav, { top: insets.top + 10 }]}>
           <TouchableOpacity style={s.navBtn} onPress={() => setShowReport(true)} activeOpacity={0.85}>
             <Ionicons name="flag-outline" size={18} color="#fff" />
           </TouchableOpacity>
@@ -297,13 +296,13 @@ export default function JobDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Pulsing ring behind icon */}
-        <Animated.View style={[s.iconRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]} />
-
-        {/* Category icon */}
-        <Animated.View style={[s.heroIconWrap, { transform: [{ scale: Animated.multiply(iconScale, pulseAnim) }] }]}>
-          <Ionicons name={icon} size={34} color={ORANGE} />
-        </Animated.View>
+        {/* Pulsing ring + icon, stacked via absolute inside a sized wrapper */}
+        <View style={s.iconContainer}>
+          <Animated.View style={[s.iconRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]} />
+          <Animated.View style={[s.heroIconWrap, { transform: [{ scale: Animated.multiply(iconScale, pulseAnim) }] }]}>
+            <Ionicons name={icon} size={34} color={ORANGE} />
+          </Animated.View>
+        </View>
 
         {/* Job title below icon */}
         <Text style={s.heroTitle} numberOfLines={2}>{job.title}</Text>
@@ -323,7 +322,7 @@ export default function JobDetailScreen({ route, navigation }) {
         {/* Stat pills */}
         <View style={s.statsRow}>
           {!!job.salary && (
-            <StatPill icon="cash-outline"   value={`₹${job.salary}`}    label="Salary"   delay={300} />
+            <StatPill icon="cash-outline"   value={`₹${String(job.salary).replace(/^₹/, "")}`}    label="Salary"   delay={300} />
           )}
           {!!job.type && (
             <StatPill icon="time-outline"   value={job.type}             label="Type"     delay={380} />
@@ -355,7 +354,7 @@ export default function JobDetailScreen({ route, navigation }) {
         <FadeSection delay={100}>
           <View style={s.quickInfoCard}>
             {!!job.salary && (
-              <InfoRow icon="cash-outline"    label="Salary"    value={`₹${job.salary}`}   color="#16a34a" />
+              <InfoRow icon="cash-outline"    label="Salary"    value={`₹${String(job.salary).replace(/^₹/, "")}`}   color="#16a34a" />
             )}
             {!!job.type && (
               <InfoRow icon="time-outline"    label="Job Type"  value={job.type}            color="#0891b2" />
@@ -539,20 +538,25 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.07)',
   },
   heroNav: {
-    flexDirection: 'row', alignSelf: 'stretch',
-    gap: 8, marginBottom: 18,
+    position: 'absolute', right: 16,
+    flexDirection: 'row', gap: 8,
+    zIndex: 10,
   },
   navBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center', justifyContent: 'center',
   },
+  iconContainer: {
+    width: 100, height: 100,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16, marginTop: 8,
+  },
   iconRing: {
     position: 'absolute',
     width: 100, height: 100, borderRadius: 50,
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
     backgroundColor: 'rgba(255,255,255,0.08)',
-    top: 72,
   },
   heroIconWrap: {
     width: 72, height: 72, borderRadius: 22,
@@ -560,7 +564,6 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 }, elevation: 10,
-    marginBottom: 16,
   },
   heroTitle: {
     fontSize: 22, fontWeight: '900', color: '#fff',
