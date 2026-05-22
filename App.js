@@ -40,6 +40,8 @@ import AlertsScreen         from './src/screens/AlertsScreen';
 import PromoteBusinessScreen from './src/screens/PromoteBusinessScreen';
 import ChatListScreen       from './src/screens/ChatListScreen';
 import ChatScreen           from './src/screens/ChatScreen';
+import HelpSupportScreen    from './src/screens/HelpSupportScreen';
+import AboutScreen          from './src/screens/AboutScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
 
 const Stack = createNativeStackNavigator();
@@ -243,6 +245,8 @@ function RootNavigator() {
       <Stack.Screen name="Alerts"          component={AlertsScreen}          options={{ headerShown: true, headerTitle: 'Job Alerts',            ...HEADER }} />
       <Stack.Screen name="ChatList"        component={ChatListScreen}        options={{ headerShown: true, headerTitle: 'Messages',              ...HEADER }} />
       <Stack.Screen name="Chat"            component={ChatScreen}            options={{ headerShown: true, headerTitle: 'Chat',                  ...HEADER }} />
+      <Stack.Screen name="HelpSupport"     component={HelpSupportScreen}     options={{ headerShown: true, headerTitle: 'Help & Support',         ...HEADER }} />
+      <Stack.Screen name="About"           component={AboutScreen}           options={{ headerShown: true, headerTitle: 'About CityPlus',          ...HEADER }} />
     </Stack.Navigator>
   );
 }
