@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "LokalLoop",
-    "slug": "nanded",
+    "name": "CityPlus",
+    "slug": "cityplus",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,22 +19,22 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "single",
-      "name": "LokalLoop",
-      "shortName": "LokalLoop",
+      "name": "CityPlus",
+      "shortName": "CityPlus",
       "description": "Local Jobs · Local Life · Nanded",
       "themeColor": "#f97316",
       "backgroundColor": "#111111"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.localloop.app"
+      "bundleIdentifier": "com.cityplus.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#111111"
       },
-      "package": "com.localloop.app",
+      "package": "com.cityplus.app",
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -48,7 +48,7 @@
       ],
       "googleServicesFile": "./google-services.json"
     },
-    "scheme": "nandedrozgar",
+    "scheme": "cityplus",
     "plugins": [
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
@@ -74,8 +74,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow LokalLoop to access your photos.",
-          "cameraPermission": "Allow LokalLoop to use your camera."
+          "photosPermission": "Allow CityPlus to access your photos.",
+          "cameraPermission": "Allow CityPlus to use your camera."
         }
       ]
     ],
