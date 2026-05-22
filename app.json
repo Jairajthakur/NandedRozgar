@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "CityPlus",
-    "slug": "cityplus",
+    "slug": "nanded",
     "version": "4.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -21,7 +21,7 @@
       "output": "single",
       "name": "CityPlus",
       "shortName": "CityPlus",
-      "description": "Local Jobs · Local Life · Nanded",
+      "description": "Local Jobs \u00b7 Local Life \u00b7 Nanded",
       "themeColor": "#f97316",
       "backgroundColor": "#111111"
     },
@@ -48,7 +48,7 @@
       ],
       "googleServicesFile": "./google-services.json"
     },
-    "scheme": "cityplus",
+    "scheme": "nanded",
     "plugins": [
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
