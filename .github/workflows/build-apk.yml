@@ -72,7 +72,7 @@ jobs:
             app.json > app.json.tmp && mv app.json.tmp app.json
 
       - name: Build APK
-        run: eas build --platform android --profile preview --local --output ./NandedRozgar.apk --non-interactive
+        run: eas build --platform android --profile preview --local --output ./CityPlus.apk --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           NODE_ENV: production
@@ -80,6 +80,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: NandedRozgar-APK
-          path: ./NandedRozgar.apk
+          name: CityPlus-APK
+          path: ./CityPlus.apk
           retention-days: 30
