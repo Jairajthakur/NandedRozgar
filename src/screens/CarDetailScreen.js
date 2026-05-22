@@ -255,7 +255,7 @@ export default function CarDetailScreen() {
 
   function openWhatsApp() {
     const phone = car.whatsapp || car.phone || '';
-    const msg   = `Hi, I'm interested in renting your ${car.name} listed on NandedRozgar.`;
+    const msg   = `Hi, I'm interested in renting your ${car.name} listed on CityPlus.`;
     if (phone)
       Linking.openURL(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`).catch(() =>
         Alert.alert('WhatsApp not installed', 'Please contact via call.')
@@ -266,7 +266,7 @@ export default function CarDetailScreen() {
   async function shareVehicle() {
     try {
       await Share.share({
-        message: `Check out this vehicle on NandedRozgar!\n${car.name} - ${car.price}/day\nLocation: ${car.location || 'Nanded'}`,
+        message: `Check out this vehicle on CityPlus!\n${car.name} - ${car.price}/day\nLocation: ${car.location || 'Nanded'}`,
       });
     } catch {}
   }
