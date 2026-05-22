@@ -278,6 +278,29 @@ async function runMigrations() {
       );
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS buysell_items (
+        id          SERIAL PRIMARY KEY,
+        posted_by   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        title       VARCHAR(200) NOT NULL,
+        category    VARCHAR(50)  DEFAULT 'Other',
+        condition   VARCHAR(50)  DEFAULT 'Good',
+        age         VARCHAR(50),
+        price       INTEGER      NOT NULL,
+        negotiable  BOOLEAN      DEFAULT TRUE,
+        area        VARCHAR(100),
+        description TEXT,
+        whatsapp    VARCHAR(15)  NOT NULL,
+        photos      JSONB        DEFAULT '[]',
+        plan_days   INTEGER      DEFAULT 15,
+        plan_label  VARCHAR(30),
+        plan_price  INTEGER,
+        expires_at  TIMESTAMPTZ,
+        status      VARCHAR(20)  DEFAULT 'active',
+        created_at  TIMESTAMPTZ  DEFAULT NOW()
+      );
+    `);
+
     // ── Safe ALTER for existing deployments (must run BEFORE indexes) ────────
     const safeAlters = [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium          BOOLEAN DEFAULT FALSE`,
