@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   StyleSheet, Alert, KeyboardAvoidingView, Platform,
@@ -249,23 +249,32 @@ function Step2({ form, set }) {
 }
 
 // ── Step 3 with working photo picker ─────────────────────────────────────────
-function Step3({ form, set }) {
+// Receives setForm directly so photo updates use functional setState
+// — avoids stale closure bugs where form.photos is out of date inside async callbacks.
+function Step3({ form, set, setForm }) {
   async function pickPhotos() {
-    // Ask permission
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow access to your photo library in Settings.');
       return;
     }
 
-    const remaining = MAX_PHOTOS - form.photos.length;
+    // Use functional update so we always read the latest photos array
+    let currentPhotos = [];
+    setForm(f => { currentPhotos = f.photos; return f; });
+
+    const remaining = MAX_PHOTOS - currentPhotos.length;
     if (remaining <= 0) {
       Alert.alert('Limit reached', `You can upload up to ${MAX_PHOTOS} photos.`);
       return;
     }
 
+    const mediaType = ImagePicker.MediaType?.Images
+      ?? ImagePicker.MediaTypeOptions?.Images
+      ?? 'Images';
+
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: mediaType,
       allowsMultipleSelection: true,
       selectionLimit: remaining,
       quality: 0.7,
@@ -273,8 +282,9 @@ function Step3({ form, set }) {
     });
 
     if (!result.canceled && result.assets?.length) {
-      const uris = result.assets.map(a => a.uri);
-      set('photos', [...form.photos, ...uris].slice(0, MAX_PHOTOS));
+      const newUris = result.assets.map(a => a.uri);
+      // Functional update merges latest state + new picks
+      setForm(f => ({ ...f, photos: [...f.photos, ...newUris].slice(0, MAX_PHOTOS) }));
     }
   }
 
@@ -285,7 +295,10 @@ function Step3({ form, set }) {
       return;
     }
 
-    if (form.photos.length >= MAX_PHOTOS) {
+    let currentPhotos = [];
+    setForm(f => { currentPhotos = f.photos; return f; });
+
+    if (currentPhotos.length >= MAX_PHOTOS) {
       Alert.alert('Limit reached', `You can upload up to ${MAX_PHOTOS} photos.`);
       return;
     }
@@ -296,12 +309,13 @@ function Step3({ form, set }) {
     });
 
     if (!result.canceled && result.assets?.[0]) {
-      set('photos', [...form.photos, result.assets[0].uri].slice(0, MAX_PHOTOS));
+      const uri = result.assets[0].uri;
+      setForm(f => ({ ...f, photos: [...f.photos, uri].slice(0, MAX_PHOTOS) }));
     }
   }
 
   function removePhoto(index) {
-    set('photos', form.photos.filter((_, i) => i !== index));
+    setForm(f => ({ ...f, photos: f.photos.filter((_, i) => i !== index) }));
   }
 
   function showPhotoOptions() {
@@ -542,8 +556,9 @@ export default function PostItemScreen() {
     plan:        PLANS[1],
   });
 
-  // Stable setter — never recreated so components don't remount
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  // Stable setter — useCallback so its reference never changes between renders,
+  // which means Step components never see a new 'set' prop and never remount.
+  const set = useCallback((k, v) => setForm(f => ({ ...f, [k]: v })), []);
 
   // ── Slide animation between steps ──────────────────────────────────────────
   function animateStep(dir, cb) {
@@ -615,7 +630,7 @@ export default function PostItemScreen() {
     switch (step) {
       case 1: return <Step1 form={form} set={set} />;
       case 2: return <Step2 form={form} set={set} />;
-      case 3: return <Step3 form={form} set={set} />;
+      case 3: return <Step3 form={form} set={set} setForm={setForm} />;
       case 4: return <Step4 form={form} set={set} />;
       case 5: return <Step5 form={form} />;
       default: return null;
