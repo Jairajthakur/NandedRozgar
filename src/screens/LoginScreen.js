@@ -395,8 +395,8 @@ export default function LoginScreen() {
               </View>
             </View>
             <Text style={S.logoName}>
-              <Text style={{ color: TEXT }}>Local</Text>
-              <Text style={{ color: ORANGE }}>Loop</Text>
+              <Text style={{ color: TEXT }}>City</Text>
+              <Text style={{ color: ORANGE }}>Plus</Text>
             </Text>
             <View style={S.tagRow}>
               <View style={S.tagDot} />
