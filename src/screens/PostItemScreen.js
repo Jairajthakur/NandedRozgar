@@ -2,11 +2,12 @@ import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   StyleSheet, Alert, KeyboardAvoidingView, Platform,
-  Animated, Dimensions, ActivityIndicator,
+  Animated, Dimensions, ActivityIndicator, Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
+import * as ImagePicker from 'expo-image-picker';
 import { http } from '../utils/api';
 
 const { width: SW } = Dimensions.get('window');
@@ -56,6 +57,8 @@ const STEP_META = [
   { title: 'Choose Plan',          sub: 'How long should your listing stay live?' },
   { title: 'Review & Post',        sub: 'Confirm your listing before going live' },
 ];
+
+const MAX_PHOTOS = 5;
 
 // ── Simple picker component ───────────────────────────────────────────────────
 function Picker({ value, options, onSelect, fullWidth = false }) {
@@ -151,6 +154,371 @@ function HeroHeader({ step, total, title, sub, onBack }) {
 }
 
 // ═══════════════════════════════════════════
+//  STEP COMPONENTS — defined OUTSIDE the main
+//  screen so React never remounts them on
+//  re-render (fixes single-character input bug)
+// ═══════════════════════════════════════════
+
+function Step1({ form, set }) {
+  return (
+    <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <Label text="AD TITLE" required />
+      <TextInput
+        style={styles.input}
+        placeholder="e.g. Samsung 42 inch TV, Wooden Study Table"
+        placeholderTextColor="#bbb"
+        value={form.title}
+        onChangeText={v => set('title', v)}
+        maxLength={80}
+      />
+      <Text style={styles.charCount}>{form.title.length}/80</Text>
+
+      <Label text="CATEGORY" required />
+      <View style={styles.categoryGrid}>
+        {CATEGORIES.map(c => (
+          <TouchableOpacity
+            key={c.label}
+            onPress={() => set('category', c.label)}
+            activeOpacity={0.8}
+            style={[styles.catCard, form.category === c.label && styles.catCardActive]}
+          >
+            <Ionicons
+              name={c.icon}
+              size={22}
+              color={form.category === c.label ? ORANGE : '#888'}
+            />
+            <Text style={[styles.catCardLabel, form.category === c.label && { color: ORANGE, fontWeight: '700' }]}>
+              {c.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Label text="CONDITION" />
+      {CONDITIONS.map(c => (
+        <RadioOption
+          key={c.label}
+          label={c.label}
+          sub={c.sub}
+          selected={form.condition === c.label}
+          onPress={() => set('condition', c.label)}
+        />
+      ))}
+
+      <Label text="HOW OLD IS IT?" />
+      <Picker value={form.age} options={AGE_OPTIONS} onSelect={v => set('age', v)} fullWidth />
+      <View style={{ height: 24 }} />
+    </ScrollView>
+  );
+}
+
+function Step2({ form, set }) {
+  return (
+    <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <Label text="SELLING PRICE (₹)" required />
+      <View style={styles.priceWrap}>
+        <View style={styles.rupeeBox}><Text style={styles.rupeeSign}>₹</Text></View>
+        <TextInput
+          style={[styles.input, { flex: 1, marginBottom: 0, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }]}
+          placeholder="e.g. 5000"
+          placeholderTextColor="#bbb"
+          keyboardType="numeric"
+          value={form.price}
+          onChangeText={v => set('price', v.replace(/[^0-9]/g, ''))}
+        />
+      </View>
+      <View style={{ height: 16 }} />
+
+      <Label text="PRICE NEGOTIABLE?" />
+      <RadioOption
+        label="Yes, Negotiable"
+        selected={form.negotiable === true}
+        onPress={() => set('negotiable', true)}
+      />
+      <RadioOption
+        label="No, Fixed Price"
+        selected={form.negotiable === false}
+        onPress={() => set('negotiable', false)}
+      />
+
+      <Label text="YOUR LOCATION / AREA" required />
+      <Picker value={form.area} options={AREAS} onSelect={v => set('area', v)} fullWidth />
+      <View style={{ height: 24 }} />
+    </ScrollView>
+  );
+}
+
+// ── Step 3 with working photo picker ─────────────────────────────────────────
+function Step3({ form, set }) {
+  async function pickPhotos() {
+    // Ask permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library in Settings.');
+      return;
+    }
+
+    const remaining = MAX_PHOTOS - form.photos.length;
+    if (remaining <= 0) {
+      Alert.alert('Limit reached', `You can upload up to ${MAX_PHOTOS} photos.`);
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      quality: 0.7,
+      base64: false,
+    });
+
+    if (!result.canceled && result.assets?.length) {
+      const uris = result.assets.map(a => a.uri);
+      set('photos', [...form.photos, ...uris].slice(0, MAX_PHOTOS));
+    }
+  }
+
+  async function takePhoto() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow camera access in Settings.');
+      return;
+    }
+
+    if (form.photos.length >= MAX_PHOTOS) {
+      Alert.alert('Limit reached', `You can upload up to ${MAX_PHOTOS} photos.`);
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.7,
+      base64: false,
+    });
+
+    if (!result.canceled && result.assets?.[0]) {
+      set('photos', [...form.photos, result.assets[0].uri].slice(0, MAX_PHOTOS));
+    }
+  }
+
+  function removePhoto(index) {
+    set('photos', form.photos.filter((_, i) => i !== index));
+  }
+
+  function showPhotoOptions() {
+    Alert.alert('Add Photo', 'Choose a source', [
+      { text: 'Camera',        onPress: takePhoto },
+      { text: 'Photo Library', onPress: pickPhotos },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <Label text="ITEM PHOTOS" />
+
+      {/* Photo grid */}
+      {form.photos.length > 0 && (
+        <View style={styles.photoGrid}>
+          {form.photos.map((uri, i) => (
+            <View key={uri + i} style={styles.photoThumbWrap}>
+              <Image source={{ uri }} style={styles.photoThumb} />
+              {i === 0 && (
+                <View style={styles.photoBadge}>
+                  <Text style={styles.photoBadgeTxt}>Cover</Text>
+                </View>
+              )}
+              <TouchableOpacity
+                style={styles.photoRemoveBtn}
+                onPress={() => removePhoto(i)}
+                hitSlop={{ top: 6, left: 6, right: 6, bottom: 6 }}
+              >
+                <Ionicons name="close-circle" size={20} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          ))}
+
+          {/* Add more tile */}
+          {form.photos.length < MAX_PHOTOS && (
+            <TouchableOpacity style={styles.photoAddTile} onPress={showPhotoOptions} activeOpacity={0.8}>
+              <Ionicons name="add" size={28} color={ORANGE} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Upload box shown when no photos yet */}
+      {form.photos.length === 0 && (
+        <TouchableOpacity style={styles.photoUploadBox} onPress={showPhotoOptions} activeOpacity={0.8}>
+          <Ionicons name="cloud-upload-outline" size={32} color={ORANGE} />
+          <Text style={styles.photoUploadTitle}>Upload item photos</Text>
+          <Text style={styles.photoUploadSub}>Tap to choose from gallery or camera</Text>
+          <Text style={styles.photoUploadSub}>Up to {MAX_PHOTOS} photos</Text>
+        </TouchableOpacity>
+      )}
+
+      <Label text="ITEM DESCRIPTION" />
+      <TextInput
+        style={[styles.input, styles.textarea]}
+        placeholder="Provide details like brand, model, reason for selling, accessories included..."
+        placeholderTextColor="#bbb"
+        value={form.description}
+        onChangeText={v => set('description', v)}
+        multiline
+        numberOfLines={5}
+        textAlignVertical="top"
+        maxLength={500}
+      />
+      <Text style={styles.charCount}>{form.description.length}/500</Text>
+
+      <Label text="WHATSAPP NUMBER" required />
+      <View style={styles.phoneWrap}>
+        <View style={styles.phonePrefix}>
+          <Text style={styles.phonePrefixTxt}>+91</Text>
+        </View>
+        <TextInput
+          style={[styles.input, { flex: 1, marginBottom: 0, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }]}
+          placeholder="98765 43210"
+          placeholderTextColor="#bbb"
+          keyboardType="phone-pad"
+          value={form.whatsapp}
+          onChangeText={v => set('whatsapp', v.replace(/[^0-9]/g, ''))}
+          maxLength={10}
+        />
+      </View>
+      <View style={{ height: 24 }} />
+    </ScrollView>
+  );
+}
+
+function Step4({ form, set }) {
+  return (
+    <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false}>
+      <Text style={styles.planQuestion}>How long should your listing stay live?</Text>
+      <Text style={styles.planNote}>Your listing is automatically removed after the selected period.</Text>
+
+      {PLANS.map(plan => {
+        const isActive = form.plan.days === plan.days;
+        return (
+          <TouchableOpacity
+            key={plan.days}
+            onPress={() => set('plan', plan)}
+            activeOpacity={0.85}
+            style={[styles.planCard, isActive && styles.planCardActive]}
+          >
+            <View style={[styles.planIconWrap, isActive && styles.planIconWrapActive]}>
+              <Ionicons name="calendar-outline" size={20} color={isActive ? '#fff' : ORANGE} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.planLabel, isActive && styles.planLabelActive]}>
+                {plan.label}
+              </Text>
+              <Text style={[styles.planSubLabel, isActive && { color: 'rgba(255,255,255,0.75)' }]}>
+                listing duration · pay once
+              </Text>
+            </View>
+            <View style={{ alignItems: 'flex-end', marginRight: 12 }}>
+              {plan.strikePrice && (
+                <Text style={[styles.strikePrice, isActive && { color: 'rgba(255,255,255,0.5)' }]}>
+                  ₹{plan.strikePrice}
+                </Text>
+              )}
+              <Text style={[styles.planPrice, isActive && styles.planPriceActive]}>
+                ₹{plan.price}
+              </Text>
+            </View>
+            <View style={[styles.planRadio, isActive && styles.planRadioActive]}>
+              {isActive && <View style={styles.planRadioInner} />}
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+
+      {/* Benefits strip */}
+      <View style={styles.benefitsRow}>
+        {[
+          { icon: 'flash-outline',            label: 'INSTANT ACTIVATION' },
+          { icon: 'shield-checkmark-outline', label: 'SECURE UPI / CARD' },
+          { icon: 'refresh-outline',          label: 'RENEWABLE ANYTIME' },
+        ].map(b => (
+          <View key={b.label} style={styles.benefitItem}>
+            <Ionicons name={b.icon} size={16} color={ORANGE} />
+            <Text style={styles.benefitLabel}>{b.label}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={{ height: 24 }} />
+    </ScrollView>
+  );
+}
+
+function Step5({ form }) {
+  const rows1 = [
+    ['TITLE',     form.title     || 'Not set'],
+    ['CATEGORY',  form.category],
+    ['CONDITION', form.condition],
+    ['AGE',       form.age],
+  ];
+  const rows2 = [
+    ['PRICE',      form.price ? `₹${parseInt(form.price).toLocaleString('en-IN')}` : 'Not set'],
+    ['NEGOTIABLE', form.negotiable ? 'Yes' : 'No, Fixed Price'],
+    ['LOCATION',   form.area],
+  ];
+  return (
+    <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false}>
+      <Text style={styles.reviewHeading}>Review your item listing:</Text>
+
+      {/* Photo preview strip */}
+      {form.photos.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+          {form.photos.map((uri, i) => (
+            <Image key={i} source={{ uri }} style={styles.reviewPhoto} />
+          ))}
+        </ScrollView>
+      )}
+
+      <View style={styles.reviewCard}>
+        {rows1.map(([k, v]) => (
+          <View key={k} style={styles.reviewRow}>
+            <Text style={styles.reviewKey}>{k}</Text>
+            <Text style={[styles.reviewVal, !form.title && k === 'TITLE' && { color: '#ef4444' }]}>{v}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={[styles.reviewCard, { marginTop: 10 }]}>
+        {rows2.map(([k, v]) => (
+          <View key={k} style={styles.reviewRow}>
+            <Text style={styles.reviewKey}>{k}</Text>
+            <Text style={styles.reviewVal}>{v}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={[styles.reviewCard, { marginTop: 10 }]}>
+        <View style={styles.reviewRow}>
+          <Text style={styles.reviewKey}>WHATSAPP</Text>
+          <Text style={[styles.reviewVal, !form.whatsapp && { color: '#ef4444' }]}>
+            {form.whatsapp ? `+91 ${form.whatsapp}` : 'Not set'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={[styles.reviewCard, styles.reviewPlanCard, { marginTop: 10 }]}>
+        <View style={styles.reviewRow}>
+          <Text style={styles.reviewKey}>DURATION</Text>
+          <Text style={styles.reviewVal}>{form.plan.label} listing</Text>
+        </View>
+        <View style={styles.reviewRow}>
+          <Text style={styles.reviewKey}>AMOUNT</Text>
+          <Text style={[styles.reviewVal, { color: ORANGE, fontWeight: '700' }]}>₹{form.plan.price}</Text>
+        </View>
+      </View>
+      <View style={{ height: 24 }} />
+    </ScrollView>
+  );
+}
+
+// ═══════════════════════════════════════════
 //  MAIN SCREEN
 // ═══════════════════════════════════════════
 export default function PostItemScreen() {
@@ -174,6 +542,7 @@ export default function PostItemScreen() {
     plan:        PLANS[1],
   });
 
+  // Stable setter — never recreated so components don't remount
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   // ── Slide animation between steps ──────────────────────────────────────────
@@ -239,267 +608,19 @@ export default function PostItemScreen() {
     }
   }
 
-  // ── Step 1: Item Details ───────────────────────────────────────────────────
-  function Step1() {
-    return (
-      <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Label text="AD TITLE" required />
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Samsung 42 inch TV, Wooden Study Table"
-          placeholderTextColor="#bbb"
-          value={form.title}
-          onChangeText={v => set('title', v)}
-          maxLength={80}
-        />
-        <Text style={styles.charCount}>{form.title.length}/80</Text>
-
-        <Label text="CATEGORY" required />
-        <View style={styles.categoryGrid}>
-          {CATEGORIES.map(c => (
-            <TouchableOpacity
-              key={c.label}
-              onPress={() => set('category', c.label)}
-              activeOpacity={0.8}
-              style={[styles.catCard, form.category === c.label && styles.catCardActive]}
-            >
-              <Ionicons
-                name={c.icon}
-                size={22}
-                color={form.category === c.label ? ORANGE : '#888'}
-              />
-              <Text style={[styles.catCardLabel, form.category === c.label && { color: ORANGE, fontWeight: '700' }]}>
-                {c.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Label text="CONDITION" />
-        {CONDITIONS.map(c => (
-          <RadioOption
-            key={c.label}
-            label={c.label}
-            sub={c.sub}
-            selected={form.condition === c.label}
-            onPress={() => set('condition', c.label)}
-          />
-        ))}
-
-        <Label text="HOW OLD IS IT?" />
-        <Picker value={form.age} options={AGE_OPTIONS} onSelect={v => set('age', v)} fullWidth />
-        <View style={{ height: 24 }} />
-      </ScrollView>
-    );
-  }
-
-  // ── Step 2: Pricing & Location ─────────────────────────────────────────────
-  function Step2() {
-    return (
-      <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Label text="SELLING PRICE (₹)" required />
-        <View style={styles.priceWrap}>
-          <View style={styles.rupeeBox}><Text style={styles.rupeeSign}>₹</Text></View>
-          <TextInput
-            style={[styles.input, { flex: 1, marginBottom: 0 }]}
-            placeholder="e.g. 5000"
-            placeholderTextColor="#bbb"
-            keyboardType="numeric"
-            value={form.price}
-            onChangeText={v => set('price', v.replace(/[^0-9]/g, ''))}
-          />
-        </View>
-        <View style={{ height: 16 }} />
-
-        <Label text="PRICE NEGOTIABLE?" />
-        <RadioOption
-          label="Yes, Negotiable"
-          selected={form.negotiable === true}
-          onPress={() => set('negotiable', true)}
-        />
-        <RadioOption
-          label="No, Fixed Price"
-          selected={form.negotiable === false}
-          onPress={() => set('negotiable', false)}
-        />
-
-        <Label text="YOUR LOCATION / AREA" required />
-        <Picker value={form.area} options={AREAS} onSelect={v => set('area', v)} fullWidth />
-        <View style={{ height: 24 }} />
-      </ScrollView>
-    );
-  }
-
-  // ── Step 3: Photos & Description ──────────────────────────────────────────
-  function Step3() {
-    return (
-      <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Label text="ITEM PHOTOS" />
-        <TouchableOpacity style={styles.photoUploadBox} activeOpacity={0.8}>
-          <Ionicons name="cloud-upload-outline" size={32} color={ORANGE} />
-          <Text style={styles.photoUploadTitle}>Upload item photos</Text>
-          <Text style={styles.photoUploadSub}>Include multiple angles and any damage</Text>
-        </TouchableOpacity>
-
-        <Label text="ITEM DESCRIPTION" />
-        <TextInput
-          style={[styles.input, styles.textarea]}
-          placeholder="Provide details like brand, model, reason for selling, accessories included..."
-          placeholderTextColor="#bbb"
-          value={form.description}
-          onChangeText={v => set('description', v)}
-          multiline
-          numberOfLines={5}
-          textAlignVertical="top"
-          maxLength={500}
-        />
-        <Text style={styles.charCount}>{form.description.length}/500</Text>
-
-        <Label text="WHATSAPP NUMBER" required />
-        <View style={styles.phoneWrap}>
-          <View style={styles.phonePrefix}>
-            <Text style={styles.phonePrefixTxt}>+91</Text>
-          </View>
-          <TextInput
-            style={[styles.input, { flex: 1, marginBottom: 0 }]}
-            placeholder="98765 43210"
-            placeholderTextColor="#bbb"
-            keyboardType="phone-pad"
-            value={form.whatsapp}
-            onChangeText={v => set('whatsapp', v.replace(/[^0-9]/g, ''))}
-            maxLength={10}
-          />
-        </View>
-        <View style={{ height: 24 }} />
-      </ScrollView>
-    );
-  }
-
-  // ── Step 4: Choose Plan ───────────────────────────────────────────────────
-  function Step4() {
-    return (
-      <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false}>
-        <Text style={styles.planQuestion}>How long should your listing stay live?</Text>
-        <Text style={styles.planNote}>Your listing is automatically removed after the selected period.</Text>
-
-        {PLANS.map(plan => {
-          const isActive = form.plan.days === plan.days;
-          return (
-            <TouchableOpacity
-              key={plan.days}
-              onPress={() => set('plan', plan)}
-              activeOpacity={0.85}
-              style={[styles.planCard, isActive && styles.planCardActive]}
-            >
-              <View style={[styles.planIconWrap, isActive && styles.planIconWrapActive]}>
-                <Ionicons name="calendar-outline" size={20} color={isActive ? '#fff' : ORANGE} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.planLabel, isActive && styles.planLabelActive]}>
-                  {plan.label}
-                </Text>
-                <Text style={[styles.planSubLabel, isActive && { color: 'rgba(255,255,255,0.75)' }]}>
-                  listing duration · pay once
-                </Text>
-              </View>
-              <View style={{ alignItems: 'flex-end', marginRight: 12 }}>
-                {plan.strikePrice && (
-                  <Text style={[styles.strikePrice, isActive && { color: 'rgba(255,255,255,0.5)' }]}>
-                    ₹{plan.strikePrice}
-                  </Text>
-                )}
-                <Text style={[styles.planPrice, isActive && styles.planPriceActive]}>
-                  ₹{plan.price}
-                </Text>
-              </View>
-              <View style={[styles.planRadio, isActive && styles.planRadioActive]}>
-                {isActive && <View style={styles.planRadioInner} />}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-
-        {/* Benefits strip */}
-        <View style={styles.benefitsRow}>
-          {[
-            { icon: 'flash-outline',         label: 'INSTANT ACTIVATION' },
-            { icon: 'shield-checkmark-outline', label: 'SECURE UPI / CARD' },
-            { icon: 'refresh-outline',       label: 'RENEWABLE ANYTIME' },
-          ].map(b => (
-            <View key={b.label} style={styles.benefitItem}>
-              <Ionicons name={b.icon} size={16} color={ORANGE} />
-              <Text style={styles.benefitLabel}>{b.label}</Text>
-            </View>
-          ))}
-        </View>
-        <View style={{ height: 24 }} />
-      </ScrollView>
-    );
-  }
-
-  // ── Step 5: Review & Post ─────────────────────────────────────────────────
-  function Step5() {
-    const rows1 = [
-      ['TITLE',     form.title     || 'Not set'],
-      ['CATEGORY',  form.category],
-      ['CONDITION', form.condition],
-      ['AGE',       form.age],
-    ];
-    const rows2 = [
-      ['PRICE',      form.price ? `₹${parseInt(form.price).toLocaleString('en-IN')}` : 'Not set'],
-      ['NEGOTIABLE', form.negotiable ? 'Yes' : 'No, Fixed Price'],
-      ['LOCATION',   form.area],
-    ];
-    return (
-      <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false}>
-        <Text style={styles.reviewHeading}>Review your item listing:</Text>
-
-        <View style={styles.reviewCard}>
-          {rows1.map(([k, v]) => (
-            <View key={k} style={styles.reviewRow}>
-              <Text style={styles.reviewKey}>{k}</Text>
-              <Text style={[styles.reviewVal, !form.title && k === 'TITLE' && { color: '#ef4444' }]}>{v}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={[styles.reviewCard, { marginTop: 10 }]}>
-          {rows2.map(([k, v]) => (
-            <View key={k} style={styles.reviewRow}>
-              <Text style={styles.reviewKey}>{k}</Text>
-              <Text style={styles.reviewVal}>{v}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={[styles.reviewCard, { marginTop: 10 }]}>
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewKey}>WHATSAPP</Text>
-            <Text style={[styles.reviewVal, !form.whatsapp && { color: '#ef4444' }]}>
-              {form.whatsapp ? `+91 ${form.whatsapp}` : 'Not set'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={[styles.reviewCard, styles.reviewPlanCard, { marginTop: 10 }]}>
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewKey}>DURATION</Text>
-            <Text style={styles.reviewVal}>{form.plan.label} listing</Text>
-          </View>
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewKey}>AMOUNT</Text>
-            <Text style={[styles.reviewVal, { color: ORANGE, fontWeight: '700' }]}>₹{form.plan.price}</Text>
-          </View>
-        </View>
-        <View style={{ height: 24 }} />
-      </ScrollView>
-    );
-  }
-
-  const stepContent = [Step1, Step2, Step3, Step4, Step5];
-  const StepComponent = stepContent[step - 1];
-
   const isLastStep = step === TOTAL;
+
+  // Render the current step — passing form + set as props (no inline definitions)
+  function renderStep() {
+    switch (step) {
+      case 1: return <Step1 form={form} set={set} />;
+      case 2: return <Step2 form={form} set={set} />;
+      case 3: return <Step3 form={form} set={set} />;
+      case 4: return <Step4 form={form} set={set} />;
+      case 5: return <Step5 form={form} />;
+      default: return null;
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -526,7 +647,7 @@ export default function PostItemScreen() {
             },
           ]}
         >
-          <StepComponent />
+          {renderStep()}
         </Animated.View>
       </KeyboardAvoidingView>
 
@@ -699,6 +820,45 @@ const styles = StyleSheet.create({
   },
   photoUploadTitle: { fontSize: 15, fontWeight: '700', color: '#333', marginTop: 4 },
   photoUploadSub:   { fontSize: 12, color: '#aaa' },
+
+  // Photo grid
+  photoGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16,
+  },
+  photoThumbWrap: {
+    width: (SW - 64) / 3,
+    height: (SW - 64) / 3,
+    borderRadius: 10, overflow: 'visible',
+    position: 'relative',
+  },
+  photoThumb: {
+    width: '100%', height: '100%',
+    borderRadius: 10, backgroundColor: '#eee',
+  },
+  photoBadge: {
+    position: 'absolute', bottom: 4, left: 4,
+    backgroundColor: ORANGE, borderRadius: 4,
+    paddingHorizontal: 5, paddingVertical: 2,
+  },
+  photoBadgeTxt: { fontSize: 9, fontWeight: '700', color: '#fff' },
+  photoRemoveBtn: {
+    position: 'absolute', top: -6, right: -6,
+    backgroundColor: '#fff', borderRadius: 10,
+  },
+  photoAddTile: {
+    width: (SW - 64) / 3,
+    height: (SW - 64) / 3,
+    borderRadius: 10,
+    borderWidth: 2, borderColor: '#ffe5cc', borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+
+  // Review photo
+  reviewPhoto: {
+    width: 72, height: 72, borderRadius: 10,
+    marginRight: 8, backgroundColor: '#eee',
+  },
 
   // Plan cards
   planQuestion: { fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 4 },
