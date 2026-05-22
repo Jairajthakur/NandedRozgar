@@ -261,8 +261,8 @@ export default function ProfileScreen() {
   ];
   const commonMenu = [
     { icon: 'share-social-outline',       label: 'Refer & Earn',      onPress: () => nav.navigate('Referral') },
-    { icon: 'help-circle-outline',        label: 'Help & Support',    onPress: () => {} },
-    { icon: 'information-circle-outline', label: 'About CityPlus',onPress: () => {} },
+    { icon: 'help-circle-outline',        label: 'Help & Support',    onPress: () => nav.navigate('HelpSupport') },
+    { icon: 'information-circle-outline', label: 'About CityPlus',    onPress: () => nav.navigate('About') },
   ];
 
   const roleMenu  = isAdmin ? adminMenu : isSeeker ? seekerMenu : employerMenu;
