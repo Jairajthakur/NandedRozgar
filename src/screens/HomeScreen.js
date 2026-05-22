@@ -184,47 +184,48 @@ function WebScrollBanner() {
   );
 }
 
+
 // Native animated ticker (mobile / fallback)
+// ── Ticker ─────────────────────────────────────────────────────────────────────
+const ITEM_H = 38; // must match s.ticker height
+
 function TickerBanner() {
-  // On web, use the ScrollVelocity banner instead
   if (IS_WEB) return <WebScrollBanner />;
 
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const opacity    = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(12)).current;
+  const DOUBLED = [...TICKER_ITEMS, ...TICKER_ITEMS]; // seamless loop
+  const translateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const showItem = () => {
-      opacity.setValue(0);
-      translateY.setValue(12);
-      Animated.parallel([
-        Animated.timing(opacity,    { toValue: 1, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      ]).start();
-    };
-    showItem();
-    const interval = setInterval(() => {
-      Animated.parallel([
-        Animated.timing(opacity,    { toValue: 0, duration: 280, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: -10, duration: 280, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-      ]).start(() => {
-        setCurrentIndex(prev => (prev + 1) % TICKER_ITEMS.length);
-        translateY.setValue(12);
-        Animated.parallel([
-          Animated.timing(opacity,    { toValue: 1, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-          Animated.timing(translateY, { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        ]).start();
-      });
-    }, 2800);
-    return () => clearInterval(interval);
+    const totalHeight = ITEM_H * TICKER_ITEMS.length;
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(translateY, {
+          toValue: -totalHeight,
+          duration: TICKER_ITEMS.length * 1800, // 1.8s per item
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 0, // instant reset — invisible because we use doubled array
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
   }, []);
 
-  const item = TICKER_ITEMS[currentIndex];
   return (
-    <View style={s.ticker}>
-      <Animated.View style={[s.tickerRow, { opacity, transform: [{ translateY }] }]}>
-        <Ionicons name={item.icon} size={14} color={ORANGE} style={{ marginRight: 8 }} />
-        <Text style={s.tickerText} numberOfLines={1}>{item.text}</Text>
+    <View style={[s.ticker, { overflow: 'hidden' }]}>
+      <Animated.View style={{ transform: [{ translateY }] }}>
+        {DOUBLED.map((item, idx) => (
+          <View key={idx} style={[s.tickerRow, { height: ITEM_H, justifyContent: 'center' }]}>
+            <Ionicons name={item.icon} size={14} color={ORANGE} style={{ marginRight: 8 }} />
+            <Text style={s.tickerText} numberOfLines={1}>{item.text}</Text>
+          </View>
+        ))}
       </Animated.View>
     </View>
   );
