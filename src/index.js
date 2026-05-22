@@ -4,7 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
-const { runMigrations } = require('./db');
+const { runMigrations, pool } = require('./db');
 
 const app = express();
 
@@ -57,12 +57,40 @@ if (fs.existsSync(WEB_BUILD)) {
   app.use((req, res) => res.status(404).json({ ok: false, error: 'Route not found' }));
 }
 
-const PORT = process.env.PORT || 3000;
+// ── Auto-delete expired listings cron (runs every hour) ──────────────────────
+function startExpiryCleanup() {
+  async function deleteExpired() {
+    try {
+      const now = new Date();
+      const results = await Promise.all([
+        pool.query(`DELETE FROM jobs WHERE expires_at IS NOT NULL AND expires_at < $1 RETURNING id`, [now]),
+        pool.query(`DELETE FROM vehicles WHERE expires_at IS NOT NULL AND expires_at < $1 RETURNING id`, [now]),
+        pool.query(`DELETE FROM rooms WHERE expires_at IS NOT NULL AND expires_at < $1 RETURNING id`, [now]),
+        pool.query(`DELETE FROM buysell_items WHERE expires_at IS NOT NULL AND expires_at < $1 RETURNING id`, [now]),
+        pool.query(`UPDATE business_promotions SET status='expired' WHERE expires_at IS NOT NULL AND expires_at < $1 AND status='active' RETURNING id`, [now]),
+      ]);
+      const [jobs, vehicles, rooms, items, promos] = results;
+      const total = jobs.rowCount + vehicles.rowCount + rooms.rowCount + items.rowCount + promos.rowCount;
+      if (total > 0) {
+        console.log(`🗑️  Expiry cleanup: removed ${jobs.rowCount} jobs, ${vehicles.rowCount} vehicles, ${rooms.rowCount} rooms, ${items.rowCount} items | expired ${promos.rowCount} promotions`);
+      }
+    } catch (err) {
+      console.error('❌ Expiry cleanup error:', err.message);
+    }
+  }
+
+  // Run immediately on startup, then every hour
+  deleteExpired();
+  setInterval(deleteExpired, 60 * 60 * 1000);
+}
+
+
 
 runMigrations()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
+      startExpiryCleanup();
     });
   })
   .catch((err) => {
