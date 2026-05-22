@@ -709,12 +709,26 @@ export default function RoomScreen({ route }) {
   }, [rooms, roomType, search, rentRange]);
 
   const interleavedFeed = useMemo(() => {
-    if (promos.length === 0) {
-      return filtered.map(r => ({ type: 'room', data: r, id: 'room_' + r.id }));
-    }
-    const roomItems  = filtered.map(r => ({ type: 'room',  data: r, id: 'room_'  + r.id, ts: r.listedDaysAgo != null ? -r.listedDaysAgo : 0 }));
-    const promoItems = promos.map(p  => ({ type: 'promo', data: p, id: 'promo_' + p.id, ts: new Date(p.createdAt).getTime() }));
-    return [...roomItems, ...promoItems].sort((a, b) => b.ts - a.ts);
+    const now = Date.now();
+    // Convert everything to "ms ago" so rooms and promos share the same scale.
+    // Smaller value = more recent = appears first (we sort ascending by msAgo).
+    const roomItems = filtered.map(r => ({
+      type: 'room',
+      data: r,
+      id: 'room_' + r.id,
+      msAgo: r.listedDaysAgo != null ? r.listedDaysAgo * 86400000 : now,
+    }));
+
+    const promoItems = promos.map(p => ({
+      type: 'promo',
+      data: p,
+      id: 'promo_' + p.id,
+      // If createdAt is available use it, otherwise treat as very old so it
+      // doesn't jump to the top ahead of fresh room listings.
+      msAgo: p.createdAt ? now - new Date(p.createdAt).getTime() : now,
+    }));
+
+    return [...roomItems, ...promoItems].sort((a, b) => a.msAgo - b.msAgo);
   }, [filtered, promos]);
 
   const activeFiltersCount = (roomType !== 'All' ? 1 : 0) + (rentRange.label !== 'Any' ? 1 : 0);
