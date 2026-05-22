@@ -510,7 +510,7 @@ export default function HomeScreen() {
                 <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
                   <Text style={ws.brandText}>
                     <Text style={ws.brandCity}>City</Text>
-                    <Text style={ws.brandRozgar}>Loop</Text>
+                    <Text style={ws.brandRozgar}>Plus</Text>
                   </Text>
                   <View style={ws.locRow}>
                     <Ionicons name="location-sharp" size={11} color={ORANGE} />
@@ -534,7 +534,7 @@ export default function HomeScreen() {
               <TouchableOpacity style={ws.brandRow} onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
                 <Text style={ws.brandText}>
                   <Text style={ws.brandCity}>City</Text>
-                  <Text style={ws.brandRozgar}>Loop</Text>
+                  <Text style={ws.brandRozgar}>Plus</Text>
                 </Text>
                 <View style={ws.locRow}>
                   <Ionicons name="location-sharp" size={12} color={ORANGE} />
@@ -643,7 +643,7 @@ export default function HomeScreen() {
                   <View style={ws.heroCircle3} />
                   <View style={ws.heroContent}>
                     <View style={{ flex: 1 }}>
-                      <Text style={ws.heroTag}>🏙️ Nanded's #1 Local Platform</Text>
+                      <Text style={ws.heroTag}>🏙️ Your City's #1 Local Platform</Text>
                       <Text style={ws.heroTitle}>Find Jobs &amp; Rooms in Nanded</Text>
                       <Text style={ws.heroSub}>10,000+ opportunities for everyone nearby</Text>
                       <View style={ws.heroBadges}>
@@ -839,7 +839,7 @@ export default function HomeScreen() {
           <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
             <Text style={s.brandText}>
               <Text style={s.brandCity}>City</Text>
-              <Text style={s.brandRozgar}>Loop</Text>
+              <Text style={s.brandRozgar}>Plus</Text>
             </Text>
             <View style={s.locRow}>
               <Ionicons name="location-sharp" size={12} color={ORANGE} />
