@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
-import { BannerCard } from '../components/PromoBanner';
+import PromoBanner, { BannerCard } from '../components/PromoBanner';
 
 const ORANGE = '#f97316';
 const TEAL   = '#0d9488';
@@ -664,9 +664,34 @@ export default function RoomScreen({ route }) {
     </View>
   );
 
+  const defaultPromo = {
+    name:        'Advertise Your Rental Property',
+    tagline:     'Reach thousands of tenants in Nanded!',
+    description: 'List your rooms, PGs & flats to people who need them. Promote your rental business here.',
+    category:    'real estate',
+    phone:       '',
+    location:    'Nanded, Maharashtra',
+    plan:        'popular',
+  };
+
   const ListHeader = (
     <>
       <FadeIn delay={180}><TrendingBanner /></FadeIn>
+      <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+        {promos.length > 0
+          ? promos.map(p => (
+              <View key={p.id} style={{ marginBottom: 10 }}>
+                <SponsoredLabel />
+                <BannerCard promo={p} />
+              </View>
+            ))
+          : (
+              <>
+                <SponsoredLabel />
+                <PromoBanner data={defaultPromo} />
+              </>
+            )}
+      </View>
     </>
   );
 
