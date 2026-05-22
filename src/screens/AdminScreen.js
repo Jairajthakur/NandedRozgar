@@ -407,7 +407,7 @@ export default function AdminScreen() {
     const endpoint = shouldVerify ? 'verify' : 'unverify';
     const r = await http('PATCH', `/api/admin/users/${id}/${endpoint}`);
     if (r?.ok) {
-      setUsers(prev => prev.map(u => u.id === id ? { ...u, verified: shouldVerify } : u));
+      await loadUsers();
       Toast.show({ type: 'success', text1: shouldVerify ? '✔ Employer verified!' : '🔲 Verified badge removed.' });
     } else {
       Toast.show({ type: 'error', text1: r?.error || 'Action failed' });
@@ -495,7 +495,7 @@ export default function AdminScreen() {
       {/* Top action bar */}
       <View style={ss.topBar}>
         <View>
-          <Text style={ss.topGreet}>CityPlus</Text>
+          <Text style={ss.topGreet}>NandedRozgar</Text>
           <Text style={ss.topSub}>Admin Dashboard</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
