@@ -12,29 +12,27 @@
       "resizeMode": "contain",
       "backgroundColor": "#111111"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "single",
       "name": "CityPlus",
       "shortName": "CityPlus",
-      "description": "Local Jobs \u00b7 Local Life \u00b7 Nanded",
+      "description": "Local Jobs · Local Life · Nanded",
       "themeColor": "#f97316",
       "backgroundColor": "#111111"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.cityplus.app"
+      "bundleIdentifier": "com.localloop.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#111111"
       },
-      "package": "com.cityplus.app",
+      "package": "com.localloop.app",
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
