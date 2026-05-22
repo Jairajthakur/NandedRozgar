@@ -1,5 +1,5 @@
 /**
- * NandedRozgar — ProfileScreen.js
+ * CityPlus — ProfileScreen.js
  * Redesigned: Dark luxury aesthetic, animated hero, floating orbs,
  * staggered entrance, glowing avatar ring, animated stat counters, rich micro-interactions
  */
@@ -262,7 +262,7 @@ export default function ProfileScreen() {
   const commonMenu = [
     { icon: 'share-social-outline',       label: 'Refer & Earn',      onPress: () => nav.navigate('Referral') },
     { icon: 'help-circle-outline',        label: 'Help & Support',    onPress: () => {} },
-    { icon: 'information-circle-outline', label: 'About NandedRozgar',onPress: () => {} },
+    { icon: 'information-circle-outline', label: 'About CityPlus',onPress: () => {} },
   ];
 
   const roleMenu  = isAdmin ? adminMenu : isSeeker ? seekerMenu : employerMenu;
@@ -411,7 +411,7 @@ export default function ProfileScreen() {
             <SignOutButton onPress={confirmLogout} />
           </View>
 
-          <Text style={styles.version}>NandedRozgar v1.2.0 · Nanded, Maharashtra</Text>
+          <Text style={styles.version}>CityPlus v1.2.0</Text>
         </View>
 
       </ScrollView>
