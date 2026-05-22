@@ -175,8 +175,7 @@ function PlanCard({ plan, selected, onSelect }) {
 }
 
 // ─── Preview Banner ───────────────────────────────────────────────────────────
-// ─── Main Screen ───────────────────────────────────────────────────────────
-───
+// ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function PromoteBusinessScreen() {
   const nav    = useNavigation();
   const insets = useSafeAreaInsets();
