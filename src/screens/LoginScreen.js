@@ -131,6 +131,38 @@ function GridDots() {
 }
 
 // ── Main screen ───────────────────────────────────────────────────────────────
+// ── Field — defined outside LoginScreen to prevent remount on every keystroke ──
+const Field = ({ label, icon, value, onChange, placeholder, secure, rightIcon, rightPress, keyboard, maxLen, editable = true, fkey, focusedField, setFocusedField }) => {
+  const focused = focusedField === fkey;
+  return (
+    <View style={S.fw}>
+      <Text style={S.flabel}>{label}</Text>
+      <View style={[S.irow, focused && S.irowF]}>
+        <Ionicons name={icon} size={16} color={focused ? ORANGE : TEXT_DIM} style={S.ficon} />
+        <TextInput
+          style={S.tinput}
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          placeholderTextColor="#c5c3bb"
+          secureTextEntry={!!secure}
+          keyboardType={keyboard || 'default'}
+          autoCapitalize="none"
+          maxLength={maxLen}
+          editable={editable !== false}
+          onFocus={() => setFocusedField(fkey)}
+          onBlur={() => setFocusedField(null)}
+        />
+        {rightIcon && (
+          <TouchableOpacity onPress={rightPress} style={S.eyeBtn}>
+            <Ionicons name={rightIcon} size={17} color={TEXT_DIM} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+};
+
 export default function LoginScreen() {
   const {
     login, register, loginWithGoogle,
@@ -316,38 +348,6 @@ export default function LoginScreen() {
   const pwStrength = getPasswordStrength(form.password);
   const tabW = `${100 / tabCount}%`;
 
-  // ── Field component ───────────────────────────────────────────────────────
-  const Field = ({ label, icon, value, onChange, placeholder, secure, rightIcon, rightPress, keyboard, maxLen, editable = true, fkey }) => {
-    const focused = focusedField === fkey;
-    return (
-      <View style={S.fw}>
-        <Text style={S.flabel}>{label}</Text>
-        <View style={[S.irow, focused && S.irowF]}>
-          <Ionicons name={icon} size={16} color={focused ? ORANGE : TEXT_DIM} style={S.ficon} />
-          <TextInput
-            style={S.tinput}
-            value={value}
-            onChangeText={onChange}
-            placeholder={placeholder}
-            placeholderTextColor="#c5c3bb"
-            secureTextEntry={!!secure}
-            keyboardType={keyboard || 'default'}
-            autoCapitalize="none"
-            maxLength={maxLen}
-            editable={editable !== false}
-            onFocus={() => setFocusedField(fkey)}
-            onBlur={() => setFocusedField(null)}
-          />
-          {rightIcon && (
-            <TouchableOpacity onPress={rightPress} style={S.eyeBtn}>
-              <Ionicons name={rightIcon} size={17} color={TEXT_DIM} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    );
-  };
-
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <View style={S.bg}>
@@ -443,12 +443,12 @@ export default function LoginScreen() {
 
             {/* Register name */}
             {tab === 'register' && (
-              <Field fkey="name" label="Full Name *" icon="person-outline" value={form.name} onChange={v => set('name', v)} placeholder="Your full name" />
+              <Field fkey="name" label="Full Name *" icon="person-outline" value={form.name} onChange={v => set('name', v)} placeholder="Your full name" focusedField={focusedField} setFocusedField={setFocusedField} />
             )}
 
             {/* Email */}
             {tab !== 'phone' && (
-              <Field fkey="email" label="Email Address *" icon="mail-outline" value={form.email} onChange={v => set('email', v)} placeholder="you@email.com" keyboard="email-address" />
+              <Field fkey="email" label="Email Address *" icon="mail-outline" value={form.email} onChange={v => set('email', v)} placeholder="you@email.com" keyboard="email-address" focusedField={focusedField} setFocusedField={setFocusedField} />
             )}
 
             {/* Password */}
@@ -528,7 +528,7 @@ export default function LoginScreen() {
                   )}
                 </View>
 
-                <Field fkey="regPhone" label="Phone (optional)" icon="call-outline" value={form.phone} onChange={v => set('phone', v)} placeholder="+91 XXXXXXXXXX" keyboard="phone-pad" />
+                <Field fkey="regPhone" label="Phone (optional)" icon="call-outline" value={form.phone} onChange={v => set('phone', v)} placeholder="+91 XXXXXXXXXX" keyboard="phone-pad" focusedField={focusedField} setFocusedField={setFocusedField} />
 
                 <TouchableOpacity style={S.termsRow} onPress={() => setTermsAccepted(p => !p)} activeOpacity={0.8}>
                   <View style={[S.chk, termsAccepted && S.chkOn]}>
