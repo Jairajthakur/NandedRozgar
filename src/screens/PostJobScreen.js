@@ -372,7 +372,7 @@ export default function PostJobScreen() {
         await loadJobs?.();
         const count = jobs.length;
         Toast.show({ type: 'success', text1: count > 1 ? `✅ ${count} jobs posted!` : '✅ Job posted!', text2: 'Your listing is now live.' });
-        nav.goBack();
+        nav.navigate('Main', { screen: 'Board' });
       }
     } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
