@@ -275,7 +275,7 @@ export default function PostCarScreen() {
       });
       if (r.ok) {
         Toast.show({ type:'success', text1:'✅ Vehicle listed successfully!' });
-        nav.goBack();
+        nav.navigate('Main', { screen: 'Cars' });
       } else {
         Alert.alert('Error', r.error||'Failed to post vehicle');
       }
