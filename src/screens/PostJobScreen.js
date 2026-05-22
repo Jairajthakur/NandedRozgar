@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
 import { http } from '../utils/api';
+import { useRazorpayCheckout } from '../utils/razorpay';
 
 const ORANGE = '#f97316';
 const TOTAL_STEPS = 5;
@@ -213,6 +214,7 @@ export default function PostJobScreen() {
   const insets = useSafeAreaInsets();
   const { user, loadJobs } = useAuth();
   const scrollRef = useRef(null);
+  const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
 
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -301,6 +303,11 @@ export default function PostJobScreen() {
     setSubmitting(true);
     try {
       const selectedPlan = PLANS.find(p => p.id === plan);
+      const planPrice    = selectedPlan?.price ?? 79;
+      const planDays     = selectedPlan ? parseInt(selectedPlan.days) : 15;
+      const planLabel    = selectedPlan?.days || '15 Days';
+      const amountPaise  = planPrice * 100; // convert ₹ → paise
+
       const salaryStr = salaryMin
         ? salaryMax ? `₹${salaryMin}–₹${salaryMax}/mo` : `₹${salaryMin}/mo`
         : '';
@@ -322,18 +329,42 @@ export default function PostJobScreen() {
         workHours,
         featured:    false,
         urgent:      false,
-        planDays:    selectedPlan ? parseInt(selectedPlan.days) : 15,
-        planLabel:   selectedPlan?.days || '15 Days',
-        planPrice:   selectedPlan?.price || 79,
+        planDays,
+        planLabel,
+        planPrice,
       };
 
+      // ── Step 1: Razorpay payment ───────────────────────────────────────────
+      const payResult = await initiatePayment({
+        amount:      amountPaise,
+        description: `Job Listing – ${planLabel}`,
+      });
+
+      if (!payResult.success) {
+        if (!payResult.cancelled) {
+          Alert.alert('Payment Failed', payResult.error || 'Payment was not completed. Please try again.');
+        }
+        return; // user cancelled or payment failed — don't post
+      }
+
+      // ── Step 2: Verify payment & create job on backend ────────────────────
       const jobs = multiplePos
         ? positions.map(p => ({ title: p.title.trim(), openings: p.vacancies }))
         : [{ title: title.trim(), openings }];
 
       let allOk = true;
       for (const job of jobs) {
-        const res = await http('POST', '/api/jobs', { ...basePayload, title: job.title, openings: job.openings });
+        const res = await http('POST', '/api/payments/verify', {
+          // Razorpay verification fields (null for free plan)
+          razorpay_order_id:   payResult.free ? undefined : payResult.razorpay_order_id,
+          razorpay_payment_id: payResult.free ? undefined : payResult.razorpay_payment_id,
+          razorpay_signature:  payResult.free ? undefined : payResult.razorpay_signature,
+          // Job data
+          job:    { ...basePayload, title: job.title, openings: job.openings },
+          plan:   planLabel,
+          amount: amountPaise,
+          days:   planDays,
+        });
         if (!res?.ok) { allOk = false; Alert.alert('Error', res?.error || 'Failed to post job.'); break; }
       }
 
@@ -360,6 +391,7 @@ export default function PostJobScreen() {
       style={{ flex: 1, backgroundColor: '#f2f2f2' }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {RazorpayCheckout}
       <StatusBar barStyle="light-content" backgroundColor={ORANGE} />
       <View style={{ height: insets.top, backgroundColor: ORANGE }} />
 
