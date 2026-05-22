@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
-import PromoBanner, { BannerCard } from '../components/PromoBanner';
+import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../components/PromoBanner';
 
 const ORANGE  = '#f97316';
 const IS_WEB  = Platform.OS === 'web';
