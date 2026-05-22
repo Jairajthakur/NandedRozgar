@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffe
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, RefreshControl, Modal,
-  Animated, Easing, Platform, StatusBar, useWindowDimensions,
+  Animated, Easing, Platform, StatusBar, useWindowDimensions, Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -142,12 +142,20 @@ function VehicleCard({ item, index, onPress }) {
 
   if (IS_WEB) {
     const photoCount = item.photos || 0;
+    const firstPhoto = item.photoUrls?.[0] || null;
     const webPhotoPills = [item.type, item.fuel || null, item.ac ? 'AC' : null].filter(Boolean).slice(0, 3);
     return (
       <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
         <TouchableOpacity activeOpacity={0.97} onPress={handlePress} style={ws.card}>
-          <View style={[ws.cardPhoto, { backgroundColor: cardBg }]}>
-            <Ionicons name={iconName} size={64} color="rgba(255,255,255,0.14)" />
+          <View style={[ws.cardPhoto, { backgroundColor: firstPhoto ? '#000' : cardBg }]}>
+            {firstPhoto ? (
+              <Image
+                source={{ uri: firstPhoto }}
+                style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+              />
+            ) : (
+              <Ionicons name={iconName} size={64} color="rgba(255,255,255,0.14)" />
+            )}
             <View style={ws.photoOverlay} />
             {webPhotoPills.length > 0 && (
               <View style={ws.photoPillsRow}>
@@ -211,8 +219,15 @@ function VehicleCard({ item, index, onPress }) {
   return (
     <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
       <TouchableOpacity activeOpacity={0.97} onPress={handlePress} style={s.card}>
-        <View style={[s.cardPhoto, { backgroundColor: cardBg }]}>
-          <Ionicons name={iconName} size={58} color="rgba(255,255,255,0.14)" />
+        <View style={[s.cardPhoto, { backgroundColor: item.photoUrls?.[0] ? '#000' : cardBg }]}>
+          {item.photoUrls?.[0] ? (
+            <Image
+              source={{ uri: item.photoUrls[0] }}
+              style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+            />
+          ) : (
+            <Ionicons name={iconName} size={58} color="rgba(255,255,255,0.14)" />
+          )}
           <View style={s.photoOverlay} />
           <View style={s.photosBadge}>
             <Text style={s.photosBadgeTxt}>
@@ -317,7 +332,22 @@ export default function CarsScreen({ route }) {
           type:     v.vehicle_type || 'Car',
           fuel:     v.fuel_type || '',
           ac:       !!v.ac_type,
-          photos:   (v.photos || []).length || 0,
+          photoUrls: (() => {
+            try {
+              const raw = v.photos;
+              if (Array.isArray(raw)) return raw;
+              if (typeof raw === 'string') return JSON.parse(raw);
+              return [];
+            } catch { return []; }
+          })(),
+          photos:   (() => {
+            try {
+              const raw = v.photos;
+              if (Array.isArray(raw)) return raw.length;
+              if (typeof raw === 'string') return JSON.parse(raw).length;
+              return 0;
+            } catch { return 0; }
+          })(),
           whatsapp: v.whatsapp,
           owner:    { name: v.owner_name || v.poster_name || 'Owner', area: v.area || 'Nanded' },
           daysLeft: v.expires_at
