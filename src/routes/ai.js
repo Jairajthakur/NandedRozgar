@@ -38,7 +38,7 @@ router.post('/chat', auth, async (req, res) => {
       .join('\n');
 
     const systemPrompt = [
-      'You are LocalLoop AI — a smart, friendly assistant for the LocalLoop platform in Nanded, Maharashtra, India.',
+      'You are CityPlus AI — a smart, friendly assistant for the CityPlus platform in Nanded, Maharashtra, India.',
       `Platform owner: ${req.user.name || 'Admin'}. Location: ${userLocation || 'Nanded'}.`,
       `Active listings: ${jobs.length}. Categories: ${catSummary || 'none yet'}.`,
       jobs.length > 0 ? `Current listings:\n${jobList}` : 'No active listings currently.',
