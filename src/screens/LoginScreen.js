@@ -1,5 +1,5 @@
 /**
- * LocalLoop — LoginScreen.js  (Light Theme, Animated)
+ * CityPlus — LoginScreen.js  (Light Theme, Animated)
  * Warm light brand identity · staggered entrance animations
  * · floating orbs · polished form card
  * Works on web + Android APK (React Native / Expo).
@@ -231,7 +231,7 @@ export default function LoginScreen() {
   });
 
   // ── Google ────────────────────────────────────────────────────────────────
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'nandedrozgar', useProxy: true });
+  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'cityplus', useProxy: true });
   const [googleRequest, googleResponse, promptGoogleAsync] = AuthSession.useAuthRequest(
     { clientId: GOOGLE_CLIENT_ID, redirectUri, scopes: ['openid', 'profile', 'email'], responseType: AuthSession.ResponseType.Token, usePKCE: false },
     GOOGLE_DISCOVERY
@@ -400,7 +400,7 @@ export default function LoginScreen() {
             </Text>
             <View style={S.tagRow}>
               <View style={S.tagDot} />
-              <Text style={S.tagline}>Local Jobs · Local Life · Nanded</Text>
+              <Text style={S.tagline}>Local Jobs · Local Life · Your City</Text>
               <View style={S.tagDot} />
             </View>
           </Animated.View>
