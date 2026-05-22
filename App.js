@@ -247,6 +247,51 @@ function RootNavigator() {
   );
 }
 
+
+// ── Web deep-link / refresh routing ──────────────────────────────────────────
+// Without this, refreshing any non-root URL on web resets to Home.
+// Each screen name maps to a URL path so React Navigation can restore
+// the exact screen from the browser's current URL on reload.
+const linking = {
+  prefixes: [],
+  config: {
+    screens: {
+      Login: 'login',
+      Admin: 'admin',
+      Main: {
+        screens: {
+          Home:  '',
+          Jobs:  'jobs',
+          Post:  'post',
+          Rooms: 'rooms',
+          Cars:  'cars',
+        },
+      },
+      JobDetail:       'jobs/:id',
+      CarDetail:       'cars/:id',
+      RoomDetail:      'rooms/:id',
+      PostJob:         'post-job',
+      PostCar:         'post-car',
+      PostRoom:        'post-room',
+      BuySell:         'buy-sell',
+      BuySellDetail:   'buy-sell/:id',
+      PostItem:        'post-item',
+      PromoteBusiness: 'promote',
+      Profile:         'profile',
+      AIMatch:         'ai-match',
+      AdminPanel:      'admin-panel',
+      Referral:        'referral',
+      MyApplications:  'my-applications',
+      SeekerProfile:   'seeker-profile',
+      Analytics:       'analytics',
+      Alerts:          'alerts',
+      ChatList:        'messages',
+      Chat:            'messages/:id',
+      Board:           'board',
+    },
+  },
+};
+
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -254,7 +299,7 @@ export default function App() {
         <SafeAreaProvider>
           <AuthProvider>
             <LangProvider>
-            <NavigationContainer>
+            <NavigationContainer linking={linking}>
               <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
               <RootNavigator />
             </NavigationContainer>
