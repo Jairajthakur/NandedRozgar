@@ -495,7 +495,7 @@ export default function AdminScreen() {
       {/* Top action bar */}
       <View style={ss.topBar}>
         <View>
-          <Text style={ss.topGreet}>LocalLoop</Text>
+          <Text style={ss.topGreet}>CityPlus</Text>
           <Text style={ss.topSub}>Admin Dashboard</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
