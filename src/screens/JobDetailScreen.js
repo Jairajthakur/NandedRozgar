@@ -238,7 +238,7 @@ export default function JobDetailScreen({ route, navigation }) {
   async function shareJob() {
     try {
       await Share.share({
-        message: `Job: ${job.title}${job.company ? ` at ${job.company}` : ''}\n${job.location || 'Nanded'}${job.salary ? ` | ₹${String(job.salary).replace(/^₹/, "")}` : ''}\n\nApply on NandedRozgar!`,
+        message: `Job: ${job.title}${job.company ? ` at ${job.company}` : ''}\n${job.location || 'Nanded'}${job.salary ? ` | ₹${String(job.salary).replace(/^₹/, "")}` : ''}\n\nApply on CityPlus!`,
       });
     } catch {}
   }
