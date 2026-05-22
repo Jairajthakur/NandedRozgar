@@ -10,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import { http } from '../utils/api';
+import { useRazorpayCheckout } from '../utils/razorpay';
+import { useAuth } from '../context/AuthContext';
 
 const { width: SW } = Dimensions.get('window');
 const TEAL   = '#0d9488';
@@ -146,6 +148,8 @@ function PhotoItem({ uri, label, onPress, onRemove }) {
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function PostRoomScreen() {
   const nav = useNavigation();
+  const { user } = useAuth();
+  const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -269,16 +273,41 @@ export default function PostRoomScreen() {
     }
     setLoading(true);
     try {
+      const planPrice   = form.plan?.price ?? 0;
+      const amountPaise = planPrice * 100;
+
+      // ── Step 1: Payment ────────────────────────────────────────────────────
+      const payResult = await initiatePayment({
+        amount:      amountPaise,
+        description: `Room Listing – ${form.plan?.label || '1 Month'}`,
+      });
+
+      if (!payResult.success) {
+        if (!payResult.cancelled) {
+          Alert.alert('Payment Failed', payResult.error || 'Payment not completed. Please try again.');
+        }
+        return;
+      }
+
+      // ── Step 2: Post listing ───────────────────────────────────────────────
       const validPhotos = photos.filter(Boolean);
-      const r = await http('POST','/api/rooms',{
-        roomType:form.roomType, furnished:form.furnishing, floor:form.floor,
-        forGender:form.suitableFor, vacancies:1, rent:form.rent,
-        deposit:form.deposit, amenities:form.amenities,
-        availableFrom:form.availableFrom, tenantPref:form.suitableFor,
-        area:form.area, landmark:form.landmark, whatsapp:form.whatsapp,
-        description:form.notes, planDays:form.plan.days,
-        planLabel:form.plan.label, planPrice:form.plan.price,
-        photos: validPhotos,
+      const r = await http('POST','/api/payments/verify/room',{
+        razorpay_order_id:   payResult.free ? undefined : payResult.razorpay_order_id,
+        razorpay_payment_id: payResult.free ? undefined : payResult.razorpay_payment_id,
+        razorpay_signature:  payResult.free ? undefined : payResult.razorpay_signature,
+        amount: amountPaise,
+        plan:   form.plan?.label || '1 Month',
+        days:   form.plan?.days  || 30,
+        room: {
+          roomType:form.roomType, furnished:form.furnishing, floor:form.floor,
+          forGender:form.suitableFor, vacancies:1, rent:form.rent,
+          deposit:form.deposit, amenities:form.amenities,
+          availableFrom:form.availableFrom, tenantPref:form.suitableFor,
+          area:form.area, landmark:form.landmark, whatsapp:form.whatsapp,
+          description:form.notes, planDays:form.plan?.days || 30,
+          planLabel:form.plan?.label || '1 Month', planPrice: planPrice,
+          photos: validPhotos,
+        },
       });
       if (r.ok) {
         Toast.show({ type:'success', text1:'✅ Room listed successfully!' });
@@ -299,6 +328,7 @@ export default function PostRoomScreen() {
       style={{ flex:1, backgroundColor:'#f5f5f5' }}
       behavior={Platform.OS==='ios'?'padding':undefined}
     >
+      {RazorpayCheckout}
       {/* Top nav */}
       <View style={s.topNav}>
         <TouchableOpacity onPress={back} style={s.backBtn}>
