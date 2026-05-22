@@ -418,7 +418,7 @@ export default function PromoteBusinessScreen() {
       Alert.alert(
         '🎉 Promotion is Live!',
         `Your business "${form.bizName}" is now posted across all pages!`,
-        [{ text: 'Done', onPress: () => nav.goBack() }]
+        [{ text: 'Done', onPress: () => nav.navigate('Main', { screen: 'Board' }) }]
       );
     } catch (err) {
       setErrorMsg('Unable to connect. Please check your internet connection.');
