@@ -463,3 +463,8 @@ const sc = StyleSheet.create({
     borderTopWidth: 0.5, borderTopColor: '#e8e4dd',
   },
 });
+
+// ─── Compatibility aliases ────────────────────────────────────────────────────
+export const BannerCard       = PromoBanner;
+export const BannerWithPicker = BannerStylePicker;
+export const TemplatePicker   = BannerStylePicker;
