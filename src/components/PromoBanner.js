@@ -405,13 +405,14 @@ function getCatConfig(category) {
 export function BannerCard({ promo }) {
   if (!promo) return null;
 
-  const name        = promo.bizName || promo.businessName || promo.name || '';
+  const name        = promo.bizName || promo.businessName || promo.biz_name || promo.name || '';
   const tagline     = promo.tagline || promo.offer || '';
   const description = promo.description || '';
-  const category    = promo.category || '';
-  const phone       = promo.phone || '';
+  const category    = promo.category || promo.biz_category || '';
+  const phone       = promo.phone || promo.contact || '';
   const location    = promo.location || promo.city || '';
   const address     = promo.address || '';
+  const timing      = promo.timing || '';
   const isPopular   = promo.plan === 'premium' || promo.plan === 'popular';
 
   const cfg    = getCatConfig(category);
@@ -479,6 +480,14 @@ export function BannerCard({ promo }) {
             <View style={rc.infoRow}>
               <Text style={rc.infoIcon}>🏢</Text>
               <Text style={[rc.infoTxt, { color: cfg.dark }]} numberOfLines={1}>{address}</Text>
+            </View>
+          )}
+
+          {/* Timing */}
+          {!!timing && (
+            <View style={rc.infoRow}>
+              <Text style={rc.infoIcon}>🕐</Text>
+              <Text style={[rc.infoTxt, { color: cfg.dark }]} numberOfLines={1}>{timing}</Text>
             </View>
           )}
 
@@ -600,20 +609,28 @@ export function BannerWithPicker({ data, defaultTemplateId, onTemplateChange }) 
 
 /* ═══════════════════════════════════════════════════════════════
    MAIN DEFAULT EXPORT — simple banner, no picker
+   Accepts both camelCase (API) and snake_case (DB) field names.
    Pass templateId prop to override auto-selection.
 ═══════════════════════════════════════════════════════════════ */
-export default function PromoBanner({ data }) {
-  if (!data || !data.name) return null;
-  // Reuse the rich BannerCard design for consistency — wrap data as a promo-shaped object
+export default function PromoBanner({ data, promo: promoAlias }) {
+  const src = data || promoAlias;
+  if (!src) return null;
+
+  // Support both camelCase (JS API) and snake_case (DB / raw fetch)
+  const name = src.bizName || src.businessName || src.biz_name || src.name || '';
+  if (!name) return null;
+
   return <BannerCard promo={{
-    bizName:     data.name,
-    tagline:     data.tagline     || '',
-    description: data.description || '',
-    category:    data.category    || '',
-    phone:       data.phone       || '',
-    location:    data.location    || '',
-    address:     data.address     || '',
-    plan:        data.plan        || 'popular',
+    bizName:     name,
+    tagline:     src.tagline      || src.offer          || '',
+    description: src.description  || '',
+    category:    src.category     || src.biz_category   || '',
+    phone:       src.phone        || src.contact        || '',
+    location:    src.location     || src.city           || '',
+    address:     src.address      || '',
+    timing:      src.timing       || '',
+    // 'popular' / 'premium' show ★ POPULAR badge; everything else shows 'AD'
+    plan:        src.plan         || src.promo_type     || 'ad',
   }} />;
 }
 
