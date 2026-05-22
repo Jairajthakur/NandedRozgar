@@ -274,6 +274,11 @@ export default function JobDetailScreen({ route, navigation }) {
     <View style={{ flex: 1, backgroundColor: '#f1f5f9' }}>
       <StatusBar barStyle="light-content" backgroundColor={ORANGE} />
 
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
       {/* ══════════ HERO HEADER ══════════ */}
       <Animated.View style={[s.hero, { paddingTop: insets.top + 52, opacity: heroOpacity }]}>
 
@@ -344,12 +349,6 @@ export default function JobDetailScreen({ route, navigation }) {
         )}
       </Animated.View>
 
-      {/* ══════════ CONTENT ══════════ */}
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
         {/* Quick info row */}
         <FadeSection delay={100}>
           <View style={s.quickInfoCard}>
