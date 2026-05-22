@@ -1,5 +1,5 @@
 /**
- * payments.js — Razorpay payment routes for NandedRozgar
+ * payments.js — Razorpay payment routes for CityPlus
  *
  * POST /api/payments/order               — Step 1: create a Razorpay order (all listing types)
  * POST /api/payments/verify              — Step 2: verify + create JOB listing
