@@ -661,7 +661,7 @@ export default function RoomScreen({ route }) {
     try {
       const res = await http('GET', '/api/rooms');
       if (res.ok && res.rooms?.length > 0) {
-        setRooms(res.rooms.map((r) => ({
+        const apiRooms = res.rooms.map((r) => ({
           id:            String(r.id),
           title:         r.title || r.name || 'Room',
           location:      r.area  || r.location || 'Nanded',
@@ -679,7 +679,10 @@ export default function RoomScreen({ route }) {
           phone:    r.phone || r.whatsapp || '',
           photos:   Array.isArray(r.photos) ? r.photos : (r.photos ? JSON.parse(r.photos) : []),
           vacancies: r.vacancies || 0,
-        })));
+        }));
+        // Merge: real API rooms first, then dummy rooms that don't share an id (no duplicates)
+        const apiIds = new Set(apiRooms.map(r => r.id));
+        setRooms([...apiRooms, ...ROOMS.filter(r => !apiIds.has(r.id))]);
       }
     } catch (_) {}
     finally { setRefreshing(false); }
