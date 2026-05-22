@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffe
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, RefreshControl, Modal,
-  Animated, Easing, Platform, useWindowDimensions,
+  Animated, Easing, Platform, useWindowDimensions, Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -199,6 +199,7 @@ function ItemCard({ item, index, onPress }) {
   const iconName    = catMeta?.icon || 'pricetag-outline';
   const isNew       = item.condition === 'New' || item.condition === 'Like new';
   const photoCount  = item.photos || 0;
+  const firstPhoto  = item.photoUrls?.[0] || null;
 
   const webTagPills = [item.cat, item.condition].filter(Boolean).slice(0, 2);
 
@@ -208,8 +209,12 @@ function ItemCard({ item, index, onPress }) {
         <TouchableOpacity activeOpacity={0.97} onPress={handlePress} style={ws.card}>
 
           {/* Top photo area */}
-          <View style={[ws.cardPhoto, { backgroundColor: cardBg }]}>
-            <Ionicons name={iconName} size={64} color="rgba(255,255,255,0.14)" />
+          <View style={[ws.cardPhoto, { backgroundColor: firstPhoto ? '#000' : cardBg }]}>
+            {firstPhoto ? (
+              <Image source={{ uri: firstPhoto }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+            ) : (
+              <Ionicons name={iconName} size={64} color="rgba(255,255,255,0.14)" />
+            )}
             <View style={ws.photoOverlay} />
 
             {/* Category pills at bottom */}
@@ -294,8 +299,12 @@ function ItemCard({ item, index, onPress }) {
       <TouchableOpacity activeOpacity={0.95} onPress={handlePress} style={s.card}>
 
         {/* Photo area */}
-        <View style={[s.cardPhoto, { backgroundColor: cardBg }]}>
-          <Ionicons name={iconName} size={58} color="rgba(255,255,255,0.14)" />
+        <View style={[s.cardPhoto, { backgroundColor: firstPhoto ? '#000' : cardBg }]}>
+          {firstPhoto ? (
+            <Image source={{ uri: firstPhoto }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+          ) : (
+            <Ionicons name={iconName} size={58} color="rgba(255,255,255,0.14)" />
+          )}
           <View style={s.photoOverlay} />
           <View style={s.photosBadge}>
             <Text style={s.photosBadgeTxt}>
@@ -403,7 +412,8 @@ export default function BuySellScreen({ route }) {
           description: v.description || '',
           seller:      { name: v.seller_name || v.poster_name || 'Seller', verified: !!v.verified },
           phone:       v.phone || v.whatsapp || '',
-          photos:      Array.isArray(v.photos) ? v.photos.length : 0,
+          photoUrls:   (() => { try { const r = v.photos; if (Array.isArray(r)) return r; if (typeof r === 'string') return JSON.parse(r); return []; } catch { return []; } })(),
+          photos:      (() => { try { const r = v.photos; if (Array.isArray(r)) return r.length; if (typeof r === 'string') return JSON.parse(r).length; return 0; } catch { return 0; } })(),
           postedAt:    v.created_at ? new Date(v.created_at).getTime() : 0,
         }));
         setItems(mapped);
