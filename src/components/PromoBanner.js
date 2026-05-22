@@ -1,496 +1,623 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  StyleSheet, View, Text, TouchableOpacity, Linking,
+  StyleSheet, View, Text, TouchableOpacity,
+  ScrollView, Linking,
 } from 'react-native';
 
-/* ─────────────────────────────────────────────
-   THEME MAP  — category keywords → theme object
-───────────────────────────────────────────────*/
-const THEMES = {
-  /* Retail / Fashion */
-  firesale: {
-    cats: ['retail','fashion','shopping','clothing','accessories','boutique'],
-    bg: '#1a0a00', accent: '#f97316', light: '#431407',
-    text: '#fff', sub: '#fdba74', badge: 'SALE',
-    emoji: '🛍️', cta: 'Shop Now',
+/* ═══════════════════════════════════════════════════════════════
+   20 TEMPLATES  — all share the exact same screenshot layout,
+   each with a distinct color personality.
+═══════════════════════════════════════════════════════════════ */
+export const TEMPLATES = [
+  {
+    id: 1,  name: 'Crimson',
+    bg: '#110000', stripe: '#2a0000', accent: '#e11d48',
+    sub: '#fda4af', text: '#fff', cta: 'CALL NOW',
   },
-  /* Transport / Auto */
-  darkneon: {
-    cats: ['transport','auto','automobile','logistics','courier','electronics'],
-    bg: '#0f0b1a', accent: '#7c3aed', light: '#2e1065',
-    text: '#fff', sub: '#c4b5fd', badge: 'FAST',
-    emoji: '🚛', cta: 'Book Ride',
+  {
+    id: 2,  name: 'Ocean',
+    bg: '#00091c', stripe: '#001433', accent: '#0ea5e9',
+    sub: '#7dd3fc', text: '#fff', cta: 'CALL NOW',
   },
-  /* Salon / Beauty */
-  freshteal: {
-    cats: ['salon','beauty','parlour','parlor'],
-    bg: '#022c22', accent: '#10b981', light: '#064e3b',
-    text: '#fff', sub: '#6ee7b7', badge: 'BEAUTY',
-    emoji: '💅', cta: 'Book Now',
+  {
+    id: 3,  name: 'Emerald',
+    bg: '#001409', stripe: '#00260f', accent: '#10b981',
+    sub: '#6ee7b7', text: '#fff', cta: 'CALL NOW',
   },
-  /* Food / Catering */
-  foodie: {
-    cats: ['food','catering','bakery','tiffin'],
-    bg: '#1c0a00', accent: '#f59e0b', light: '#451a03',
-    text: '#fff', sub: '#fcd34d', badge: 'TASTY',
-    emoji: '🍱', cta: 'Order Now',
+  {
+    id: 4,  name: 'Royal Purple',
+    bg: '#0b0018', stripe: '#1a0030', accent: '#8b5cf6',
+    sub: '#c4b5fd', text: '#fff', cta: 'CALL NOW',
   },
-  /* Jewellery / Finance */
-  prestige: {
-    cats: ['jewellery','jewelry','insurance','finance','chartered','ca'],
-    bg: '#12100a', accent: '#d97706', light: '#292524',
-    text: '#fbbf24', sub: '#a8a29e', badge: 'PREMIUM',
-    emoji: '💎', cta: 'Visit Us',
+  {
+    id: 5,  name: 'Sunset',
+    bg: '#160800', stripe: '#2c1000', accent: '#f97316',
+    sub: '#fdba74', text: '#fff', cta: 'CALL NOW',
   },
-  /* Restaurant / Cafe / Dining */
-  sunset: {
-    cats: ['restaurant','cafe','dining','dhaba','hotel restaurant','food court'],
-    bg: '#1f0900', accent: '#ea580c', light: '#431407',
-    text: '#fff', sub: '#fdba74', badge: 'DINE',
-    emoji: '🍽️', cta: 'Reserve',
+  {
+    id: 6,  name: 'Gold',
+    bg: '#110e00', stripe: '#211b00', accent: '#d97706',
+    sub: '#fcd34d', text: '#fff', cta: 'CALL NOW',
   },
-  /* Education */
-  skyacademy: {
-    cats: ['education','coaching','school','college','tuition','academy','classes'],
-    bg: '#0a1628', accent: '#3b82f6', light: '#1e3a8a',
-    text: '#fff', sub: '#93c5fd', badge: 'LEARN',
-    emoji: '🎓', cta: 'Enroll',
+  {
+    id: 7,  name: 'Hot Pink',
+    bg: '#160010', stripe: '#2c0020', accent: '#ec4899',
+    sub: '#f9a8d4', text: '#fff', cta: 'CALL NOW',
   },
-  /* Gym / Fitness */
-  crimsonfit: {
-    cats: ['gym','fitness','sports','crossfit','martial','karate','cricket','yoga studio'],
-    bg: '#0f0000', accent: '#dc2626', light: '#1c0505',
-    text: '#fff', sub: '#f87171', badge: 'FIT',
-    emoji: '💪', cta: 'Join Now',
+  {
+    id: 8,  name: 'Teal',
+    bg: '#001416', stripe: '#002428', accent: '#14b8a6',
+    sub: '#99f6e4', text: '#fff', cta: 'CALL NOW',
   },
-  /* Wedding / Events */
-  blossom: {
-    cats: ['wedding','florist','event decor','bridal','mehendi','mandap'],
-    bg: '#1a0010', accent: '#ec4899', light: '#500724',
-    text: '#fff', sub: '#f9a8d4', badge: 'EVENTS',
-    emoji: '💐', cta: 'Enquire',
+  {
+    id: 9,  name: 'Neon Cyan',
+    bg: '#000d14', stripe: '#001a24', accent: '#06b6d4',
+    sub: '#67e8f9', text: '#fff', cta: 'CALL NOW',
   },
-  /* Photography */
-  midnight: {
-    cats: ['photography','photo','studio','videography','filmmaker'],
-    bg: '#030712', accent: '#f59e0b', light: '#111827',
-    text: '#fff', sub: '#d1d5db', badge: 'SHOOT',
-    emoji: '📸', cta: 'Book Now',
+  {
+    id: 10, name: 'Violet',
+    bg: '#080012', stripe: '#100024', accent: '#7c3aed',
+    sub: '#a78bfa', text: '#fff', cta: 'CALL NOW',
   },
-  /* Real Estate */
-  terracotta: {
-    cats: ['real estate','realestate','construction','property','builder','architect'],
-    bg: '#170800', accent: '#c2410c', light: '#3c1407',
-    text: '#fff', sub: '#fdba74', badge: 'PROPERTY',
-    emoji: '🏠', cta: 'Enquire',
+  {
+    id: 11, name: 'Lime',
+    bg: '#040d00', stripe: '#0a1a00', accent: '#84cc16',
+    sub: '#bef264', text: '#fff', cta: 'CALL NOW',
   },
-  /* Digital Marketing */
-  electric: {
-    cats: ['digital marketing','social media','seo','advertising','branding','media'],
-    bg: '#020617', accent: '#06b6d4', light: '#0c4a6e',
-    text: '#fff', sub: '#67e8f9', badge: 'DIGITAL',
-    emoji: '📣', cta: 'Connect',
+  {
+    id: 12, name: 'Rose',
+    bg: '#130008', stripe: '#260010', accent: '#f43f5e',
+    sub: '#fda4af', text: '#fff', cta: 'CALL NOW',
   },
-  /* Healthcare */
-  purplehealth: {
-    cats: ['hospital','pharmacy','clinic','medical','doctor','diagnostic','dental'],
-    bg: '#0d0020', accent: '#8b5cf6', light: '#2e1065',
-    text: '#fff', sub: '#c4b5fd', badge: 'HEALTH',
-    emoji: '🏥', cta: 'Consult',
+  {
+    id: 13, name: 'Copper',
+    bg: '#0e0700', stripe: '#1c0e00', accent: '#b45309',
+    sub: '#fcd34d', text: '#fff', cta: 'CALL NOW',
   },
-  /* Agriculture / Eco */
-  forest: {
-    cats: ['agriculture','organic','nursery','eco','farm','seeds','fertilizer'],
-    bg: '#052e16', accent: '#16a34a', light: '#14532d',
-    text: '#fff', sub: '#86efac', badge: 'ORGANIC',
-    emoji: '🌿', cta: 'Contact',
+  {
+    id: 14, name: 'Sky',
+    bg: '#000e16', stripe: '#001b28', accent: '#38bdf8',
+    sub: '#bae6fd', text: '#fff', cta: 'CALL NOW',
   },
-  /* Coffee / Sweets */
-  cocoa: {
-    cats: ['coffee','patisserie','sweet','dessert','cake','ice cream','juice'],
-    bg: '#1c1000', accent: '#92400e', light: '#292524',
-    text: '#fff', sub: '#d6b07a', badge: 'SWEET',
-    emoji: '☕', cta: 'Visit',
+  {
+    id: 15, name: 'Magenta',
+    bg: '#110016', stripe: '#20002c', accent: '#c026d3',
+    sub: '#e879f9', text: '#fff', cta: 'CALL NOW',
   },
-  /* Engineering / Industrial */
-  steel: {
-    cats: ['engineering','manufacturing','hardware','fabrication','welding','tools'],
-    bg: '#0a0c0f', accent: '#475569', light: '#1e293b',
-    text: '#e2e8f0', sub: '#94a3b8', badge: 'INDUS.',
-    emoji: '⚙️', cta: 'Get Quote',
+  {
+    id: 16, name: 'Mint',
+    bg: '#00120e', stripe: '#00241c', accent: '#34d399',
+    sub: '#a7f3d0', text: '#fff', cta: 'CALL NOW',
   },
-  /* Legal / Consulting */
-  navylegal: {
-    cats: ['legal','lawyer','advocate','consulting'],
-    bg: '#010b1e', accent: '#1d4ed8', light: '#1e3a8a',
-    text: '#fff', sub: '#93c5fd', badge: 'LEGAL',
-    emoji: '⚖️', cta: 'Consult',
+  {
+    id: 17, name: 'Amber',
+    bg: '#100800', stripe: '#1f1000', accent: '#f59e0b',
+    sub: '#fde68a', text: '#fff', cta: 'CALL NOW',
   },
-  /* Software / IT */
-  silvertech: {
-    cats: ['software','it','startup','app','web development','technology'],
-    bg: '#04080f', accent: '#0ea5e9', light: '#0c4a6e',
-    text: '#fff', sub: '#7dd3fc', badge: 'TECH',
-    emoji: '💻', cta: 'Get Demo',
+  {
+    id: 18, name: 'Indigo',
+    bg: '#04001a', stripe: '#09003a', accent: '#4f46e5',
+    sub: '#a5b4fc', text: '#fff', cta: 'CALL NOW',
   },
-  /* Hotel / Travel */
-  golden: {
-    cats: ['hotel','resort','lodge','homestay','travel','tourism','motel'],
-    bg: '#0c0900', accent: '#ca8a04', light: '#292524',
-    text: '#fbbf24', sub: '#a8a29e', badge: 'STAY',
-    emoji: '🏨', cta: 'Book Room',
+  {
+    id: 19, name: 'Coral',
+    bg: '#130400', stripe: '#240800', accent: '#fb7185',
+    sub: '#fecdd3', text: '#fff', cta: 'CALL NOW',
   },
-  /* Gaming / Entertainment */
-  neongaming: {
-    cats: ['gaming','entertainment','club','pub','lounge','nightclub','event'],
-    bg: '#04001a', accent: '#a855f7', light: '#2e1065',
-    text: '#fff', sub: '#c084fc', badge: 'HOT',
-    emoji: '🎮', cta: 'Play Now',
+  {
+    id: 20, name: 'Steel',
+    bg: '#060a10', stripe: '#0d1520', accent: '#64748b',
+    sub: '#cbd5e1', text: '#fff', cta: 'CALL NOW',
   },
-  /* Spa / Wellness */
-  rosewellness: {
-    cats: ['spa','wellness','meditation','ayurveda','massage','naturopathy'],
-    bg: '#1a0010', accent: '#be185d', light: '#500724',
-    text: '#fff', sub: '#f9a8d4', badge: 'RELAX',
-    emoji: '🧘', cta: 'Book Spa',
-  },
+];
+
+function getTemplateById(id) {
+  return TEMPLATES.find(t => t.id === id) || TEMPLATES[0];
+}
+
+/* ─── Auto-pick template from category ─── */
+const CATEGORY_TEMPLATE = {
+  salon: 1, beauty: 1, parlour: 1,
+  retail: 5, fashion: 7, clothing: 7, shopping: 5,
+  transport: 9, auto: 2, automobile: 2, logistics: 9,
+  electronics: 2, courier: 9,
+  food: 17, catering: 17, bakery: 13, tiffin: 6,
+  jewellery: 6, jewelry: 6, insurance: 13, finance: 6,
+  restaurant: 5, cafe: 13, dining: 17, dhaba: 5,
+  education: 2, coaching: 2, school: 2, college: 2,
+  tuition: 2, academy: 14, classes: 14,
+  gym: 12, fitness: 12, sports: 1, yoga: 3,
+  wedding: 7, florist: 7, bridal: 7, mehendi: 15, event: 15,
+  photography: 6, photo: 6, videography: 6, studio: 20,
+  'real estate': 5, realestate: 5, property: 5, builder: 5,
+  'digital marketing': 9, 'social media': 15, seo: 18, advertising: 4,
+  hospital: 4, pharmacy: 4, clinic: 4, medical: 4, doctor: 4,
+  agriculture: 3, organic: 3, nursery: 11, farm: 3,
+  coffee: 13, sweet: 6, dessert: 6, cake: 7, 'ice cream': 8,
+  engineering: 20, manufacturing: 20, hardware: 20, welding: 20,
+  legal: 18, lawyer: 18, advocate: 18, consulting: 18,
+  software: 9, technology: 14, startup: 14, app: 9,
+  hotel: 6, resort: 6, travel: 14, tourism: 8,
+  gaming: 10, entertainment: 15, club: 15,
+  spa: 7, wellness: 16, meditation: 16, ayurveda: 3,
 };
 
-const DEFAULT_THEME = THEMES.freshteal;
-
-function getTheme(category = '') {
+function autoTemplate(category = '') {
   const key = (category || '').toLowerCase().trim();
-  for (const theme of Object.values(THEMES)) {
-    if (theme.cats.some(c => key.includes(c) || c.includes(key))) return theme;
+  for (const [cat, id] of Object.entries(CATEGORY_TEMPLATE)) {
+    if (key.includes(cat) || cat.includes(key)) return id;
   }
-  return DEFAULT_THEME;
+  return 1;
 }
 
 function callBusiness(phone) {
   if (phone) Linking.openURL(`tel:${phone}`);
 }
 
-function openWebsite(url) {
-  if (!url) return;
-  const link = url.startsWith('http') ? url : `https://${url}`;
-  Linking.openURL(link);
-}
-
-/* ─────────────────────────────────────────────
-   HELPER — Arrow-shaped category tag (matches screenshot)
-───────────────────────────────────────────────*/
-function CategoryTag({ label, accent, bg }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-      {/* Arrow left part */}
-      <View style={{
-        width: 0, height: 0,
-        borderTopWidth: 11, borderBottomWidth: 11,
-        borderRightWidth: 12,
-        borderTopColor: 'transparent', borderBottomColor: 'transparent',
-        borderRightColor: accent,
-      }} />
-      <View style={{
-        backgroundColor: accent,
-        paddingHorizontal: 10, paddingVertical: 4,
-        borderTopRightRadius: 4, borderBottomRightRadius: 4,
-      }}>
-        <Text style={{ color: bg === '#fff' ? '#111' : '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 1 }}>
-          {(label || '').toUpperCase()}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-/* ─────────────────────────────────────────────
-   HELPER — Avatar circle
-───────────────────────────────────────────────*/
-function AvatarCircle({ name, size, accent, bg }) {
-  return (
-    <View style={{
-      width: size, height: size, borderRadius: size / 2,
-      backgroundColor: accent,
-      borderWidth: 3, borderColor: bg,
-      alignItems: 'center', justifyContent: 'center',
-      shadowColor: accent, shadowOpacity: 0.7, shadowRadius: 10, elevation: 8,
-    }}>
-      <Text style={{ color: '#fff', fontSize: size * 0.42, fontWeight: '900' }}>
-        {(name || 'B').charAt(0).toUpperCase()}
-      </Text>
-    </View>
-  );
-}
-
-/* ─────────────────────────────────────────────
-   HELPER — Rating stars
-───────────────────────────────────────────────*/
-function Stars({ rating, accent }) {
-  if (!rating) return null;
-  const stars = Math.round(parseFloat(rating));
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-      {[1,2,3,4,5].map(i => (
-        <Text key={i} style={{ fontSize: 11, color: i <= stars ? '#f59e0b' : '#374151' }}>★</Text>
-      ))}
-      <Text style={{ fontSize: 10, color: accent, fontWeight: '700', marginLeft: 4 }}>
-        {parseFloat(rating).toFixed(1)}
-      </Text>
-    </View>
-  );
-}
-
-/* ─────────────────────────────────────────────
-   MAIN SPLIT-PANEL BANNER
-   Left: details | Right: diagonal accent + avatar + badge
-───────────────────────────────────────────────*/
-function SplitBanner({ data, theme }) {
-  const { bg, accent, light, text, sub, badge, emoji, cta } = theme;
+/* ─────────────────────────────────────────────────────────────
+   SHARED BANNER — screenshot-exact layout, colour-themed
+───────────────────────────────────────────────────────────────
+  Left  : arrow category tag · business name · tagline ·
+           location · CALL NOW · phone
+  Right : diagonal stripes · avatar circle · icon badge ·
+           offer badge · lightning bolt
+───────────────────────────────────────────────────────────────*/
+function Banner({ data, tmpl }) {
+  const { bg, stripe, accent, sub, text, cta } = tmpl;
 
   return (
-    <View style={[bs.card, { backgroundColor: bg, borderColor: accent }]}>
-      {/* ── LEFT PANEL ── */}
-      <View style={bs.leftPanel}>
+    <View style={[bn.card, { backgroundColor: bg, borderColor: accent + '55' }]}>
 
-        {/* Category tag */}
+      {/* ── LEFT PANEL ─────────────────────────────────── */}
+      <View style={bn.left}>
+
+        {/* Arrow category tag */}
         {!!data.category && (
-          <CategoryTag label={data.category} accent={accent} bg={bg} />
+          <View style={bn.tagRow}>
+            {/* arrow head */}
+            <View style={[bn.arrowHead, { borderRightColor: accent }]} />
+            <View style={[bn.tagBody, { backgroundColor: accent }]}>
+              <Text style={[bn.tagTxt, { color: bg }]}>
+                {data.category.toUpperCase()}
+              </Text>
+            </View>
+          </View>
         )}
 
         {/* Business name */}
-        <Text style={[bs.bizName, { color: text }]} numberOfLines={1}>
+        <Text style={[bn.bizName, { color: text }]} numberOfLines={1}>
           {data.name}
         </Text>
 
-        {/* Rating */}
-        {!!data.rating && <Stars rating={data.rating} accent={accent} />}
-
-        {/* Tagline / Offer */}
+        {/* Tagline */}
         {!!data.tagline && (
-          <Text style={[bs.tagline, { color: accent }]} numberOfLines={1}>
+          <Text style={[bn.tagline, { color: accent }]} numberOfLines={1}>
             {data.tagline}
           </Text>
         )}
 
         {/* Description */}
         {!!data.description && (
-          <Text style={[bs.desc, { color: sub }]} numberOfLines={2}>
+          <Text style={[bn.desc, { color: sub }]} numberOfLines={2}>
             {data.description}
           </Text>
         )}
 
-        {/* Info rows */}
-        <View style={bs.infoBlock}>
-          {!!data.location && (
-            <View style={bs.infoRow}>
-              <Text style={bs.infoIcon}>📍</Text>
-              <Text style={[bs.infoText, { color: sub }]} numberOfLines={1}>{data.location}</Text>
-            </View>
-          )}
-          {!!data.address && (
-            <View style={bs.infoRow}>
-              <Text style={bs.infoIcon}>🏢</Text>
-              <Text style={[bs.infoText, { color: sub }]} numberOfLines={1}>{data.address}</Text>
-            </View>
-          )}
-          {!!data.timing && (
-            <View style={bs.infoRow}>
-              <Text style={bs.infoIcon}>🕐</Text>
-              <Text style={[bs.infoText, { color: sub }]} numberOfLines={1}>{data.timing}</Text>
-            </View>
-          )}
-          {!!data.website && (
-            <TouchableOpacity onPress={() => openWebsite(data.website)}>
-              <View style={bs.infoRow}>
-                <Text style={bs.infoIcon}>🌐</Text>
-                <Text style={[bs.infoText, { color: accent }]} numberOfLines={1}>{data.website}</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          {!!data.phone && (
-            <View style={bs.infoRow}>
-              <Text style={bs.infoIcon}>📞</Text>
-              <Text style={[bs.infoText, { color: sub }]}>{data.phone}</Text>
-            </View>
-          )}
-        </View>
+        {/* Location */}
+        {!!data.location && (
+          <View style={bn.locRow}>
+            <Text style={bn.locPin}>📍</Text>
+            <Text style={[bn.locTxt, { color: sub }]} numberOfLines={1}>
+              {data.location}
+            </Text>
+          </View>
+        )}
 
-        {/* CTA button */}
+        {/* Address */}
+        {!!data.address && (
+          <View style={bn.locRow}>
+            <Text style={bn.locPin}>🏢</Text>
+            <Text style={[bn.locTxt, { color: sub }]} numberOfLines={1}>
+              {data.address}
+            </Text>
+          </View>
+        )}
+
+        {/* Timing */}
+        {!!data.timing && (
+          <View style={bn.locRow}>
+            <Text style={bn.locPin}>🕐</Text>
+            <Text style={[bn.locTxt, { color: sub }]} numberOfLines={1}>
+              {data.timing}
+            </Text>
+          </View>
+        )}
+
+        {/* CALL NOW button */}
         <TouchableOpacity
-          style={[bs.ctaBtn, { backgroundColor: accent }]}
+          style={[bn.callBtn, { backgroundColor: accent }]}
           onPress={() => callBusiness(data.phone)}
           activeOpacity={0.8}
         >
-          <Text style={bs.ctaIcon}>📲 </Text>
-          <Text style={bs.ctaTxt}>{cta.toUpperCase()}</Text>
+          <Text style={[bn.callIcon, { color: bg }]}>📞 </Text>
+          <Text style={[bn.callTxt, { color: bg }]}>{cta}</Text>
         </TouchableOpacity>
+
+        {/* Phone number */}
+        {!!data.phone && (
+          <Text style={[bn.phone, { color: sub }]}>{data.phone}</Text>
+        )}
       </View>
 
-      {/* ── RIGHT PANEL — diagonal accent background ── */}
-      <View style={[bs.rightPanel, { backgroundColor: light }]}>
-        {/* Diagonal overlay lines for depth (decorative) */}
-        <View style={[bs.diagLine, { top: 20, right: -10, backgroundColor: accent, opacity: 0.18 }]} />
-        <View style={[bs.diagLine, { top: 50, right: 5, backgroundColor: accent, opacity: 0.1 }]} />
-        <View style={[bs.diagLine, { top: 80, right: -5, backgroundColor: accent, opacity: 0.14 }]} />
+      {/* ── RIGHT PANEL — diagonal accent ──────────────── */}
+      <View style={[bn.right, { backgroundColor: stripe }]}>
 
-        {/* Avatar */}
-        <AvatarCircle name={data.name} size={60} accent={accent} bg={bg} />
+        {/* Diagonal decorative stripes */}
+        <View style={[bn.stripe, { backgroundColor: accent, top: 10, right: 14, opacity: 0.22 }]} />
+        <View style={[bn.stripe, { backgroundColor: accent, top: 36, right: 26, opacity: 0.12 }]} />
+        <View style={[bn.stripe, { backgroundColor: accent, top: 62, right: 10, opacity: 0.18 }]} />
+        <View style={[bn.stripe, { backgroundColor: accent, top: 88, right: 30, opacity: 0.10 }]} />
 
-        {/* Emoji icon below avatar */}
-        <View style={[bs.emojiBox, { borderColor: accent }]}>
-          <Text style={{ fontSize: 16 }}>{emoji}</Text>
-        </View>
-
-        {/* Badge */}
-        <View style={[bs.badge, { backgroundColor: accent }]}>
-          <Text style={[bs.badgeTxt, { color: bg }]}>
-            {data.tagline ? 'OFFER' : (data.isPopular ? '★ TOP' : badge)}
+        {/* Avatar circle — large */}
+        <View style={[bn.avatar, { backgroundColor: accent, shadowColor: accent }]}>
+          <Text style={[bn.avatarTxt, { color: bg }]}>
+            {(data.name || 'B').charAt(0).toUpperCase()}
           </Text>
         </View>
+
+        {/* Small icon badge below avatar */}
+        <View style={[bn.iconBadge, { borderColor: accent }]}>
+          <Text style={{ fontSize: 12 }}>📲</Text>
+        </View>
+
+        {/* "Exclusive Offer" or tagline badge */}
+        <View style={[bn.offerBadge, { backgroundColor: accent }]}>
+          <Text style={[bn.offerTxt, { color: bg }]}>
+            {data.tagline ? 'OFFER' : data.isPopular ? '★ TOP' : 'AD'}
+          </Text>
+        </View>
+
+        {/* Lightning bolt — bottom right corner */}
+        <Text style={[bn.bolt, { color: accent }]}>⚡</Text>
       </View>
     </View>
   );
 }
 
-/* ─────────────────────────────────────────────
-   BannerCard — maps API promo object → PromoBanner
-───────────────────────────────────────────────*/
+/* ═══════════════════════════════════════════════════════════════
+   TEMPLATE PICKER — horizontal scrollable colour swatches
+   Usage:
+     <TemplatePicker selected={id} onSelect={id => setId(id)} />
+═══════════════════════════════════════════════════════════════ */
+export function TemplatePicker({ selected, onSelect }) {
+  return (
+    <View style={pk.wrap}>
+      <Text style={pk.heading}>Choose Banner Style</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={pk.row}
+      >
+        {TEMPLATES.map(t => {
+          const active = selected === t.id;
+          return (
+            <TouchableOpacity
+              key={t.id}
+              onPress={() => onSelect(t.id)}
+              style={[pk.swatch, { backgroundColor: t.bg, borderColor: active ? t.accent : t.accent + '44' }]}
+              activeOpacity={0.75}
+            >
+              {/* Mini accent bar */}
+              <View style={[pk.bar, { backgroundColor: t.accent }]} />
+              {/* Mini avatar dot */}
+              <View style={[pk.dot, { backgroundColor: t.accent }]}>
+                <Text style={[pk.dotTxt, { color: t.bg }]}>A</Text>
+              </View>
+              {/* Template name */}
+              <Text style={[pk.label, { color: t.sub }]} numberOfLines={1}>
+                {t.name}
+              </Text>
+              {/* Active checkmark */}
+              {active && (
+                <View style={[pk.check, { backgroundColor: t.accent }]}>
+                  <Text style={[pk.checkTxt, { color: t.bg }]}>✓</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BannerCard — maps API promo object → Banner
+   Accepts promo.templateId (optional, falls back to category auto)
+═══════════════════════════════════════════════════════════════ */
 export function BannerCard({ promo }) {
   if (!promo) return null;
   const data = {
-    name:        promo.bizName       || promo.businessName || promo.name     || '',
+    name:        promo.bizName       || promo.businessName || promo.name       || '',
     tagline:     promo.tagline       || promo.offer        || '',
     description: promo.description   || '',
     category:    promo.category      || '',
     phone:       promo.phone         || '',
     location:    promo.location      || promo.city         || '',
     address:     promo.address       || '',
-    website:     promo.website       || '',
     timing:      promo.timing        || promo.hours        || '',
-    rating:      promo.rating        || '',
     isPopular:   promo.plan === 'premium' || promo.plan === 'popular',
   };
-  return <PromoBanner data={data} />;
+  const tid = promo.templateId
+    ? Number(promo.templateId)
+    : autoTemplate(data.category);
+  const tmpl = getTemplateById(tid);
+  return <Banner data={data} tmpl={tmpl} />;
 }
 
-/* ─────────────────────────────────────────────
-   MAIN EXPORT
-───────────────────────────────────────────────*/
-export default function PromoBanner({ data }) {
+/* ═══════════════════════════════════════════════════════════════
+   BannerWithPicker — self-contained banner + template picker
+   Usage anywhere you want users to pick a style before posting:
+     <BannerWithPicker data={bizData} onTemplateChange={id => ...} />
+═══════════════════════════════════════════════════════════════ */
+export function BannerWithPicker({ data, defaultTemplateId, onTemplateChange }) {
+  const initId = defaultTemplateId
+    ? Number(defaultTemplateId)
+    : autoTemplate(data?.category);
+  const [selectedId, setSelectedId] = useState(initId);
+
+  function handleSelect(id) {
+    setSelectedId(id);
+    if (onTemplateChange) onTemplateChange(id);
+  }
+
+  if (!data?.name) return null;
+  const tmpl = getTemplateById(selectedId);
+
+  return (
+    <View>
+      <Banner data={data} tmpl={tmpl} />
+      <TemplatePicker selected={selectedId} onSelect={handleSelect} />
+    </View>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN DEFAULT EXPORT — simple banner, no picker
+   Pass templateId prop to override auto-selection.
+═══════════════════════════════════════════════════════════════ */
+export default function PromoBanner({ data, templateId }) {
   if (!data || !data.name) return null;
-  const theme = getTheme(data.category);
-  return <SplitBanner data={data} theme={theme} />;
+  const tid = templateId
+    ? Number(templateId)
+    : autoTemplate(data.category);
+  const tmpl = getTemplateById(tid);
+  return <Banner data={data} tmpl={tmpl} />;
 }
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════
    STYLES
-───────────────────────────────────────────────*/
-const bs = StyleSheet.create({
+═══════════════════════════════════════════════════════════════ */
+const bn = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    borderRadius: 18,
-    borderWidth: 1.5,
+    borderRadius: 16,
+    borderWidth: 1,
     overflow: 'hidden',
-    marginBottom: 4,
-    minHeight: 160,
-    elevation: 4,
+    minHeight: 155,
+    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
   },
-  /* LEFT */
-  leftPanel: {
+  /* ── left panel ── */
+  left: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 14,
     justifyContent: 'center',
+    gap: 3,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  arrowHead: {
+    width: 0,
+    height: 0,
+    borderTopWidth: 10,
+    borderBottomWidth: 10,
+    borderRightWidth: 11,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+  },
+  tagBody: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  tagTxt: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   bizName: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '900',
     letterSpacing: -0.4,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   tagline: {
     fontSize: 12,
     fontWeight: '700',
-    fontStyle: 'italic',
-    marginBottom: 5,
   },
   desc: {
-    fontSize: 11,
-    lineHeight: 16,
-    marginBottom: 8,
-    opacity: 0.9,
+    fontSize: 10,
+    lineHeight: 14,
+    opacity: 0.85,
   },
-  infoBlock: {
-    marginBottom: 10,
-    gap: 3,
-  },
-  infoRow: {
+  locRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 2,
   },
-  infoIcon: {
+  locPin: {
     fontSize: 11,
-    marginRight: 5,
-    width: 16,
+    marginRight: 4,
   },
-  infoText: {
+  locTxt: {
     fontSize: 11,
     fontWeight: '500',
     flex: 1,
   },
-  ctaBtn: {
+  callBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: 22,
-    paddingVertical: 9,
-    paddingHorizontal: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     alignSelf: 'flex-start',
+    marginTop: 8,
   },
-  ctaIcon: {
+  callIcon: {
     fontSize: 13,
   },
-  ctaTxt: {
-    color: '#fff',
-    fontSize: 12,
+  callTxt: {
+    fontSize: 13,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
-  /* RIGHT */
-  rightPanel: {
-    width: 100,
+  phone: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 5,
+    opacity: 0.75,
+  },
+  /* ── right panel ── */
+  right: {
+    width: 105,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 10,
+    paddingVertical: 14,
+    gap: 8,
     overflow: 'hidden',
+    position: 'relative',
   },
-  diagLine: {
+  stripe: {
     position: 'absolute',
-    width: 3,
-    height: '120%',
+    width: 2.5,
+    height: '130%',
     transform: [{ rotate: '15deg' }],
   },
-  emojiBox: {
-    borderWidth: 1.5,
-    borderRadius: 12,
-    padding: 6,
-    opacity: 0.85,
+  avatar: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
   },
-  badge: {
-    borderRadius: 20,
+  avatarTxt: {
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  iconBadge: {
+    borderWidth: 1.5,
+    borderRadius: 14,
+    padding: 5,
+  },
+  offerBadge: {
+    borderRadius: 22,
     paddingHorizontal: 10,
     paddingVertical: 6,
     alignItems: 'center',
   },
-  badgeTxt: {
+  offerTxt: {
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.5,
+  },
+  bolt: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    fontSize: 16,
+    opacity: 0.6,
+  },
+});
+
+const pk = StyleSheet.create({
+  wrap: {
+    marginTop: 10,
+  },
+  heading: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#9ca3af',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 4,
+  },
+  swatch: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    borderWidth: 2,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    padding: 6,
+  },
+  bar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  dot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  dotTxt: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  label: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.3,
     textAlign: 'center',
+  },
+  check: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkTxt: {
+    fontSize: 9,
+    fontWeight: '900',
   },
 });
