@@ -1,5 +1,5 @@
 /**
- * NandedRozgar — auth.js (Express routes)
+ * CityPlus — auth.js (Express routes)
  * Production-ready: Email/Password + Google OAuth + Phone OTP (Firebase) + Forgot/Reset Password
  *
  * Phone OTP: Firebase Auth — FREE 10,000/month, no SMS cost, handles reCAPTCHA
@@ -277,7 +277,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
       [resetHash, expires, user.id]
     );
 
-    const appUrl   = process.env.APP_URL || 'https://nandedrozgar.app';
+    const appUrl   = process.env.APP_URL || 'https://cityplus.app';
     const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
 
     if (process.env.RESEND_API_KEY) {
@@ -289,9 +289,9 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from:    `NandedRozgar <${fromEmail}>`,
+          from:    `CityPlus <${fromEmail}>`,
           to:      [user.email],
-          subject: 'Reset your NandedRozgar password',
+          subject: 'Reset your CityPlus password',
           html: `
             <!DOCTYPE html><html><body style="font-family:sans-serif;background:#f9f9f9;padding:24px">
               <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
@@ -301,7 +301,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
                 <a href="${resetUrl}" style="display:inline-block;background:#f97316;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0">Reset Password</a>
                 <p style="color:#666;font-size:14px">If you didn't request this, you can safely ignore this email.</p>
                 <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
-                <p style="color:#999;font-size:12px">— The NandedRozgar Team</p>
+                <p style="color:#999;font-size:12px">— The CityPlus Team</p>
               </div>
             </body></html>
           `,
@@ -420,8 +420,8 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
     let smsUrl;
     if (route === 'dlt') {
       // DLT route — requires registered Sender ID + approved template
-      // Template example: "Your LocalLoop OTP is {#var#}. Valid 10 mins."
-      smsUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&route=dlt&sender_id=${senderId}&message=${encodeURIComponent(process.env.FAST2SMS_MESSAGE || 'Your LocalLoop OTP is {#var#}. Valid for 10 minutes.')}&variables_values=${otp}&flash=0&numbers=${phone.trim()}`
+      // Template example: "Your CityPlus OTP is {#var#}. Valid 10 mins."
+      smsUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&route=dlt&sender_id=${senderId}&message=${encodeURIComponent(process.env.FAST2SMS_MESSAGE || 'Your CityPlus OTP is {#var#}. Valid for 10 minutes.')}&variables_values=${otp}&flash=0&numbers=${phone.trim()}`
         + (templateId ? `&template_id=${templateId}` : '');
     } else {
       // OTP route — simplest, no sender ID or template needed
