@@ -43,7 +43,7 @@ app.use('/api/seeker',    require('./routes/seeker'));
 app.use('/api/promotions', require('./routes/promotions'));
 
 // Health check
-app.get('/health', (req, res) => res.json({ ok: true, status: 'LocalLoop API running 🚀' }));
+app.get('/health', (req, res) => res.json({ ok: true, status: 'CityPlus API running 🚀' }));
 
 // ── Serve Expo web build ──────────────────────────────────────────────────────
 const WEB_BUILD = path.join(__dirname, '..', 'dist');
