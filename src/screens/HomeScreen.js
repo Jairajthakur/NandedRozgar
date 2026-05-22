@@ -912,7 +912,7 @@ export default function HomeScreen() {
           </View>
           <View style={[s.exploreGrid, { marginTop: 10 }]}>
             <ExploreCard icon="car-sport-outline" title="Vehicles"   subtitle={`${stats.vehicles}+ for rent`} color={PURPLE} onPress={() => nav.navigate('Cars')}    style={{ marginRight: 8 }} />
-            <ExploreCard icon="pricetag-outline"  title="Buy & Sell" subtitle={`${stats.items}+ items`}       color={ORANGE} onPress={() => nav.navigate('BuySell')} />
+           <ExploreCard icon="pricetag-outline"  title="Buy & Sell" subtitle={`${stats.items}+ items`}       color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
           </View>
         </FadeSlide>
 
