@@ -243,6 +243,8 @@ async function runMigrations() {
         plan_days    INTEGER NOT NULL,
         banner_style VARCHAR(20) DEFAULT 'bold',
         accent_color VARCHAR(20),
+        timing       VARCHAR(100),
+        template_id  INTEGER,
         status       VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','active','rejected','expired')),
         expires_at   TIMESTAMPTZ,
         created_at   TIMESTAMPTZ DEFAULT NOW()
@@ -327,6 +329,9 @@ async function runMigrations() {
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS address       TEXT`,
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS tagline       VARCHAR(100)`,
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS expires_at    TIMESTAMPTZ`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS timing        VARCHAR(100)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS template_id   INTEGER`,
+      `ALTER TABLE rooms               ADD COLUMN IF NOT EXISTS plan_price    INTEGER`,
     ];
     for (const sql of safeAlters) {
       try { await client.query(sql); } catch (e) { console.warn('Alter warn (non-fatal):', e.message); }
