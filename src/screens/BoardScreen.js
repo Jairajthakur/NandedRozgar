@@ -13,7 +13,7 @@ import JobCard from '../components/JobCard';
 import { Empty } from '../components/UI';
 import { CAT_ICONS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
-import PromoBanner, { BannerCard } from '../components/PromoBanner';
+import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../components/PromoBanner';
 import { http, timeAgo } from '../utils/api';
 
 const ORANGE = '#f97316';
