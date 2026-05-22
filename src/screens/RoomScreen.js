@@ -850,21 +850,12 @@ export default function RoomScreen({ route }) {
   const ListHeader = (
     <>
       <FadeIn delay={180}><TrendingBanner /></FadeIn>
-      <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
-        {promos.length > 0
-          ? promos.map(p => (
-              <View key={p.id} style={{ marginBottom: 10 }}>
-                <SponsoredLabel />
-                <BannerCard promo={p} />
-              </View>
-            ))
-          : (
-              <>
-                <SponsoredLabel />
-                <PromoBanner data={defaultPromo} />
-              </>
-            )}
-      </View>
+      {promos.length === 0 && (
+        <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+          <SponsoredLabel />
+          <PromoBanner data={defaultPromo} />
+        </View>
+      )}
     </>
   );
 
