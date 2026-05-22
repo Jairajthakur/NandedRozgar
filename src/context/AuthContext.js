@@ -217,6 +217,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{
       user, setUser,
+      role: user?.role ?? null,
       jobs, setJobs, loadJobs, loadMoreJobs,
       jobPagination, jobPage,
       users, setUsers, loading,
