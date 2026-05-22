@@ -311,7 +311,7 @@ function NotifyModal({ visible, onClose, onSend }) {
 
 // ─── Main AdminScreen ────────────────────────────────────────────────────────
 export default function AdminScreen() {
-  const { role, jobs, users, loadJobs, loadUsers } = useAuth();
+  const { user, jobs, users, loadJobs, loadUsers } = useAuth();
 
   const [tab,          setTab]          = useState('overview');
   const [refreshing,   setRefreshing]   = useState(false);
@@ -327,7 +327,7 @@ export default function AdminScreen() {
   const [payments,     setPayments]     = useState([]);
 
   // Access guard
-  if (role !== 'admin') return (
+  if (user?.role !== 'admin') return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: BG }}>
       <Ionicons name="lock-closed" size={48} color="#ddd" />
       <Text style={{ fontSize: 16, fontWeight: '700', color: DARK, marginTop: 14 }}>Access Denied</Text>
