@@ -204,7 +204,7 @@ export default function AboutScreen() {
           </View>
           <View style={styles.badge}>
             <Ionicons name="phone-portrait-outline" size={11} color={ORANGE} />
-            <Text style={styles.badgeTxt}>v1.0.1</Text>
+            <Text style={styles.badgeTxt}>v4.4.0</Text>
           </View>
         </View>
       </Animated.View>
@@ -379,7 +379,7 @@ export default function AboutScreen() {
         <View style={[styles.logoWrap, { width: 40, height: 40, borderRadius: 12, marginBottom: 10 }]}>
           <Text style={[styles.logoText, { fontSize: 14 }]}>C+</Text>
         </View>
-        <Text style={styles.footerAppName}>CityPlus v1.0.1</Text>
+        <Text style={styles.footerAppName}>CityPlus v4.4.0</Text>
         <Text style={styles.footerSub}>© 2025 CityPlus Technologies. All rights reserved.</Text>
         <Text style={styles.footerSub}>Nanded, Maharashtra, India 🇮🇳</Text>
       </View>
