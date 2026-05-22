@@ -1,5 +1,5 @@
 /**
- * LokalLoop — AuthContext.js
+ * CityPlus — AuthContext.js
  * Adds: loginWithGoogle, sendOTP, verifyOTP, forgotPassword, loginWithBiometrics
  * Fixed: Google OAuth web support, Firebase OTP platform detection
  */
@@ -9,8 +9,8 @@ import { http, loadToken, saveToken, clearToken } from '../utils/api';
 
 const AuthContext = createContext(null);
 
-const BIOMETRIC_EMAIL_KEY = 'lokalloop_bio_email';
-const BIOMETRIC_TOKEN_KEY = 'lokalloop_bio_token';
+const BIOMETRIC_EMAIL_KEY = 'cityplus_bio_email';
+const BIOMETRIC_TOKEN_KEY = 'cityplus_bio_token';
 
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
