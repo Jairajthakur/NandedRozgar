@@ -176,7 +176,7 @@ function WebScrollBanner() {
       <ScrollVelocity
         texts={[SCROLL_ROW_1, SCROLL_ROW_2]}
         velocity={80}
-        className="nanded-ticker-span"
+        className="cityplus-ticker-span"
         parallaxStyle={{ overflow: 'hidden' }}
         scrollerStyle={{ color: '#1a1a1a', fontSize: '0.95rem', fontWeight: '700', letterSpacing: '0.07em', paddingTop: 4, paddingBottom: 4 }}
       />
@@ -509,7 +509,7 @@ export default function HomeScreen() {
               <View style={ws.topNavSmRow1}>
                 <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
                   <Text style={ws.brandText}>
-                    <Text style={ws.brandNanded}>Local</Text>
+                    <Text style={ws.brandCity}>City</Text>
                     <Text style={ws.brandRozgar}>Loop</Text>
                   </Text>
                   <View style={ws.locRow}>
@@ -533,7 +533,7 @@ export default function HomeScreen() {
             <View style={ws.topNavInner}>
               <TouchableOpacity style={ws.brandRow} onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
                 <Text style={ws.brandText}>
-                  <Text style={ws.brandNanded}>Local</Text>
+                  <Text style={ws.brandCity}>City</Text>
                   <Text style={ws.brandRozgar}>Loop</Text>
                 </Text>
                 <View style={ws.locRow}>
@@ -838,7 +838,7 @@ export default function HomeScreen() {
         <View style={s.headerTop}>
           <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
             <Text style={s.brandText}>
-              <Text style={s.brandNanded}>Local</Text>
+              <Text style={s.brandCity}>City</Text>
               <Text style={s.brandRozgar}>Loop</Text>
             </Text>
             <View style={s.locRow}>
@@ -1004,7 +1004,7 @@ const ws = StyleSheet.create({
   topNavSmRow2: { width: '100%' },
   brandRow:   { width: 210, flexShrink: 0, flexGrow: 0, paddingHorizontal: 16 },
   brandText:  { fontSize: 20, fontWeight: '900', letterSpacing: 0.2 },
-  brandNanded:{ color: '#111111' },
+  brandCity:{ color: '#111111' },
   brandRozgar:{ color: ORANGE },
   locRow:     { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   locText:    { color: '#888', fontSize: 11, fontWeight: '500' },
@@ -1271,7 +1271,7 @@ const s = StyleSheet.create({
   },
   headerTop:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brandText:       { fontSize: 20, fontWeight: '900', letterSpacing: 0.2 },
-  brandNanded:     { color: '#111111' },
+  brandCity:     { color: '#111111' },
   brandRozgar:     { color: ORANGE },
   locRow:          { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   locText:         { color: '#888', fontSize: 11, fontWeight: '500' },
