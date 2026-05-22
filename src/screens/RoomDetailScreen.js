@@ -270,7 +270,7 @@ export default function RoomDetailScreen({ route, navigation }) {
   async function shareListing() {
     try {
       await Share.share({
-        message: `Room for Rent: ${room.title}\n${room.location} | ${room.rent}\n\nFind on NandedRozgar!`,
+        message: `Room for Rent: ${room.title}\n${room.location} | ${room.rent}\n\nFind on CityPlus!`,
       });
     } catch {}
   }
