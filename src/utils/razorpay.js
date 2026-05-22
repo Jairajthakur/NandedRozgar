@@ -38,7 +38,7 @@ export function RazorpayModal({ visible, onClose, checkoutParams }) {
         key:         checkoutParams.keyId,
         amount:      String(checkoutParams.amount),
         currency:    checkoutParams.currency || 'INR',
-        name:        'NandedRozgar',
+        name:        'CityPlus',
         description: checkoutParams.description || 'Listing Payment',
         order_id:    checkoutParams.orderId,
         prefill: {
