@@ -209,7 +209,7 @@ export default function BuySellDetailScreen() {
 
   function openWhatsApp() {
     const phone = item?.phone || item?.whatsapp || '';
-    const msg   = `Hi, I'm interested in your "${item?.title}" listed on NandedRozgar for ${item?.price}.`;
+    const msg   = `Hi, I'm interested in your "${item?.title}" listed on CityPlus for ${item?.price}.`;
     if (phone)
       Linking.openURL(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`).catch(() =>
         Alert.alert('WhatsApp not installed', 'Please contact via call.')
@@ -220,8 +220,8 @@ export default function BuySellDetailScreen() {
   async function shareItem() {
     try {
       await Share.share({
-        message: `Check out this item on NandedRozgar!\n${item?.title} — ${item?.price}\n📍 ${item?.loc}\nCondition: ${item?.condition}`,
-        title: `${item?.title} — NandedRozgar`,
+        message: `Check out this item on CityPlus!\n${item?.title} — ${item?.price}\n📍 ${item?.loc}\nCondition: ${item?.condition}`,
+        title: `${item?.title} — CityPlus`,
       });
     } catch {}
   }
