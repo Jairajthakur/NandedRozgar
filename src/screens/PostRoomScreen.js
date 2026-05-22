@@ -311,7 +311,7 @@ export default function PostRoomScreen() {
       });
       if (r.ok) {
         Toast.show({ type:'success', text1:'✅ Room listed successfully!' });
-        nav.goBack();
+        nav.navigate('Main', { screen: 'Rooms' });
       } else {
         Alert.alert('Error', r.error||'Failed to post room');
       }
