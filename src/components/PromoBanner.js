@@ -332,28 +332,244 @@ export function TemplatePicker({ selected, onSelect }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   BannerCard — maps API promo object → Banner
-   Accepts promo.templateId (optional, falls back to category auto)
+   RICH PROMO CARD — Category-aware, colour-coded sponsored card
+   Matches the image-2 design: coloured bg, category pill, badge,
+   emoji icon, avatar, phone/location, category-specific CTA.
 ═══════════════════════════════════════════════════════════════ */
+
+const CAT_MAP = {
+  // beauty
+  salon:         { bg:'#e0faf5', accent:'#0d9488', dark:'#065f46', label:'SALON / BEAUTY',        emoji:'💅', cta:'Book Now'   },
+  beauty:        { bg:'#e0faf5', accent:'#0d9488', dark:'#065f46', label:'SALON / BEAUTY',        emoji:'💄', cta:'Book Now'   },
+  parlour:       { bg:'#e0faf5', accent:'#0d9488', dark:'#065f46', label:'SALON / BEAUTY',        emoji:'✂️', cta:'Book Now'   },
+  spa:           { bg:'#f0fdf4', accent:'#16a34a', dark:'#14532d', label:'WELLNESS / SPA',        emoji:'🧖', cta:'Book Now'   },
+  gym:           { bg:'#fff0f5', accent:'#e11d48', dark:'#881337', label:'FITNESS / GYM',         emoji:'🏋️', cta:'Book Now'   },
+  fitness:       { bg:'#fff0f5', accent:'#e11d48', dark:'#881337', label:'FITNESS / GYM',         emoji:'💪', cta:'Book Now'   },
+  yoga:          { bg:'#f0fdf4', accent:'#16a34a', dark:'#14532d', label:'YOGA / WELLNESS',       emoji:'🧘', cta:'Book Now'   },
+  // food
+  restaurant:    { bg:'#fff7ed', accent:'#ea580c', dark:'#7c2d12', label:'FOOD / RESTAURANT',     emoji:'🍽️', cta:'Order Now'  },
+  food:          { bg:'#fff7ed', accent:'#ea580c', dark:'#7c2d12', label:'FOOD / CATERING',       emoji:'🍱', cta:'Order Now'  },
+  catering:      { bg:'#fff7ed', accent:'#ea580c', dark:'#7c2d12', label:'CATERING',              emoji:'🍛', cta:'Order Now'  },
+  cafe:          { bg:'#fef3c7', accent:'#d97706', dark:'#78350f', label:'CAFÉ / BAKERY',         emoji:'☕', cta:'Visit Us'   },
+  bakery:        { bg:'#fef3c7', accent:'#d97706', dark:'#78350f', label:'BAKERY',                emoji:'🥐', cta:'Order Now'  },
+  tiffin:        { bg:'#fef3c7', accent:'#d97706', dark:'#78350f', label:'TIFFIN SERVICE',        emoji:'🥗', cta:'Subscribe'  },
+  // real estate
+  'real estate': { bg:'#fff7ed', accent:'#c2410c', dark:'#7c2d12', label:'REAL ESTATE',           emoji:'🏠', cta:'Site Visit' },
+  realestate:    { bg:'#fff7ed', accent:'#c2410c', dark:'#7c2d12', label:'REAL ESTATE',           emoji:'🏘️', cta:'Site Visit' },
+  property:      { bg:'#fff7ed', accent:'#c2410c', dark:'#7c2d12', label:'REAL ESTATE',           emoji:'🏗️', cta:'Site Visit' },
+  builder:       { bg:'#fff7ed', accent:'#c2410c', dark:'#7c2d12', label:'REAL ESTATE',           emoji:'🏢', cta:'Site Visit' },
+  // transport
+  transport:     { bg:'#eff6ff', accent:'#2563eb', dark:'#1e3a8a', label:'TRANSPORT / LOGISTICS', emoji:'🚛', cta:'Connect'    },
+  logistics:     { bg:'#eff6ff', accent:'#2563eb', dark:'#1e3a8a', label:'TRANSPORT / LOGISTICS', emoji:'📦', cta:'Connect'    },
+  auto:          { bg:'#eff6ff', accent:'#2563eb', dark:'#1e3a8a', label:'AUTO / VEHICLE',        emoji:'🛺', cta:'Book Now'   },
+  automobile:    { bg:'#eff6ff', accent:'#2563eb', dark:'#1e3a8a', label:'AUTO / VEHICLE',        emoji:'🚗', cta:'Connect'    },
+  courier:       { bg:'#eff6ff', accent:'#2563eb', dark:'#1e3a8a', label:'COURIER',               emoji:'📮', cta:'Connect'    },
+  // education
+  education:     { bg:'#eff6ff', accent:'#1d4ed8', dark:'#1e3a8a', label:'EDUCATION',             emoji:'📚', cta:'Enroll Now' },
+  coaching:      { bg:'#eff6ff', accent:'#1d4ed8', dark:'#1e3a8a', label:'COACHING',              emoji:'🎓', cta:'Enroll Now' },
+  tuition:       { bg:'#eff6ff', accent:'#1d4ed8', dark:'#1e3a8a', label:'TUITION',               emoji:'✏️', cta:'Enroll Now' },
+  academy:       { bg:'#eff6ff', accent:'#1d4ed8', dark:'#1e3a8a', label:'ACADEMY',               emoji:'🏫', cta:'Enroll Now' },
+  // medical
+  hospital:      { bg:'#f0fdf4', accent:'#16a34a', dark:'#14532d', label:'HEALTHCARE',            emoji:'🏥', cta:'Book Now'   },
+  clinic:        { bg:'#f0fdf4', accent:'#16a34a', dark:'#14532d', label:'CLINIC',                emoji:'⚕️', cta:'Book Now'   },
+  pharmacy:      { bg:'#f0fdf4', accent:'#16a34a', dark:'#14532d', label:'PHARMACY',              emoji:'💊', cta:'Contact'    },
+  // fashion / retail
+  fashion:       { bg:'#fdf4ff', accent:'#9333ea', dark:'#581c87', label:'FASHION',               emoji:'👗', cta:'Shop Now'   },
+  clothing:      { bg:'#fdf4ff', accent:'#9333ea', dark:'#581c87', label:'FASHION / CLOTHING',    emoji:'👕', cta:'Shop Now'   },
+  retail:        { bg:'#fdf4ff', accent:'#9333ea', dark:'#581c87', label:'RETAIL',                emoji:'🛍️', cta:'Shop Now'   },
+  jewellery:     { bg:'#fef9c3', accent:'#ca8a04', dark:'#713f12', label:'JEWELLERY',             emoji:'💍', cta:'Visit Us'   },
+  jewelry:       { bg:'#fef9c3', accent:'#ca8a04', dark:'#713f12', label:'JEWELLERY',             emoji:'💎', cta:'Visit Us'   },
+  // tech
+  software:      { bg:'#f0f9ff', accent:'#0284c7', dark:'#0c4a6e', label:'TECH / SOFTWARE',       emoji:'💻', cta:'Connect'    },
+  technology:    { bg:'#f0f9ff', accent:'#0284c7', dark:'#0c4a6e', label:'TECHNOLOGY',            emoji:'🖥️', cta:'Connect'    },
+  // events
+  wedding:       { bg:'#fdf4ff', accent:'#c026d3', dark:'#701a75', label:'WEDDING / EVENTS',      emoji:'💒', cta:'Book Now'   },
+  photography:   { bg:'#fdf4ff', accent:'#c026d3', dark:'#701a75', label:'PHOTOGRAPHY',           emoji:'📸', cta:'Book Now'   },
+  event:         { bg:'#fdf4ff', accent:'#c026d3', dark:'#701a75', label:'EVENTS',                emoji:'🎉', cta:'Book Now'   },
+  // default
+  default:       { bg:'#f8fafc', accent:'#f97316', dark:'#7c2d12', label:'BUSINESS',              emoji:'🏪', cta:'Contact'    },
+};
+
+function getCatConfig(category) {
+  const key = (category || '').toLowerCase().trim();
+  // exact match first
+  if (CAT_MAP[key]) return CAT_MAP[key];
+  // partial match
+  for (const [k, v] of Object.entries(CAT_MAP)) {
+    if (k === 'default') continue;
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  return CAT_MAP.default;
+}
+
 export function BannerCard({ promo }) {
   if (!promo) return null;
-  const data = {
-    name:        promo.bizName       || promo.businessName || promo.name       || '',
-    tagline:     promo.tagline       || promo.offer        || '',
-    description: promo.description   || '',
-    category:    promo.category      || '',
-    phone:       promo.phone         || '',
-    location:    promo.location      || promo.city         || '',
-    address:     promo.address       || '',
-    timing:      promo.timing        || promo.hours        || '',
-    isPopular:   promo.plan === 'premium' || promo.plan === 'popular',
-  };
-  const tid = promo.templateId
-    ? Number(promo.templateId)
-    : autoTemplate(data.category);
-  const tmpl = getTemplateById(tid);
-  return <Banner data={data} tmpl={tmpl} />;
+
+  const name        = promo.bizName || promo.businessName || promo.name || '';
+  const tagline     = promo.tagline || promo.offer || '';
+  const description = promo.description || '';
+  const category    = promo.category || '';
+  const phone       = promo.phone || '';
+  const location    = promo.location || promo.city || '';
+  const address     = promo.address || '';
+  const isPopular   = promo.plan === 'premium' || promo.plan === 'popular';
+
+  const cfg    = getCatConfig(category);
+  const avatar = (name || 'B').charAt(0).toUpperCase();
+
+  return (
+    <View style={[rc.card, { backgroundColor: cfg.bg, borderColor: cfg.accent + '33' }]}>
+
+      {/* ── Top row: category pill + plan badge ── */}
+      <View style={rc.topRow}>
+        {/* Arrow-shaped category pill */}
+        <View style={rc.pillWrap}>
+          <View style={[rc.pillArrow, { borderRightColor: cfg.accent }]} />
+          <View style={[rc.pillBody, { backgroundColor: cfg.accent }]}>
+            <Text style={rc.pillTxt}>{(category || cfg.label).toUpperCase()}</Text>
+          </View>
+        </View>
+
+        {/* Plan badge */}
+        <View style={[rc.planBadge, { backgroundColor: isPopular ? '#fbbf24' : cfg.accent + '22',
+                                       borderColor: isPopular ? '#f59e0b' : cfg.accent + '55' }]}>
+          <Text style={[rc.planTxt, { color: isPopular ? '#78350f' : cfg.dark }]}>
+            {isPopular ? '★ POPULAR' : 'AD'}
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Body: left content + right avatar ── */}
+      <View style={rc.body}>
+        <View style={rc.left}>
+          {/* Emoji icon */}
+          <Text style={rc.emoji}>{cfg.emoji}</Text>
+
+          {/* Business name */}
+          <Text style={[rc.name, { color: cfg.dark }]} numberOfLines={1}>{name}</Text>
+
+          {/* Tagline */}
+          {!!tagline && (
+            <Text style={[rc.tagline, { color: cfg.accent }]} numberOfLines={1}>{tagline}</Text>
+          )}
+
+          {/* Description */}
+          {!!description && (
+            <Text style={[rc.desc, { color: cfg.dark + 'cc' }]} numberOfLines={2}>{description}</Text>
+          )}
+
+          {/* Phone */}
+          {!!phone && (
+            <View style={rc.infoRow}>
+              <Text style={rc.infoIcon}>📞</Text>
+              <Text style={[rc.infoTxt, { color: cfg.dark }]}>{phone}</Text>
+            </View>
+          )}
+
+          {/* Location */}
+          {!!location && (
+            <View style={rc.infoRow}>
+              <Text style={rc.infoIcon}>📍</Text>
+              <Text style={[rc.infoTxt, { color: cfg.accent }]} numberOfLines={1}>{location}</Text>
+            </View>
+          )}
+
+          {/* Address */}
+          {!!address && (
+            <View style={rc.infoRow}>
+              <Text style={rc.infoIcon}>🏢</Text>
+              <Text style={[rc.infoTxt, { color: cfg.dark }]} numberOfLines={1}>{address}</Text>
+            </View>
+          )}
+
+          {/* CTA button */}
+          <TouchableOpacity
+            style={[rc.ctaBtn, { backgroundColor: cfg.accent }]}
+            onPress={() => phone && Linking.openURL(`tel:${phone}`)}
+            activeOpacity={0.82}
+          >
+            <Text style={[rc.ctaTxt, { color: '#fff' }]}>{cfg.cta}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Right: avatar */}
+        <View style={rc.right}>
+          <View style={[rc.avatar, { backgroundColor: cfg.accent, shadowColor: cfg.accent }]}>
+            <Text style={[rc.avatarTxt, { color: '#fff' }]}>{avatar}</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
 }
+
+/* BannerCard styles */
+const rc = StyleSheet.create({
+  card: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    marginBottom: 2,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  pillWrap: { flexDirection: 'row', alignItems: 'center' },
+  pillArrow: {
+    width: 0, height: 0,
+    borderTopWidth: 9, borderBottomWidth: 9, borderRightWidth: 10,
+    borderTopColor: 'transparent', borderBottomColor: 'transparent',
+  },
+  pillBody: {
+    paddingHorizontal: 10, paddingVertical: 3,
+    borderTopRightRadius: 4, borderBottomRightRadius: 4,
+  },
+  pillTxt: { fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
+  planBadge: {
+    borderRadius: 20, borderWidth: 1,
+    paddingHorizontal: 10, paddingVertical: 3,
+  },
+  planTxt: { fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
+  body: {
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 6,
+    alignItems: 'flex-start',
+  },
+  left: { flex: 1, gap: 4 },
+  right: { marginLeft: 12, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 4 },
+  emoji: { fontSize: 22, marginBottom: 2 },
+  name: { fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
+  tagline: { fontSize: 12, fontWeight: '700' },
+  desc: { fontSize: 11, lineHeight: 16 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  infoIcon: { fontSize: 11 },
+  infoTxt: { fontSize: 12, fontWeight: '500', flex: 1 },
+  ctaBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    paddingHorizontal: 18, paddingVertical: 9,
+    borderRadius: 24,
+  },
+  ctaTxt: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
+  avatar: {
+    width: 56, height: 56, borderRadius: 28,
+    alignItems: 'center', justifyContent: 'center',
+    elevation: 4, shadowOpacity: 0.3, shadowRadius: 6,
+  },
+  avatarTxt: { fontSize: 24, fontWeight: '900' },
+});
 
 /* ═══════════════════════════════════════════════════════════════
    BannerWithPicker — self-contained banner + template picker
@@ -386,13 +602,19 @@ export function BannerWithPicker({ data, defaultTemplateId, onTemplateChange }) 
    MAIN DEFAULT EXPORT — simple banner, no picker
    Pass templateId prop to override auto-selection.
 ═══════════════════════════════════════════════════════════════ */
-export default function PromoBanner({ data, templateId }) {
+export default function PromoBanner({ data }) {
   if (!data || !data.name) return null;
-  const tid = templateId
-    ? Number(templateId)
-    : autoTemplate(data.category);
-  const tmpl = getTemplateById(tid);
-  return <Banner data={data} tmpl={tmpl} />;
+  // Reuse the rich BannerCard design for consistency — wrap data as a promo-shaped object
+  return <BannerCard promo={{
+    bizName:     data.name,
+    tagline:     data.tagline     || '',
+    description: data.description || '',
+    category:    data.category    || '',
+    phone:       data.phone       || '',
+    location:    data.location    || '',
+    address:     data.address     || '',
+    plan:        data.plan        || 'popular',
+  }} />;
 }
 
 /* ═══════════════════════════════════════════════════════════════
