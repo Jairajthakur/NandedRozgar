@@ -17,7 +17,7 @@ export const BASE_URL = 'https://localloops-production.up.railway.app';
 // ── Razorpay ──────────────────────────────────────────────────────────────────
 // Get your key from: https://dashboard.razorpay.com/app/keys
 // Use TEST key (rzp_test_…) during development, LIVE key (rzp_live_…) in production.
-export const RAZORPAY_KEY_ID = 'rzp_test_XXXXXXXXXXXXXXXX'; // 🔑 Replace with your actual key
+export const RAZORPAY_KEY_ID = 'rzp_test_SsG0HGZbXpjpz5'; // 🔑 Replace with your actual key
 
 export const CATS = [
   'All',
