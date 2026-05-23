@@ -1,5 +1,5 @@
 /**
- * NandedRozgar — HelpSupportScreen.js
+ * CityPlus — HelpSupportScreen.js
  * Full-featured help & support page with:
  * - Searchable FAQ accordion
  * - Contact channels (WhatsApp, Email, Phone)
@@ -27,6 +27,12 @@ const MUTED   = '#8e8ea0';
 const BORDER  = 'rgba(0,0,0,0.07)';
 const GREEN   = '#16a34a';
 
+// ── Support contact details — update before publishing ──────────────────────
+const SUPPORT_PHONE    = '919834308805';   // e.g. '919823001234'  (91 + 10-digit number, no +)
+const SUPPORT_EMAIL    = '' + SUPPORT_EMAIL + '';
+const LEGAL_EMAIL      = '' + LEGAL_EMAIL + '';
+const PRIVACY_EMAIL    = '' + PRIVACY_EMAIL + '';
+
 // ── Legal content ──────────────────────────────────────────────────────────────
 const LEGAL_CONTENT = {
   terms: {
@@ -38,15 +44,15 @@ const LEGAL_CONTENT = {
     sections: [
       {
         heading: '1. Acceptance of Terms',
-        body: 'By downloading, installing, or using the NandedRozgar app ("App"), you agree to be bound by these Terms of Service. If you do not agree, please do not use the App.',
+        body: 'By downloading, installing, or using the CityPlus app ("App"), you agree to be bound by these Terms of Service. If you do not agree, please do not use the App.',
       },
       {
         heading: '2. Eligibility',
-        body: 'You must be at least 18 years old to use NandedRozgar. By using the App, you confirm that you are 18 years or older and have the legal capacity to enter into these terms.',
+        body: 'You must be at least 18 years old to use CityPlus. By using the App, you confirm that you are 18 years or older and have the legal capacity to enter into these terms.',
       },
       {
         heading: '3. User Accounts',
-        body: 'You are responsible for maintaining the confidentiality of your account credentials. You must provide accurate, current, and complete information during registration. NandedRozgar reserves the right to suspend or terminate accounts that violate these terms.',
+        body: 'You are responsible for maintaining the confidentiality of your account credentials. You must provide accurate, current, and complete information during registration. CityPlus reserves the right to suspend or terminate accounts that violate these terms.',
       },
       {
         heading: '4. Prohibited Content',
@@ -54,11 +60,11 @@ const LEGAL_CONTENT = {
       },
       {
         heading: '5. Job Listings & Payments',
-        body: 'Employers are responsible for the accuracy of their job listings. NandedRozgar does not guarantee employment. Payments for Featured or Urgent listings are non-refundable once the listing goes live. A full refund is issued only if a post is rejected by our moderation team.',
+        body: 'Employers are responsible for the accuracy of their job listings. CityPlus does not guarantee employment. Payments for Featured or Urgent listings are non-refundable once the listing goes live. A full refund is issued only if a post is rejected by our moderation team.',
       },
       {
         heading: '6. Limitation of Liability',
-        body: 'NandedRozgar is a platform connecting users and is not responsible for interactions between them. We do not verify every listing and are not liable for any loss or damage arising from your use of the App.',
+        body: 'CityPlus is a platform connecting users and is not responsible for interactions between them. We do not verify every listing and are not liable for any loss or damage arising from your use of the App.',
       },
       {
         heading: '7. Modifications',
@@ -70,7 +76,7 @@ const LEGAL_CONTENT = {
       },
       {
         heading: '9. Contact',
-        body: 'For questions about these Terms, contact us at legal@nandedrozgar.in or via WhatsApp at +91 98765 43210.',
+        body: 'For questions about these Terms, contact us at ' + LEGAL_EMAIL + ' or via WhatsApp at +91 ' + SUPPORT_PHONE.slice(2) + '.',
       },
     ],
   },
@@ -103,7 +109,7 @@ const LEGAL_CONTENT = {
       },
       {
         heading: '6. Your Rights',
-        body: 'You can access, update, or delete your personal information at any time from Profile → Edit Profile. You can request complete data deletion by contacting support@nandedrozgar.in. We respond to deletion requests within 7 business days.',
+        body: 'You can access, update, or delete your personal information at any time from Profile → Edit Profile. You can request complete data deletion by contacting ' + SUPPORT_EMAIL + '. We respond to deletion requests within 7 business days.',
       },
       {
         heading: '7. Cookies & Analytics',
@@ -111,11 +117,11 @@ const LEGAL_CONTENT = {
       },
       {
         heading: '8. Children\'s Privacy',
-        body: 'NandedRozgar is not intended for users under 18. We do not knowingly collect data from minors. If we become aware of such data, we will delete it promptly.',
+        body: 'CityPlus is not intended for users under 18. We do not knowingly collect data from minors. If we become aware of such data, we will delete it promptly.',
       },
       {
         heading: '9. Contact',
-        body: 'For privacy-related queries or data deletion requests, contact us at privacy@nandedrozgar.in or via WhatsApp at +91 98765 43210.',
+        body: 'For privacy-related queries or data deletion requests, contact us at ' + PRIVACY_EMAIL + ' or via WhatsApp at +91 ' + SUPPORT_PHONE.slice(2).replace(/(\d{5})(\d{5})/, '$1 $2') + '.',
       },
     ],
   },
@@ -216,10 +222,10 @@ function LegalModal({ visible, contentKey, onClose }) {
 
             <View style={styles.legalFooter}>
               <Text style={styles.legalFooterTxt}>
-                NandedRozgar v4.4.0 · Nanded, Maharashtra, India
+                CityPlus v4.4.0 · Nanded, Maharashtra, India
               </Text>
               <Text style={styles.legalFooterTxt}>
-                Questions? Contact support@nandedrozgar.in
+                Questions? Contact ' + SUPPORT_EMAIL + '
               </Text>
             </View>
           </ScrollView>
@@ -356,7 +362,7 @@ const FAQ_CATEGORIES = [
       },
       {
         q: 'How is my data used?',
-        a: 'We use your data only to operate the NandedRozgar service. We never sell your data to third parties. Read our full Privacy Policy in Quick Links below.',
+        a: 'We use your data only to operate the CityPlus service. We never sell your data to third parties. Read our full Privacy Policy in Quick Links below.',
       },
     ],
   },
@@ -516,13 +522,13 @@ export default function HelpSupportScreen() {
     : activeCatData?.faqs ?? [];
 
   const openWhatsApp = useCallback(() => {
-    Linking.openURL('https://wa.me/919876543210?text=Hi%2C%20I%20need%20help%20with%20NandedRozgar%20app.');
+    Linking.openURL(`https://wa.me/${SUPPORT_PHONE}?text=Hi%2C%20I%20need%20help%20with%20CityPlus%20app.`);
   }, []);
   const openEmail = useCallback(() => {
-    Linking.openURL('mailto:support@nandedrozgar.in?subject=NandedRozgar%20Support');
+    Linking.openURL('mailto:' + SUPPORT_EMAIL + '?subject=CityPlus%20Support');
   }, []);
   const openPhone = useCallback(() => {
-    Linking.openURL('tel:+919876543210');
+    Linking.openURL(`tel:+${SUPPORT_PHONE}`);
   }, []);
 
   return (
@@ -635,7 +641,7 @@ export default function HelpSupportScreen() {
         </View>
 
         <View style={styles.versionNote}>
-          <Text style={styles.versionTxt}>NandedRozgar v4.4.0 · Made with ❤️ in Nanded</Text>
+          <Text style={styles.versionTxt}>CityPlus v4.4.0 · Made with ❤️ in Nanded</Text>
         </View>
       </ScrollView>
 
