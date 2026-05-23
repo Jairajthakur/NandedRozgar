@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { http } from '../utils/api';
 import { CAT_ICONS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
-import { TranslateBlock, TranslateTitle } from '../utils/translate';
+import { AutoTranslate } from '../utils/translate';
 
 const ORANGE = '#f97316';
 const GREEN  = '#25d366';
@@ -313,7 +313,7 @@ export default function JobDetailScreen({ route, navigation }) {
         </View>
 
         {/* Job title below icon */}
-        <TranslateTitle text={job.title} lang={lang} style={s.heroTitle} numberOfLines={2} />
+        <AutoTranslate text={job.title} lang={lang} style={s.heroTitle} numberOfLines={2} />
         {!!job.company && (
           <View style={s.heroCompanyRow}>
             <Ionicons name="business-outline" size={12} color="rgba(255,255,255,0.8)" />
@@ -378,7 +378,7 @@ export default function JobDetailScreen({ route, navigation }) {
                 <View style={s.cardHeaderDot} />
                 <Text style={s.cardTitle}>JOB DESCRIPTION</Text>
               </View>
-              <TranslateBlock text={job.description} lang={lang} style={s.descText} />
+              <AutoTranslate text={job.description} lang={lang} style={s.descText} />
             </View>
           </FadeSection>
         )}
