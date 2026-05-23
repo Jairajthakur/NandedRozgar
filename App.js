@@ -39,6 +39,7 @@ import AnalyticsScreen      from './src/screens/AnalyticsScreen';
 import AlertsScreen         from './src/screens/AlertsScreen';
 import PromoteBusinessScreen from './src/screens/PromoteBusinessScreen';
 import HelpSupportScreen    from './src/screens/HelpSupportScreen';
+import SellItemForm         from './src/screens/SellItemForm';
 import AboutScreen          from './src/screens/AboutScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
 
@@ -242,7 +243,8 @@ function RootNavigator() {
       <Stack.Screen name="Analytics"       component={AnalyticsScreen}       options={{ headerShown: true, headerTitle: 'Analytics',             ...HEADER }} />
       <Stack.Screen name="Alerts"          component={AlertsScreen}          options={{ headerShown: true, headerTitle: 'Job Alerts',            ...HEADER }} />
       <Stack.Screen name="HelpSupport"     component={HelpSupportScreen}     options={{ headerShown: true, headerTitle: 'Help & Support',         ...HEADER }} />
-      <Stack.Screen name="About"           component={AboutScreen}           options={{ headerShown: true, headerTitle: 'About CityPlus',          ...HEADER }} />
+      <Stack.Screen name="SellItemForm"    component={SellItemForm}          options={{ headerShown: false }} />
+      <Stack.Screen name="About"           component={AboutScreen}           options={{ headerShown: true, headerTitle: 'About NandedRozgar',          ...HEADER }} />
     </Stack.Navigator>
   );
 }
