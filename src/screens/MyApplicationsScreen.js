@@ -32,10 +32,13 @@ export default function MyApplicationsScreen({ navigation }) {
 
   async function load(refresh = false) {
     if (refresh) setRefreshing(true);
-    const r = await http('GET', '/api/jobs/my-applications');
-    if (r?.ok) setApps(r.applications || []);
-    setLoading(false);
-    setRefreshing(false);
+    try {
+      const r = await http('GET', '/api/jobs/my-applications');
+      if (r?.ok) setApps(r.applications || []);
+    } finally {
+      if (!refresh) setLoading(false);
+      setRefreshing(false);
+    }
   }
 
   useEffect(() => { load(); }, []);
