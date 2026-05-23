@@ -89,6 +89,15 @@ const STRINGS = {
     tickerCars: 'CARS & VEHICLES FOR HIRE',
     tickerFree: 'FREE LISTINGS — POST TODAY',
     tickerBuySell: 'BUY & SELL LOCALLY',
+    // Card labels
+    applyBtn: 'Apply',
+    availableBadge: 'Available',
+    priceOnRequest: 'Price on request',
+    fresherOK: 'Fresher OK',
+    todayLabel: 'Today',
+    recentLabel: 'Recent',
+    featuredBadge: 'FEATURED',
+    urgentBadge: 'URGENT',
     // AI
     aiAssistant: 'AI Career Assistant', aiJobMatch: 'AI Job Match',
     askAnything: 'Ask anything about jobs in Nanded…',
@@ -331,6 +340,15 @@ const STRINGS = {
     tickerCars: 'गाड्या & वाहने भाड्याने',
     tickerFree: 'मोफत यादी — आजच पोस्ट करा',
     tickerBuySell: 'स्थानिक खरेदी-विक्री करा',
+    // Card labels
+    applyBtn: 'अर्ज करा',
+    availableBadge: 'उपलब्ध',
+    priceOnRequest: 'किंमत विचारा',
+    fresherOK: 'नवीन चालेल',
+    todayLabel: 'आज',
+    recentLabel: 'अलीकडे',
+    featuredBadge: 'वैशिष्ट्यीकृत',
+    urgentBadge: 'तातडीचे',
     // AI
     aiAssistant: 'AI करिअर सहाय्यक', aiJobMatch: 'AI नोकरी जुळवणी',
     askAnything: 'नांदेडमधील नोकऱ्यांबद्दल काहीही विचारा…',
@@ -573,6 +591,15 @@ const STRINGS = {
     tickerCars: 'गाड़ियाँ & वाहन किराए पर',
     tickerFree: 'मुफ्त लिस्टिंग — आज पोस्ट करें',
     tickerBuySell: 'स्थानीय खरीद-बिक्री करें',
+    // Card labels
+    applyBtn: 'आवेदन करें',
+    availableBadge: 'उपलब्ध',
+    priceOnRequest: 'कीमत पूछें',
+    fresherOK: 'फ्रेशर ठीक है',
+    todayLabel: 'आज',
+    recentLabel: 'हाल में',
+    featuredBadge: 'फ़ीचर्ड',
+    urgentBadge: 'अर्जेंट',
     // AI
     aiAssistant: 'AI करियर सहायक', aiJobMatch: 'AI नौकरी मिलान',
     askAnything: 'नांदेड की नौकरियों के बारे में कुछ भी पूछें…',
