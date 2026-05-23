@@ -267,15 +267,13 @@ router.post('/notifications', async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // GET /api/admin/buysell — all buy & sell items
 router.get('/buysell', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT b.*, u.name AS seller_name, u.email AS seller_email
        FROM buysell_items b
-       LEFT JOIN users u ON b.user_id = u.id
+       LEFT JOIN users u ON b.posted_by = u.id
        ORDER BY b.created_at DESC`
     );
     res.json({ ok: true, buysell: rows });
@@ -284,3 +282,5 @@ router.get('/buysell', async (req, res) => {
     res.json({ ok: false, error: 'Failed to load buysell items' });
   }
 });
+
+module.exports = router;
