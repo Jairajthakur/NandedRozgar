@@ -15,6 +15,7 @@ import {
   FlatList,
   Dimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -588,11 +589,44 @@ export default function AdminScreen() {
     toastTimer.current = setTimeout(() => setToast(t => ({ ...t, visible: false })), 3000);
   }
 
-  function handleLogin(user, token) {
+  // ── Auto-login on mount: restore saved token ──
+  useEffect(() => {
+    async function restoreSession() {
+      try {
+        const savedToken = await AsyncStorage.getItem('nr_token');
+        if (savedToken) {
+          _token = savedToken;
+          const d = await apiCall('GET', '/api/auth/me');
+          if (d.ok && d.user?.role === 'admin') {
+            setCurrentUser(d.user);
+            setIsLoggedIn(true);
+            refreshAll();
+          } else {
+            await AsyncStorage.multiRemove(['nr_token', 'nr_user']);
+            _token = '';
+          }
+        }
+      } catch (e) {
+        // Storage read failed, stay on login screen
+      }
+    }
+    restoreSession();
+  }, []);
+
+  async function handleLogin(user, token) {
     _token = token;
+    await AsyncStorage.setItem('nr_token', token);
+    await AsyncStorage.setItem('nr_user', JSON.stringify(user));
     setCurrentUser(user);
     setIsLoggedIn(true);
     refreshAll();
+  }
+
+  async function handleLogout() {
+    _token = '';
+    await AsyncStorage.multiRemove(['nr_token', 'nr_user']);
+    setIsLoggedIn(false);
+    setCurrentUser(null);
   }
 
   async function refreshAll() {
@@ -741,6 +775,9 @@ export default function AdminScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.topbarBtn} onPress={refreshAll}>
           <Text style={{ fontSize: 18 }}>🔄</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.topbarBtn} onPress={handleLogout}>
+          <Text style={{ fontSize: 18 }}>🚪</Text>
         </TouchableOpacity>
       </View>
 
