@@ -160,7 +160,7 @@ export default function JobDetailScreen({ route, navigation }) {
   const { job: initial } = route.params;
   const [job, setJob]   = useState(initial);
   const { user, role, loadJobs } = useAuth();
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const insets = useSafeAreaInsets();
 
   const [ratingModal,       setRatingModal]       = useState(false);
@@ -222,8 +222,8 @@ export default function JobDetailScreen({ route, navigation }) {
   }
 
   async function deleteJob() {
-    Alert.alert('Delete Job', 'Are you sure?', [
-      { text: 'Cancel' },
+    Alert.alert(t('deleteJob'), t('deleteConfirm'), [
+      { text: t('cancel') },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         await http('DELETE', `/api/jobs/${job.id}`);
         await loadJobs(); navigation.goBack();
@@ -321,7 +321,7 @@ export default function JobDetailScreen({ route, navigation }) {
             {!!job.poster_verified && (
               <View style={s.heroBadge}>
                 <Ionicons name="checkmark-circle" size={10} color="#4ade80" />
-                <Text style={s.heroBadgeTxt}>Verified</Text>
+                <Text style={s.heroBadgeTxt}>{t('verified')}</Text>
               </View>
             )}
           </View>
@@ -347,7 +347,7 @@ export default function JobDetailScreen({ route, navigation }) {
         {!!job.urgent && (
           <View style={s.urgentBanner}>
             <Ionicons name="flame" size={13} color="#fff" />
-            <Text style={s.urgentTxt}>URGENT HIRING</Text>
+            <Text style={s.urgentTxt}>{t('urgentHiring')}</Text>
           </View>
         )}
       </Animated.View>
@@ -376,7 +376,7 @@ export default function JobDetailScreen({ route, navigation }) {
             <View style={s.card}>
               <View style={s.cardHeader}>
                 <View style={s.cardHeaderDot} />
-                <Text style={s.cardTitle}>JOB DESCRIPTION</Text>
+                <Text style={s.cardTitle}>{t('jobDescription')}</Text>
               </View>
               <AutoTranslate text={job.description} lang={lang} style={s.descText} />
             </View>
@@ -389,7 +389,7 @@ export default function JobDetailScreen({ route, navigation }) {
             <View style={s.card}>
               <View style={s.cardHeader}>
                 <View style={[s.cardHeaderDot, { backgroundColor: '#8b5cf6' }]} />
-                <Text style={s.cardTitle}>SKILLS REQUIRED</Text>
+                <Text style={s.cardTitle}>{t('skillsRequired')}</Text>
               </View>
               <View style={s.skillsRow}>
                 {skills.map((sk, i) => <SkillChip key={i} label={sk} index={i} />)}
@@ -404,7 +404,7 @@ export default function JobDetailScreen({ route, navigation }) {
             <View style={s.card}>
               <View style={s.cardHeader}>
                 <View style={[s.cardHeaderDot, { backgroundColor: '#0891b2' }]} />
-                <Text style={s.cardTitle}>REQUIREMENTS</Text>
+                <Text style={s.cardTitle}>{t('requirements')}</Text>
               </View>
               {requirements.map((req, i) => (
                 <View key={i} style={s.reqRow}>
@@ -435,7 +435,7 @@ export default function JobDetailScreen({ route, navigation }) {
               {!!job.poster_verified && (
                 <View style={s.verifiedBadge}>
                   <Ionicons name="shield-checkmark" size={13} color="#16a34a" />
-                  <Text style={s.verifiedTxt}>Verified</Text>
+                  <Text style={s.verifiedTxt}>{t('verified')}</Text>
                 </View>
               )}
             </View>
@@ -451,11 +451,11 @@ export default function JobDetailScreen({ route, navigation }) {
             <ActionBtn label="Chat on WhatsApp"   icon="logo-whatsapp"        color={GREEN}  onPress={openWhatsApp}           delay={80} />
           )}
           {!isOwner && (
-            <ActionBtn label="Rate this Employer" icon="star-outline"         color="#f59e0b" onPress={() => setRatingModal(true)} delay={160} />
+            <ActionBtn label={t('rateEmployer')} icon="star-outline"         color="#f59e0b" onPress={() => setRatingModal(true)} delay={160} />
           )}
-          <ActionBtn   label="Share Job"          icon="share-social-outline" outline        onPress={shareJob}               delay={240} />
+          <ActionBtn   label={t('shareJob')}          icon="share-social-outline" outline        onPress={shareJob}               delay={240} />
           {isOwner && (
-            <ActionBtn label="Delete Job"         icon="trash-outline"        color="#ef4444" onPress={deleteJob}             delay={0} />
+            <ActionBtn label={t('deleteJob')}         icon="trash-outline"        color="#ef4444" onPress={deleteJob}             delay={0} />
           )}
         </View>
       </ScrollView>
@@ -465,7 +465,7 @@ export default function JobDetailScreen({ route, navigation }) {
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
             <Ionicons name="star" size={36} color="#f59e0b" style={{ alignSelf: 'center', marginBottom: 8 }} />
-            <Text style={s.modalTitle}>Rate this Employer</Text>
+            <Text style={s.modalTitle}>{t('rateEmployer')}</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 18 }}>
               {[1,2,3,4,5].map(star => (
                 <TouchableOpacity key={star} onPress={() => setMyRating(star)}>
@@ -487,11 +487,11 @@ export default function JobDetailScreen({ route, navigation }) {
               disabled={!myRating || submittingRating}
             >
               <Text style={[s.modalPrimaryBtnTxt, !myRating && { color: '#9ca3af' }]}>
-                {submittingRating ? 'Submitting…' : 'Submit Rating'}
+                {submittingRating ? t('loading') : t('submitRating')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.cancelBtn} onPress={() => setRatingModal(false)}>
-              <Text style={s.cancelTxt}>Cancel</Text>
+              <Text style={s.cancelTxt}>{t('cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -502,7 +502,7 @@ export default function JobDetailScreen({ route, navigation }) {
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
             <Ionicons name="flag" size={32} color="#ef4444" style={{ alignSelf: 'center', marginBottom: 8 }} />
-            <Text style={s.modalTitle}>Report Listing</Text>
+            <Text style={s.modalTitle}>{t('reportJob')}</Text>
             {['Spam or fake', 'Fraud / scam', 'Inappropriate content', 'Job already filled', 'Other'].map(reason => (
               <TouchableOpacity key={reason} style={s.reportOption} onPress={() => submitReport(reason)}>
                 <Ionicons name="alert-circle-outline" size={16} color="#ef4444" />
@@ -510,7 +510,7 @@ export default function JobDetailScreen({ route, navigation }) {
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={s.cancelBtn} onPress={() => setShowReport(false)}>
-              <Text style={s.cancelTxt}>Cancel</Text>
+              <Text style={s.cancelTxt}>{t('cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
