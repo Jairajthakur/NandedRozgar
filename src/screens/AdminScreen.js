@@ -545,6 +545,7 @@ function Toast({ message, visible, isError }) {
 // ─── MAIN ADMIN SCREEN ────────────────────────────────────────────────────────
 export default function AdminScreen() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true); // true = splash/loading
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [refreshing, setRefreshing] = useState(false);
@@ -596,19 +597,23 @@ export default function AdminScreen() {
         const savedToken = await AsyncStorage.getItem('nr_token');
         if (savedToken) {
           _token = savedToken;
-          const d = await apiCall('GET', '/api/auth/me');
-          if (d.ok && d.user?.role === 'admin') {
-            setCurrentUser(d.user);
-            setIsLoggedIn(true);
-            refreshAll();
-          } else {
-            await AsyncStorage.multiRemove(['nr_token', 'nr_user']);
-            _token = '';
-          }
+          try {
+            const d = await apiCall('GET', '/api/auth/me');
+            if (d.ok && d.user?.role === 'admin') {
+              setCurrentUser(d.user);
+              setIsLoggedIn(true);
+              setCheckingAuth(false);
+              refreshAll();
+              return;
+            }
+          } catch (_) {}
+          // Token invalid or expired — clear it
+          await AsyncStorage.multiRemove(['nr_token', 'nr_user']);
+          _token = '';
         }
-      } catch (e) {
-        // Storage read failed, stay on login screen
-      }
+      } catch (_) {}
+      // No token or failed — show login
+      setCheckingAuth(false);
     }
     restoreSession();
   }, []);
@@ -632,7 +637,7 @@ export default function AdminScreen() {
   async function refreshAll() {
     setRefreshing(true);
     try {
-      const [sRes, jRes, rRes, vRes, bsRes, bnRes, uRes, pRes] = await Promise.all([
+      const results = await Promise.allSettled([
         apiCall('GET', '/api/admin/stats'),
         apiCall('GET', '/api/admin/jobs'),
         apiCall('GET', '/api/rooms'),
@@ -642,7 +647,16 @@ export default function AdminScreen() {
         apiCall('GET', '/api/admin/users'),
         apiCall('GET', '/api/admin/payments'),
       ]);
+      const [sRes, jRes, rRes, vRes, bsRes, bnRes, uRes, pRes] = results.map(r =>
+        r.status === 'fulfilled' ? r.value : {}
+      );
       if (sRes.ok) setStats(sRes.stats);
+      // If admin endpoints return 401, token is invalid — force logout
+      if (jRes.error === 'Unauthorized' || uRes.error === 'Unauthorized') {
+        showToast('Session expired. Please log in again.', true);
+        await handleLogout();
+        return;
+      }
       if (jRes.ok) setJobs(jRes.jobs || []);
       if (rRes.ok) setRooms(rRes.rooms || []);
       if (vRes.ok) setVehicles(vRes.vehicles || []);
@@ -650,8 +664,11 @@ export default function AdminScreen() {
       if (bnRes.ok) setBanners(bnRes.promotions || []);
       if (uRes.ok) setUsers(uRes.users || []);
       if (pRes.ok) setPayments(pRes.payments || []);
+      // Show warning if some failed
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed > 0) showToast(`${failed} request(s) failed. Some data may be missing.`, true);
     } catch (e) {
-      showToast('Failed to load data', true);
+      showToast('Network error: ' + (e.message || 'Check your connection'), true);
     }
     setRefreshing(false);
   }
@@ -755,6 +772,20 @@ export default function AdminScreen() {
     { id: 'revenue', label: '₹ Revenue' },
     { id: 'payments', label: '🧾 Payments' },
   ];
+
+  // Show splash while checking saved token
+  if (checkingAuth) {
+    return (
+      <SafeAreaView style={[styles.loginScreen, { justifyContent: 'center', alignItems: 'center' }]}>
+        <View style={styles.loginLogoIcon}>
+          <Text style={{ color: '#fff', fontSize: 28 }}>📍</Text>
+        </View>
+        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', marginTop: 16 }}>NandedRozgar</Text>
+        <Text style={{ color: '#555', fontSize: 12, marginTop: 4, marginBottom: 32 }}>ADMIN PORTAL</Text>
+        <ActivityIndicator color={C.orange} size="large" />
+      </SafeAreaView>
+    );
+  }
 
   if (!isLoggedIn) {
     return <LoginScreen onLogin={handleLogin} />;
