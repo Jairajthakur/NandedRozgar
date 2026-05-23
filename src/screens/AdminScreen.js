@@ -637,19 +637,30 @@ export default function AdminScreen() {
   async function refreshAll() {
     setRefreshing(true);
     try {
-      const results = await Promise.allSettled([
-        apiCall('GET', '/api/admin/stats'),
-        apiCall('GET', '/api/admin/jobs'),
-        apiCall('GET', '/api/rooms'),
-        apiCall('GET', '/api/vehicles'),
-        apiCall('GET', '/api/buysell'),
-        apiCall('GET', '/api/promotions/all'),
-        apiCall('GET', '/api/admin/users'),
-        apiCall('GET', '/api/admin/payments'),
-      ]);
+      const ENDPOINTS = [
+        { key: 'stats',    url: '/api/admin/stats' },
+        { key: 'jobs',     url: '/api/admin/jobs' },
+        { key: 'rooms',    url: '/api/rooms' },
+        { key: 'vehicles', url: '/api/vehicles' },
+        { key: 'buysell',  url: '/api/buysell' },
+        { key: 'banners',  url: '/api/promotions/all' },
+        { key: 'users',    url: '/api/admin/users' },
+        { key: 'payments', url: '/api/admin/payments' },
+      ];
+      const results = await Promise.allSettled(
+        ENDPOINTS.map(e => apiCall('GET', e.url))
+      );
       const [sRes, jRes, rRes, vRes, bsRes, bnRes, uRes, pRes] = results.map(r =>
         r.status === 'fulfilled' ? r.value : {}
       );
+
+      // Log which endpoints failed for debugging
+      const failedEndpoints = results
+        .map((r, i) => r.status === 'rejected' || !results[i].value?.ok
+          ? `${ENDPOINTS[i].key}(${r.status === 'rejected' ? r.reason?.message : results[i].value?.error || 'not ok'})`
+          : null)
+        .filter(Boolean);
+
       if (sRes.ok) setStats(sRes.stats);
       // If admin endpoints return 401, token is invalid — force logout
       if (jRes.error === 'Unauthorized' || uRes.error === 'Unauthorized') {
@@ -664,9 +675,10 @@ export default function AdminScreen() {
       if (bnRes.ok) setBanners(bnRes.promotions || []);
       if (uRes.ok) setUsers(uRes.users || []);
       if (pRes.ok) setPayments(pRes.payments || []);
-      // Show warning if some failed
-      const failed = results.filter(r => r.status === 'rejected').length;
-      if (failed > 0) showToast(`${failed} request(s) failed. Some data may be missing.`, true);
+
+      if (failedEndpoints.length > 0) {
+        showToast(`Failed: ${failedEndpoints.join(', ')}`, true);
+      }
     } catch (e) {
       showToast('Network error: ' + (e.message || 'Check your connection'), true);
     }
