@@ -11,6 +11,7 @@ import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/razorpay';
+import CouponInput from '../components/CouponInput';
 import { useAuth } from '../context/AuthContext';
 
 const { width: SW } = Dimensions.get('window');
@@ -163,6 +164,7 @@ export default function PostRoomScreen() {
   });
   // Photos stored separately (array of URIs, max 8)
   const [photos, setPhotos] = useState([null, null, null, null]);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
 
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const toggleAmenity = a => set('amenities', form.amenities.includes(a)
@@ -274,7 +276,8 @@ export default function PostRoomScreen() {
     setLoading(true);
     try {
       const planPrice   = form.plan?.price ?? 0;
-      const amountPaise = planPrice * 100;
+      const discountedPrice = appliedCoupon ? appliedCoupon.finalAmount : planPrice;
+      const amountPaise = discountedPrice * 100;
 
       // ── Step 1: Payment ────────────────────────────────────────────────────
       const payResult = await initiatePayment({
@@ -298,6 +301,7 @@ export default function PostRoomScreen() {
         amount: amountPaise,
         plan:   form.plan?.label || '1 Month',
         days:   form.plan?.days  || 30,
+        couponId: appliedCoupon?.id || null,
         room: {
           roomType:form.roomType, furnished:form.furnishing, floor:form.floor,
           forGender:form.suitableFor, vacancies:1, rent:form.rent,
@@ -528,6 +532,17 @@ export default function PostRoomScreen() {
                   <Text style={s.planFeatTxt}>{lb}</Text>
                 </View>
               ))}
+            </View>
+            {/* ── Coupon Code ── */}
+            <View style={{ marginTop: 16 }}>
+              <Text style={{ fontWeight: '700', color: '#333', marginBottom: 8, fontSize: 13 }}>Have a coupon code?</Text>
+              <CouponInput listingType="room" originalAmount={form.plan?.price || 0} onApplied={c => setAppliedCoupon(c)} />
+              {appliedCoupon && (
+                <View style={{ flexDirection:'row', justifyContent:'space-between', marginTop:10, padding:10, backgroundColor:'#f0fdf4', borderRadius:8 }}>
+                  <Text style={{ color:'#374151', fontSize:13 }}>Original: <Text style={{ textDecorationLine:'line-through' }}>₹{form.plan?.price}</Text></Text>
+                  <Text style={{ color:'#16a34a', fontWeight:'700', fontSize:13 }}>You pay: ₹{appliedCoupon.finalAmount}</Text>
+                </View>
+              )}
             </View>
           </>}
 
