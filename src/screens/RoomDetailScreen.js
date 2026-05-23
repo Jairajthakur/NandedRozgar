@@ -6,6 +6,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLang } from '../utils/i18n';
+import { TranslateBlock, TranslateTitle } from '../utils/translate';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const HERO_H = 280;
@@ -233,6 +235,7 @@ function InfoRow({ icon, label, value }) {
 export default function RoomDetailScreen({ route, navigation }) {
   const { room } = route.params;
   const insets = useSafeAreaInsets();
+  const { lang } = useLang();
 
   const [saved, setSaved]         = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -322,7 +325,7 @@ export default function RoomDetailScreen({ route, navigation }) {
           {/* Title + Price Card */}
           <View style={s.titleCard}>
             <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={s.title}>{room.title}</Text>
+              <TranslateTitle text={room.title} lang={lang} style={s.title} />
               <View style={s.locationRow}>
                 <Ionicons name="location-outline" size={13} color="#64748b" />
                 <Text style={s.locationTxt}>
@@ -396,7 +399,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             <>
               <Text style={s.sectionLabel}>DESCRIPTION</Text>
               <View style={s.descCard}>
-                <Text style={s.descTxt}>{room.description}</Text>
+                <TranslateBlock text={room.description} lang={lang} style={s.descTxt} />
               </View>
             </>
           )}
