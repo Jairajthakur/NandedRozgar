@@ -25,14 +25,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.localloop.app"
+      "bundleIdentifier": "com.cityplus.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#111111"
       },
-      "package": "com.localloop.app",
+      "package": "com.cityplus.app",
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
