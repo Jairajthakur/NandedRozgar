@@ -128,9 +128,19 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const ADMIN_EMAIL    = process.env.ADMIN_EMAIL;
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-    if (ADMIN_EMAIL && ADMIN_PASSWORD &&
-        email.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
-        password === ADMIN_PASSWORD) {
+    // Secure admin comparison: supports both bcrypt-hashed and (legacy) plain-text passwords.
+    // Set ADMIN_PASSWORD to a bcrypt hash for best security:
+    //   node -e "require('bcryptjs').hash('yourpassword',12).then(console.log)"
+    const isBcryptHash = ADMIN_PASSWORD?.startsWith('$2');
+    const adminPasswordMatch = ADMIN_EMAIL && ADMIN_PASSWORD &&
+      email.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
+      (isBcryptHash
+        ? await bcrypt.compare(password, ADMIN_PASSWORD)
+        : (() => {
+            console.warn('⚠️  ADMIN_PASSWORD is stored as plain text. Hash it with bcrypt for production security.');
+            return password === ADMIN_PASSWORD;
+          })());
+    if (adminPasswordMatch) {
       const { rows: existing } = await pool.query('SELECT * FROM users WHERE email = $1', [ADMIN_EMAIL.toLowerCase()]);
       let admin = existing[0];
       if (!admin) {
@@ -418,7 +428,9 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
     const templateId= process.env.FAST2SMS_TEMPLATE_ID || '';
 
     if (!apiKey) {
-      console.log(`[DEV] OTP for ${phone}: ${otp}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEV] OTP for ${phone}: ${otp}`);
+      }
       return res.json({ ok: true, dev: true, message: 'OTP logged to console (no FAST2SMS_API_KEY set).' });
     }
 
@@ -435,7 +447,6 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
 
     const smsRes = await fetch(smsUrl, { method: 'GET', headers: { 'cache-control': 'no-cache' } });
     const smsData = await smsRes.json();
-    console.log('[Fast2SMS response]', JSON.stringify(smsData)); // DEBUG — remove after fixing
     if (!smsData.return) throw new Error((Array.isArray(smsData.message) ? smsData.message[0] : smsData.message) || 'SMS delivery failed');
 
     return res.json({ ok: true });
@@ -486,11 +497,7 @@ router.post('/verify-otp', otpLimiter, async (req, res) => {
       await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(() => {});
     }
 
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET || 'change_me_in_production',
-      { expiresIn: '30d' }
-    );
+    const token = makeToken(user);
 
     return res.json({
       ok: true, token,
