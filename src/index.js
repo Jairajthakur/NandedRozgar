@@ -63,6 +63,7 @@ app.use('/api/alerts',    require('./routes/alerts'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/seeker',    require('./routes/seeker'));
 app.use('/api/promotions', require('./routes/promotions'));
+app.use('/api/coupons',   require('./routes/coupons'));
 
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true, status: 'CityPlus API running 🚀' }));
