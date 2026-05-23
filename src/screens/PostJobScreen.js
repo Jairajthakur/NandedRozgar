@@ -11,6 +11,7 @@ import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/razorpay';
+import CouponInput from '../components/CouponInput';
 
 const ORANGE = '#f97316';
 const TOTAL_STEPS = 5;
@@ -267,6 +268,7 @@ export default function PostJobScreen() {
 
   // Step 4
   const [plan, setPlan] = useState('free');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
 
   function toggleSkill(skill) {
     setSkills(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]);
@@ -307,7 +309,10 @@ export default function PostJobScreen() {
       const planPrice    = selectedPlan?.price ?? 79;
       const planDays     = selectedPlan ? parseInt(selectedPlan.days) : 15;
       const planLabel    = selectedPlan?.days || '15 Days';
-      const amountPaise  = planPrice * 100; // convert ₹ → paise
+
+      // Apply coupon discount if present
+      const discountedPrice = appliedCoupon ? appliedCoupon.finalAmount : planPrice;
+      const amountPaise     = discountedPrice * 100; // convert ₹ → paise
 
       const salaryStr = salaryMin
         ? salaryMax ? `₹${salaryMin}–₹${salaryMax}/mo` : `₹${salaryMin}/mo`
@@ -365,6 +370,7 @@ export default function PostJobScreen() {
           plan:   planLabel,
           amount: amountPaise,
           days:   planDays,
+          couponId: appliedCoupon?.id || null,
         });
         if (!res?.ok) { allOk = false; Alert.alert('Error', res?.error || 'Failed to post job.'); break; }
       }
@@ -594,6 +600,26 @@ export default function PostJobScreen() {
                 </React.Fragment>
               ))}
             </View>
+
+            {/* ── Coupon Code ── */}
+            {plan !== 'free' && (
+              <View style={{ marginTop: 16 }}>
+                <Text style={[s.planSub, { fontWeight: '700', color: '#333', marginBottom: 8, fontSize: 13 }]}>
+                  Have a coupon code?
+                </Text>
+                <CouponInput
+                  listingType="job"
+                  originalAmount={PLANS.find(p => p.id === plan)?.price || 0}
+                  onApplied={c => setAppliedCoupon(c)}
+                />
+                {appliedCoupon && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, padding: 10, backgroundColor: '#f0fdf4', borderRadius: 8 }}>
+                    <Text style={{ color: '#374151', fontSize: 13 }}>Original: <Text style={{ textDecorationLine: 'line-through' }}>₹{PLANS.find(p => p.id === plan)?.price}</Text></Text>
+                    <Text style={{ color: '#16a34a', fontWeight: '700', fontSize: 13 }}>You pay: ₹{appliedCoupon.finalAmount}</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         </>}
 
