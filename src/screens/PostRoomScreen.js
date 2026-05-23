@@ -174,6 +174,7 @@ export default function PostRoomScreen() {
   // Photos stored separately (array of URIs, max 8)
   const [photos, setPhotos] = useState([null, null, null, null]);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [customArea, setCustomArea] = useState('');
 
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const toggleAmenity = a => set('amenities', form.amenities.includes(a)
@@ -282,6 +283,9 @@ export default function PostRoomScreen() {
     if (!form.rent||!form.area||!form.whatsapp){
       Alert.alert('Missing Info','Rent, area and WhatsApp are required'); return;
     }
+    if (form.area==='Other'&&!customArea.trim()){
+      Alert.alert('Missing Info','Please type your area / locality name'); return;
+    }
     setLoading(true);
     try {
       const planPrice   = form.plan?.price ?? 0;
@@ -316,7 +320,7 @@ export default function PostRoomScreen() {
           forGender:form.suitableFor, vacancies:1, rent:form.rent,
           deposit:form.deposit, amenities:form.amenities,
           availableFrom:form.availableFrom, tenantPref:form.suitableFor,
-          area:form.area, landmark:form.landmark, whatsapp:form.whatsapp,
+          area:form.area==='Other'?customArea.trim():form.area, landmark:form.landmark, whatsapp:form.whatsapp,
           description:form.notes, planDays:form.plan?.days || 30,
           planLabel:form.plan?.label || '1 Month', planPrice: planPrice,
           photos: validPhotos,
@@ -411,7 +415,12 @@ export default function PostRoomScreen() {
           {/* ── STEP 2: Location & Rent ── */}
           {step===2&&<>
             <Lbl>AREA / LOCALITY *</Lbl>
-            <Picker value={form.area} options={AREAS} onSelect={v=>set('area',v)} fullWidth/>
+            <Picker value={form.area} options={AREAS} onSelect={v=>{ set('area',v); if(v!=='Other') setCustomArea(''); }} fullWidth/>
+            {form.area==='Other'&&(
+              <TextInput style={[s.input,{marginTop:10}]}
+                placeholder="Type your area / locality name"
+                value={customArea} onChangeText={setCustomArea} maxLength={80}/>
+            )}
 
             <Lbl style={{marginTop:16}}>NEARBY LANDMARK</Lbl>
             <TextInput style={s.input}
@@ -565,7 +574,7 @@ export default function PostRoomScreen() {
               ))}
             </View>
             <View style={[s.revCard,{marginTop:12}]}>
-              {[['AREA',form.area],['LANDMARK',form.landmark||'—'],
+              {[['AREA',form.area==='Other'?(customArea.trim()||'Other'):form.area],['LANDMARK',form.landmark||'—'],
                 ['RENT',form.rent?`₹${form.rent}/mo`:'Not set'],
                 ['DEPOSIT',form.deposit?`₹${form.deposit}`:'—'],
                 ['AVAILABLE',form.availableFrom]].map(([k,v])=>(
