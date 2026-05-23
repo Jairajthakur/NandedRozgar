@@ -298,7 +298,7 @@ export default function BoardScreen({ route }) {
             </TouchableOpacity>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
-            {filtered.length} jobs found
+            {filtered.length} {t('jobsFound')}
           </Text>
         </Animated.View>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexShrink: 0 }}>
@@ -615,7 +615,7 @@ export default function BoardScreen({ route }) {
               ListEmptyComponent={
                 <Empty
                   icon="search"
-                  title="No jobs found"
+                  title={t('noResults')}
                   sub={search || jobType !== 'All' ? 'Try different filters' : 'Check back later'}
                   action={isGiver ? () => nav.navigate('Post') : null}
                   actionLabel={t('postAJob')}
@@ -741,7 +741,7 @@ export default function BoardScreen({ route }) {
         ListEmptyComponent={
           <Empty
             icon="search"
-            title="No jobs found"
+            title={t('noResults')}
             sub={search || jobType !== 'All' ? 'Try different filters' : 'Check back later'}
             action={isGiver ? () => nav.navigate('Post') : null}
             actionLabel={t('postAJob')}
