@@ -103,6 +103,7 @@ function CTAButton({ label, onPress, color, icon, delay, outline }) {
 
 /* ─── Image Gallery ─── */
 function ImageGallery({ photos, category }) {
+  const { t } = useLang();
   const [activeIdx, setActiveIdx] = useState(0);
   const flatRef = useRef(null);
   const dotScale = useRef(photos.map(() => new Animated.Value(1))).current;
