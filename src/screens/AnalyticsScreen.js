@@ -35,10 +35,13 @@ export default function AnalyticsScreen() {
 
   async function load(refresh = false) {
     if (refresh) setRefreshing(true);
-    const r = await http('GET', '/api/analytics/employer');
-    if (r?.ok) setData(r);
-    setLoading(false);
-    setRefreshing(false);
+    try {
+      const r = await http('GET', '/api/analytics/employer');
+      if (r?.ok) setData(r);
+    } finally {
+      if (!refresh) setLoading(false);
+      setRefreshing(false);
+    }
   }
 
   useEffect(() => { load(); }, []);
