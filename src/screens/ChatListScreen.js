@@ -27,10 +27,13 @@ export default function ChatListScreen({ navigation }) {
 
   async function load(refresh = false) {
     if (refresh) setRefreshing(true);
-    const r = await http('GET', '/api/chat/conversations');
-    if (r?.ok) setConvos(r.conversations || []);
-    setLoading(false);
-    setRefreshing(false);
+    try {
+      const r = await http('GET', '/api/chat/conversations');
+      if (r?.ok) setConvos(r.conversations || []);
+    } finally {
+      if (!refresh) setLoading(false);
+      setRefreshing(false);
+    }
   }
 
   // Reload whenever screen is focused so unread counts are fresh
