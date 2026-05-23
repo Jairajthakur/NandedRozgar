@@ -143,18 +143,20 @@ function LangModal({ visible, current, onSelect, onClose }) {
 }
 
 // ── Ticker ─────────────────────────────────────────────────────────────────────
-const TICKER_ITEMS = [
-  { icon: 'checkmark-circle',   text: 'HIRING NOW — Nanded' },
-  { icon: 'bicycle-outline',    text: 'DELIVERY JOBS AVAILABLE' },
-  { icon: 'home-outline',       text: 'ROOMS FOR RENT IN NANDED' },
-  { icon: 'car-outline',        text: 'CARS & VEHICLES FOR HIRE' },
-  { icon: 'cube-outline',       text: 'BUY & SELL 580+ ITEMS' },
-  { icon: 'call-outline',       text: 'TELECALLER JOBS — APPLY NOW' },
-  { icon: 'shield-outline',     text: 'SECURITY GUARD VACANCIES' },
-  { icon: 'construct-outline',  text: 'CONSTRUCTION WORK AVAILABLE' },
-  { icon: 'briefcase-outline',  text: 'DATA ENTRY & OFFICE JOBS' },
-  { icon: 'storefront-outline', text: 'LOCAL MARKETPLACE — NANDED' },
-];
+function getTickerItems(t) {
+  return [
+    { icon: 'checkmark-circle',   text: t('tickerHiring') },
+    { icon: 'bicycle-outline',    text: t('tickerDelivery') },
+    { icon: 'home-outline',       text: t('tickerRooms') },
+    { icon: 'car-outline',        text: t('tickerCars') },
+    { icon: 'cube-outline',       text: t('tickerBuySell') },
+    { icon: 'call-outline',       text: 'TELECALLER JOBS — APPLY NOW' },
+    { icon: 'shield-outline',     text: 'SECURITY GUARD VACANCIES' },
+    { icon: 'construct-outline',  text: 'CONSTRUCTION WORK AVAILABLE' },
+    { icon: 'briefcase-outline',  text: 'DATA ENTRY & OFFICE JOBS' },
+    { icon: 'storefront-outline', text: t('tickerBuySell') },
+  ];
+}
 
 // Scrolling text rows for ScrollVelocity (web)
 const SCROLL_ROW_1 = '✦ HIRING NOW — Nanded  ✦ DELIVERY JOBS AVAILABLE  ✦ ROOMS FOR RENT  ✦ CARS & VEHICLES FOR HIRE  ✦ BUY & SELL 580+ ITEMS  ✦ TELECALLER JOBS — APPLY NOW';
@@ -189,9 +191,10 @@ function WebScrollBanner() {
 // ── Ticker ─────────────────────────────────────────────────────────────────────
 const ITEM_H = 38; // must match s.ticker height
 
-function TickerBanner() {
+function TickerBanner({ t }) {
   if (IS_WEB) return <WebScrollBanner />;
 
+  const TICKER_ITEMS = getTickerItems(t);
   const DOUBLED = [...TICKER_ITEMS, ...TICKER_ITEMS]; // seamless loop
   const translateY = useRef(new Animated.Value(0)).current;
 
@@ -414,7 +417,7 @@ function QuickAction({ icon, label, color, onPress }) {
 export default function HomeScreen() {
   const nav = useNavigation();
   const { jobs, user } = useAuth();
-  const { lang, changeLang } = useLang();
+  const { lang, changeLang, t } = useLang();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
   const [showLangPicker, setShowLangPicker] = useState(false);
@@ -545,7 +548,7 @@ export default function HomeScreen() {
                 <Ionicons name="search" size={16} color="#aaa" style={{ marginLeft: 14 }} />
                 <TextInput
                   style={ws.topSearchInput}
-                  placeholder="Search jobs, rooms, vehicles, items..."
+                  placeholder={t('homeSearchPlaceholderWeb')}
                   placeholderTextColor="#bbb"
                   value={searchText}
                   onChangeText={setSearchText}
@@ -553,7 +556,7 @@ export default function HomeScreen() {
                   returnKeyType="search"
                 />
                 <TouchableOpacity style={ws.topSearchBtn} onPress={handleSearch} activeOpacity={0.9}>
-                  <Text style={ws.topSearchBtnTxt}>Search</Text>
+                  <Text style={ws.topSearchBtnTxt}>{t('homeSearchBtn')}</Text>
                 </TouchableOpacity>
               </View>
               <View style={ws.topNavRight}>
@@ -580,25 +583,25 @@ export default function HomeScreen() {
 
           {/* ── Left Sidebar (hidden on small/medium screens) ── */}
           {showSidebar && <View style={ws.sidebar}>
-            <Text style={ws.sideNavSection}>BROWSE</Text>
-            <SideNavItem icon="home-outline"        label="Home"       onPress={() => {}} active />
-            <SideNavItem icon="briefcase-outline"   label="Jobs"       onPress={() => nav.navigate('Jobs')} />
-            <SideNavItem icon="home-outline"        label="Rooms"      onPress={() => nav.navigate('Rooms')} />
-            <SideNavItem icon="car-sport-outline"   label="Vehicles"   onPress={() => nav.navigate('Cars')} />
-            <SideNavItem icon="pricetag-outline"    label="Buy & Sell" onPress={() => nav.navigate('BuySell')} />
+            <Text style={ws.sideNavSection}>{t('sideNavBrowse')}</Text>
+            <SideNavItem icon="home-outline"        label={t('sideNavHome')}      onPress={() => {}} active />
+            <SideNavItem icon="briefcase-outline"   label={t('sideNavJobs')}      onPress={() => nav.navigate('Jobs')} />
+            <SideNavItem icon="home-outline"        label={t('sideNavRooms')}     onPress={() => nav.navigate('Rooms')} />
+            <SideNavItem icon="car-sport-outline"   label={t('sideNavVehicles')}  onPress={() => nav.navigate('Cars')} />
+            <SideNavItem icon="pricetag-outline"    label={t('sideNavBuySell')}   onPress={() => nav.navigate('BuySell')} />
 
-            <Text style={[ws.sideNavSection, { marginTop: 20 }]}>ACCOUNT</Text>
-            <SideNavItem icon="add-circle-outline"  label="Post an Ad"  onPress={() => nav.navigate('Post')} />
-            <SideNavItem icon="person-outline"      label="My Profile"  onPress={() => nav.navigate('Profile')} />
-            <SideNavItem icon="sparkles-outline"    label="AI Assistant" onPress={() => nav.navigate('AIMatch')} />
+            <Text style={[ws.sideNavSection, { marginTop: 20 }]}>{t('sideNavAccount')}</Text>
+            <SideNavItem icon="add-circle-outline"  label={t('sideNavPostAd')}    onPress={() => nav.navigate('Post')} />
+            <SideNavItem icon="person-outline"      label={t('sideNavMyProfile')} onPress={() => nav.navigate('Profile')} />
+            <SideNavItem icon="sparkles-outline"    label={t('sideNavAI')}        onPress={() => nav.navigate('AIMatch')} />
 
             {/* Sidebar promo */}
             <View style={ws.sidePromo}>
               <Ionicons name="sparkles" size={20} color={ORANGE} />
-              <Text style={ws.sidePromoTitle}>AI Career Help</Text>
-              <Text style={ws.sidePromoSub}>Get salary insights & job match scores</Text>
+              <Text style={ws.sidePromoTitle}>{t('sidePromoTitle')}</Text>
+              <Text style={ws.sidePromoSub}>{t('sidePromoSub')}</Text>
               <TouchableOpacity style={ws.sidePromoCta} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.85}>
-                <Text style={ws.sidePromoCtaTxt}>Try Now</Text>
+                <Text style={ws.sidePromoCtaTxt}>{t('sidePromoTryNow')}</Text>
               </TouchableOpacity>
             </View>
           </View>}
@@ -617,13 +620,13 @@ export default function HomeScreen() {
                 <View style={ws.heroBannerCompact}>
                   <View style={ws.heroCircle1} />
                   <View style={ws.heroCircle2} />
-                  <Text style={ws.heroBannerCompactTitle}>Find Jobs &amp; Rooms in Nanded</Text>
-                  <Text style={ws.heroBannerCompactSub}>10,000+ opportunities for everyone nearby</Text>
+                  <Text style={ws.heroBannerCompactTitle}>{t('heroTitleWeb')}</Text>
+                  <Text style={ws.heroBannerCompactSub}>{t('heroSubWeb')}</Text>
                   <View style={ws.heroBannerCompactSearch}>
                     <Ionicons name="search" size={16} color="#aaa" style={{ marginLeft: 12 }} />
                     <TextInput
                       style={ws.heroBannerSearchInput}
-                      placeholder="Search jobs, rooms, cars..."
+                      placeholder={t('homeSearchPlaceholder')}
                       placeholderTextColor="#bbb"
                       value={searchText}
                       onChangeText={setSearchText}
@@ -643,31 +646,31 @@ export default function HomeScreen() {
                   <View style={ws.heroCircle3} />
                   <View style={ws.heroContent}>
                     <View style={{ flex: 1 }}>
-                      <Text style={ws.heroTag}>🏙️ Your City's #1 Local Platform</Text>
-                      <Text style={ws.heroTitle}>Find Jobs &amp; Rooms in Nanded</Text>
-                      <Text style={ws.heroSub}>10,000+ opportunities for everyone nearby</Text>
+                      <Text style={ws.heroTag}>{t('heroCityTag')}</Text>
+                      <Text style={ws.heroTitle}>{t('heroTitleWeb')}</Text>
+                      <Text style={ws.heroSub}>{t('heroSubWeb')}</Text>
                       <View style={ws.heroBadges}>
-                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Free to Post</Text></View>
-                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Local Listings</Text></View>
-                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>✓ Verified Employers</Text></View>
+                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>{t('heroBadgeFree')}</Text></View>
+                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>{t('heroBadgeLocal')}</Text></View>
+                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>{t('heroBadgeVerified')}</Text></View>
                       </View>
                     </View>
                     <View style={ws.heroStats}>
                       <View style={ws.heroStatCard}>
                         <Text style={ws.heroStatNum}>{stats.jobs}+</Text>
-                        <Text style={ws.heroStatLabel}>Active Jobs</Text>
+                        <Text style={ws.heroStatLabel}>{t('statActiveJobs')}</Text>
                       </View>
                       <View style={ws.heroStatCard}>
                         <Text style={ws.heroStatNum}>{stats.rooms}+</Text>
-                        <Text style={ws.heroStatLabel}>Rooms</Text>
+                        <Text style={ws.heroStatLabel}>{t('statRooms')}</Text>
                       </View>
                       <View style={ws.heroStatCard}>
                         <Text style={ws.heroStatNum}>{stats.vehicles}+</Text>
-                        <Text style={ws.heroStatLabel}>Vehicles</Text>
+                        <Text style={ws.heroStatLabel}>{t('statVehicles')}</Text>
                       </View>
                       <View style={ws.heroStatCard}>
                         <Text style={ws.heroStatNum}>{stats.items}+</Text>
-                        <Text style={ws.heroStatLabel}>Items</Text>
+                        <Text style={ws.heroStatLabel}>{t('statItems')}</Text>
                       </View>
                     </View>
                   </View>
@@ -676,27 +679,27 @@ export default function HomeScreen() {
             </FadeSlide>
 
             {/* ── Ticker ── */}
-            <TickerBanner />
+            <TickerBanner t={t} />
 
             {/* ── Explore Grid ── */}
             <FadeSlide delay={100}>
               <View style={ws.sectionHeader}>
-                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>Explore Categories</Text>
+                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>{t('exploreCategories')}</Text>
               </View>
               <View style={[ws.exploreGrid, isSmWeb && { flexWrap: 'wrap', gap: 8 }]}>
-                <ExploreCard icon="briefcase-outline"  title="Jobs"       subtitle={`${stats.jobs}+ openings`}    color={ORANGE}  onPress={() => nav.navigate('Jobs')}    compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
-                <ExploreCard icon="home-outline"       title="Rooms"      subtitle={`${stats.rooms}+ listings`}   color={TEAL}    onPress={() => nav.navigate('Rooms')}   compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
-                <ExploreCard icon="car-sport-outline"  title="Vehicles"   subtitle={`${stats.vehicles}+ for rent`} color={PURPLE}  onPress={() => nav.navigate('Cars')}    compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
-                <ExploreCard icon="pricetag-outline"   title="Buy & Sell" subtitle={`${stats.items}+ items`}      color='#0ea5e9' onPress={() => nav.navigate('BuySell')} compact={isSmWeb} style={[{ flex: 1 }, isSmWeb && { minWidth: '46%' }]} />
+                <ExploreCard icon="briefcase-outline"  title={t('sideNavJobs')}     subtitle={`${stats.jobs}+ ${t('jobsOpenings')}`}      color={ORANGE}  onPress={() => nav.navigate('Jobs')}    compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
+                <ExploreCard icon="home-outline"       title={t('sideNavRooms')}    subtitle={`${stats.rooms}+ ${t('roomsListings')}`}     color={TEAL}    onPress={() => nav.navigate('Rooms')}   compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
+                <ExploreCard icon="car-sport-outline"  title={t('sideNavVehicles')} subtitle={`${stats.vehicles}+ ${t('vehiclesForRent')}`} color={PURPLE}  onPress={() => nav.navigate('Cars')}    compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
+                <ExploreCard icon="pricetag-outline"   title={t('sideNavBuySell')}  subtitle={`${stats.items}+ ${t('itemsCount')}`}        color='#0ea5e9' onPress={() => nav.navigate('BuySell')} compact={isSmWeb} style={[{ flex: 1 }, isSmWeb && { minWidth: '46%' }]} />
               </View>
             </FadeSlide>
 
             {/* ── Recent Jobs ── */}
             <FadeSlide delay={160}>
               <View style={ws.sectionHeader}>
-                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>Recent Jobs</Text>
+                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>{t('recentJobsSection')}</Text>
                 <TouchableOpacity onPress={() => nav.navigate('Jobs')} style={ws.seeAllBtn}>
-                  <Text style={ws.seeAllTxt}>View All</Text>
+                  <Text style={ws.seeAllTxt}>{t('viewAll')}</Text>
                   <Ionicons name="arrow-forward" size={14} color={ORANGE} />
                 </TouchableOpacity>
               </View>
@@ -733,9 +736,9 @@ export default function HomeScreen() {
             {/* ── Recent Rooms ── */}
             <FadeSlide delay={280}>
               <View style={ws.sectionHeader}>
-                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>Recent Rooms</Text>
+                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>{t('recentRoomsSection')}</Text>
                 <TouchableOpacity onPress={() => nav.navigate('Rooms')} style={ws.seeAllBtn}>
-                  <Text style={ws.seeAllTxt}>View All</Text>
+                  <Text style={ws.seeAllTxt}>{t('viewAll')}</Text>
                   <Ionicons name="arrow-forward" size={14} color={ORANGE} />
                 </TouchableOpacity>
               </View>
@@ -758,11 +761,11 @@ export default function HomeScreen() {
             {/* Post CTA */}
             <FadeSlide delay={60}>
               <View style={ws.postCtaCard}>
-                <Text style={ws.postCtaTitle}>Post for Free</Text>
-                <Text style={ws.postCtaSub}>Reach thousands of job seekers in Nanded</Text>
+                <Text style={ws.postCtaTitle}>{t('postForFree')}</Text>
+                <Text style={ws.postCtaSub}>{t('postForFreeSub')}</Text>
                 <TouchableOpacity style={ws.postCtaBtn} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
                   <Ionicons name="add-circle-outline" size={16} color="#fff" />
-                  <Text style={ws.postCtaBtnTxt}>Post an Ad</Text>
+                  <Text style={ws.postCtaBtnTxt}>{t('postAnAd')}</Text>
                 </TouchableOpacity>
               </View>
             </FadeSlide>
@@ -770,26 +773,26 @@ export default function HomeScreen() {
             {/* Stats Card */}
             <FadeSlide delay={100}>
               <View style={ws.statsCard}>
-                <Text style={ws.statsCardTitle}>Platform Stats</Text>
-                <AnimatedStat value={stats.jobs}     label="Active Jobs"  delay={400}  accent={ORANGE} />
+                <Text style={ws.statsCardTitle}>{t('platformStats')}</Text>
+                <AnimatedStat value={stats.jobs}     label={t('statActiveJobs')}   delay={400}  accent={ORANGE} />
                 <View style={ws.statDividerH} />
-                <AnimatedStat value={stats.rooms}    label="Rooms Listed" delay={550}  accent={TEAL} />
+                <AnimatedStat value={stats.rooms}    label={t('statRoomsListed')}  delay={550}  accent={TEAL} />
                 <View style={ws.statDividerH} />
-                <AnimatedStat value={stats.vehicles} label="Vehicles"     delay={700}  accent={PURPLE} />
+                <AnimatedStat value={stats.vehicles} label={t('statVehicles')}     delay={700}  accent={PURPLE} />
                 <View style={ws.statDividerH} />
-                <AnimatedStat value={stats.items}    label="Items for Sale" delay={850} accent='#0ea5e9' />
+                <AnimatedStat value={stats.items}    label={t('statItemsForSale')} delay={850} accent='#0ea5e9' />
               </View>
             </FadeSlide>
 
             {/* Quick Actions */}
             <FadeSlide delay={140}>
               <View style={ws.quickActionsCard}>
-                <Text style={ws.statsCardTitle}>Quick Actions</Text>
-                <QuickAction icon="briefcase-outline"  label="Browse Jobs"    color={ORANGE}  onPress={() => nav.navigate('Jobs')} />
-                <QuickAction icon="home-outline"       label="Find a Room"    color={TEAL}    onPress={() => nav.navigate('Rooms')} />
-                <QuickAction icon="car-sport-outline"  label="Rent a Vehicle" color={PURPLE}  onPress={() => nav.navigate('Cars')} />
-                <QuickAction icon="pricetag-outline"   label="Buy & Sell"     color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
-                <QuickAction icon="sparkles-outline"   label="AI Assistant"   color={ORANGE}  onPress={() => nav.navigate('AIMatch')} />
+                <Text style={ws.statsCardTitle}>{t('quickActions')}</Text>
+                <QuickAction icon="briefcase-outline"  label={t('qaJobs')}     color={ORANGE}  onPress={() => nav.navigate('Jobs')} />
+                <QuickAction icon="home-outline"       label={t('qaRooms')}    color={TEAL}    onPress={() => nav.navigate('Rooms')} />
+                <QuickAction icon="car-sport-outline"  label={t('qaVehicles')} color={PURPLE}  onPress={() => nav.navigate('Cars')} />
+                <QuickAction icon="pricetag-outline"   label={t('qaBuySell')}  color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
+                <QuickAction icon="sparkles-outline"   label={t('qaAI')}       color={ORANGE}  onPress={() => nav.navigate('AIMatch')} />
               </View>
             </FadeSlide>
 
@@ -800,11 +803,11 @@ export default function HomeScreen() {
         {!showSidebar && (
           <View style={ws.bottomNav}>
             {[
-              { icon: 'home',              label: 'Home',     route: null },
-              { icon: 'briefcase-outline', label: 'Jobs',     route: 'Jobs' },
-              { icon: 'home-outline',      label: 'Rooms',    route: 'Rooms' },
-              { icon: 'car-sport-outline', label: 'Vehicles', route: 'Cars' },
-              { icon: 'pricetag-outline',  label: 'Sell',     route: 'BuySell' },
+              { icon: 'home',              label: t('bottomNavHome'),     route: null },
+              { icon: 'briefcase-outline', label: t('bottomNavJobs'),     route: 'Jobs' },
+              { icon: 'home-outline',      label: t('bottomNavRooms'),    route: 'Rooms' },
+              { icon: 'car-sport-outline', label: t('bottomNavVehicles'), route: 'Cars' },
+              { icon: 'pricetag-outline',  label: t('bottomNavSell'),     route: 'BuySell' },
             ].map(item => (
               <TouchableOpacity
                 key={item.label}
@@ -871,13 +874,13 @@ export default function HomeScreen() {
           <View style={s.heroBanner}>
             <View style={s.heroCircle1} />
             <View style={s.heroCircle2} />
-            <Text style={s.heroTitle}>Find Jobs &{'\n'}Rooms in Nanded</Text>
-            <Text style={s.heroSub}>10,000+ opportunities nearby</Text>
+            <Text style={s.heroTitle}>{t('heroTitle')}</Text>
+            <Text style={s.heroSub}>{t('heroSub')}</Text>
             <View style={s.searchBar}>
               <Ionicons name="search" size={18} color="#aaa" style={{ marginLeft: 12 }} />
               <TextInput
                 style={s.searchInput}
-                placeholder="Search jobs, rooms, cars..."
+                placeholder={t('homeSearchPlaceholder')}
                 placeholderTextColor="#aaa"
                 value={searchText}
                 onChangeText={setSearchText}
@@ -894,37 +897,37 @@ export default function HomeScreen() {
         {/* Stats */}
         <FadeSlide delay={80}>
           <View style={s.statsRow}>
-            <AnimatedStat value={stats.jobs}     label="Active Jobs" delay={300} />
+            <AnimatedStat value={stats.jobs}     label={t('statActiveJobs')} delay={300} />
             <View style={s.statDivider} />
-            <AnimatedStat value={stats.rooms}    label="Rooms"       delay={450} />
+            <AnimatedStat value={stats.rooms}    label={t('statRooms')}      delay={450} />
             <View style={s.statDivider} />
-            <AnimatedStat value={stats.vehicles} label="Vehicles"    delay={600} />
+            <AnimatedStat value={stats.vehicles} label={t('statVehicles')}   delay={600} />
             <View style={s.statDivider} />
-            <AnimatedStat value={stats.items}    label="Items"       delay={750} />
+            <AnimatedStat value={stats.items}    label={t('statItems')}      delay={750} />
           </View>
         </FadeSlide>
 
         {/* Explore */}
         <FadeSlide delay={120}>
-          <Text style={s.sectionTitleStandalone}>Explore</Text>
+          <Text style={s.sectionTitleStandalone}>{t('explore')}</Text>
           <View style={s.exploreGrid}>
-            <ExploreCard icon="briefcase-outline" title="Jobs"    subtitle={`${stats.jobs}+ openings`}     color={ORANGE} onPress={() => nav.navigate('Jobs')}    style={{ marginRight: 8 }} />
-            <ExploreCard icon="home-outline"      title="Rooms"   subtitle={`${stats.rooms}+ listings`}    color={TEAL}   onPress={() => nav.navigate('Rooms')} />
+            <ExploreCard icon="briefcase-outline" title={t('sideNavJobs')}     subtitle={`${stats.jobs}+ ${t('jobsOpenings')}`}     color={ORANGE} onPress={() => nav.navigate('Jobs')}    style={{ marginRight: 8 }} />
+            <ExploreCard icon="home-outline"      title={t('sideNavRooms')}    subtitle={`${stats.rooms}+ ${t('roomsListings')}`}    color={TEAL}   onPress={() => nav.navigate('Rooms')} />
           </View>
           <View style={[s.exploreGrid, { marginTop: 10 }]}>
-            <ExploreCard icon="car-sport-outline" title="Vehicles"   subtitle={`${stats.vehicles}+ for rent`} color={PURPLE} onPress={() => nav.navigate('Cars')}    style={{ marginRight: 8 }} />
-           <ExploreCard icon="pricetag-outline"  title="Buy & Sell" subtitle={`${stats.items}+ items`}       color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
+            <ExploreCard icon="car-sport-outline" title={t('sideNavVehicles')} subtitle={`${stats.vehicles}+ ${t('vehiclesForRent')}`} color={PURPLE} onPress={() => nav.navigate('Cars')}    style={{ marginRight: 8 }} />
+           <ExploreCard icon="pricetag-outline"  title={t('sideNavBuySell')}  subtitle={`${stats.items}+ ${t('itemsCount')}`}       color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
           </View>
         </FadeSlide>
 
-        <TickerBanner />
+        <TickerBanner t={t} />
 
         {/* Recent Jobs */}
         <FadeSlide delay={200}>
           <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Recent Jobs</Text>
+            <Text style={s.sectionTitle}>{t('recentJobsSection')}</Text>
             <TouchableOpacity onPress={() => nav.navigate('Jobs')}>
-              <Text style={s.seeAllBtn}>View All →</Text>
+              <Text style={s.seeAllBtn}>{t('viewAll')} →</Text>
             </TouchableOpacity>
           </View>
           <ScrollView
@@ -947,9 +950,9 @@ export default function HomeScreen() {
         {/* Recent Rooms */}
         <FadeSlide delay={260}>
           <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Recent Rooms</Text>
+            <Text style={s.sectionTitle}>{t('recentRoomsSection')}</Text>
             <TouchableOpacity onPress={() => nav.navigate('Rooms')}>
-              <Text style={s.seeAllBtn}>See all ›</Text>
+              <Text style={s.seeAllBtn}>{t('seeAllArrow')}</Text>
             </TouchableOpacity>
           </View>
           {displayRooms.map(room => (
@@ -963,8 +966,8 @@ export default function HomeScreen() {
             <View style={s.aiLeft}>
               <View style={s.aiIconWrap}><Ionicons name="sparkles" size={22} color={ORANGE} /></View>
               <View style={{ flex: 1 }}>
-                <Text style={s.aiTitle}>AI Career Assistant</Text>
-                <Text style={s.aiPrompt}>"What salary should I ask for a driver in Nanded?"</Text>
+                <Text style={s.aiTitle}>{t('homeAiTitle')}</Text>
+                <Text style={s.aiPrompt}>{t('homeAiPrompt')}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={ORANGE} />
