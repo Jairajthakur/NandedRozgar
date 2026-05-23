@@ -10,6 +10,8 @@ import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { http } from '../utils/api';
 import { CAT_ICONS } from '../utils/constants';
+import { useLang } from '../utils/i18n';
+import { TranslateBlock, TranslateTitle } from '../utils/translate';
 
 const ORANGE = '#f97316';
 const GREEN  = '#25d366';
@@ -158,6 +160,7 @@ export default function JobDetailScreen({ route, navigation }) {
   const { job: initial } = route.params;
   const [job, setJob]   = useState(initial);
   const { user, role, loadJobs } = useAuth();
+  const { lang } = useLang();
   const insets = useSafeAreaInsets();
 
   const [ratingModal,       setRatingModal]       = useState(false);
@@ -310,7 +313,7 @@ export default function JobDetailScreen({ route, navigation }) {
         </View>
 
         {/* Job title below icon */}
-        <Text style={s.heroTitle} numberOfLines={2}>{job.title}</Text>
+        <TranslateTitle text={job.title} lang={lang} style={s.heroTitle} numberOfLines={2} />
         {!!job.company && (
           <View style={s.heroCompanyRow}>
             <Ionicons name="business-outline" size={12} color="rgba(255,255,255,0.8)" />
@@ -375,7 +378,7 @@ export default function JobDetailScreen({ route, navigation }) {
                 <View style={s.cardHeaderDot} />
                 <Text style={s.cardTitle}>JOB DESCRIPTION</Text>
               </View>
-              <Text style={s.descText}>{job.description}</Text>
+              <TranslateBlock text={job.description} lang={lang} style={s.descText} />
             </View>
           </FadeSection>
         )}
