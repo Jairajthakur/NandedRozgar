@@ -77,7 +77,7 @@ function Chip({ label, onPress }) {
 }
 
 // ── Main Screen ───────────────────────────────────────────────
-export default function AIScreen() {
+export default function AlertsScreen() {
   const { user, jobs } = useAuth();
   const scrollRef      = useRef(null);
   const activeJobs     = jobs.filter(j => j.status === 'active');
