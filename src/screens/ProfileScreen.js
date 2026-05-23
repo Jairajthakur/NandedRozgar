@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Modal, Platform, Animated, Easing, Dimensions, RefreshControl,
+  ActivityIndicator, Modal, Platform, Animated, Easing, Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -157,7 +157,6 @@ export default function ProfileScreen() {
   const { t } = useLang();
   const [stats,      setStats]      = useState({ applied: 0, saved: 0 });
   const [loading,    setLoading]    = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [logoutModal, setLogoutModal] = useState(false);
 
   const myJobs   = jobs?.filter(j => String(j.posted_by) === String(user?.id)) || [];
@@ -224,18 +223,12 @@ export default function ProfileScreen() {
     ).start();
   }, []);
 
-  async function fetchProfile(refresh = false) {
-    if (refresh) setRefreshing(true);
-    try {
-      const r = await http('GET', '/api/analytics/seeker');
+  useEffect(() => {
+    http('GET', '/api/analytics/seeker').then(r => {
       if (r?.ok) setStats({ applied: parseInt(r.applications?.total) || 0, saved: r.savedCount || 0 });
-    } finally {
-      if (!refresh) setLoading(false);
-      setRefreshing(false);
-    }
-  }
-
-  useEffect(() => { fetchProfile(); }, []);
+      setLoading(false);
+    });
+  }, []);
 
   function confirmLogout() {
     if (Platform.OS === 'web') {
@@ -254,19 +247,15 @@ export default function ProfileScreen() {
     { icon: 'checkmark-circle-outline', label: t('profileMenuMyApplications'), badge: stats.applied, onPress: () => nav.navigate('MyApplications') },
     { icon: 'bookmark-outline',         label: t('profileMenuSavedJobs'),      badge: stats.saved,   onPress: () => nav.navigate('Jobs') },
     { icon: 'notifications-outline',    label: t('profileMenuJobAlerts'),      onPress: () => nav.navigate('Alerts') },
-    { icon: 'chatbubbles-outline',      label: t('profileMenuMyMessages'),     onPress: () => nav.navigate('ChatList') },
   ];
   const employerMenu = [
     { icon: 'briefcase-outline',        label: t('profileMenuMyJobPosts'),     badge: myJobs.length, onPress: () => nav.navigate('Jobs') },
     { icon: 'bar-chart-outline',        label: t('profileMenuAnalytics'),      onPress: () => nav.navigate('Analytics') },
-    { icon: 'chatbubbles-outline',      label: t('profileMenuMyMessages'),     onPress: () => nav.navigate('ChatList') },
-    { icon: 'star-outline',             label: t('profileMenuMyReviews'),      onPress: () => nav.navigate('ChatList') },
   ];
   const adminMenu = [
     { icon: 'shield-checkmark-outline', label: t('profileMenuAdminDashboard'), onPress: () => nav.navigate('Admin') },
     { icon: 'people-outline',           label: t('profileMenuManageUsers'),    onPress: () => nav.navigate('Admin') },
     { icon: 'bar-chart-outline',        label: t('profileMenuAnalyticsShort'), onPress: () => nav.navigate('Analytics') },
-    { icon: 'chatbubbles-outline',      label: t('profileMenuMyMessages'),     onPress: () => nav.navigate('ChatList') },
   ];
   const commonMenu = [
     { icon: 'share-social-outline',       label: t('profileMenuReferEarn'),    onPress: () => nav.navigate('Referral') },
@@ -290,7 +279,6 @@ export default function ProfileScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchProfile(true)} tintColor="#f97316" colors={['#f97316']} />}
       >
 
         {/* ── Hero Section ───────────────────────────────────────── */}
