@@ -155,6 +155,8 @@ export default function PostCarScreen() {
   });
   const [photos, setPhotos] = useState([null, null, null, null]);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [customBrand, setCustomBrand] = useState('');
+  const [customPickupLocation, setCustomPickupLocation] = useState('');
 
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const toggleFeature = f => set('features', form.features.includes(f)
@@ -249,6 +251,12 @@ export default function PostCarScreen() {
     if (!form.dailyRate||!form.pickupLocation||!form.whatsapp){
       Alert.alert('Missing Info','Daily rate, pickup location and WhatsApp are required'); return;
     }
+    if (form.brand==='Other'&&!customBrand.trim()){
+      Alert.alert('Missing Info','Please type the vehicle brand name'); return;
+    }
+    if (form.pickupLocation==='Other'&&!customPickupLocation.trim()){
+      Alert.alert('Missing Info','Please type your pickup location'); return;
+    }
     setLoading(true);
     try {
       const planPrice   = form.plan?.price ?? 0;
@@ -280,9 +288,10 @@ export default function PostCarScreen() {
         couponId: appliedCoupon?.id || null,
         vehicle: {
           vehicleType:form.vehicleType, name:form.name||form.vehicleType,
+          brand: form.brand==='Other' ? customBrand.trim() : form.brand,
           year:form.year, color:form.color, fuelType:form.fuelType,
           seats:form.seating, dailyRate:form.dailyRate, advanceAmt:form.deposit,
-          minBooking:form.minRental, area:form.pickupLocation,
+          minBooking:form.minRental, area:form.pickupLocation==='Other'?customPickupLocation.trim():form.pickupLocation,
           purpose:form.features, whatsapp:form.whatsapp,
           description:form.notes, planDays:form.plan?.days || 30,
           planLabel:form.plan?.label || '1 Month', planPrice: planPrice,
@@ -350,7 +359,12 @@ export default function PostCarScreen() {
             <View style={s.row}>
               <View style={{flex:1}}>
                 <Lbl>BRAND</Lbl>
-                <Picker value={form.brand} options={BRANDS} onSelect={v=>set('brand',v)}/>
+                <Picker value={form.brand} options={BRANDS} onSelect={v=>{ set('brand',v); if(v!=='Other') setCustomBrand(''); }}/>
+                {form.brand==='Other'&&(
+                  <TextInput style={[s.input,{marginTop:8}]}
+                    placeholder="Type brand name"
+                    value={customBrand} onChangeText={setCustomBrand} maxLength={50}/>
+                )}
               </View>
               <View style={{width:12}}/>
               <View style={{flex:1}}>
@@ -403,7 +417,12 @@ export default function PostCarScreen() {
 
             <Lbl style={{marginTop:16}}>PICKUP LOCATION</Lbl>
             <Picker value={form.pickupLocation} options={PICKUP_LOCS}
-              onSelect={v=>set('pickupLocation',v)} fullWidth/>
+              onSelect={v=>{ set('pickupLocation',v); if(v!=='Other') setCustomPickupLocation(''); }} fullWidth/>
+            {form.pickupLocation==='Other'&&(
+              <TextInput style={[s.input,{marginTop:8}]}
+                placeholder="Type your pickup location"
+                value={customPickupLocation} onChangeText={setCustomPickupLocation} maxLength={80}/>
+            )}
           </>}
 
           {/* ── STEP 3: Photos & Description ── */}
@@ -509,7 +528,7 @@ export default function PostCarScreen() {
             <View style={s.revCard}>
               {[['NAME',  form.name||'Not set'],
                 ['TYPE',  form.vehicleType],
-                ['BRAND', form.brand],
+                ['BRAND', form.brand==='Other'?(customBrand.trim()||'Other'):form.brand],
                 ['YEAR',  form.year],
                 ['SPECS', `${form.fuelType}, ${form.seating} seats`],
               ].map(([k,v])=><RevRow key={k} label={k} value={v}/>)}
@@ -518,7 +537,7 @@ export default function PostCarScreen() {
               {[['RENT/DAY', form.dailyRate?`₹${form.dailyRate}`:'Not set'],
                 ['DEPOSIT',  form.deposit?`₹${form.deposit}`:'—'],
                 ['MIN DAYS', form.minRental],
-                ['PICKUP',   form.pickupLocation],
+                ['PICKUP',   form.pickupLocation==='Other'?(customPickupLocation.trim()||'Other'):form.pickupLocation],
               ].map(([k,v])=><RevRow key={k} label={k} value={v}/>)}
             </View>
             <View style={[s.revCard,{marginTop:12}]}>
