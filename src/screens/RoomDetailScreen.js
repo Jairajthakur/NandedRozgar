@@ -80,6 +80,7 @@ function ImageViewer({ visible, images, startIndex, onClose }) {
 
 /* ─── Hero Image Carousel ─── */
 function HeroCarousel({ photos, cardBg, onImagePress }) {
+  const { t } = useLang();
   const [activeIdx, setActiveIdx] = useState(0);
   const flatRef = useRef(null);
 
