@@ -4,7 +4,6 @@
 .env.*.local
 
 # Firebase credentials (contain API keys and project secrets)
-google-services.json
 GoogleService-Info.plist
 
 # ── Node ──────────────────────────────────────────────────────────────────────
