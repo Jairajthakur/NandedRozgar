@@ -384,6 +384,23 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_seeker_user       ON seeker_profiles(user_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_promos_status     ON business_promotions(status);`);
 
+    // ── Fix payments stored in paise instead of rupees ────────────────────────
+    // Razorpay amounts are in paise; older code saved them raw (e.g. ₹249 → 24900).
+    // All current plans are ≤ ₹499, so any amount > 500 is still in paise → divide by 100.
+    // This guard (amount > 500) makes the migration safe to run on every startup.
+    try {
+      const fixResult = await client.query(`
+        UPDATE payments
+        SET amount = ROUND(amount / 100.0)
+        WHERE status = 'paid' AND amount > 500
+      `);
+      if (fixResult.rowCount > 0) {
+        console.log(`💰 Fixed ${fixResult.rowCount} payment record(s): converted paise → rupees.`);
+      }
+    } catch (e) {
+      console.warn('⚠️  Payment paise-fix warning (non-fatal):', e.message);
+    }
+
     // Fix any legacy invalid role values
     await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');`);
     await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`);
