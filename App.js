@@ -4,7 +4,7 @@ import {
   View, Text, ActivityIndicator, StatusBar,
   TouchableOpacity, StyleSheet, Platform, useWindowDimensions,
 } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -46,6 +46,8 @@ import { registerForPushNotifications, addNotificationResponseListener } from '.
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 const ORANGE = '#f97316';
+
+export const navigationRef = createNavigationContainerRef();
 
 // ── Error Boundary ────────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
@@ -185,7 +187,15 @@ function RootNavigator() {
   React.useEffect(() => {
     const unsub = addNotificationResponseListener(response => {
       const data = response.notification.request.content.data;
-      console.log('Notification tapped:', data);
+      if (!navigationRef.isReady()) return;
+      if (data?.screen === 'JobDetail' && data?.id)
+        navigationRef.navigate('JobDetail', { id: data.id });
+      else if (data?.screen === 'ChatScreen' && data?.id)
+        navigationRef.navigate('ChatScreen', { chatId: data.id });
+      else if (data?.screen === 'RoomDetail' && data?.id)
+        navigationRef.navigate('RoomDetail', { id: data.id });
+      else if (data?.screen === 'CarDetail' && data?.id)
+        navigationRef.navigate('CarDetail', { id: data.id });
     });
     return unsub;
   }, []);
@@ -299,7 +309,7 @@ export default function App() {
         <SafeAreaProvider>
           <AuthProvider>
             <LangProvider>
-            <NavigationContainer linking={linking}>
+            <NavigationContainer linking={linking} ref={navigationRef}>
               <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
               <RootNavigator />
             </NavigationContainer>
