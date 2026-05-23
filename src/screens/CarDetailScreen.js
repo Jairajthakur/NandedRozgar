@@ -228,7 +228,7 @@ export default function CarDetailScreen() {
   const nav    = useNavigation();
   const route  = useRoute();
   const insets = useSafeAreaInsets();
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const car    = route.params?.car || PLACEHOLDER_CAR;
 
   const [saved, setSaved] = useState(false);
@@ -343,7 +343,7 @@ export default function CarDetailScreen() {
             </View>
             <View style={s.priceBlock}>
               <Text style={s.priceAmt}>{car.price}</Text>
-              <Text style={s.perDay}>/day</Text>
+              <Text style={s.perDay}>{t('perDay')}</Text>
               {car.deposit ? <Text style={s.deposit}>Dep: {car.deposit}</Text> : null}
             </View>
           </View>
@@ -359,7 +359,7 @@ export default function CarDetailScreen() {
             {car.available !== false && (
               <View style={s.availTag}>
                 <Ionicons name="checkmark-circle" size={12} color="#16a34a" style={{ marginRight: 4 }} />
-                <Text style={s.availTagTxt}>Available Now</Text>
+                <Text style={s.availTagTxt}>{t('available')}</Text>
               </View>
             )}
             {photoUrls.length > 0 && (
@@ -387,7 +387,7 @@ export default function CarDetailScreen() {
         {features.length > 0 && (
           <SlideIn delay={180}>
             <View style={s.section}>
-              <Text style={s.sectionTitle}>FEATURES & SPECS</Text>
+              <Text style={s.sectionTitle}>{t('specifications')}</Text>
               <View style={s.featuresGrid}>
                 {features.map((f, i) => (
                   <FeatureChip key={i} label={f} icon={featureIcons[i % featureIcons.length]} delay={i * 55} />
@@ -426,11 +426,11 @@ export default function CarDetailScreen() {
                 }
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.ownerName}>{car.owner?.name || 'Owner'}</Text>
+                <Text style={s.ownerName}>{car.owner?.name || t('listedBy')}</Text>
                 {car.owner?.verified && (
                   <View style={s.verifiedRow}>
                     <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
-                    <Text style={s.verifiedTxt}>{car.owner?.isAgency ? 'Verified Agency' : 'Verified Owner'}</Text>
+                    <Text style={s.verifiedTxt}>{car.owner?.isAgency ? t('verified') + ' Agency' : t('verified') + ' Owner'}</Text>
                   </View>
                 )}
               </View>
@@ -458,8 +458,8 @@ export default function CarDetailScreen() {
       {/* ── Sticky CTA Bar ── */}
       <SlideIn delay={400} from={40}>
         <View style={[s.stickyBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <CTAButton label="Call Owner"  onPress={callOwner}    color={DARK_NAVY} icon="call"           delay={0} />
-          <CTAButton label="WhatsApp"    onPress={openWhatsApp} color={GREEN_WA}  icon="logo-whatsapp"  delay={60} />
+          <CTAButton label={t('callOwnerCar')}  onPress={callOwner}    color={DARK_NAVY} icon="call"           delay={0} />
+          <CTAButton label={t('whatsappOwnerCar')}    onPress={openWhatsApp} color={GREEN_WA}  icon="logo-whatsapp"  delay={60} />
         </View>
       </SlideIn>
     </View>
