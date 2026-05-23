@@ -13,6 +13,7 @@ import JobCard from '../components/JobCard';
 import { Empty } from '../components/UI';
 import { CAT_ICONS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
+import { AutoTranslate } from '../utils/translate';
 import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../components/PromoBanner';
 import { http, timeAgo } from '../utils/api';
 
@@ -74,6 +75,7 @@ function PulseDot() {
 
 // ── Hiring Banner ────────────────────────────────────────────────────────────
 function HiringBanner({ onPress }) {
+  const { t } = useLang();
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.loop(
@@ -90,12 +92,12 @@ function HiringBanner({ onPress }) {
         <Ionicons name="trending-up" size={20} color={ORANGE} />
       </Animated.View>
       <View style={{ flex: 1 }}>
-        <Text style={s.hiringTitle}>Top Hiring This Week</Text>
-        <Text style={s.hiringSub}>Delivery, Data Entry & Security roles in demand</Text>
+        <Text style={s.hiringTitle}>{t('topListingsThisWeek')}</Text>
+        <Text style={s.hiringSub}>{t('hiringSubtitle')}</Text>
       </View>
       <View style={s.hiringLiveBadge}>
         <PulseDot />
-        <Text style={s.hiringLiveTxt}>LIVE</Text>
+        <Text style={s.hiringLiveTxt}>{t('live')}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -292,8 +294,7 @@ export default function BoardScreen({ route }) {
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
           <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
             <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>Jobs in{' '}
-              <Text style={{ color: ORANGE }}>Nanded</Text></Text>
+              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>{t('jobsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>Nanded</Text></Text>
             </TouchableOpacity>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
@@ -328,7 +329,7 @@ export default function BoardScreen({ route }) {
         <Ionicons name="search-outline" size={18} color="#bbb" style={{ marginLeft: 14 }} />
         <TextInput
           style={[s.searchInput, IS_WEB && ws.searchInput]}
-          placeholder="Search job title, company, skill..."
+          placeholder={t('searchPlaceholder')}
           placeholderTextColor="#bbb"
           value={search}
           onChangeText={setSearch}
@@ -344,7 +345,7 @@ export default function BoardScreen({ route }) {
           onPress={() => setShowFilters(true)}
         >
           <Ionicons name="filter-outline" size={17} color={ORANGE} />
-          {IS_WEB && <Text style={ws.filterBtnTxt}>Filters</Text>}
+          {IS_WEB && <Text style={ws.filterBtnTxt}>{t('filters')}</Text>}
         </TouchableOpacity>
       </Animated.View>
 
@@ -373,7 +374,7 @@ export default function BoardScreen({ route }) {
       {/* Web: active filter chips */}
       {IS_WEB && activeFiltersCount > 0 && (
         <View style={ws.activeFiltersRow}>
-          <Text style={ws.activeFiltersLabel}>Active filters:</Text>
+          <Text style={ws.activeFiltersLabel}>{t('activeFilters')}</Text>
           {jobType !== 'All' && (
             <TouchableOpacity style={ws.activeChip} onPress={() => setJobType('All')}>
               <Text style={ws.activeChipTxt}>{jobType}</Text>
@@ -407,13 +408,13 @@ export default function BoardScreen({ route }) {
       <Animated.View style={[s.filterSheet, IS_WEB && ws.centeredModal, { transform: [{ translateY: IS_WEB ? 0 : sheetY }] }]}>
         <View style={s.sheetHandle} />
         <View style={s.sheetHeader}>
-          <Text style={s.sheetTitle}>Filters</Text>
+          <Text style={s.sheetTitle}>{t('filters')}</Text>
           <TouchableOpacity onPress={() => { setJobType('All'); setSalaryRange(SALARY_RANGES[0]); }}>
-            <Text style={s.resetTxt}>Reset All</Text>
+            <Text style={s.resetTxt}>{t('resetAll')}</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={s.filterLabel}>Job Type</Text>
+        <Text style={s.filterLabel}>{t('jobType')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
           {JOB_TYPES.map(jt => (
             <TouchableOpacity
@@ -426,7 +427,7 @@ export default function BoardScreen({ route }) {
           ))}
         </ScrollView>
 
-        <Text style={[s.filterLabel, { marginTop: 20 }]}>Salary Range</Text>
+        <Text style={[s.filterLabel, { marginTop: 20 }]}>{t('salaryRange')}</Text>
         {SALARY_RANGES.map(r => (
           <TouchableOpacity
             key={r.label}
@@ -441,7 +442,7 @@ export default function BoardScreen({ route }) {
         ))}
 
         <TouchableOpacity style={s.applyFilterBtn} onPress={() => setShowFilters(false)}>
-          <Text style={s.applyFilterTxt}>Show {filtered.length} Jobs</Text>
+          <Text style={s.applyFilterTxt}>{t('showJobs').replace('{n}', filtered.length)}</Text>
         </TouchableOpacity>
       </Animated.View>
     </Modal>
@@ -468,7 +469,7 @@ export default function BoardScreen({ route }) {
         {/* Title */}
         <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
           <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-            Jobs in <Text style={{ color: ORANGE }}>Nanded</Text>
+            {t('jobsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>Nanded</Text>
           </Text>
         </TouchableOpacity>
 
@@ -477,7 +478,7 @@ export default function BoardScreen({ route }) {
           <Ionicons name="search-outline" size={15} color="#bbb" style={{ marginLeft: 10 }} />
           <TextInput
             style={IS_WEB ? ws.stickyInput : s.stickyInput}
-            placeholder="Search jobs..."
+            placeholder={t('searchPlaceholder')}
             placeholderTextColor="#bbb"
             value={search}
             onChangeText={setSearch}
@@ -505,7 +506,7 @@ export default function BoardScreen({ route }) {
             <Ionicons name="arrow-back" size={20} color="#111" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-            <Text style={ws.topBarTitle}>Jobs</Text>
+            <Text style={ws.topBarTitle}>{t('jobs')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -523,18 +524,18 @@ export default function BoardScreen({ route }) {
               <SideCard style={ws.ctaCard}>
                 <View style={ws.ctaCircle1} />
                 <View style={ws.ctaCircle2} />
-                <Text style={ws.ctaEyebrow}>FOR EMPLOYERS</Text>
-                <Text style={ws.ctaTitle}>Post Jobs Free</Text>
-                <Text style={ws.ctaSub}>Reach thousands of job seekers in Nanded instantly.</Text>
+                <Text style={ws.ctaEyebrow}>{t('forEmployers')}</Text>
+                <Text style={ws.ctaTitle}>{t('postJobsFree')}</Text>
+                <Text style={ws.ctaSub}>{t('postJobsSub')}</Text>
                 <TouchableOpacity style={ws.ctaBtn} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
                   <Ionicons name="add-circle-outline" size={15} color="#fff" />
-                  <Text style={ws.ctaBtnTxt}>Post an Ad</Text>
+                  <Text style={ws.ctaBtnTxt}>{t('postAJob')}</Text>
                 </TouchableOpacity>
               </SideCard>
 
               {/* Browse by Category */}
               <SideCard>
-                <Text style={ws.sideTitle}>Browse Categories</Text>
+                <Text style={ws.sideTitle}>{t('browseCategories')}</Text>
                 {catCounts.map(({ label, count }) => (
                   <TouchableOpacity
                     key={label}
@@ -553,7 +554,7 @@ export default function BoardScreen({ route }) {
 
               {/* Quick Actions */}
               <SideCard>
-                <Text style={ws.sideTitle}>Explore More</Text>
+                <Text style={ws.sideTitle}>{t('exploreMore')}</Text>
                 <QuickAction icon="home-outline"      label="Find a Room"    color={TEAL}    onPress={() => nav.navigate('Rooms')} />
                 <QuickAction icon="car-sport-outline" label="Rent a Vehicle" color="#9333ea" onPress={() => nav.navigate('Cars')} />
                 <QuickAction icon="pricetag-outline"  label="Buy & Sell"     color="#0ea5e9" onPress={() => nav.navigate('BuySell')} />
@@ -597,7 +598,7 @@ export default function BoardScreen({ route }) {
                     <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
                       <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
-                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>SPONSORED</Text>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>{t('sponsored')}</Text>
                       </View>
                       <BannerCard promo={item.data} />
                     </View>
@@ -629,7 +630,7 @@ export default function BoardScreen({ route }) {
 
               {/* Salary filter */}
               <SideCard>
-                <Text style={ws.sideTitle}>Salary Range</Text>
+                <Text style={ws.sideTitle}>{t('salaryRange')}</Text>
                 {SALARY_RANGES.map(r => (
                   <TouchableOpacity
                     key={r.label}
@@ -646,7 +647,7 @@ export default function BoardScreen({ route }) {
 
               {/* Job Type quick filter */}
               <SideCard>
-                <Text style={ws.sideTitle}>Job Type</Text>
+                <Text style={ws.sideTitle}>{t('jobType')}</Text>
                 {JOB_TYPES.map(jt => (
                   <TouchableOpacity
                     key={jt}
@@ -661,7 +662,7 @@ export default function BoardScreen({ route }) {
 
               {/* Tips card */}
               <SideCard style={ws.tipCard}>
-                <Text style={ws.tipTitle}>💡 Job Search Tips</Text>
+                <Text style={ws.tipTitle}>{t('jobSearchTips')}</Text>
                 {[
                   'Update your profile to get noticed',
                   'Apply within 24h of posting for best chance',
@@ -674,7 +675,7 @@ export default function BoardScreen({ route }) {
                 ))}
                 <TouchableOpacity style={ws.tipBtn} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.85}>
                   <Ionicons name="sparkles-outline" size={14} color={ORANGE} />
-                  <Text style={ws.tipBtnTxt}>Try AI Career Help</Text>
+                  <Text style={ws.tipBtnTxt}>{t('tryAI')}</Text>
                 </TouchableOpacity>
               </SideCard>
 
@@ -723,7 +724,7 @@ export default function BoardScreen({ route }) {
               <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
                 <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
-                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>SPONSORED</Text>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>{t('sponsored')}</Text>
                 </View>
                 <BannerCard promo={item.data} />
               </View>
