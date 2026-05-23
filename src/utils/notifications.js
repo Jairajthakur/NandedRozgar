@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { BASE_URL } from './constants';
 
 // expo-notifications is not supported on web — guard everything
 let Notifications = null;
@@ -43,6 +44,30 @@ export async function registerForPushNotifications() {
     return token.data;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Persist the Expo push token to the authenticated user's DB record.
+ * Call this once after login/register, passing the JWT and the token
+ * returned by registerForPushNotifications().
+ *
+ * @param {string} authToken  - JWT from login/register response
+ * @param {string} pushToken  - Expo push token (token.data)
+ */
+export async function savePushTokenToServer(authToken, pushToken) {
+  if (!authToken || !pushToken) return;
+  try {
+    await fetch(`${BASE_URL}/api/auth/save-push-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ pushToken }),
+    });
+  } catch (err) {
+    console.warn('Failed to save push token:', err.message);
   }
 }
 
