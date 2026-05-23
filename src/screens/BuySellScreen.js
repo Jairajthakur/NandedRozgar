@@ -350,6 +350,7 @@ function ItemCard({ item, index, onPress }) {
 ═══════════════════════════════════════════ */
 export default function BuySellScreen({ route }) {
   const nav    = useNavigation();
+  const { lang, t } = useLang();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
 
