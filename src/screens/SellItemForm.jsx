@@ -240,6 +240,7 @@ export default function SellItemForm() {
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
+  const [customCategory, setCustomCategory] = useState('');
   const fileInputRef = useRef(null);
 
   const [form, setForm] = useState({
@@ -351,9 +352,9 @@ export default function SellItemForm() {
         <div style={{ textAlign: "right", fontSize: 11, color: "#bbb", marginBottom: 16 }}>{form.title.length}/80</div>
 
         <Label text="Category" required />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: form.category === 'Other' ? 10 : 20 }}>
           {CATEGORIES.map(c => (
-            <button key={c.label} onClick={() => set("category", c.label)} style={{
+            <button key={c.label} onClick={() => { set("category", c.label); if (c.label !== 'Other') setCustomCategory(''); }} style={{
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
               background: form.category === c.label ? ORANGE_LIGHT : "#fff",
               border: `1.5px solid ${form.category === c.label ? ORANGE : "#ebebeb"}`,
@@ -365,6 +366,20 @@ export default function SellItemForm() {
             </button>
           ))}
         </div>
+        {form.category === 'Other' && (
+          <input
+            type="text"
+            value={customCategory}
+            onChange={e => setCustomCategory(e.target.value)}
+            placeholder="Type your category (e.g. Musical Instruments, Garden Tools…)"
+            maxLength={60}
+            style={{
+              width: "100%", boxSizing: "border-box", marginBottom: 20,
+              border: `1.5px solid ${ORANGE}`, borderRadius: 10,
+              padding: "11px 14px", fontSize: 14, color: "#111", outline: "none",
+            }}
+          />
+        )}
 
         <Label text="Condition" />
         {CONDITIONS.map(c => (
@@ -534,7 +549,7 @@ export default function SellItemForm() {
       {
         rows: [
           ["TITLE", form.title || "Not set", !form.title],
-          ["CATEGORY", form.category],
+          ["CATEGORY", form.category === 'Other' ? (customCategory.trim() || 'Other') : form.category],
           ["CONDITION", form.condition],
           ["AGE", form.age],
         ]
