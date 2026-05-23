@@ -681,8 +681,9 @@ export default function AdminScreen() {
       }
     } catch (e) {
       showToast('Network error: ' + (e.message || 'Check your connection'), true);
+    } finally {
+      setRefreshing(false);
     }
-    setRefreshing(false);
   }
 
   // ── Filtered data ──
