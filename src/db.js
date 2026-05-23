@@ -301,6 +301,33 @@ async function runMigrations() {
       );
     `);
 
+    // ── Coupon codes ──────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS coupon_codes (
+        id            SERIAL PRIMARY KEY,
+        code          VARCHAR(30)  UNIQUE NOT NULL,
+        type          VARCHAR(20)  NOT NULL CHECK (type IN ('percent','flat','free_days')),
+        value         INTEGER      NOT NULL,        -- % off | ₹ off | free days
+        max_uses      INTEGER      DEFAULT NULL,    -- NULL = unlimited
+        uses_count    INTEGER      DEFAULT 0,
+        valid_from    TIMESTAMPTZ  DEFAULT NOW(),
+        valid_until   TIMESTAMPTZ  DEFAULT NULL,    -- NULL = no expiry
+        applies_to    TEXT[]       DEFAULT '{}',    -- [] = all listing types
+        is_active     BOOLEAN      DEFAULT TRUE,
+        created_at    TIMESTAMPTZ  DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS coupon_usage (
+        id          SERIAL PRIMARY KEY,
+        coupon_id   INTEGER REFERENCES coupon_codes(id) ON DELETE CASCADE,
+        user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        used_at     TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(coupon_id, user_id)
+      );
+    `);
+
     // ── Safe ALTER for existing deployments (must run BEFORE indexes) ────────
     const safeAlters = [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium          BOOLEAN DEFAULT FALSE`,
