@@ -2,6 +2,8 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CAT_ICONS } from '../utils/constants';
+import { useLang } from '../utils/i18n';
+import { AutoTranslate } from '../utils/translate';
 
 const ORANGE = '#f97316';
 
@@ -19,6 +21,7 @@ function AnimCard({ children, delay = 0 }) {
 }
 
 export default function JobCard({ job, onPress, index = 0 }) {
+  const { lang, t } = useLang();
   const applicants = job.applicant_count || 0;
   const views      = job.views || 0;
   const isFeatured = !!job.featured;
@@ -62,13 +65,13 @@ export default function JobCard({ job, onPress, index = 0 }) {
                   ? <Ionicons name="star" size={9} color="#fff" />
                   : <Ionicons name="flame" size={9} color="#fff" />
                 }
-                <Text style={s.badgeTxt}>{isFeatured ? 'FEATURED' : 'URGENT'}</Text>
+                <Text style={s.badgeTxt}>{isFeatured ? t('featured') : t('urgent')}</Text>
               </View>
             )}
 
             {/* Title + Salary */}
             <View style={s.titleRow}>
-              <Text style={s.title} numberOfLines={2}>{job.title}</Text>
+              <AutoTranslate text={job.title} lang={lang} style={s.title} numberOfLines={2} />
               {!!job.salary && <Text style={s.salary}>₹{job.salary}</Text>}
             </View>
 
@@ -81,7 +84,7 @@ export default function JobCard({ job, onPress, index = 0 }) {
                 {!!job.poster_verified && (
                   <View style={s.verifiedBadge}>
                     <Ionicons name="checkmark-circle" size={11} color="#fff" />
-                    <Text style={s.verifiedTxt}>Verified</Text>
+                    <Text style={s.verifiedTxt}>{t('verified')}</Text>
                   </View>
                 )}
               </View>
@@ -91,10 +94,10 @@ export default function JobCard({ job, onPress, index = 0 }) {
             {(applicants > 0 || views > 0) && (
               <View style={s.metaRow}>
                 {applicants > 0 && (
-                  <Text style={s.metaApplied}>{applicants} applied</Text>
+                  <Text style={s.metaApplied}>{applicants} {t('appliedCount')}</Text>
                 )}
                 {views > 0 && (
-                  <Text style={s.metaViews}>{views} views</Text>
+                  <Text style={s.metaViews}>{views} {t('views')}</Text>
                 )}
               </View>
             )}
@@ -104,7 +107,7 @@ export default function JobCard({ job, onPress, index = 0 }) {
               <View style={s.chipsRow}>
                 {skills.slice(0, 4).map((sk, i) => (
                   <View key={i} style={s.chip}>
-                    <Text style={s.chipTxt}>{sk}</Text>
+                    <AutoTranslate text={sk} lang={lang} style={s.chipTxt} />
                   </View>
                 ))}
               </View>
@@ -114,7 +117,7 @@ export default function JobCard({ job, onPress, index = 0 }) {
             <View style={s.footer}>
               <View style={{ flex: 1 }} />
               <TouchableOpacity style={s.applyBtn} onPress={handlePress} activeOpacity={0.8}>
-                <Text style={s.applyTxt}>Apply</Text>
+                <Text style={s.applyTxt}>{t('applyNow')}</Text>
               </TouchableOpacity>
             </View>
           </View>
