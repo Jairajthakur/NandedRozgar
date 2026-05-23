@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { C, CAT_ICONS } from '../utils/constants';
 import { useLang, LANGUAGES } from '../utils/i18n';
+import { AutoTranslate } from '../utils/translate';
 import { timeAgo, http } from '../utils/api';
 
 const ORANGE    = '#f97316';
@@ -266,7 +267,7 @@ function ExploreCard({ icon, title, subtitle, color, onPress, style, compact }) 
 
 // ── Featured Job Card ──────────────────────────────────────────────────────────
 function FeaturedJobCard({ job, onPress, cardWidth }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const baseStyle = IS_WEB ? ws.featJobCard : s.featJobCard;
   const widthStyle = cardWidth ? { width: cardWidth } : {};
   return (
@@ -276,8 +277,8 @@ function FeaturedJobCard({ job, onPress, cardWidth }) {
           <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={18} color={ORANGE} />
         </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={s.featJobTitle} numberOfLines={1}>{job.title}</Text>
-          <Text style={s.featJobCompany} numberOfLines={1}>{job.company}</Text>
+          <AutoTranslate text={job.title} lang={lang} style={s.featJobTitle} numberOfLines={1} />
+          <AutoTranslate text={job.company} lang={lang} style={s.featJobCompany} numberOfLines={1} />
         </View>
       </View>
       <View style={s.featJobBottom}>
@@ -292,7 +293,7 @@ function FeaturedJobCard({ job, onPress, cardWidth }) {
 
 // ── Recent Room Card ───────────────────────────────────────────────────────────
 function RecentRoomCard({ room, onPress }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const title    = room.title    || (room.bhk_size ? `${room.bhk_size} – ${room.area}` : room.area || 'Room');
   const location = room.location || room.area || 'Nanded';
   const type     = room.type     || room.room_type || room.bhk_size || 'Room';
@@ -312,14 +313,14 @@ function RecentRoomCard({ room, onPress }) {
         )}
       </View>
       <View style={s.roomInfo}>
-        <Text style={[s.roomTitle, IS_WEB && { fontSize: 15 }]} numberOfLines={1}>{title}</Text>
+        <AutoTranslate text={title} lang={lang} style={[s.roomTitle, IS_WEB && { fontSize: 15 }]} numberOfLines={1} />
         <View style={s.roomMeta}>
           <View style={s.roomChip}>
             <Ionicons name="location-outline" size={11} color="#777" />
             <Text style={s.roomChipTxt}>{location}</Text>
           </View>
           <View style={s.roomChip}>
-            <Text style={s.roomChipTxt}>{type}</Text>
+            <AutoTranslate text={type} lang={lang} style={s.roomChipTxt} />
           </View>
         </View>
         <Text style={[s.roomRent, IS_WEB && { fontSize: 17 }]}>{rent}</Text>
@@ -330,7 +331,7 @@ function RecentRoomCard({ room, onPress }) {
 
 // ── Recent Job Card ────────────────────────────────────────────────────────────
 function RecentJobCard({ job, onPress, index = 0 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const iconName = CAT_ICONS[job.category || job.icon] || 'briefcase';
   const ageDays = (Date.now() - (job.timestamp || 0)) / 86400000;
   const freshnessColor = ageDays < 1 ? '#16a34a' : ageDays < 7 ? ORANGE : '#bbb';
@@ -364,12 +365,12 @@ function RecentJobCard({ job, onPress, index = 0 }) {
           </View>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Text style={[s.jobTitle, IS_WEB && ws.jobTitle]} numberOfLines={1}>{job.title}</Text>
+              <AutoTranslate text={job.title} lang={lang} style={[s.jobTitle, IS_WEB && ws.jobTitle]} numberOfLines={1} />
               {job.verified_employer && <Ionicons name="checkmark-circle" size={14} color="#16a34a" />}
             </View>
             <View style={s.jobSubRow}>
               <Ionicons name="business-outline" size={11} color="#aaa" />
-              <Text style={s.jobSub} numberOfLines={1}> {job.company}</Text>
+              <AutoTranslate text={job.company} lang={lang} style={s.jobSub} numberOfLines={1} />
             </View>
             <View style={s.jobChipsRow}>
               <View style={s.jobLocChip}>
