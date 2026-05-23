@@ -516,3 +516,25 @@ router.post('/verify-otp', otpLimiter, async (req, res) => {
 });
 
 module.exports = router;
+
+// ── POST /api/auth/save-push-token ────────────────────────────────────────────
+// Saves the Expo push token to the authenticated user's DB record so the
+// server can send targeted push notifications.
+// Call from the client after login/register via savePushTokenToServer() in
+// src/utils/notifications.js.
+router.post('/save-push-token', auth, async (req, res) => {
+  try {
+    const { pushToken } = req.body;
+    if (!pushToken || typeof pushToken !== 'string' || !pushToken.startsWith('ExponentPushToken[')) {
+      return res.json({ ok: false, error: 'Invalid push token format' });
+    }
+    await pool.query(
+      'UPDATE users SET push_token = $1 WHERE id = $2',
+      [pushToken.trim(), req.user.id]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('save-push-token error:', err.message);
+    return res.json({ ok: false, error: 'Failed to save push token' });
+  }
+});
