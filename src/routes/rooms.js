@@ -5,8 +5,10 @@ const { auth } = require('../middleware/auth');
 // ── GET /api/rooms — list all active, non-expired rooms ───────────────────────
 router.get('/', async (req, res) => {
   try {
-    // Only return listings whose plan has NOT yet expired.
-    // Expired listings are NOT deleted — owners can still see them in their profile.
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.min(50, parseInt(req.query.limit) || 20);
+    const offset = (page - 1) * limit;
+
     const { rows } = await pool.query(`
       SELECT r.*, u.name AS poster_name
       FROM rooms r
@@ -14,8 +16,20 @@ router.get('/', async (req, res) => {
       WHERE r.status = 'active'
         AND (r.expires_at IS NULL OR r.expires_at > NOW())
       ORDER BY r.created_at DESC
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+
+    const { rows: countRows } = await pool.query(`
+      SELECT COUNT(*) FROM rooms
+      WHERE status = 'active' AND (expires_at IS NULL OR expires_at > NOW())
     `);
-    res.json({ ok: true, rooms: rows });
+    const total = parseInt(countRows[0].count);
+
+    res.json({
+      ok: true,
+      rooms: rows,
+      pagination: { page, limit, total, hasNext: offset + rows.length < total },
+    });
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to load rooms' });
