@@ -642,7 +642,7 @@ export default function AdminScreen() {
         { key: 'jobs',     url: '/api/admin/jobs' },
         { key: 'rooms',    url: '/api/rooms' },
         { key: 'vehicles', url: '/api/vehicles' },
-        { key: 'buysell',  url: '/api/buysell' },
+        { key: 'buysell',  url: '/api/admin/buysell' },
         { key: 'banners',  url: '/api/promotions/all' },
         { key: 'users',    url: '/api/admin/users' },
         { key: 'payments', url: '/api/admin/payments' },
