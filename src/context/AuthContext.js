@@ -3,7 +3,7 @@
  * Adds: loginWithGoogle, sendOTP, verifyOTP, forgotPassword, loginWithBiometrics
  * Fixed: Google OAuth web support, Firebase OTP platform detection
  */
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { http, loadToken, saveToken, clearToken } from '../utils/api';
 
@@ -21,6 +21,9 @@ export function AuthProvider({ children }) {
   // Pagination state
   const [jobPage,       setJobPage]       = useState(1);
   const [jobPagination, setJobPagination] = useState(null);
+
+  // Guard against concurrent/redundant loadJobs calls
+  const fetchingRef = useRef(false);
 
   useEffect(() => {
     const fallback = setTimeout(() => setLoading(false), 8000);
@@ -46,6 +49,9 @@ export function AuthProvider({ children }) {
   }
 
   async function loadJobs(page = 1, category = null, search = null) {
+    // Skip if a fetch is already in progress (prevents redundant calls after login/register)
+    if (fetchingRef.current && page === 1) return;
+    fetchingRef.current = true;
     try {
       let path = `/api/jobs?page=${page}&limit=20`;
       if (category && category !== 'All') path += `&category=${encodeURIComponent(category)}`;
@@ -66,6 +72,7 @@ export function AuthProvider({ children }) {
         setJobPage(page);
       }
     } catch (e) { console.warn('loadJobs:', e.message); }
+    finally { fetchingRef.current = false; }
   }
 
   const loadMoreJobs = useCallback(async () => {
@@ -131,8 +138,14 @@ export function AuthProvider({ children }) {
       await saveToken(storedToken);
       const r = await http('GET', '/api/auth/me');
       if (!r?.ok) {
+        // Token expired or password changed — wipe everything and force full login
         await clearToken();
-        return { ok: false, error: 'Session expired. Please sign in again.' };
+        try {
+          await SecureStore.deleteItemAsync(BIOMETRIC_EMAIL_KEY);
+          await SecureStore.deleteItemAsync(BIOMETRIC_TOKEN_KEY);
+        } catch {}
+        setUser(null);
+        return { ok: false, error: 'Session expired. Please sign in again.', requiresLogin: true };
       }
       setUser(r.user);
       await loadJobs(1);
