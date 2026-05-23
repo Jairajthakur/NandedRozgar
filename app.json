@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "NandedRozgar",
-    "slug": "nanded-rozgar",
+    "name": "CityPlus",
+    "slug": "nanded",
     "version": "4.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,28 +12,30 @@
       "resizeMode": "contain",
       "backgroundColor": "#111111"
     },
-    "assetBundlePatterns": ["**/*"],
-    "privacyPolicyUrl": "https://nandedrozgar.in/privacy-policy",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "privacyPolicyUrl": "https://cityplus.in/privacy-policy",
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "single",
-      "name": "NandedRozgar",
-      "shortName": "NandedRozgar",
-      "description": "Local Jobs · Local Life · Nanded",
+      "name": "CityPlus",
+      "shortName": "CityPlus",
+      "description": "Local Jobs \u00b7 Local Life \u00b7 Nanded",
       "themeColor": "#f97316",
       "backgroundColor": "#111111"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.nandedrozgar.app"
+      "bundleIdentifier": "com.cityplus.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#111111"
       },
-      "package": "com.nandedrozgar.app",
+      "package": "com.cityplus.app",
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -45,7 +47,7 @@
       ],
       "googleServicesFile": "./google-services.json"
     },
-    "scheme": "nandedrozgar",
+    "scheme": "nanded",
     "plugins": [
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
@@ -73,8 +75,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow NandedRozgar to access your photos.",
-          "cameraPermission": "Allow NandedRozgar to use your camera."
+          "photosPermission": "Allow CityPlus to access your photos.",
+          "cameraPermission": "Allow CityPlus to use your camera."
         }
       ]
     ],
