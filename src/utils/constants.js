@@ -15,9 +15,10 @@ export const C = {
 export const BASE_URL = 'https://localloops-production.up.railway.app';
 
 // ── Razorpay ──────────────────────────────────────────────────────────────────
-// Get your key from: https://dashboard.razorpay.com/app/keys
-// Use TEST key (rzp_test_…) during development, LIVE key (rzp_live_…) in production.
-export const RAZORPAY_KEY_ID = 'rzp_test_SsG0HGZbXpjpz5'; // 🔑 Replace with your actual key
+// Set EXPO_PUBLIC_RAZORPAY_KEY_ID in your EAS Secrets / .env file.
+// Use rzp_test_… during development, rzp_live_… in production.
+// NEVER commit a live key to source control.
+export const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || '';
 
 export const CATS = [
   'All',
