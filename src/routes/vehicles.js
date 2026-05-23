@@ -5,8 +5,10 @@ const { auth } = require('../middleware/auth');
 // ── GET /api/vehicles — list all active, non-expired vehicles ─────────────────
 router.get('/', async (req, res) => {
   try {
-    // Only return listings whose plan has NOT yet expired.
-    // Expired listings are NOT deleted — owners can still see them in their profile.
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.min(50, parseInt(req.query.limit) || 20);
+    const offset = (page - 1) * limit;
+
     const { rows } = await pool.query(`
       SELECT v.*, u.name AS poster_name
       FROM vehicles v
@@ -14,8 +16,20 @@ router.get('/', async (req, res) => {
       WHERE v.status = 'active'
         AND (v.expires_at IS NULL OR v.expires_at > NOW())
       ORDER BY v.created_at DESC
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+
+    const { rows: countRows } = await pool.query(`
+      SELECT COUNT(*) FROM vehicles
+      WHERE status = 'active' AND (expires_at IS NULL OR expires_at > NOW())
     `);
-    res.json({ ok: true, vehicles: rows });
+    const total = parseInt(countRows[0].count);
+
+    res.json({
+      ok: true,
+      vehicles: rows,
+      pagination: { page, limit, total, hasNext: offset + rows.length < total },
+    });
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to load vehicles' });
