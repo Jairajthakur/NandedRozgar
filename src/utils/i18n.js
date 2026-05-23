@@ -180,6 +180,8 @@ const STRINGS = {
     tryAI: 'Try AI Career Help',
     activeFilters: 'Active filters:',
     filters: 'Filters',
+    featured: 'FEATURED', urgent: 'URGENT',
+    appliedCount: 'applied', views: 'views',
   },
 
   mr: {
@@ -355,6 +357,8 @@ const STRINGS = {
     tryAI: 'AI करिअर मदत वापरा',
     activeFilters: 'सक्रिय फिल्टर:',
     filters: 'फिल्टर',
+    featured: 'वैशिष्ट्यीकृत', urgent: 'तातडीचे',
+    appliedCount: 'अर्ज केले', views: 'पाहिले',
   },
 
   hi: {
@@ -530,6 +534,8 @@ const STRINGS = {
     tryAI: 'AI करियर सहायता आज़माएं',
     activeFilters: 'सक्रिय फ़िल्टर:',
     filters: 'फ़िल्टर',
+    featured: 'फ़ीचर्ड', urgent: 'अर्जेंट',
+    appliedCount: 'आवेदन किए', views: 'देखे',
   },
 };
 
