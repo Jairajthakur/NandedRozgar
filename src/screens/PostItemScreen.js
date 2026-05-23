@@ -10,6 +10,7 @@ import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/razorpay';
+import CouponInput from '../components/CouponInput';
 import { useAuth } from '../context/AuthContext';
 
 const { width: SW } = Dimensions.get('window');
@@ -406,7 +407,7 @@ function Step3({ form, set, setForm }) {
   );
 }
 
-function Step4({ form, set }) {
+function Step4({ form, set, appliedCoupon, setAppliedCoupon }) {
   return (
     <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false}>
       <Text style={styles.planQuestion}>How long should your listing stay live?</Text>
@@ -462,6 +463,23 @@ function Step4({ form, set }) {
           </View>
         ))}
       </View>
+
+      {/* ── Coupon Code ── */}
+      <View style={{ marginTop: 16, marginBottom: 8 }}>
+        <Text style={{ fontWeight: '700', color: '#333', marginBottom: 8, fontSize: 13 }}>Have a coupon code?</Text>
+        <CouponInput
+          listingType="buysell"
+          originalAmount={form.plan?.price || 0}
+          onApplied={c => setAppliedCoupon(c)}
+        />
+        {appliedCoupon && (
+          <View style={{ flexDirection:'row', justifyContent:'space-between', marginTop:10, padding:10, backgroundColor:'#f0fdf4', borderRadius:8 }}>
+            <Text style={{ color:'#374151', fontSize:13 }}>Original: <Text style={{ textDecorationLine:'line-through' }}>₹{form.plan?.price}</Text></Text>
+            <Text style={{ color:'#16a34a', fontWeight:'700', fontSize:13 }}>You pay: ₹{appliedCoupon.finalAmount}</Text>
+          </View>
+        )}
+      </View>
+
       <View style={{ height: 24 }} />
     </ScrollView>
   );
@@ -543,6 +561,7 @@ export default function PostItemScreen() {
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim  = useRef(new Animated.Value(1)).current;
 
@@ -599,7 +618,8 @@ export default function PostItemScreen() {
     setLoading(true);
     try {
       const planPrice   = form.plan?.price ?? 0;
-      const amountPaise = planPrice * 100;
+      const discountedPrice = appliedCoupon ? appliedCoupon.finalAmount : planPrice;
+      const amountPaise = discountedPrice * 100;
 
       // ── Step 1: Payment ────────────────────────────────────────────────────
       const payResult = await initiatePayment({
@@ -622,6 +642,7 @@ export default function PostItemScreen() {
         amount: amountPaise,
         plan:   form.plan?.label || '15 Days',
         days:   form.plan?.days  || 15,
+        couponId: appliedCoupon?.id || null,
         item: {
           title:       form.title.trim(),
           category:    form.category,
@@ -660,7 +681,7 @@ export default function PostItemScreen() {
       case 1: return <Step1 form={form} set={set} />;
       case 2: return <Step2 form={form} set={set} />;
       case 3: return <Step3 form={form} set={set} setForm={setForm} />;
-      case 4: return <Step4 form={form} set={set} />;
+      case 4: return <Step4 form={form} set={set} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} />;
       case 5: return <Step5 form={form} />;
       default: return null;
     }
