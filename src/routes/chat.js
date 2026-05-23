@@ -78,6 +78,7 @@ router.post('/:userId/:jobId', auth, async (req, res) => {
     const { content } = req.body;
 
     if (!content?.trim()) return res.json({ ok: false, error: 'Message cannot be empty' });
+    if (content.trim().length > 1000) return res.json({ ok: false, error: 'Message too long (max 1000 characters)' });
     if (receiver === req.user.id) return res.json({ ok: false, error: 'Cannot message yourself' });
 
     const { rows } = await pool.query(
