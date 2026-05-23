@@ -7,6 +7,8 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLang } from '../utils/i18n';
+import { TranslateBlock, TranslateTitle } from '../utils/translate';
 
 const PURPLE   = '#9333ea';
 const GREEN_WA = '#25d366';
@@ -181,6 +183,7 @@ export default function BuySellDetailScreen() {
   const nav    = useNavigation();
   const route  = useRoute();
   const insets = useSafeAreaInsets();
+  const { lang } = useLang();
   const item   = route.params?.item;
 
   const [saved, setSaved]   = useState(false);
@@ -290,7 +293,7 @@ export default function BuySellDetailScreen() {
         <SlideIn delay={60}>
           <View style={s.titleCard}>
             <View style={{ flex: 1 }}>
-              <Text style={s.itemTitle}>{item.title}</Text>
+              <TranslateTitle text={item.title} lang={lang} style={s.itemTitle} />
               <View style={s.tagsRow}>
                 <View style={[s.catTag, { backgroundColor: catColor.bg }]}>
                   <Ionicons name={CATEGORY_ICONS[item.cat] || 'pricetag-outline'} size={12} color={catColor.icon} style={{ marginRight: 4 }} />
@@ -337,10 +340,12 @@ export default function BuySellDetailScreen() {
           <View style={s.section}>
             <Text style={s.sectionTitle}>ABOUT THIS ITEM</Text>
             <View style={s.descBox}>
-              <Text style={s.descTxt}>
-                {item.description ||
+              <TranslateBlock
+                text={item.description ||
                   `This ${item.title} is listed in ${item.condition} condition. Located in ${item.loc}. Contact the seller for more details or to negotiate the price.`}
-              </Text>
+                lang={lang}
+                style={s.descTxt}
+              />
             </View>
           </View>
         </SlideIn>
