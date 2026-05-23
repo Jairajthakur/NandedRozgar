@@ -24,7 +24,7 @@ const MYMEMORY_URL = 'https://api.mymemory.translated.net/get';
 
 // Optional: add your email to raise free limit from 500 → 10,000 words/day
 // Set this in environment or replace the empty string with your email.
-const MYMEMORY_EMAIL = '';          // e.g. 'yourapp@gmail.com'
+const MYMEMORY_EMAIL = 'th.jairaj@gmail.com';          // e.g. 'yourapp@gmail.com'
 
 const CACHE_PREFIX = 'nr_trans_v1_';
 
