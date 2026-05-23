@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "CityPlus",
-    "slug": "nanded",
+    "name": "NandedRozgar",
+    "slug": "nanded-rozgar",
     "version": "4.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,26 +13,27 @@
       "backgroundColor": "#111111"
     },
     "assetBundlePatterns": ["**/*"],
+    "privacyPolicyUrl": "https://nandedrozgar.in/privacy-policy",
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "single",
-      "name": "CityPlus",
-      "shortName": "CityPlus",
+      "name": "NandedRozgar",
+      "shortName": "NandedRozgar",
       "description": "Local Jobs · Local Life · Nanded",
       "themeColor": "#f97316",
       "backgroundColor": "#111111"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.cityplus.app"
+      "bundleIdentifier": "com.nandedrozgar.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#111111"
       },
-      "package": "com.cityplus.app",
+      "package": "com.nandedrozgar.app",
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -40,13 +41,11 @@
         "VIBRATE",
         "POST_NOTIFICATIONS",
         "CAMERA",
-        "READ_MEDIA_IMAGES",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "READ_MEDIA_IMAGES"
       ],
       "googleServicesFile": "./google-services.json"
     },
-    "scheme": "nanded",
+    "scheme": "nandedrozgar",
     "plugins": [
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
@@ -65,15 +64,17 @@
           "android": {
             "usesCleartextTraffic": false,
             "enableProguardInReleaseBuilds": true,
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "targetSdkVersion": 34,
+            "compileSdkVersion": 34
           }
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow CityPlus to access your photos.",
-          "cameraPermission": "Allow CityPlus to use your camera."
+          "photosPermission": "Allow NandedRozgar to access your photos.",
+          "cameraPermission": "Allow NandedRozgar to use your camera."
         }
       ]
     ],
