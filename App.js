@@ -291,7 +291,6 @@ const linking = {
       PromoteBusiness: 'promote',
       Profile:         'profile',
       AIMatch:         'ai-match',
-      AdminPanel:      'admin-panel',
       Referral:        'referral',
       MyApplications:  'my-applications',
       SeekerProfile:   'seeker-profile',
