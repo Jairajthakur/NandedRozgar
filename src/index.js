@@ -13,8 +13,30 @@ const app = express();
 // express-rate-limit can identify real client IPs correctly.
 app.set('trust proxy', 1);
 
+// ── Startup guards ────────────────────────────────────────────────────────────
+if (!process.env.JWT_SECRET) {
+  console.error('❌ FATAL: JWT_SECRET environment variable is not set. Refusing to start.');
+  process.exit(1);
+}
+
 // ── Global middlewares ────────────────────────────────────────────────────────
-app.use(cors());
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+// Always allow the production Railway URL and any explicitly listed origins
+const defaultOrigins = ['https://localloops-production.up.railway.app'];
+const corsOrigins = [...new Set([...defaultOrigins, ...allowedOrigins])];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow server-to-server requests (no origin) and whitelisted origins
+    if (!origin || corsOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin '${origin}' is not allowed`));
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '5mb' }));
 
 // General API rate limiter (fallback — auth routes have their own stricter limits)
