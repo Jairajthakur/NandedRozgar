@@ -75,9 +75,10 @@ const SKILLS_LIST = [
 ];
 
 const PLANS = [
-  { id: '7days',  days: '7 Days',  price: 49,  sub: 'listing duration – pay once' },
-  { id: '15days', days: '15 Days', price: 79,  sub: 'listing duration – pay once' },
-  { id: '30days', days: '30 Days', price: 119, sub: 'listing duration – pay once' },
+  { id: 'free',   days: '30 Days', price: 0,   sub: 'free standard listing' },
+  { id: '7days',  days: '7 Days',  price: 49,  sub: 'featured listing – pay once' },
+  { id: '15days', days: '15 Days', price: 79,  sub: 'featured listing – pay once' },
+  { id: '30days', days: '30 Days', price: 119, sub: 'featured listing – pay once' },
 ];
 
 // ── Reusable: Section Label ───────────────────────────────────────────────────
@@ -265,7 +266,7 @@ export default function PostJobScreen() {
   const [email,         setEmail]         = useState('');
 
   // Step 4
-  const [plan, setPlan] = useState('15days');
+  const [plan, setPlan] = useState('free');
 
   function toggleSkill(skill) {
     setSkills(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]);
@@ -569,7 +570,7 @@ export default function PostJobScreen() {
                   </View>
                 </View>
                 <View style={s.planRight}>
-                  <Text style={[s.planPrice, plan === p.id && { color: ORANGE }]}>₹{p.price}</Text>
+                  <Text style={[s.planPrice, plan === p.id && { color: ORANGE }]}>{p.price === 0 ? 'Free' : `₹${p.price}`}</Text>
                   <View style={[s.planRadio, plan === p.id && s.planRadioOn]}>
                     {plan === p.id && <View style={s.planDot} />}
                   </View>
