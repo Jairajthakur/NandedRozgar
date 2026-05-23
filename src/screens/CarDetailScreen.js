@@ -8,7 +8,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLang } from '../utils/i18n';
-import { TranslateTitle } from '../utils/translate';
+import { AutoTranslate } from '../utils/translate';
 
 const ORANGE = '#f97316';
 const DARK_NAVY = '#1a2a3a';
@@ -332,7 +332,7 @@ export default function CarDetailScreen() {
         <SlideIn delay={60}>
           <View style={s.titleCard}>
             <View style={{ flex: 1 }}>
-              <TranslateTitle text={car.name} lang={lang} style={s.carName} />
+              <AutoTranslate text={car.name} lang={lang} style={s.carName} />
               <View style={s.locationRow}>
                 <Ionicons name="location-outline" size={13} color="#888" />
                 <Text style={s.locationTxt}>
