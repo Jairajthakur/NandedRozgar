@@ -36,7 +36,19 @@ const MIN_RENTAL = [
   { label:'7 Days minimum', sub:'Weekly rentals only' },
   { label:'Monthly only',   sub:'Long-term rental' },
 ];
-const PICKUP_LOCS = ['Nanded City','Vazirabad','Cidco','Shivaji Nagar','Old Nanded','Ardhapur','Other'];
+const PICKUP_LOCS = [
+  // ── Nanded City localities ──
+  'Nanded City', 'Vazirabad', 'Shivaji Nagar', 'Vishnupuri', 'Taroda Naka',
+  'Cidco', 'Old Nanded', 'New Mondha', 'Novena Colony',
+  'Kasturba Nagar', 'Santnagar', 'Padampur', 'Shantinagar',
+  'Guru Nanak Colony', 'Aurangpura', 'Subhash Nagar',
+  // ── Nanded District Talukas ──
+  'Nanded (Taluka)', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Bhokar',
+  'Kinwat', 'Deglur', 'Biloli', 'Naigaon', 'Loha',
+  'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
+  'Mudkhed',
+  'Other',
+];
 const FEATURES    = [
   'AC','Power Steering','Bluetooth/Music','Fastag',
   'Carrier','Commercial RC','Comprehensive Insurance','Helmets Included',
