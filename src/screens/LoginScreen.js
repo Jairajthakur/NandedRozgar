@@ -263,7 +263,11 @@ export default function LoginScreen() {
   });
 
   // ── Google ────────────────────────────────────────────────────────────────
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'cityplus', useProxy: true });
+  const redirectUri = AuthSession.makeRedirectUri(
+    Platform.OS === 'web'
+      ? { useProxy: false }                          // web: use current origin as redirect
+      : { scheme: 'nanded', useProxy: true }         // native: use auth.expo.io proxy
+  );
   const [googleRequest, googleResponse, promptGoogleAsync] = AuthSession.useAuthRequest(
     { clientId: GOOGLE_CLIENT_ID, redirectUri, scopes: ['openid', 'profile', 'email'], responseType: AuthSession.ResponseType.Token, usePKCE: false },
     GOOGLE_DISCOVERY
