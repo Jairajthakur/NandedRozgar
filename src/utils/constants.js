@@ -12,7 +12,7 @@ export const C = {
   },
 };
 
-export const BASE_URL = 'https://localloops-production.up.railway.app';
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app';
 
 // ── Razorpay ──────────────────────────────────────────────────────────────────
 // Set EXPO_PUBLIC_RAZORPAY_KEY_ID in your EAS Secrets / .env file.
