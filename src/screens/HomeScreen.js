@@ -468,20 +468,20 @@ export default function HomeScreen() {
     .slice(0, 6);
 
   const featuredDemoJobs = [
-    { id: 'f1', title: 'Delivery Executive',  company: 'Swiggy Instamart',    salary: '₹15k–20k/mo', category: 'Delivery',   status: 'active', location: 'Nanded',               timestamp: Date.now() - 3600000 * 2 },
-    { id: 'f2', title: 'Data Entry Operator', company: 'TechSoft Solutions',  salary: '₹10k–12k/mo', category: 'Data Entry', status: 'active', location: 'Nanded',               timestamp: Date.now() - 86400000, verified_employer: true },
-    { id: 'f3', title: 'Security Guard',      company: 'Cybex Solution',      salary: '₹10,000/mo',  category: 'Security',   status: 'active', location: 'Kabra Nagar',          timestamp: Date.now() - 86400000 },
-    { id: 'f4', title: 'Telecaller',          company: 'Dhanraj Enterprises', salary: '₹12,000/mo',  category: 'TeleCaller', status: 'active', location: 'Maharana Pratap Chowk',timestamp: Date.now() - 86400000 * 5, fresher_ok: true },
+    { id: 'f1', title: t('demoJob1Title'), company: 'Swiggy Instamart',    salary: '₹15k–20k/mo', category: 'Delivery',   status: 'active', location: 'Nanded',               timestamp: Date.now() - 3600000 * 2 },
+    { id: 'f2', title: t('demoJob2Title'), company: 'TechSoft Solutions',  salary: '₹10k–12k/mo', category: 'Data Entry', status: 'active', location: 'Nanded',               timestamp: Date.now() - 86400000, verified_employer: true },
+    { id: 'f3', title: t('demoJob3Title'), company: 'Cybex Solution',      salary: '₹10,000/mo',  category: 'Security',   status: 'active', location: 'Kabra Nagar',          timestamp: Date.now() - 86400000 },
+    { id: 'f4', title: t('demoJob4Title'), company: 'Dhanraj Enterprises', salary: '₹12,000/mo',  category: 'TeleCaller', status: 'active', location: 'Maharana Pratap Chowk',timestamp: Date.now() - 86400000 * 5, fresher_ok: true },
   ];
   const demoJobs = [
-    { id: 'demo1', title: 'Telecaller',    company: 'Dhanraj Enterprises', location: 'Nanded',       salary: '₹12,000/mo', category: 'Other', icon: 'call-outline',       fresher_ok: true,   skills: ['Marathi', 'Hindi'],           jobTime: 'Full time' },
-    { id: 'demo2', title: 'Web Developer', company: 'TechSoft Solutions',  location: 'Nanded',       salary: '₹25,000/mo', category: 'Other', icon: 'globe-outline',      experience: '1 yr', skills: ['React', 'Node.js'], verified_employer: true, jobTime: 'Full time' },
-    { id: 'demo3', title: 'Shop Assistant',company: 'Reliance Retail',     location: 'Station Road', salary: '₹12,000/mo', category: 'Shop Assistant', icon: 'storefront-outline', fresher_ok: true, skills: ['Customer service', 'Billing'], jobTime: 'Full time' },
+    { id: 'demo1', title: t('demoJob4Title'), company: 'Dhanraj Enterprises', location: 'Nanded',       salary: '₹12,000/mo', category: 'Other', icon: 'call-outline',       fresher_ok: true,   skills: ['Marathi', 'Hindi'],           jobTime: t('fullTime') },
+    { id: 'demo2', title: t('demoJob5Title'), company: 'TechSoft Solutions',  location: 'Nanded',       salary: '₹25,000/mo', category: 'Other', icon: 'globe-outline',      experience: '1 yr', skills: ['React', 'Node.js'], verified_employer: true, jobTime: t('fullTime') },
+    { id: 'demo3', title: t('demoJob6Title'), company: 'Reliance Retail',     location: 'Station Road', salary: '₹12,000/mo', category: 'Shop Assistant', icon: 'storefront-outline', fresher_ok: true, skills: ['Customer service', 'Billing'], jobTime: t('fullTime') },
   ];
   const demoRooms = [
-    { id: 'r1', title: '1BHK Flat – Vazirabad',        location: 'Vazirabad',     type: '1BHK',   rent: '₹5,500/mo',  available: true },
-    { id: 'r2', title: 'Single Room – Station Road',   location: 'Station Road',  type: 'Single', rent: '₹3,000/mo',  available: true },
-    { id: 'r3', title: 'PG for Girls – Shivaji Nagar', location: 'Shivaji Nagar', type: 'PG',     rent: '₹4,200/mo',  available: true },
+    { id: 'r1', title: t('demoRoom1Title'), location: 'Vazirabad',     type: t('demoRoom1Type'), rent: '₹5,500/mo',  available: true },
+    { id: 'r2', title: t('demoRoom2Title'), location: 'Station Road',  type: t('demoRoom2Type'), rent: '₹3,000/mo',  available: true },
+    { id: 'r3', title: t('demoRoom3Title'), location: 'Shivaji Nagar', type: t('demoRoom3Type'), rent: '₹4,200/mo',  available: true },
   ];
 
   const displayJobs     = recentJobs.length > 0  ? recentJobs            : demoJobs;
