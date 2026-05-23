@@ -29,9 +29,9 @@ const GREEN   = '#16a34a';
 
 // ── Support contact details — update before publishing ──────────────────────
 const SUPPORT_PHONE    = '919834308805';   // e.g. '919823001234'  (91 + 10-digit number, no +)
-const SUPPORT_EMAIL    = '' + SUPPORT_EMAIL + '';
-const LEGAL_EMAIL      = '' + LEGAL_EMAIL + '';
-const PRIVACY_EMAIL    = '' + PRIVACY_EMAIL + '';
+const SUPPORT_EMAIL    = 'support@cityplus.in';
+const LEGAL_EMAIL      = 'legal@cityplus.in';
+const PRIVACY_EMAIL    = 'support@cityplus.in';
 
 // ── Legal content ──────────────────────────────────────────────────────────────
 const LEGAL_CONTENT = {
@@ -225,7 +225,7 @@ function LegalModal({ visible, contentKey, onClose }) {
                 CityPlus v4.4.0 · Nanded, Maharashtra, India
               </Text>
               <Text style={styles.legalFooterTxt}>
-                Questions? Contact ' + SUPPORT_EMAIL + '
+                {`Questions? Contact ${SUPPORT_EMAIL}`}
               </Text>
             </View>
           </ScrollView>
@@ -525,7 +525,7 @@ export default function HelpSupportScreen() {
     Linking.openURL(`https://wa.me/${SUPPORT_PHONE}?text=Hi%2C%20I%20need%20help%20with%20CityPlus%20app.`);
   }, []);
   const openEmail = useCallback(() => {
-    Linking.openURL('mailto:' + SUPPORT_EMAIL + '?subject=CityPlus%20Support');
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=CityPlus%20Support`);
   }, []);
   const openPhone = useCallback(() => {
     Linking.openURL(`tel:+${SUPPORT_PHONE}`);
