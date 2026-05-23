@@ -84,7 +84,6 @@ const SKILLS_LIST = [
 ];
 
 const PLANS = [
-  { id: 'free',   days: '30 Days', price: 0,   sub: 'free standard listing' },
   { id: '7days',  days: '7 Days',  price: 49,  sub: 'featured listing – pay once' },
   { id: '15days', days: '15 Days', price: 79,  sub: 'featured listing – pay once' },
   { id: '30days', days: '30 Days', price: 119, sub: 'featured listing – pay once' },
@@ -233,6 +232,7 @@ export default function PostJobScreen() {
   const [multiplePos, setMultiplePos] = useState(false);
   const [company,     setCompany]     = useState(user?.company || '');
   const [industry,    setIndustry]    = useState('');
+  const [customIndustry, setCustomIndustry] = useState('');
   const [title,       setTitle]       = useState('');
   const [jobType,     setJobType]     = useState('Full-time');
   const [openings,    setOpenings]    = useState('1');
@@ -275,7 +275,7 @@ export default function PostJobScreen() {
   const [email,         setEmail]         = useState('');
 
   // Step 4
-  const [plan, setPlan] = useState('free');
+  const [plan, setPlan] = useState('7days');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
 
   function toggleSkill(skill) {
@@ -290,6 +290,7 @@ export default function PostJobScreen() {
     if (step === 1) {
       if (!company.trim()) return Alert.alert('Required', 'Please enter company / employer name.');
       if (!industry)        return Alert.alert('Required', 'Please select an industry / category.');
+      if (industry === 'Other' && !customIndustry.trim()) return Alert.alert('Required', 'Please type your category name.');
       if (multiplePos) {
         const empty = positions.find(p => !p.title.trim());
         if (empty) return Alert.alert('Required', 'Please enter a job title for every position.');
@@ -328,7 +329,7 @@ export default function PostJobScreen() {
 
       const basePayload = {
         company:     company.trim(),
-        category:    INDUSTRY_TO_CAT[industry] || 'Other',
+        category:    industry === 'Other' ? customIndustry.trim() : (INDUSTRY_TO_CAT[industry] || industry),
         type:        jobType,
         location,
         salary:      salaryStr,
@@ -441,7 +442,16 @@ export default function PostJobScreen() {
 
             <View style={{ height: 18 }} />
             <SectionLabel text="INDUSTRY / CATEGORY" required />
-            <Dropdown value={industry} options={INDUSTRIES} placeholder="Select Category" onSelect={setIndustry} />
+            <Dropdown value={industry} options={INDUSTRIES} placeholder="Select Category" onSelect={v => { setIndustry(v); if (v !== 'Other') setCustomIndustry(''); }} />
+            {industry === 'Other' && (
+              <StyledInput
+                value={customIndustry}
+                onChangeText={setCustomIndustry}
+                placeholder="Type your category (e.g. Photography, Farming…)"
+                maxLength={60}
+                style={{ marginTop: 10 }}
+              />
+            )}
 
             {/* ── Single position ── */}
             {!multiplePos && <>
@@ -610,7 +620,7 @@ export default function PostJobScreen() {
             </View>
 
             {/* ── Coupon Code ── */}
-            {plan !== 'free' && (
+            {true && (
               <View style={{ marginTop: 16 }}>
                 <Text style={[s.planSub, { fontWeight: '700', color: '#333', marginBottom: 8, fontSize: 13 }]}>
                   Have a coupon code?
@@ -639,7 +649,7 @@ export default function PostJobScreen() {
 
             <View style={s.revGroup}>
               <ReviewRow label="COMPANY"  value={company  || 'Not set'} />
-              <ReviewRow label="CATEGORY" value={industry || 'Not set'} />
+              <ReviewRow label="CATEGORY" value={(industry === 'Other' ? customIndustry.trim() : industry) || 'Not set'} />
               <ReviewRow label="TYPE"     value={jobType} />
               {multiplePos
                 ? positions.map((p, i) => (
