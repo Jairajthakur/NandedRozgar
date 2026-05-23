@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Easing, StatusBar, TextInput, Modal,
-  FlatList, Dimensions, Platform, useWindowDimensions, RefreshControl,
+  FlatList, Dimensions, Platform, useWindowDimensions,
 } from 'react-native';
 
 // ScrollVelocity is a web-only component (uses DOM/motion)
@@ -435,10 +435,8 @@ export default function HomeScreen() {
   const [rooms,    setRooms]    = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [stats,    setStats]    = useState({ jobs: 7, rooms: 3, vehicles: 2, items: 580 });
-  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchHomeData = useCallback(async (refresh = false) => {
-    if (refresh) setRefreshing(true);
+  const fetchHomeData = useCallback(async () => {
     try {
       const [roomRes, vehicleRes] = await Promise.all([
         http('GET', '/api/rooms'),
@@ -456,10 +454,9 @@ export default function HomeScreen() {
         items:    prev.items,
       }));
     } catch {}
-    finally { if (refresh) setRefreshing(false); }
   }, [jobs]);
 
-  useEffect(() => { fetchHomeData(); }, []);
+  useEffect(() => { fetchHomeData(); }, [fetchHomeData]);
 
   const currentLang  = LANGUAGES.find(l => l.code === lang);
   const langBtnLabel = currentLang?.native || 'EN';
@@ -874,12 +871,7 @@ export default function HomeScreen() {
 
       <LangModal visible={showLangPicker} current={lang} onSelect={changeLang} onClose={() => setShowLangPicker(false)} />
 
-      <ScrollView
-        style={s.container}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        showsVerticalScrollIndicator={true}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchHomeData(true)} tintColor="#f97316" colors={['#f97316']} />}
-      >
+      <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={true}>
 
         {/* Hero */}
         <FadeSlide delay={0} fromY={-12}>
