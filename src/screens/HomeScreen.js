@@ -266,6 +266,7 @@ function ExploreCard({ icon, title, subtitle, color, onPress, style, compact }) 
 
 // ── Featured Job Card ──────────────────────────────────────────────────────────
 function FeaturedJobCard({ job, onPress, cardWidth }) {
+  const { t } = useLang();
   const baseStyle = IS_WEB ? ws.featJobCard : s.featJobCard;
   const widthStyle = cardWidth ? { width: cardWidth } : {};
   return (
@@ -282,7 +283,7 @@ function FeaturedJobCard({ job, onPress, cardWidth }) {
       <View style={s.featJobBottom}>
         <Text style={s.featJobSalary} numberOfLines={1}>{job.salary}</Text>
         <TouchableOpacity style={s.applyBtn} onPress={onPress} activeOpacity={0.85}>
-          <Text style={s.applyBtnTxt}>Apply</Text>
+          <Text style={s.applyBtnTxt}>{t('applyBtn')}</Text>
         </TouchableOpacity>
       </View>
     </AnimatedPress>
@@ -291,12 +292,13 @@ function FeaturedJobCard({ job, onPress, cardWidth }) {
 
 // ── Recent Room Card ───────────────────────────────────────────────────────────
 function RecentRoomCard({ room, onPress }) {
+  const { t } = useLang();
   const title    = room.title    || (room.bhk_size ? `${room.bhk_size} – ${room.area}` : room.area || 'Room');
   const location = room.location || room.area || 'Nanded';
   const type     = room.type     || room.room_type || room.bhk_size || 'Room';
   const rent     = room.rent
     ? (String(room.rent).startsWith('₹') ? room.rent : `₹${room.rent}/mo`)
-    : 'Price on request';
+    : t('priceOnRequest');
   const available = room.available !== undefined ? room.available : room.status === 'active';
 
   return (
@@ -305,7 +307,7 @@ function RecentRoomCard({ room, onPress }) {
         <Ionicons name="home-outline" size={IS_WEB ? 44 : 36} color="rgba(255,255,255,0.4)" />
         {available && (
           <View style={s.availBadge}>
-            <Text style={s.availTxt}>Available</Text>
+            <Text style={s.availTxt}>{t('availableBadge')}</Text>
           </View>
         )}
       </View>
@@ -328,14 +330,15 @@ function RecentRoomCard({ room, onPress }) {
 
 // ── Recent Job Card ────────────────────────────────────────────────────────────
 function RecentJobCard({ job, onPress, index = 0 }) {
+  const { t } = useLang();
   const iconName = CAT_ICONS[job.category || job.icon] || 'briefcase';
   const ageDays = (Date.now() - (job.timestamp || 0)) / 86400000;
   const freshnessColor = ageDays < 1 ? '#16a34a' : ageDays < 7 ? ORANGE : '#bbb';
-  const freshnessLabel = ageDays < 1 ? 'Today'
+  const freshnessLabel = ageDays < 1 ? t('todayLabel')
     : ageDays < 7 ? `${Math.floor(ageDays)}d ago`
-    : job.timestamp ? timeAgo(job.timestamp) : (job.jobTime || 'Recent');
+    : job.timestamp ? timeAgo(job.timestamp) : (job.jobTime || t('recentLabel'));
   const skills = Array.isArray(job.skills) ? job.skills.slice(0, 3) : [];
-  const expLabel = job.experience ? job.experience : job.fresher_ok ? 'Fresher OK' : null;
+  const expLabel = job.experience ? job.experience : job.fresher_ok ? t('fresherOK') : null;
 
   return (
     <FadeSlide delay={200 + index * 90}>
@@ -346,13 +349,13 @@ function RecentJobCard({ job, onPress, index = 0 }) {
         {job.featured && (
           <View style={s.jobFeatBadge}>
             <Ionicons name="star" size={8} color="#fff" />
-            <Text style={s.jobFeatTxt}>FEATURED</Text>
+            <Text style={s.jobFeatTxt}>{t('featuredBadge')}</Text>
           </View>
         )}
         {job.urgent && !job.featured && (
           <View style={[s.jobFeatBadge, { backgroundColor: '#ef4444' }]}>
             <Ionicons name="flame" size={8} color="#fff" />
-            <Text style={s.jobFeatTxt}>URGENT</Text>
+            <Text style={s.jobFeatTxt}>{t('urgentBadge')}</Text>
           </View>
         )}
         <View style={s.jobRow}>
