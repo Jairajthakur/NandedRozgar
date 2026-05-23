@@ -270,12 +270,12 @@ export default function BoardScreen({ route }) {
 
   async function onRefresh() {
     setRefreshing(true);
-    await loadJobs();
     try {
+      await loadJobs();
       const res = await http('GET', '/api/promotions/all');
       if (res.ok && Array.isArray(res.promotions)) setLivePromos(res.promotions);
     } catch {}
-    setRefreshing(false);
+    finally { setRefreshing(false); }
   }
 
   const sheetY = useRef(new Animated.Value(600)).current;
