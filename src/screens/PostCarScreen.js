@@ -12,6 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/razorpay';
 import { useAuth } from '../context/AuthContext';
+import CouponInput from '../components/CouponInput';
 
 const { width: SW } = Dimensions.get('window');
 const PURPLE = '#7c3aed';
@@ -141,6 +142,7 @@ export default function PostCarScreen() {
     plan:PLANS[1],
   });
   const [photos, setPhotos] = useState([null, null, null, null]);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
 
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const toggleFeature = f => set('features', form.features.includes(f)
@@ -238,7 +240,8 @@ export default function PostCarScreen() {
     setLoading(true);
     try {
       const planPrice   = form.plan?.price ?? 0;
-      const amountPaise = planPrice * 100;
+      const discountedPrice = appliedCoupon ? appliedCoupon.finalAmount : planPrice;
+      const amountPaise = discountedPrice * 100;
 
       // ── Step 1: Payment ────────────────────────────────────────────────────
       const payResult = await initiatePayment({
@@ -262,6 +265,7 @@ export default function PostCarScreen() {
         amount: amountPaise,
         plan:   form.plan?.label || '1 Month',
         days:   form.plan?.days  || 30,
+        couponId: appliedCoupon?.id || null,
         vehicle: {
           vehicleType:form.vehicleType, name:form.name||form.vehicleType,
           year:form.year, color:form.color, fuelType:form.fuelType,
@@ -473,6 +477,17 @@ export default function PostCarScreen() {
                   <Text style={s.planFeatTxt}>{lb}</Text>
                 </View>
               ))}
+            </View>
+            {/* ── Coupon Code ── */}
+            <View style={{ marginTop: 16 }}>
+              <Text style={{ fontWeight: '700', color: '#333', marginBottom: 8, fontSize: 13 }}>Have a coupon code?</Text>
+              <CouponInput listingType="vehicle" originalAmount={form.plan?.price || 0} onApplied={c => setAppliedCoupon(c)} />
+              {appliedCoupon && (
+                <View style={{ flexDirection:'row', justifyContent:'space-between', marginTop:10, padding:10, backgroundColor:'#f0fdf4', borderRadius:8 }}>
+                  <Text style={{ color:'#374151', fontSize:13 }}>Original: <Text style={{ textDecorationLine:'line-through' }}>₹{form.plan?.price}</Text></Text>
+                  <Text style={{ color:'#16a34a', fontWeight:'700', fontSize:13 }}>You pay: ₹{appliedCoupon.finalAmount}</Text>
+                </View>
+              )}
             </View>
           </>}
 
