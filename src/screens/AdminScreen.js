@@ -16,6 +16,7 @@ import {
   Dimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -544,6 +545,7 @@ function Toast({ message, visible, isError }) {
 
 // ─── MAIN ADMIN SCREEN ────────────────────────────────────────────────────────
 export default function AdminScreen() {
+  const navigation = useNavigation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true); // true = splash/loading
   const [currentUser, setCurrentUser] = useState(null);
@@ -604,6 +606,11 @@ export default function AdminScreen() {
               setIsLoggedIn(true);
               setCheckingAuth(false);
               refreshAll();
+              return;
+            } else if (d.ok && d.user?.role !== 'admin') {
+              // Authenticated user but not admin — redirect to Home
+              setCheckingAuth(false);
+              navigation.replace('Main');
               return;
             }
           } catch (_) {}
