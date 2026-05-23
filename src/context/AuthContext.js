@@ -39,12 +39,15 @@ export function AuthProvider({ children }) {
         setUser(r.user);
         await loadJobs(1);
         if (r.user.role === 'admin') await loadUsers();
-      } else {
+      } else if (r?.status === 401 || r?.status === 403) {
+        // Only clear token on explicit auth rejection — not on network/server errors
         await clearToken();
       }
+      // On network error or server hiccup (503 etc.), keep the token
+      // so user stays logged in once server recovers
     } catch (e) {
       console.warn('init error:', e.message);
-      try { await clearToken(); } catch {}
+      // Do NOT clear token on exceptions — could be a temporary network issue
     }
   }
 
