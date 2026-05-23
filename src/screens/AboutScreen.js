@@ -1,5 +1,5 @@
 /**
- * NandedRozgar — AboutScreen.js
+ * CityPlus — AboutScreen.js
  * Full-featured About page with:
  * - Animated brand hero
  * - Mission & vision cards
@@ -27,6 +27,9 @@ const SURFACE  = '#ffffff';
 const TEXT     = '#111118';
 const MUTED    = '#8e8ea0';
 const BORDER   = 'rgba(0,0,0,0.07)';
+
+// ── Support contact — update before publishing ──────────────────────────────
+const SUPPORT_PHONE = '919834308805';   // e.g. '919823001234'  (91 + 10-digit, no +)
 
 // ── Floating orb (reused from ProfileScreen pattern) ──────────────────────────
 function Orb({ size, color, x, y, delay, duration }) {
@@ -194,7 +197,7 @@ export default function AboutScreen() {
           <Text style={styles.logoText}>C+</Text>
         </Animated.View>
 
-        <Text style={styles.heroTitle}>NandedRozgar</Text>
+        <Text style={styles.heroTitle}>CityPlus</Text>
         <Text style={styles.heroTagline}>Local Jobs · Local Life · Nanded</Text>
 
         <View style={styles.badgeRow}>
@@ -251,7 +254,7 @@ export default function AboutScreen() {
 
       {/* ── Features ─── */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>What NandedRozgar Offers</Text>
+        <Text style={styles.sectionTitle}>What CityPlus Offers</Text>
         <View style={styles.featureCard}>
           {[
             { icon: 'briefcase-outline',        color: '#6366f1', bg: 'rgba(99,102,241,0.1)',  title: 'Job Board',          desc: 'Browse thousands of local jobs in Nanded — full-time, part-time, and contract.', delay: 0   },
@@ -276,10 +279,10 @@ export default function AboutScreen() {
         <Text style={styles.sectionTitle}>Our Story</Text>
         <View style={styles.storyCard}>
           <Text style={styles.storyIntro}>
-            NandedRozgar was born from a simple frustration — job seekers in Nanded were scrolling through national portals and finding zero local listings. Meanwhile, local employers had no affordable, trusted way to reach nearby talent.
+            CityPlus was born from a simple frustration — job seekers in Nanded were scrolling through national portals and finding zero local listings. Meanwhile, local employers had no affordable, trusted way to reach nearby talent.
           </Text>
           <Text style={styles.storyIntro}>
-            We built NandedRozgar to solve that mismatch. Starting as a simple job board, we've grown into Nanded's most comprehensive local marketplace — covering jobs, rooms, vehicles, and classified ads.
+            We built CityPlus to solve that mismatch. Starting as a simple job board, we've grown into Nanded's most comprehensive local marketplace — covering jobs, rooms, vehicles, and classified ads.
           </Text>
 
           <View style={styles.timeline}>
@@ -288,7 +291,7 @@ export default function AboutScreen() {
               { year: 'Early 2024', label: 'Launched as a web app with 50 employers and 500 job seekers in the first month' },
               { year: 'Mid 2024', label: 'Added Rooms, Vehicles, and Buy & Sell sections. Crossed 5,000 users' },
               { year: 'Late 2024', label: 'Launched AI Job Match assistant. Crossed ₹1 lakh in promoted listings revenue' },
-              { year: '2025', label: 'Rebranded to NandedRozgar. Native Android app launched. 12,000+ registered users' },
+              { year: '2025', label: 'Rebranded to CityPlus. Native Android app launched. 12,000+ registered users' },
             ].map((t, i, arr) => (
               <TimelineItem key={i} year={t.year} label={t.label} isLast={i === arr.length - 1} />
             ))}
@@ -301,7 +304,7 @@ export default function AboutScreen() {
         <Text style={styles.sectionTitle}>Built With ❤️ In Nanded</Text>
         <View style={styles.teamCard}>
           <Text style={styles.teamIntro}>
-            NandedRozgar is a small, passionate team based in Nanded, Maharashtra. We believe the best local app for Nanded should be built by people who live here and understand the city's unique needs.
+            CityPlus is a small, passionate team based in Nanded, Maharashtra. We believe the best local app for Nanded should be built by people who live here and understand the city's unique needs.
           </Text>
           <View style={styles.teamHighlight}>
             <Ionicons name="people-outline" size={20} color={ORANGE} style={{ marginRight: 10 }} />
@@ -328,31 +331,31 @@ export default function AboutScreen() {
             sub="How we collect and use your data"
             color="#0ea5e9"
             bg="rgba(14,165,233,0.1)"
-            onPress={() => openLink('https://nandedrozgar.in/privacy')}
+            onPress={() => openLink('https://cityplus.in/privacy')}
           />
           <LinkRow
             icon="document-text-outline"
             label="Terms of Service"
-            sub="Rules for using NandedRozgar"
+            sub="Rules for using CityPlus"
             color="#6366f1"
             bg="rgba(99,102,241,0.1)"
-            onPress={() => openLink('https://nandedrozgar.in/terms')}
+            onPress={() => openLink('https://cityplus.in/terms')}
           />
           <LinkRow
             icon="newspaper-outline"
             label="Community Guidelines"
-            sub="Keep NandedRozgar safe for everyone"
+            sub="Keep CityPlus safe for everyone"
             color="#f59e0b"
             bg="rgba(245,158,11,0.1)"
-            onPress={() => openLink('https://nandedrozgar.in/guidelines')}
+            onPress={() => openLink('https://cityplus.in/guidelines')}
           />
           <LinkRow
             icon="logo-instagram"
             label="Instagram"
-            sub="@nandedrozgar"
+            sub="@cityplus.nanded"
             color="#e1306c"
             bg="rgba(225,48,108,0.1)"
-            onPress={() => openLink('https://instagram.com/nandedrozgar')}
+            onPress={() => openLink('https://instagram.com/cityplus.nanded')}
           />
           <LinkRow
             icon="logo-whatsapp"
@@ -360,15 +363,15 @@ export default function AboutScreen() {
             sub="Join 2,000+ locals"
             color="#25d366"
             bg="rgba(37,211,102,0.1)"
-            onPress={() => Linking.openURL('https://wa.me/919876543210')}
+            onPress={() => Linking.openURL(`https://wa.me/${SUPPORT_PHONE}`)}
           />
           <LinkRow
             icon="globe-outline"
             label="Website"
-            sub="nandedrozgar.in"
+            sub="cityplus.in"
             color={ORANGE}
             bg="#fff7ed"
-            onPress={() => openLink('https://nandedrozgar.in')}
+            onPress={() => openLink('https://cityplus.in')}
             isLast
           />
         </View>
@@ -379,8 +382,8 @@ export default function AboutScreen() {
         <View style={[styles.logoWrap, { width: 40, height: 40, borderRadius: 12, marginBottom: 10 }]}>
           <Text style={[styles.logoText, { fontSize: 14 }]}>C+</Text>
         </View>
-        <Text style={styles.footerAppName}>NandedRozgar v4.4.0</Text>
-        <Text style={styles.footerSub}>© 2025 NandedRozgar Technologies. All rights reserved.</Text>
+        <Text style={styles.footerAppName}>CityPlus v4.4.0</Text>
+        <Text style={styles.footerSub}>© 2025 CityPlus Technologies. All rights reserved.</Text>
         <Text style={styles.footerSub}>Nanded, Maharashtra, India 🇮🇳</Text>
       </View>
     </ScrollView>
