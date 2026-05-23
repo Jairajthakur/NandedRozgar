@@ -51,22 +51,28 @@ export default function SeekerProfileScreen() {
   const [uploadingResume, setUploadingResume] = useState(false);
 
   useEffect(() => {
-    http('GET', '/api/seeker/profile').then(r => {
-      if (r?.ok && r.profile) {
-        const p = r.profile;
-        setHeadline(p.headline || '');
-        setBio(p.bio || '');
-        setSkills(Array.isArray(p.skills) ? p.skills : []);
-        setExperience(p.experience || '');
-        setEducation(p.education || '');
-        setLocation(p.location || '');
-        setExpectedSalary(p.expected_salary || '');
-        setOpenToWork(p.open_to_work !== false);
-        setResumeUrl(p.resume_url || null);
-        setResumeName(p.resume_url ? 'resume.pdf' : null);
+    (async () => {
+      try {
+        const r = await http('GET', '/api/seeker/profile');
+        if (r?.ok && r.profile) {
+          const p = r.profile;
+          setHeadline(p.headline || '');
+          setBio(p.bio || '');
+          setSkills(Array.isArray(p.skills) ? p.skills : []);
+          setExperience(p.experience || '');
+          setEducation(p.education || '');
+          setLocation(p.location || '');
+          setExpectedSalary(p.expected_salary || '');
+          setOpenToWork(p.open_to_work !== false);
+          setResumeUrl(p.resume_url || null);
+          setResumeName(p.resume_url ? 'resume.pdf' : null);
+        }
+      } catch (e) {
+        Toast.show({ type: 'error', text1: 'Failed to load profile' });
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    })();
   }, []);
 
   function addSkill(sk) {
@@ -113,12 +119,19 @@ export default function SeekerProfileScreen() {
 
   async function removeResume() {
     setUploadingResume(true);
-    const r = await http('DELETE', '/api/seeker/resume');
-    setUploadingResume(false);
-    if (r?.ok) {
-      setResumeUrl(null);
-      setResumeName(null);
-      Toast.show({ type: 'success', text1: 'Resume removed' });
+    try {
+      const r = await http('DELETE', '/api/seeker/resume');
+      if (r?.ok) {
+        setResumeUrl(null);
+        setResumeName(null);
+        Toast.show({ type: 'success', text1: 'Resume removed' });
+      } else {
+        Toast.show({ type: 'error', text1: r?.error || 'Failed to remove resume' });
+      }
+    } catch {
+      Toast.show({ type: 'error', text1: 'Network error. Please try again.' });
+    } finally {
+      setUploadingResume(false);
     }
   }
 
