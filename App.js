@@ -244,7 +244,7 @@ function RootNavigator() {
       <Stack.Screen name="Alerts"          component={AlertsScreen}          options={{ headerShown: true, headerTitle: 'Job Alerts',            ...HEADER }} />
       <Stack.Screen name="HelpSupport"     component={HelpSupportScreen}     options={{ headerShown: true, headerTitle: 'Help & Support',         ...HEADER }} />
       <Stack.Screen name="SellItemForm"    component={SellItemForm}          options={{ headerShown: false }} />
-      <Stack.Screen name="About"           component={AboutScreen}           options={{ headerShown: true, headerTitle: 'About NandedRozgar',          ...HEADER }} />
+      <Stack.Screen name="About"           component={AboutScreen}           options={{ headerShown: true, headerTitle: 'About CityPlus',          ...HEADER }} />
     </Stack.Navigator>
   );
 }
