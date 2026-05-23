@@ -40,8 +40,17 @@ const SUITABLE_FOR  = [
   { label: 'Family preferred', sub: null },
 ];
 const AREAS = [
-  'Vazirabad','Shivaji Nagar','Cidco','Nanded City','Old Nanded',
-  'Vishnupuri','Guru Nanak Nagar','Naigaon','Ardhapur','Hadgaon','Other',
+  // ── Nanded City localities ──
+  'Nanded City', 'Vazirabad', 'Shivaji Nagar', 'Vishnupuri', 'Taroda Naka',
+  'Cidco', 'Old Nanded', 'New Mondha', 'Novena Colony',
+  'Kasturba Nagar', 'Santnagar', 'Padampur', 'Shantinagar',
+  'Guru Nanak Colony', 'Aurangpura', 'Subhash Nagar',
+  // ── Nanded District Talukas ──
+  'Nanded (Taluka)', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Bhokar',
+  'Kinwat', 'Deglur', 'Biloli', 'Naigaon', 'Loha',
+  'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
+  'Mudkhed',
+  'Other',
 ];
 const AVAILABLE_FROM = [
   { label: 'Immediately',   sub: 'Ready to move in right now' },
