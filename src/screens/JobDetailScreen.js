@@ -84,7 +84,7 @@ function FadeSection({ children, delay = 0 }) {
 }
 
 /* ─── Action button ─── */
-function ActionBtn({ label, icon, color, onPress, outline = false, delay = 0 }) {
+function ActionBtn({ label, icon, color, onPress, outline = false, delay = 0, disabled = false }) {
   const scale = useRef(new Animated.Value(1)).current;
   const slideY = useRef(new Animated.Value(20)).current;
   const op     = useRef(new Animated.Value(0)).current;
@@ -108,11 +108,13 @@ function ActionBtn({ label, icon, color, onPress, outline = false, delay = 0 }) 
     <Animated.View style={{ opacity: op, transform: [{ translateY: slideY }, { scale }] }}>
       <TouchableOpacity
         onPress={press} activeOpacity={1}
+        disabled={disabled}
         style={[
           s.actionBtn,
           outline
             ? { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e5e5e5' }
             : { backgroundColor: color },
+          disabled && { opacity: 0.55 },
         ]}
       >
         {icon && <Ionicons name={icon} size={19} color={outline ? '#555' : '#fff'} />}
@@ -168,6 +170,7 @@ export default function JobDetailScreen({ route, navigation }) {
   const [ratingComment,     setRatingComment]       = useState('');
   const [submittingRating,  setSubmittingRating]   = useState(false);
   const [showReport,        setShowReport]         = useState(false);
+  const [applying,          setApplying]           = useState(false);
 
   // Hero animation refs
   const iconScale   = useRef(new Animated.Value(0)).current;
@@ -213,11 +216,21 @@ export default function JobDetailScreen({ route, navigation }) {
     : [];
 
   async function applyJob() {
-    const r = await http('POST', `/api/jobs/${job.id}/apply`);
-    if (r.ok) {
-      setJob(j => ({ ...j, applicant_count: (j.applicant_count || 0) + 1 }));
-      await loadJobs();
-      Toast.show({ type: 'success', text1: '✅ Applied! Good luck!' });
+    if (applying) return;
+    setApplying(true);
+    try {
+      const r = await http('POST', `/api/jobs/${job.id}/apply`);
+      if (r?.ok) {
+        setJob(j => ({ ...j, applicant_count: (j.applicant_count || 0) + 1 }));
+        await loadJobs();
+        Toast.show({ type: 'success', text1: '✅ Applied! Good luck!' });
+      } else {
+        Toast.show({ type: 'error', text1: r?.error || 'Failed to apply. Please try again.' });
+      }
+    } catch {
+      Toast.show({ type: 'error', text1: 'Network error. Please try again.' });
+    } finally {
+      setApplying(false);
     }
   }
 
@@ -445,7 +458,7 @@ export default function JobDetailScreen({ route, navigation }) {
         {/* ── Action Buttons ── */}
         <View style={s.actionsBlock}>
           {!isOwner && (
-            <ActionBtn label="Apply Now"          icon="briefcase-outline"    color={ORANGE} onPress={applyJob}               delay={0} />
+            <ActionBtn label={applying ? 'Applying…' : 'Apply Now'} icon="briefcase-outline" color={ORANGE} onPress={applyJob} delay={0} disabled={applying} />
           )}
           {!!job.phone && (
             <ActionBtn label="Chat on WhatsApp"   icon="logo-whatsapp"        color={GREEN}  onPress={openWhatsApp}           delay={80} />
