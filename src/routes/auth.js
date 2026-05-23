@@ -341,13 +341,19 @@ router.post('/reset-password', resetLimiter, async (req, res) => {
     if (password.length < 8)  return res.json({ ok: false, error: 'Password must be at least 8 characters' });
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    // Fetch by expiry only; timing-safe comparison guards against enumeration
     const { rows } = await pool.query(
-      'SELECT * FROM users WHERE reset_token = $1 AND reset_expires > NOW()',
-      [tokenHash]
+      'SELECT * FROM users WHERE reset_expires > NOW() AND reset_token IS NOT NULL'
     );
-    if (!rows[0]) return res.json({ ok: false, error: 'Reset link is invalid or has expired' });
-
-    const user = rows[0];
+    // Use timingSafeEqual to prevent token enumeration via timing side-channel
+    const user = rows.find(u => {
+      if (!u.reset_token) return false;
+      const a = Buffer.from(tokenHash);
+      const b = Buffer.from(u.reset_token);
+      if (a.length !== b.length) return false;
+      return crypto.timingSafeEqual(a, b);
+    });
+    if (!user) return res.json({ ok: false, error: 'Reset link is invalid or has expired' });
     const hash = await bcrypt.hash(password, 12);
     await pool.query(
       'UPDATE users SET password = $1, reset_token = NULL, reset_expires = NULL WHERE id = $2',
