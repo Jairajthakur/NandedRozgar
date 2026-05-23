@@ -275,6 +275,7 @@ function VehicleCard({ item, index, onPress }) {
 /* ─── Main Screen ─── */
 export default function CarsScreen({ route }) {
   const nav    = useNavigation();
+  const { lang, t } = useLang();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
 
