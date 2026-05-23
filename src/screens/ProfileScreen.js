@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Modal, Platform, Animated, Easing, Dimensions,
+  ActivityIndicator, Modal, Platform, Animated, Easing, Dimensions, RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -157,6 +157,7 @@ export default function ProfileScreen() {
   const { t } = useLang();
   const [stats,      setStats]      = useState({ applied: 0, saved: 0 });
   const [loading,    setLoading]    = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [logoutModal, setLogoutModal] = useState(false);
 
   const myJobs   = jobs?.filter(j => String(j.posted_by) === String(user?.id)) || [];
@@ -223,12 +224,18 @@ export default function ProfileScreen() {
     ).start();
   }, []);
 
-  useEffect(() => {
-    http('GET', '/api/analytics/seeker').then(r => {
+  async function fetchProfile(refresh = false) {
+    if (refresh) setRefreshing(true);
+    try {
+      const r = await http('GET', '/api/analytics/seeker');
       if (r?.ok) setStats({ applied: parseInt(r.applications?.total) || 0, saved: r.savedCount || 0 });
-      setLoading(false);
-    });
-  }, []);
+    } finally {
+      if (!refresh) setLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => { fetchProfile(); }, []);
 
   function confirmLogout() {
     if (Platform.OS === 'web') {
@@ -283,6 +290,7 @@ export default function ProfileScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchProfile(true)} tintColor="#f97316" colors={['#f97316']} />}
       >
 
         {/* ── Hero Section ───────────────────────────────────────── */}
