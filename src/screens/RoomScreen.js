@@ -9,6 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
 import PromoBanner, { BannerCard } from '../components/PromoBanner';
+import { useLang } from '../utils/i18n';
+import { AutoTranslate } from '../utils/translate';
 
 const ORANGE = '#f97316';
 const TEAL   = '#0d9488';
@@ -292,12 +294,12 @@ function TrendingBanner() {
         <Ionicons name="home" size={20} color={ORANGE} />
       </Animated.View>
       <View style={{ flex: 1 }}>
-        <Text style={s.trendingTitle}>Top Listings This Week</Text>
+        <Text style={s.trendingTitle}>{t('topListingsThisWeek')}</Text>
         <Text style={s.trendingSub}>PG, 1BHK & Single rooms in demand</Text>
       </View>
       <View style={s.liveBadge}>
         <PulseDot />
-        <Text style={s.liveTxt}>LIVE</Text>
+        <Text style={s.liveTxt}>{t('live')}</Text>
       </View>
     </View>
   );
@@ -409,7 +411,7 @@ function RoomCard({ item, index, onPress }) {
             {/* NEW badge — below available */}
             {item.listedDaysAgo != null && item.listedDaysAgo <= 7 && (
               <View style={ws.newBadge}>
-                <Text style={ws.newBadgeTxt}>NEW</Text>
+                <Text style={ws.newBadgeTxt}>{t('newBadge')}</Text>
               </View>
             )}
 
@@ -426,7 +428,7 @@ function RoomCard({ item, index, onPress }) {
 
             {/* Title + Rent */}
             <View style={ws.cardTitleRow}>
-              <Text style={ws.cardTitle} numberOfLines={1}>{item.title}</Text>
+              <AutoTranslate text={item.title} lang={lang} style={ws.cardTitle} numberOfLines={1} />
               <View style={ws.rentWrap}>
                 <Text style={ws.rentAmt}>{item.rent}</Text>
                 {item.deposit && <Text style={ws.depositTxt}>Dep: {item.deposit}</Text>}
@@ -452,13 +454,13 @@ function RoomCard({ item, index, onPress }) {
               {item.available && (
                 <View style={[ws.tag, ws.tagGreen]}>
                   <Ionicons name="checkmark-circle" size={11} color="#16a34a" style={{ marginRight: 3 }} />
-                  <Text style={[ws.tagTxt, { color: '#16a34a' }]}>Available</Text>
+                  <Text style={[ws.tagTxt, { color: '#16a34a' }]}>{t('available')}</Text>
                 </View>
               )}
               {item.owner?.verified && (
                 <View style={[ws.tag, ws.tagBlue]}>
                   <Ionicons name="shield-checkmark" size={11} color="#0891b2" style={{ marginRight: 3 }} />
-                  <Text style={[ws.tagTxt, { color: '#0891b2' }]}>Verified</Text>
+                  <Text style={[ws.tagTxt, { color: '#0891b2' }]}>{t('verified')}</Text>
                 </View>
               )}
             </View>
@@ -484,7 +486,7 @@ function RoomCard({ item, index, onPress }) {
                 <Text style={ws.ownerName} numberOfLines={1}>{item.owner?.name || 'Owner'}</Text>
               </View>
               <TouchableOpacity style={ws.viewBtn} onPress={handlePress}>
-                <Text style={ws.viewBtnTxt}>View</Text>
+                <Text style={ws.viewBtnTxt}>{t('viewDetails')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -562,7 +564,7 @@ function RoomCard({ item, index, onPress }) {
 
         {/* ── Info area ── */}
         <View style={s.cardInfo}>
-          <Text style={s.cardTitle} numberOfLines={1}>{item.title}</Text>
+          <AutoTranslate text={item.title} lang={lang} style={s.cardTitle} numberOfLines={1} />
           <Text style={s.cardDesc} numberOfLines={2}>{item.description}</Text>
 
           {/* Bottom chip row */}
@@ -595,6 +597,7 @@ function RoomCard({ item, index, onPress }) {
 export default function RoomScreen({ route }) {
   const nav    = useNavigation();
   const insets = useSafeAreaInsets();
+  const { lang, t } = useLang();
   const { width } = useWindowDimensions();
 
   /* Hide the native nav header on web — we render our own top bar */
@@ -744,7 +747,7 @@ export default function RoomScreen({ route }) {
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
           <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
             <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>Rooms in <Text style={{ color: ORANGE }}>Nanded</Text></Text>
+              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>{t('roomsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>Nanded</Text>{t('roomsInNanded').split('Nanded')[1] || ''}</Text>
             </TouchableOpacity>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
@@ -774,7 +777,7 @@ export default function RoomScreen({ route }) {
         <Ionicons name="search-outline" size={18} color="#bbb" style={{ marginLeft: 14 }} />
         <TextInput
           style={[s.searchInput, IS_WEB && ws.searchInput]}
-          placeholder="Search area, type, amenity..."
+          placeholder={t('searchRoomPlaceholder')}
           placeholderTextColor="#bbb"
           value={search}
           onChangeText={setSearch}
@@ -790,7 +793,7 @@ export default function RoomScreen({ route }) {
           onPress={() => setShowFilter(true)}
         >
           <Ionicons name="filter-outline" size={17} color={ORANGE} />
-          {IS_WEB && <Text style={ws.filterBtnTxt}>Filters</Text>}
+          {IS_WEB && <Text style={ws.filterBtnTxt}>{t('filters')}</Text>}
         </TouchableOpacity>
       </Animated.View>
 
@@ -833,7 +836,7 @@ export default function RoomScreen({ route }) {
   const SponsoredLabel = () => (
     <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
       <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
-      <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>SPONSORED</Text>
+      <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>{t('sponsored')}</Text>
     </View>
   );
 
@@ -865,12 +868,12 @@ export default function RoomScreen({ route }) {
       <Animated.View style={[s.sheet, IS_WEB && ws.centeredModal, { transform: [{ translateY: IS_WEB ? 0 : sheetY }] }]}>
         <View style={s.sheetHandle} />
         <View style={s.sheetHeader}>
-          <Text style={s.sheetTitle}>Filters</Text>
+          <Text style={s.sheetTitle}>{t('filters')}</Text>
           <TouchableOpacity onPress={() => { setRoomType('All'); setRentRange(RENT_RANGES[0]); }}>
-            <Text style={s.resetTxt}>Reset All</Text>
+            <Text style={s.resetTxt}>{t('resetAll')}</Text>
           </TouchableOpacity>
         </View>
-        <Text style={s.filterLabel}>Room Type</Text>
+        <Text style={s.filterLabel}>{t('roomType')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
           {ROOM_TYPES.map(rt => (
             <TouchableOpacity key={rt} onPress={() => setRoomType(rt)} style={[s.pill, roomType === rt && s.pillActive, { marginBottom: 0 }]}>
@@ -878,7 +881,7 @@ export default function RoomScreen({ route }) {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        <Text style={[s.filterLabel, { marginTop: 16 }]}>Monthly Rent</Text>
+        <Text style={[s.filterLabel, { marginTop: 16 }]}>{t('monthlyRent')}</Text>
         {RENT_RANGES.map(rr => (
           <TouchableOpacity
             key={rr.label}
@@ -890,7 +893,7 @@ export default function RoomScreen({ route }) {
           </TouchableOpacity>
         ))}
         <TouchableOpacity style={s.applyFilterBtn} onPress={() => setShowFilter(false)}>
-          <Text style={s.applyFilterTxt}>Apply Filters</Text>
+          <Text style={s.applyFilterTxt}>{t('applyFilters')}</Text>
         </TouchableOpacity>
       </Animated.View>
     </Modal>
@@ -899,9 +902,9 @@ export default function RoomScreen({ route }) {
   const Empty = (
     <View style={s.emptyWrap}>
       <Ionicons name="home-outline" size={52} color="#d1d5db" />
-      <Text style={s.emptyTxt}>No rooms found</Text>
+      <Text style={s.emptyTxt}>{t('noRoomsFound')}</Text>
       <TouchableOpacity onPress={() => { setRoomType('All'); setSearch(''); setRentRange(RENT_RANGES[0]); }}>
-        <Text style={s.emptyClear}>Clear filters</Text>
+        <Text style={s.emptyClear}>{t('clearFilters')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -920,14 +923,14 @@ export default function RoomScreen({ route }) {
       <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
         <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
           <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-            Rooms in <Text style={{ color: ORANGE }}>Nanded</Text>
+            {t('roomsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>Nanded</Text>{t('roomsInNanded').split('Nanded')[1] || ''}
           </Text>
         </TouchableOpacity>
         <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
           <Ionicons name="search-outline" size={15} color="#bbb" style={{ marginLeft: 10 }} />
           <TextInput
             style={IS_WEB ? ws.stickyInput : s.stickyInput}
-            placeholder="Search area, type, amenity..."
+            placeholder={t('searchRoomPlaceholder')}
             placeholderTextColor="#bbb"
             value={search}
             onChangeText={setSearch}
@@ -953,7 +956,7 @@ export default function RoomScreen({ route }) {
             <Ionicons name="arrow-back" size={20} color="#111" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-            <Text style={ws.topBarTitle}>Rooms</Text>
+            <Text style={ws.topBarTitle}>{t('rooms')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -971,17 +974,17 @@ export default function RoomScreen({ route }) {
                 <View style={ws.ctaCircle1} />
                 <View style={ws.ctaCircle2} />
                 <Text style={ws.ctaEyebrow}>HAVE A ROOM?</Text>
-                <Text style={ws.ctaTitle}>List your room free</Text>
+                <Text style={ws.ctaTitle}>{t('listRoomFree')}</Text>
                 <Text style={ws.ctaSub}>Reach 10,000+ seekers in Nanded instantly.</Text>
                 <TouchableOpacity style={ws.ctaBtn} onPress={() => nav.navigate('PostRoom')} activeOpacity={0.88}>
                   <Ionicons name="add-circle-outline" size={15} color="#fff" />
-                  <Text style={ws.ctaBtnTxt}>Post a Room</Text>
+                  <Text style={ws.ctaBtnTxt}>{t('postARoom')}</Text>
                 </TouchableOpacity>
               </SideCard>
 
               {/* Browse by Room Type — matches Jobs "Browse Categories" */}
               <SideCard>
-                <Text style={ws.sideTitle}>Browse Types</Text>
+                <Text style={ws.sideTitle}>{t('browseTypes')}</Text>
                 {ROOM_TYPES.map(rt => (
                   <TouchableOpacity
                     key={rt}
@@ -1009,10 +1012,10 @@ export default function RoomScreen({ route }) {
 
               {/* Explore More — matches Jobs "Explore More" */}
               <SideCard>
-                <Text style={ws.sideTitle}>Explore More</Text>
-                <QuickAction icon="briefcase-outline"  label="Find a Job"     color={ORANGE}   onPress={() => nav.navigate('Jobs')} />
-                <QuickAction icon="car-sport-outline"  label="Rent a Vehicle" color="#9333ea"  onPress={() => nav.navigate('Cars')} />
-                <QuickAction icon="pricetag-outline"   label="Buy & Sell"     color="#0ea5e9"  onPress={() => nav.navigate('BuySell')} />
+                <Text style={ws.sideTitle}>{t('exploreMore')}</Text>
+                <QuickAction icon="briefcase-outline"  label={t('findAJob')}     color={ORANGE}   onPress={() => nav.navigate('Jobs')} />
+                <QuickAction icon="car-sport-outline"  label={t('rentAVehicle')} color="#9333ea"  onPress={() => nav.navigate('Cars')} />
+                <QuickAction icon="pricetag-outline"   label={t('buySell')}     color="#0ea5e9"  onPress={() => nav.navigate('BuySell')} />
               </SideCard>
 
             </View>
@@ -1054,7 +1057,7 @@ export default function RoomScreen({ route }) {
 
               {/* Rent Range */}
               <SideCard>
-                <Text style={ws.sideTitle}>Rent Range</Text>
+                <Text style={ws.sideTitle}>{t('rentRange')}</Text>
                 {RENT_RANGES.map(rr => (
                   <TouchableOpacity
                     key={rr.label}
@@ -1069,7 +1072,7 @@ export default function RoomScreen({ route }) {
 
               {/* Room Type */}
               <SideCard>
-                <Text style={ws.sideTitle}>Room Type</Text>
+                <Text style={ws.sideTitle}>{t('roomType')}</Text>
                 {ROOM_TYPES.map(rt => (
                   <TouchableOpacity
                     key={rt}
