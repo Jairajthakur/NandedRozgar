@@ -47,9 +47,17 @@ const JOB_TYPES = [
 const OPENINGS_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '10+'];
 
 const LOCATIONS = [
+  // ── Nanded City localities ──
   'Nanded City', 'Vazirabad', 'Shivajinagar', 'Vishnupuri', 'Taroda Naka',
-  'Cidco', 'Gangapur', 'Naigaon', 'Ardhapur', 'Mukhed', 'Hadgaon',
-  'Bhokar', 'Kinwat', 'Deglur', 'Biloli', 'Other',
+  'Cidco', 'Old Nanded', 'Naigaon', 'New Mondha', 'Novena Colony',
+  'Kasturba Nagar', 'Santnagar', 'Padampur', 'Shantinagar',
+  'Guru Nanak Colony', 'Aurangpura', 'Subhash Nagar',
+  // ── Nanded District Talukas ──
+  'Nanded (Taluka)', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Bhokar',
+  'Kinwat', 'Deglur', 'Biloli', 'Naigaon (Taluka)', 'Loha',
+  'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
+  'Mudkhed',
+  'Other',
 ];
 
 const EDUCATION_OPTIONS = [
