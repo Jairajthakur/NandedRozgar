@@ -69,6 +69,7 @@ function PulseDot() {
 
 /* ─── Top Vehicles Banner ─── */
 function TopVehiclesBanner() {
+  const { t } = useLang();
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.loop(
@@ -116,6 +117,7 @@ function QuickAction({ icon, label, color, onPress }) {
 
 /* ─── Vehicle Card ─── */
 function VehicleCard({ item, index, onPress }) {
+  const { lang, t } = useLang();
   const fade  = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(24)).current;
   const scale = useRef(new Animated.Value(1)).current;
