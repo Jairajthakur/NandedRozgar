@@ -1,1157 +1,646 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
-import {
-  View, Text, FlatList, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, RefreshControl, Modal,
-  Animated, Easing, Platform, StatusBar, useWindowDimensions, Image,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  Linking, Alert, Image, Animated, Easing, Share,
+  FlatList, Dimensions, Platform, StatusBar,
+} from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { http } from '../utils/api';
-import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../components/PromoBanner';
+import { useLang } from '../utils/i18n';
+import { TranslateTitle } from '../utils/translate';
 
-const ORANGE  = '#f97316';
-const IS_WEB  = Platform.OS === 'web';
+const ORANGE = '#f97316';
+const DARK_NAVY = '#1a2a3a';
+const GREEN_WA = '#25d366';
+const { width: SCREEN_W } = Dimensions.get('window');
+const IS_WEB = Platform.OS === 'web';
+const GALLERY_H = IS_WEB ? 320 : 260;
 
-const VEHICLE_TYPES = ['All', 'Car', 'Bike', 'Auto', 'SUV'];
+const PLACEHOLDER_CAR = {
+  name: 'Maruti Swift 2020',
+  subtitle: 'White · Petrol · AC · 4 seats',
+  price: '₹800',
+  deposit: '₹2k',
+  location: 'CIDCO',
+  listedDaysAgo: 8,
+  type: 'Car',
+  available: true,
+  features: ['White', 'Petrol', 'AC', '4 seats'],
+  rentalTerms: [
+    'Valid Driving License required',
+    'Aadhar/Voter ID original for deposit',
+    'Fuel to be paid by renter',
+    'Limit: 250km/day (Extra ₹8/km)',
+  ],
+  owner: {
+    name: 'Nanded Travels',
+    initials: 'NT',
+    isAgency: true,
+    verified: true,
+    color: '#1a2a3a',
+    bg: '#e8edf2',
+  },
+  whatsapp: '',
+  photoUrls: [],
+  photos: 0,
+};
 
-const PRICE_RANGES = [
-  { label: 'Any',           min: 0,   max: Infinity },
-  { label: 'Under ₹500/d', min: 0,   max: 500 },
-  { label: '₹500–₹1k/d',  min: 500, max: 1000 },
-  { label: '₹1k–₹2k/d',  min: 1000, max: 2000 },
-  { label: 'Above ₹2k/d', min: 2000, max: Infinity },
-];
-
-const SORT_OPTIONS = [
-  { label: 'Most Recent',   value: 'recent' },
-  { label: 'Lowest Price',  value: 'priceAsc' },
-  { label: 'Highest Price', value: 'priceDesc' },
-];
-
-const CARD_COLORS = ['#1a2a3a', '#4a1942', '#1a3a2a', '#2a2030', '#1e3a5f', '#3a2a1a'];
-
-export const CARS = [];
-
-/* ─── Animated fade-in wrapper ─── */
-function FadeIn({ children, delay = 0 }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const ty      = useRef(new Animated.Value(12)).current;
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(ty,      { toValue: 0, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-    ]).start();
-  }, []);
-  return <Animated.View style={{ opacity, transform: [{ translateY: ty }] }}>{children}</Animated.View>;
-}
-
-/* ─── Pulsing live dot ─── */
-function PulseDot() {
-  const scale = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(scale, { toValue: 1.7, duration: 700, useNativeDriver: true }),
-        Animated.timing(scale, { toValue: 1,   duration: 700, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-  return (
-    <Animated.View style={{
-      width: 7, height: 7, borderRadius: 4,
-      backgroundColor: '#16a34a', transform: [{ scale }],
-    }} />
-  );
-}
-
-/* ─── Top Vehicles Banner ─── */
-function TopVehiclesBanner() {
-  const pulse = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.1, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1,   duration: 900, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-  return (
-    <View style={s.trendingBanner}>
-      <View style={s.trendingAccent} />
-      <Animated.View style={[s.trendingIconWrap, { transform: [{ scale: pulse }] }]}>
-        <Ionicons name="car-sport" size={20} color={ORANGE} />
-      </Animated.View>
-      <View style={{ flex: 1 }}>
-        <Text style={s.trendingTitle}>Top Listings This Week</Text>
-        <Text style={s.trendingSub}>Cars, Bikes & Autos available in Nanded</Text>
-      </View>
-      <View style={s.liveBadge}>
-        <PulseDot />
-        <Text style={s.liveTxt}>LIVE</Text>
-      </View>
-    </View>
-  );
-}
-
-/* ─── Side card wrapper ─── */
-function SideCard({ children, style }) {
-  return <View style={[ws.sideCard, style]}>{children}</View>;
-}
-
-/* ─── Quick action row ─── */
-function QuickAction({ icon, label, color, onPress }) {
-  return (
-    <TouchableOpacity style={ws.quickAction} onPress={onPress} activeOpacity={0.8}>
-      <View style={[ws.quickIcon, { backgroundColor: color + '18' }]}>
-        <Ionicons name={icon} size={16} color={color} />
-      </View>
-      <Text style={ws.quickLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={13} color="#ccc" style={{ marginLeft: 'auto' }} />
-    </TouchableOpacity>
-  );
-}
-
-/* ─── Vehicle Card ─── */
-function VehicleCard({ item, index, onPress }) {
+/* ─── Animated section entry ─── */
+function SlideIn({ children, delay = 0, from = 20 }) {
+  const slide = useRef(new Animated.Value(from)).current;
   const fade  = useRef(new Animated.Value(0)).current;
-  const slide = useRef(new Animated.Value(24)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slide, { toValue: 0, duration: 420, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(fade,  { toValue: 1, duration: 380, delay, useNativeDriver: true }),
+    ]).start();
+  }, []);
+  return <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>{children}</Animated.View>;
+}
+
+/* ─── Feature Chip ─── */
+function FeatureChip({ label, icon, delay }) {
+  const fade  = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.82)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fade,  { toValue: 1, duration: 350, delay, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, delay, useNativeDriver: true, speed: 14, bounciness: 8 }),
+    ]).start();
+  }, []);
+  return (
+    <Animated.View style={[s.featureChip, { opacity: fade, transform: [{ scale }] }]}>
+      <Ionicons name={icon || 'checkmark-circle'} size={15} color={ORANGE} style={{ marginRight: 6 }} />
+      <Text style={s.featureChipTxt}>{label}</Text>
+    </Animated.View>
+  );
+}
+
+/* ─── Stat Box ─── */
+function StatBox({ icon, label, value, delay }) {
+  const scale = useRef(new Animated.Value(0.8)).current;
+  const fade  = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, delay, useNativeDriver: true, speed: 12, bounciness: 10 }),
+      Animated.timing(fade,  { toValue: 1, duration: 300, delay, useNativeDriver: true }),
+    ]).start();
+  }, []);
+  return (
+    <Animated.View style={[s.statBox, { opacity: fade, transform: [{ scale }] }]}>
+      <View style={s.statIconWrap}>
+        <Ionicons name={icon} size={18} color={ORANGE} />
+      </View>
+      <Text style={s.statValue}>{value}</Text>
+      <Text style={s.statLabel}>{label}</Text>
+    </Animated.View>
+  );
+}
+
+/* ─── CTA Button ─── */
+function CTAButton({ label, onPress, color, icon, delay, outline }) {
+  const slide = useRef(new Animated.Value(30)).current;
+  const fade  = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fade,  { toValue: 1, duration: 360, delay: index * 70, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(slide, { toValue: 0, duration: 360, delay: index * 70, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(slide, { toValue: 0, duration: 400, delay, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }),
+      Animated.timing(fade,  { toValue: 1, duration: 350, delay, useNativeDriver: true }),
     ]).start();
   }, []);
 
-  const handlePress = () => {
-    Animated.sequence([
-      Animated.timing(scale, { toValue: 0.97, duration: 70, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 10, stiffness: 200 }),
-    ]).start();
-    onPress?.();
-  };
+  const pressIn  = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 30 }).start();
+  const pressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
 
-  const cardBg   = CARD_COLORS[index % CARD_COLORS.length];
-  const iconName = (item.type === 'Bike' || item.type === 'Bike / Scooter') ? 'bicycle'
-                 : item.type === 'Auto' ? 'car-outline' : 'car-sport';
-  const daysAgo  = item.daysLeft !== null
-    ? `${Math.max(0, 30 - (item.daysLeft || 30))}d ago` : null;
-  const isNew    = item.daysLeft !== null && (30 - (item.daysLeft || 30)) <= 7;
-
-  if (IS_WEB) {
-    const photoCount = item.photos || 0;
-    const firstPhoto = item.photoUrls?.[0] || null;
-    const webPhotoPills = [item.type, item.fuel || null, item.ac ? 'AC' : null].filter(Boolean).slice(0, 3);
-    return (
-      <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
-        <TouchableOpacity activeOpacity={0.97} onPress={handlePress} style={ws.card}>
-          <View style={[ws.cardPhoto, { backgroundColor: firstPhoto ? '#000' : cardBg }]}>
-            {firstPhoto ? (
-              <Image
-                source={{ uri: firstPhoto }}
-                style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
-              />
-            ) : (
-              <Ionicons name={iconName} size={64} color="rgba(255,255,255,0.14)" />
-            )}
-            <View style={ws.photoOverlay} />
-            {webPhotoPills.length > 0 && (
-              <View style={ws.photoPillsRow}>
-                {webPhotoPills.map((label, i) => (
-                  <View key={i} style={[ws.photoPill, i === 0 && ws.photoPillActive]}>
-                    <Text style={[ws.photoPillTxt, i === 0 && ws.photoPillTxtActive]}>{label}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-            <View style={ws.photosBadge}>
-              <Text style={ws.photosBadgeTxt}>
-                {photoCount > 0 ? `${photoCount} photo${photoCount > 1 ? 's' : ''}` : 'photos'}
-              </Text>
-            </View>
-            <View style={[ws.availBadge, { backgroundColor: '#111' }]}>
-              <Text style={ws.availTxt}>{item.price}</Text>
-            </View>
-            {isNew && <View style={ws.newBadge}><Text style={ws.newBadgeTxt}>NEW</Text></View>}
-          </View>
-          <View style={ws.cardBody}>
-            <View style={ws.cardTitleRow}>
-              <Text style={ws.cardTitle} numberOfLines={1}>{item.name}</Text>
-              <View style={ws.priceWrap}><Text style={ws.priceAmt}>{item.price}</Text></View>
-            </View>
-            <View style={ws.locationRow}>
-              <Ionicons name="location-outline" size={12} color="#aaa" />
-              <Text style={ws.locationTxt}>{item.location}{daysAgo ? ` · ${daysAgo}` : ''}</Text>
-            </View>
-            <View style={ws.tagsRow}>
-              {item.type && (
-                <View style={ws.tag}>
-                  <Ionicons name={iconName} size={10} color="#555" style={{ marginRight: 3 }} />
-                  <Text style={ws.tagTxt}>{item.type}</Text>
-                </View>
-              )}
-              {item.subtitle
-                ? item.subtitle.split(' · ').slice(0, 2).map((spec, i) => (
-                    <View key={i} style={[ws.tag, ws.tagBlue]}>
-                      <Text style={[ws.tagTxt, { color: '#0369a1' }]}>{spec}</Text>
-                    </View>
-                  ))
-                : null}
-            </View>
-            <View style={ws.cardFooter}>
-              <View style={ws.ownerRow}>
-                <View style={ws.ownerAvatar}>
-                  <Text style={ws.ownerInitial}>{(item.owner?.name || 'O')[0].toUpperCase()}</Text>
-                </View>
-                <Text style={ws.ownerName} numberOfLines={1}>{item.owner?.name || 'Owner'}</Text>
-              </View>
-              <View style={ws.viewBtn}><Text style={ws.viewBtnTxt}>View Details</Text></View>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  }
-
-  /* Mobile card */
   return (
-    <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
-      <TouchableOpacity activeOpacity={0.97} onPress={handlePress} style={s.card}>
-        <View style={[s.cardPhoto, { backgroundColor: item.photoUrls?.[0] ? '#000' : cardBg }]}>
-          {item.photoUrls?.[0] ? (
-            <Image
-              source={{ uri: item.photoUrls[0] }}
-              style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
-            />
-          ) : (
-            <Ionicons name={iconName} size={58} color="rgba(255,255,255,0.14)" />
-          )}
-          <View style={s.photoOverlay} />
-          <View style={s.photosBadge}>
-            <Text style={s.photosBadgeTxt}>
-              {item.photos > 0 ? `${item.photos} photo${item.photos > 1 ? 's' : ''}` : 'photos'}
-            </Text>
-          </View>
-          <View style={[s.availBadge, { backgroundColor: '#111' }]}>
-            <Text style={s.availTxt}>{item.price}</Text>
-          </View>
-          {isNew && <View style={s.newBadge}><Text style={s.newBadgeTxt}>NEW</Text></View>}
-        </View>
-        <View style={s.cardInfo}>
-          <Text style={s.cardTitle} numberOfLines={1}>{item.name}</Text>
-          <Text style={s.cardDesc} numberOfLines={1}>{item.subtitle}</Text>
-          <View style={s.cardMetaRow}>
-            {item.location && (
-              <View style={s.cardMetaChip}>
-                <Ionicons name="location-outline" size={11} color="#888" />
-                <Text style={s.cardMetaTxt}>{item.location}</Text>
-              </View>
-            )}
-            {item.type && (
-              <View style={s.cardMetaChip}>
-                <Ionicons name={iconName} size={11} color="#888" />
-                <Text style={s.cardMetaTxt}>{item.type}</Text>
-              </View>
-            )}
-            {daysAgo && (
-              <View style={s.cardMetaChip}>
-                <Ionicons name="time-outline" size={11} color="#888" />
-                <Text style={s.cardMetaTxt}>{daysAgo}</Text>
-              </View>
-            )}
-          </View>
-        </View>
+    <Animated.View style={{ flex: 1, opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        onPress={onPress}
+        style={[s.ctaBtn, outline ? { backgroundColor: '#fff', borderWidth: 1.5, borderColor: color } : { backgroundColor: color }]}
+      >
+        {icon && <Ionicons name={icon} size={18} color={outline ? color : '#fff'} style={{ marginRight: 8 }} />}
+        <Text style={[s.ctaBtnTxt, outline && { color }]}>{label}</Text>
       </TouchableOpacity>
     </Animated.View>
   );
 }
 
-/* ─── Main Screen ─── */
-export default function CarsScreen({ route }) {
-  const nav    = useNavigation();
-  const insets = useSafeAreaInsets();
-  const { width: winW } = useWindowDimensions();
+/* ─── Image Gallery ─── */
+function ImageGallery({ photos, vehicleType }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const flatRef = useRef(null);
+  const dotScale = useRef(photos.map(() => new Animated.Value(1))).current;
 
-  const [search,      setSearch]      = useState(route?.params?.searchQuery || '');
-  const [vehicleType, setVehicleType] = useState('All');
-  const [priceRange,  setPriceRange]  = useState(PRICE_RANGES[0]);
-  const [showFilters, setShowFilters] = useState(false);
-  const [cars,        setCars]        = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [refreshing,  setRefreshing]  = useState(false);
-  const [promos,      setPromos]      = useState([]);
+  const iconName = vehicleType === 'Bike' || vehicleType === 'Bike / Scooter' ? 'bicycle'
+                 : vehicleType === 'Auto' ? 'car-outline' : 'car-sport';
 
-  const showSidebar = IS_WEB && winW >= 900;
+  const onScroll = useCallback((e) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+    if (idx !== activeIndex) {
+      setActiveIndex(idx);
+      // Animate dots
+      photos.forEach((_, i) => {
+        Animated.spring(dotScale[i], {
+          toValue: i === idx ? 1.4 : 1,
+          useNativeDriver: true,
+          speed: 20,
+        }).start();
+      });
+    }
+  }, [activeIndex, photos]);
 
-  // ── Scroll animation for sticky mini-header ──────────────────────────────
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-  const titleScale = scrollY.interpolate({
-    inputRange: [0, 80], outputRange: [1, 0.88], extrapolate: 'clamp',
-  });
-  const titleOpacity = scrollY.interpolate({
-    inputRange: [0, 100], outputRange: [1, 0.6], extrapolate: 'clamp',
-  });
-  const searchTranslate = scrollY.interpolate({
-    inputRange: [0, 60], outputRange: [0, -4], extrapolate: 'clamp',
-  });
-  const searchOpacity = scrollY.interpolate({
-    inputRange: [0, 120], outputRange: [1, 0.85], extrapolate: 'clamp',
-  });
-
-  const STICKY_THRESHOLD = 160;
-  const stickyOpacity = scrollY.interpolate({
-    inputRange: [STICKY_THRESHOLD, STICKY_THRESHOLD + 40],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-  const stickyTranslate = scrollY.interpolate({
-    inputRange: [STICKY_THRESHOLD, STICKY_THRESHOLD + 40],
-    outputRange: [-56, 0],
-    extrapolate: 'clamp',
-  });
-
-  useLayoutEffect(() => {
-    if (IS_WEB) nav.setOptions({ headerShown: false });
-  }, [nav]);
-
-  const fetchCars = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
-    try {
-      const res = await http('GET', '/api/vehicles');
-      if (res.ok && res.vehicles) {
-        const mapped = res.vehicles.map(v => ({
-          id:       String(v.id),
-          name:     v.name,
-          subtitle: [v.color, v.fuel_type, v.ac_type, v.seats ? `${v.seats} seats` : ''].filter(Boolean).join(' · '),
-          price:    v.daily_rate ? `₹${v.daily_rate}/day` : 'Price on request',
-          priceNum: v.daily_rate || 0,
-          location: v.area || 'Nanded',
-          type:     v.vehicle_type || 'Car',
-          fuel:     v.fuel_type || '',
-          ac:       !!v.ac_type,
-          photoUrls: (() => {
-            try {
-              const raw = v.photos;
-              if (Array.isArray(raw)) return raw;
-              if (typeof raw === 'string') return JSON.parse(raw);
-              return [];
-            } catch { return []; }
-          })(),
-          photos:   (() => {
-            try {
-              const raw = v.photos;
-              if (Array.isArray(raw)) return raw.length;
-              if (typeof raw === 'string') return JSON.parse(raw).length;
-              return 0;
-            } catch { return 0; }
-          })(),
-          whatsapp: v.whatsapp,
-          owner:    { name: v.owner_name || v.poster_name || 'Owner', area: v.area || 'Nanded' },
-          daysLeft: v.expires_at
-            ? Math.max(0, Math.ceil((new Date(v.expires_at) - Date.now()) / 86400000))
-            : null,
-          postedAt: v.created_at ? new Date(v.created_at).getTime() : 0,
-        }));
-        setCars(mapped);
-      }
-    } catch {}
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetchCars(); }, [fetchCars]);
-
-  useEffect(() => {
-    http('GET', '/api/promotions/all').then(res => {
-      if (res?.ok && Array.isArray(res.promotions)) setPromos(res.promotions);
-    }).catch(() => {});
-  }, []);
-
-  const filtered = useMemo(() => {
-    let list = cars.filter(c => {
-      const matchType   = vehicleType === 'All' || c.type === vehicleType;
-      const matchPrice  = c.priceNum >= priceRange.min && c.priceNum <= priceRange.max;
-      const matchSearch = search === '' ||
-        c.name?.toLowerCase().includes(search.toLowerCase()) ||
-        c.location?.toLowerCase().includes(search.toLowerCase()) ||
-        c.type?.toLowerCase().includes(search.toLowerCase());
-      return matchType && matchPrice && matchSearch;
-    });
-    list = [...list].sort((a, b) => b.postedAt - a.postedAt);
-    return list;
-  }, [cars, vehicleType, priceRange, search]);
-
-  const activeFilters = [
-    vehicleType !== 'All'      ? vehicleType      : null,
-    priceRange.label !== 'Any' ? priceRange.label : null,
-  ].filter(Boolean);
-
-  const Header = (
-    <View style={IS_WEB ? ws.header : s.header}>
-      {/* Title row */}
-      <View style={s.titleRow}>
-        <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
-          <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
-            <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>Vehicles in <Text style={{ color: ORANGE }}>Nanded</Text></Text>
-            </TouchableOpacity>
-          </Text>
-          <Text style={IS_WEB ? ws.pageCount : s.pageCount}>{filtered.length} listings found</Text>
-        </Animated.View>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-          <TouchableOpacity
-            style={[s.iconBtn, activeFilters.length > 0 && s.iconBtnActive, IS_WEB && ws.iconBtn]}
-            onPress={() => setShowFilters(true)}
-          >
-            <Ionicons name="options-outline" size={18} color={activeFilters.length > 0 ? '#fff' : '#444'} />
-            {activeFilters.length > 0 && (
-              <View style={s.filterBadge}><Text style={s.filterBadgeTxt}>{activeFilters.length}</Text></View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Search — animates on scroll */}
-      <Animated.View style={[
-        s.searchWrap, IS_WEB && ws.searchWrap,
-        { transform: [{ translateY: searchTranslate }], opacity: searchOpacity },
-      ]}>
-        <Ionicons name="search-outline" size={18} color="#bbb" style={{ marginLeft: 14 }} />
-        <TextInput
-          style={[s.searchInput, IS_WEB && ws.searchInput]}
-          placeholder="Search vehicle, area, type…"
-          placeholderTextColor="#bbb"
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType="search"
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')} style={{ paddingHorizontal: 8 }}>
-            <Ionicons name="close-circle" size={18} color="#ccc" />
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          style={[s.searchFilterBtn, IS_WEB && ws.searchFilterBtn]}
-          onPress={() => setShowFilters(true)}
-        >
-          <Ionicons name="filter-outline" size={17} color={ORANGE} />
-          {IS_WEB && <Text style={ws.filterBtnTxt}>Filters</Text>}
-        </TouchableOpacity>
-      </Animated.View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[s.pillsRow, IS_WEB && ws.pillsRow]}
-        style={{ maxHeight: 52 }}>
-        {VEHICLE_TYPES.map(vt => (
-          <TouchableOpacity key={vt} onPress={() => setVehicleType(vt)}
-            style={[s.pill, IS_WEB && ws.pill, vehicleType === vt && s.pillActive]}>
-            <Text style={[s.pillTxt, vehicleType === vt && s.pillTxtActive]}>{vt}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {IS_WEB && activeFilters.length > 0 && (
-        <View style={ws.activeFiltersRow}>
-          <Text style={ws.activeFiltersLabel}>Active filters:</Text>
-          {activeFilters.map((f, i) => (
-            <TouchableOpacity key={i} style={ws.activeChip}
-              onPress={() => { if (f === vehicleType) setVehicleType('All'); else setPriceRange(PRICE_RANGES[0]); }}>
-              <Text style={ws.activeChipTxt}>{f}</Text>
-              <Ionicons name="close" size={11} color={ORANGE} />
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-
-  const defaultPromo = {
-    name:        'Advertise Your Vehicle Business',
-    tagline:     'Reach thousands of customers in Nanded!',
-    description: 'Rent cars, bikes & autos to people who need them. List your vehicle or promote your transport business here.',
-    category:    'transport',
-    phone:       '',
-    location:    'Nanded, Maharashtra',
-    plan:        'popular',
-  };
-
-  const SponsoredLabel = () => (
-    <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-      <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
-      <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>SPONSORED</Text>
-    </View>
-  );
-
-  const ListHeader = (
-    <>
-      <FadeIn delay={180}><TopVehiclesBanner /></FadeIn>
-      <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
-        {promos.length > 0
-          ? promos.map(p => (
-              <View key={p.id} style={{ marginBottom: 10 }}>
-                <SponsoredLabel />
-                <BannerCard promo={p} />
-              </View>
-            ))
-          : (
-              <>
-                <SponsoredLabel />
-                <PromoBanner data={defaultPromo} />
-              </>
-            )}
-      </View>
-    </>
-  );
-
-  // ── Sticky mini-header (floats above scroll) ────────────────────────────
-  const StickyHeader = (
-    <Animated.View
-      pointerEvents="box-none"
-      style={[
-        IS_WEB ? ws.stickyBar : s.stickyBar,
-        !IS_WEB && { top: insets.top },
-        { opacity: stickyOpacity, transform: [{ translateY: stickyTranslate }] },
-      ]}
-    >
-      <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
-        <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-          <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-            Cars in <Text style={{ color: ORANGE }}>Nanded</Text>
-          </Text>
-        </TouchableOpacity>
-        <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
-          <Ionicons name="search-outline" size={15} color="#bbb" style={{ marginLeft: 10 }} />
-          <TextInput
-            style={IS_WEB ? ws.stickyInput : s.stickyInput}
-            placeholder="Search vehicle, area, type…"
-            placeholderTextColor="#bbb"
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} style={{ paddingHorizontal: 6 }}>
-              <Ionicons name="close-circle" size={15} color="#ccc" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </Animated.View>
-  );
-
-  const Empty = (
-    <View style={s.emptyWrap}>
-      <Ionicons name="car-outline" size={52} color="#d1d5db" />
-      <Text style={s.emptyTxt}>No vehicles listed yet</Text>
-      <Text style={{ color: '#d1d5db', fontSize: 12, marginTop: 4 }}>
-        {search || vehicleType !== 'All' ? 'Try adjusting your filters' : 'Be the first to list your vehicle!'}
-      </Text>
-      {(search || vehicleType !== 'All') && (
-        <TouchableOpacity onPress={() => { setSearch(''); setVehicleType('All'); setPriceRange(PRICE_RANGES[0]); }}>
-          <Text style={s.emptyClear}>Clear filters</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-
-  const FilterModal = (
-    <Modal visible={showFilters} transparent animationType="fade" onRequestClose={() => setShowFilters(false)}>
-      <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowFilters(false)} />
-      <View style={[s.sheet, IS_WEB && ws.centeredModal]}>
-        <View style={s.sheetHandle} />
-        <View style={s.sheetHeader}>
-          <Text style={s.sheetTitle}>Filters</Text>
-          <TouchableOpacity onPress={() => { setVehicleType('All'); setPriceRange(PRICE_RANGES[0]); }}>
-            <Text style={s.resetTxt}>Reset</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={s.filterLabel}>Vehicle Type</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 16 }}>
-          {VEHICLE_TYPES.map(vt => (
-            <TouchableOpacity key={vt} onPress={() => setVehicleType(vt)}
-              style={[s.pill, vehicleType === vt && s.pillActive]}>
-              <Text style={[s.pillTxt, vehicleType === vt && s.pillTxtActive]}>{vt}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        <Text style={s.filterLabel}>Price Range</Text>
-        {PRICE_RANGES.map(pr => (
-          <TouchableOpacity key={pr.label} style={[s.rangeRow, priceRange.label === pr.label && s.rangeActive]}
-            onPress={() => setPriceRange(pr)}>
-            <Text style={[s.rangeTxt, priceRange.label === pr.label && { color: ORANGE, fontWeight: '700' }]}>{pr.label}</Text>
-            {priceRange.label === pr.label && <Ionicons name="checkmark-circle" size={18} color={ORANGE} />}
-          </TouchableOpacity>
-        ))}
-        <TouchableOpacity style={s.applyFilterBtn} onPress={() => setShowFilters(false)}>
-          <Text style={s.applyFilterTxt}>Apply Filters</Text>
-        </TouchableOpacity>
-      </View>
-    </Modal>
-  );
-
-  /* ══════════ WEB LAYOUT ══════════ */
-  if (IS_WEB) {
+  if (!photos || photos.length === 0) {
+    // No photos — show styled gradient placeholder with car icon
+    const pulse = useRef(new Animated.Value(1)).current;
+    useEffect(() => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1.08, duration: 1200, useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1,    duration: 1200, useNativeDriver: true }),
+        ])
+      ).start();
+    }, []);
     return (
-      <View style={ws.root}>
-        <View style={ws.topBar}>
-          <TouchableOpacity style={ws.topBarBack} onPress={() => nav.goBack()}>
-            <Ionicons name="arrow-back" size={16} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-            <Text style={ws.topBarTitle}>Cars</Text>
-          </TouchableOpacity>
-        </View>
-
-        {StickyHeader}
-
-        <View style={ws.body}>
-          {showSidebar && (
-            <View style={ws.leftSidebar}>
-              <SideCard style={ws.ctaCard}>
-                <View style={ws.ctaCircle1} />
-                <View style={ws.ctaCircle2} />
-                <Text style={ws.ctaEyebrow}>VEHICLE OWNER?</Text>
-                <Text style={ws.ctaTitle}>List Your Vehicle</Text>
-                <Text style={ws.ctaSub}>Reach thousands of renters in Nanded. Free to list!</Text>
-                <TouchableOpacity style={ws.ctaBtn} onPress={() => nav.navigate('PostCar')}>
-                  <Ionicons name="add-circle-outline" size={15} color="#fff" />
-                  <Text style={ws.ctaBtnTxt}>Post a Vehicle</Text>
-                </TouchableOpacity>
-              </SideCard>
-
-              <SideCard>
-                <Text style={ws.sideTitle}>Browse Types</Text>
-                {VEHICLE_TYPES.map(vt => (
-                  <TouchableOpacity key={vt} style={ws.catRow} onPress={() => setVehicleType(vt)} activeOpacity={0.75}>
-                    <View style={ws.catIconWrap}>
-                      <Ionicons
-                        name={vt === 'All' ? 'grid-outline' : vt === 'Bike' ? 'bicycle-outline' :
-                              vt === 'Auto' ? 'car-outline' : vt === 'SUV' ? 'bus-outline' : 'car-sport-outline'}
-                        size={14} color={ORANGE}
-                      />
-                    </View>
-                    <Text style={[ws.catLabel, vehicleType === vt && { color: ORANGE, fontWeight: '700' }]}>{vt}</Text>
-                    {vehicleType === vt && <Ionicons name="checkmark-circle" size={14} color={ORANGE} />}
-                  </TouchableOpacity>
-                ))}
-              </SideCard>
-
-              <SideCard>
-                <Text style={ws.sideTitle}>Explore More</Text>
-                <QuickAction icon="briefcase-outline" label="Find a Job"  color={ORANGE}  onPress={() => nav.navigate('Jobs')} />
-                <QuickAction icon="home-outline"      label="Find a Room" color="#0d9488" onPress={() => nav.navigate('Rooms')} />
-                <QuickAction icon="pricetag-outline"  label="Buy & Sell"  color="#0ea5e9" onPress={() => nav.navigate('BuySell')} />
-              </SideCard>
-            </View>
-          )}
-
-          <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
-            <FlatList
-              data={filtered}
-              keyExtractor={c => c.id}
-              contentContainerStyle={ws.list}
-              showsVerticalScrollIndicator={false}
-              onScroll={Animated.event(
-                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                { useNativeDriver: false }
-              )}
-              scrollEventThrottle={16}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchCars(true)} tintColor={ORANGE} colors={[ORANGE]} />}
-              ListHeaderComponent={<>{Header}{ListHeader}</>}
-              ListEmptyComponent={Empty}
-              renderItem={({ item, index }) => (
-                <VehicleCard item={item} index={index} onPress={() => nav.navigate('CarDetail', { car: item })} />
-              )}
-            />
-          </View>
-
-          {showSidebar && (
-            <View style={ws.rightSidebar}>
-              <SideCard>
-                <Text style={ws.sideTitle}>Price Range</Text>
-                {PRICE_RANGES.map(pr => (
-                  <TouchableOpacity key={pr.label} style={[ws.sortRow, priceRange.label === pr.label && ws.sortRowActive]}
-                    onPress={() => setPriceRange(pr)}>
-                    <Text style={[ws.sortTxt, priceRange.label === pr.label && ws.sortTxtActive]}>{pr.label}</Text>
-                    {priceRange.label === pr.label && <Ionicons name="checkmark-circle" size={16} color={ORANGE} />}
-                  </TouchableOpacity>
-                ))}
-              </SideCard>
-
-              <SideCard>
-                <Text style={ws.sideTitle}>Vehicle Type</Text>
-                {VEHICLE_TYPES.map(vt => (
-                  <TouchableOpacity key={vt} style={[ws.sortRow, vehicleType === vt && ws.sortRowActive]}
-                    onPress={() => setVehicleType(vt)}>
-                    <Text style={[ws.sortTxt, vehicleType === vt && ws.sortTxtActive]}>{vt}</Text>
-                    {vehicleType === vt && <Ionicons name="checkmark-circle" size={16} color={ORANGE} />}
-                  </TouchableOpacity>
-                ))}
-              </SideCard>
-
-              <SideCard style={ws.tipCard}>
-                <Text style={ws.tipTitle}>🚗 Rental Tips</Text>
-                {['Verify owner identity before paying', 'Inspect vehicle before taking delivery', 'Check insurance & documents'].map((tip, i) => (
-                  <View key={i} style={ws.tipRow}>
-                    <View style={ws.tipDot} />
-                    <Text style={ws.tipTxt}>{tip}</Text>
-                  </View>
-                ))}
-              </SideCard>
-            </View>
-          )}
-        </View>
-        {FilterModal}
+      <View style={[s.gallery, { backgroundColor: DARK_NAVY, overflow: 'hidden' }]}>
+        {/* Background rings */}
+        <View style={s.galleryRing1} />
+        <View style={s.galleryRing2} />
+        <Animated.View style={{ transform: [{ scale: pulse }] }}>
+          <Ionicons name={iconName} size={90} color="rgba(255,255,255,0.18)" />
+        </Animated.View>
+        <Text style={s.noPhotoTxt}>No photos uploaded</Text>
       </View>
     );
   }
 
-  /* ══════════ MOBILE LAYOUT ══════════ */
   return (
-    <View style={[s.root, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f7f7f7" />
-      {StickyHeader}
+    <View style={s.gallery}>
       <FlatList
-        data={filtered}
-        keyExtractor={c => c.id}
-        ListHeaderComponent={<>{Header}{ListHeader}</>}
-        contentContainerStyle={s.list}
-        ListEmptyComponent={Empty}
-        showsVerticalScrollIndicator={false}
+        ref={flatRef}
+        data={photos}
+        horizontal
+        pagingEnabled
         showsHorizontalScrollIndicator={false}
-        horizontal={false}
-        bounces={false}
-        overScrollMode="never"
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        keyExtractor={(_, i) => String(i)}
+        renderItem={({ item }) => (
+          <View style={{ width: SCREEN_W, height: GALLERY_H }}>
+            <Image
+              source={{ uri: item }}
+              style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+            />
+            <View style={s.imgOverlay} />
+          </View>
+        )}
+      />
+      {/* Dot indicators */}
+      {photos.length > 1 && (
+        <View style={s.dotsRow}>
+          {photos.map((_, i) => (
+            <Animated.View
+              key={i}
+              style={[
+                s.dot,
+                i === activeIndex && s.dotActive,
+                { transform: [{ scale: dotScale[i] }] },
+              ]}
+            />
+          ))}
+        </View>
+      )}
+      {/* Photo counter badge */}
+      <View style={s.photoBadge}>
+        <Ionicons name="images-outline" size={11} color="#fff" style={{ marginRight: 4 }} />
+        <Text style={s.photoBadgeTxt}>{activeIndex + 1}/{photos.length}</Text>
+      </View>
+    </View>
+  );
+}
+
+/* ─── Main Screen ─── */
+export default function CarDetailScreen() {
+  const nav    = useNavigation();
+  const route  = useRoute();
+  const insets = useSafeAreaInsets();
+  const { lang } = useLang();
+  const car    = route.params?.car || PLACEHOLDER_CAR;
+
+  const [saved, setSaved] = useState(false);
+  const savedScale = useRef(new Animated.Value(1)).current;
+
+  // Parallax / scroll animation
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [GALLERY_H - 80, GALLERY_H - 40],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  function toggleSaved() {
+    setSaved(v => !v);
+    Animated.sequence([
+      Animated.spring(savedScale, { toValue: 1.4, useNativeDriver: true, speed: 25, bounciness: 12 }),
+      Animated.spring(savedScale, { toValue: 1,   useNativeDriver: true, speed: 25 }),
+    ]).start();
+  }
+
+  function callOwner() {
+    const phone = car.whatsapp || car.phone || '';
+    if (phone) Linking.openURL(`tel:${phone}`);
+    else Alert.alert('Contact', 'Please contact via WhatsApp.');
+  }
+
+  function openWhatsApp() {
+    const phone = car.whatsapp || car.phone || '';
+    const msg   = `Hi, I'm interested in renting your ${car.name} listed on CityPlus.`;
+    if (phone)
+      Linking.openURL(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`).catch(() =>
+        Alert.alert('WhatsApp not installed', 'Please contact via call.')
+      );
+    else Alert.alert('Contact', 'WhatsApp number not available.');
+  }
+
+  async function shareVehicle() {
+    try {
+      await Share.share({
+        message: `Check out this vehicle on CityPlus!\n${car.name} - ${car.price}/day\nLocation: ${car.location || 'Nanded'}`,
+      });
+    } catch {}
+  }
+
+  const features = car.features?.length
+    ? car.features
+    : (car.subtitle || '').split(' · ').filter(Boolean);
+
+  const rentalTerms = car.rentalTerms || [];
+  const photoUrls   = car.photoUrls || [];
+
+  const featureIcons = ['color-palette-outline', 'flame-outline', 'snow-outline', 'people-outline', 'speedometer-outline', 'settings-outline'];
+
+  // Build quick stats from features
+  const quickStats = [
+    { icon: 'car-outline',         label: 'Type',   value: car.type || 'Car' },
+    { icon: 'flame-outline',       label: 'Fuel',   value: car.fuel || features.find(f => ['Petrol','Diesel','CNG','Electric'].includes(f)) || '—' },
+    { icon: 'people-outline',      label: 'Seats',  value: features.find(f => f.includes('seat')) || '5 seats' },
+    { icon: 'calendar-outline',    label: 'Listed', value: car.listedDaysAgo ? `${car.listedDaysAgo}d ago` : 'Recent' },
+  ];
+
+  return (
+    <View style={s.root}>
+      <StatusBar barStyle="light-content" />
+
+      {/* Floating back / save bar — always visible */}
+      <View style={[s.floatingBar, { top: (insets.top || 0) + 6 }]}>
+        <TouchableOpacity style={s.floatBtn} onPress={() => nav.goBack()}>
+          <Ionicons name="arrow-back" size={18} color="#fff" />
+        </TouchableOpacity>
+        <Animated.View style={{ opacity: headerOpacity, flex: 1, alignItems: 'center' }}>
+          <Text style={s.floatTitle} numberOfLines={1}>{car.name}</Text>
+        </Animated.View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity style={s.floatBtn} onPress={shareVehicle}>
+            <Ionicons name="share-social-outline" size={17} color="#fff" />
+          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: savedScale }] }}>
+            <TouchableOpacity style={s.floatBtn} onPress={toggleSaved}>
+              <Ionicons name={saved ? 'heart' : 'heart-outline'} size={18} color={saved ? '#ef4444' : '#fff'} />
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </View>
+
+      <Animated.ScrollView
+        style={s.scroll}
+        contentContainerStyle={{ paddingBottom: 110 }}
+        showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
         )}
         scrollEventThrottle={16}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchCars(true)} tintColor={ORANGE} colors={[ORANGE]} />}
-        renderItem={({ item, index }) => (
-          <VehicleCard item={item} index={index} onPress={() => nav.navigate('CarDetail', { car: item })} />
+      >
+        {/* Gallery */}
+        <ImageGallery photos={photoUrls} vehicleType={car.type} />
+
+        {/* ── Title Card ── */}
+        <SlideIn delay={60}>
+          <View style={s.titleCard}>
+            <View style={{ flex: 1 }}>
+              <TranslateTitle text={car.name} lang={lang} style={s.carName} />
+              <View style={s.locationRow}>
+                <Ionicons name="location-outline" size={13} color="#888" />
+                <Text style={s.locationTxt}>
+                  {car.location || 'Nanded'}
+                  {car.listedDaysAgo ? ` · ${car.listedDaysAgo} days ago` : ''}
+                </Text>
+              </View>
+            </View>
+            <View style={s.priceBlock}>
+              <Text style={s.priceAmt}>{car.price}</Text>
+              <Text style={s.perDay}>/day</Text>
+              {car.deposit ? <Text style={s.deposit}>Dep: {car.deposit}</Text> : null}
+            </View>
+          </View>
+
+          {/* Tags */}
+          <View style={s.tagsRow}>
+            {car.type && (
+              <View style={s.typeTag}>
+                <Ionicons name="car-sport-outline" size={12} color={ORANGE} style={{ marginRight: 4 }} />
+                <Text style={s.typeTagTxt}>{car.type}</Text>
+              </View>
+            )}
+            {car.available !== false && (
+              <View style={s.availTag}>
+                <Ionicons name="checkmark-circle" size={12} color="#16a34a" style={{ marginRight: 4 }} />
+                <Text style={s.availTagTxt}>Available Now</Text>
+              </View>
+            )}
+            {photoUrls.length > 0 && (
+              <View style={s.photoTag}>
+                <Ionicons name="images-outline" size={12} color="#0ea5e9" style={{ marginRight: 4 }} />
+                <Text style={s.photoTagTxt}>{photoUrls.length} Photos</Text>
+              </View>
+            )}
+          </View>
+        </SlideIn>
+
+        {/* ── Quick Stats ── */}
+        <SlideIn delay={120}>
+          <View style={s.statsSection}>
+            <Text style={s.sectionTitle}>QUICK SPECS</Text>
+            <View style={s.statsGrid}>
+              {quickStats.map((stat, i) => (
+                <StatBox key={i} {...stat} delay={i * 55} />
+              ))}
+            </View>
+          </View>
+        </SlideIn>
+
+        {/* ── Features ── */}
+        {features.length > 0 && (
+          <SlideIn delay={180}>
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>FEATURES & SPECS</Text>
+              <View style={s.featuresGrid}>
+                {features.map((f, i) => (
+                  <FeatureChip key={i} label={f} icon={featureIcons[i % featureIcons.length]} delay={i * 55} />
+                ))}
+              </View>
+            </View>
+          </SlideIn>
         )}
-      />
-      {FilterModal}
+
+        {/* ── Rental Terms ── */}
+        {rentalTerms.length > 0 && (
+          <SlideIn delay={240}>
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>RENTAL TERMS</Text>
+              <View style={s.termsBox}>
+                {rentalTerms.map((term, i) => (
+                  <View key={i} style={s.termRow}>
+                    <View style={s.termDot} />
+                    <Text style={s.termTxt}>{term}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </SlideIn>
+        )}
+
+        {/* ── Owner Card ── */}
+        <SlideIn delay={300}>
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>OWNER / AGENCY</Text>
+            <View style={s.ownerCard}>
+              <View style={[s.ownerAvatar, { backgroundColor: car.owner?.bg || '#fff3e0' }]}>
+                {car.owner?.initials
+                  ? <Text style={[s.ownerInitials, { color: car.owner?.color || ORANGE }]}>{car.owner.initials}</Text>
+                  : <Ionicons name="person" size={22} color={ORANGE} />
+                }
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.ownerName}>{car.owner?.name || 'Owner'}</Text>
+                {car.owner?.verified && (
+                  <View style={s.verifiedRow}>
+                    <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
+                    <Text style={s.verifiedTxt}>{car.owner?.isAgency ? 'Verified Agency' : 'Verified Owner'}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={s.ownerBadge}>
+                <Ionicons name="shield-checkmark-outline" size={14} color={ORANGE} />
+              </View>
+            </View>
+          </View>
+        </SlideIn>
+
+        {/* ── Safety Tips ── */}
+        <SlideIn delay={340}>
+          <View style={s.safetyCard}>
+            <View style={s.safetyHeader}>
+              <Ionicons name="information-circle-outline" size={16} color="#0369a1" style={{ marginRight: 6 }} />
+              <Text style={s.safetyTitle}>Safety Tips</Text>
+            </View>
+            {['Verify documents before handing over payment', 'Inspect vehicle condition before driving', 'Prefer meeting in public places'].map((tip, i) => (
+              <Text key={i} style={s.safetyTip}>· {tip}</Text>
+            ))}
+          </View>
+        </SlideIn>
+      </Animated.ScrollView>
+
+      {/* ── Sticky CTA Bar ── */}
+      <SlideIn delay={400} from={40}>
+        <View style={[s.stickyBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <CTAButton label="Call Owner"  onPress={callOwner}    color={DARK_NAVY} icon="call"           delay={0} />
+          <CTAButton label="WhatsApp"    onPress={openWhatsApp} color={GREEN_WA}  icon="logo-whatsapp"  delay={60} />
+        </View>
+      </SlideIn>
     </View>
   );
 }
 
-/* ─────────────────────────── MOBILE STYLES ─────────────────────────── */
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f7f7f7', overflow: 'hidden' },
+  root:   { flex: 1, backgroundColor: '#f5f5f5' },
+  scroll: { flex: 1 },
 
-  // Sticky mini-header (mobile)
-  stickyBar: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-    zIndex: 999,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 8,
+  /* Floating back/save bar */
+  floatingBar: {
+    position: 'absolute', left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, gap: 8, zIndex: 100,
   },
-  stickyInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  stickyTitle: { fontSize: 15, fontWeight: '900', color: '#111', letterSpacing: -0.2, flexShrink: 0 },
-  stickySearch: {
-    flex: 1, flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f5f5f5', borderRadius: 10, height: 36,
-    borderWidth: 1, borderColor: '#e8e8e8', overflow: 'hidden',
-  },
-  stickyInput: { flex: 1, height: 36, paddingHorizontal: 8, fontSize: 13, color: '#111' },
-  list: { paddingHorizontal: 14, paddingTop: 0, paddingBottom: 40 },
-
-  header: {
-    backgroundColor: '#f7f7f7',
-    paddingHorizontal: 16,
-    paddingBottom: 6,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  pageTitle: { fontSize: 26, fontWeight: '900', color: '#111', letterSpacing: -0.5, marginBottom: 2 },
-  pageCount: { fontSize: 13, color: '#999', fontWeight: '500', marginBottom: 14 },
-
-  iconBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: '#ececec',
-    alignItems: 'center', justifyContent: 'center',
-    position: 'relative',
-  },
-  iconBtnActive: { backgroundColor: '#111' },
-  filterBadge: {
-    position: 'absolute', top: -4, right: -4,
-    width: 16, height: 16, borderRadius: 8, backgroundColor: '#ef4444',
+  floatBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.50)',
     alignItems: 'center', justifyContent: 'center',
   },
-  filterBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '900' },
+  floatTitle: { fontSize: 14, fontWeight: '700', color: '#fff', flex: 1, textAlign: 'center' },
 
-  searchWrap: {
+  /* Gallery */
+  gallery: { height: GALLERY_H, width: '100%', backgroundColor: DARK_NAVY, position: 'relative' },
+  galleryRing1: {
+    position: 'absolute', width: 260, height: 260, borderRadius: 130,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    top: -60, right: -60,
+  },
+  galleryRing2: {
+    position: 'absolute', width: 180, height: 180, borderRadius: 90,
+    borderWidth: 1, borderColor: 'rgba(249,115,22,0.15)',
+    bottom: -40, left: -40,
+  },
+  imgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.18)' },
+  noPhotoTxt: { color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 10 },
+
+  dotsRow: {
+    position: 'absolute', bottom: 14,
+    flexDirection: 'row', alignSelf: 'center', gap: 5,
+  },
+  dot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  dotActive: { backgroundColor: '#fff', width: 18, borderRadius: 3 },
+
+  photoBadge: {
+    position: 'absolute', top: 12, right: 12,
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderRadius: 16,
-    borderWidth: 1, borderColor: '#e8e8e8',
-    marginTop: 4, marginBottom: 14, height: 52,
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10,
   },
-  searchInput: { flex: 1, paddingHorizontal: 10, fontSize: 14, color: '#111' },
+  photoBadgeTxt: { color: '#fff', fontSize: 11, fontWeight: '600' },
 
-  searchFilterBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    height: 48, paddingHorizontal: 16,
-    backgroundColor: '#fff7f0', borderLeftWidth: 1, borderLeftColor: '#ebebeb',
-  },
-
-  pillsRow: { gap: 8, paddingBottom: 4, alignItems: 'center' },
-  pill: {
-    borderWidth: 1.5, borderColor: '#e0e0e0', backgroundColor: '#fff',
-    paddingVertical: 7, paddingHorizontal: 16, borderRadius: 100,
-  },
-  pillActive:    { backgroundColor: '#111', borderColor: '#111' },
-  pillTxt:       { fontSize: 13, fontWeight: '600', color: '#555' },
-  pillTxtActive: { color: '#fff' },
-
-  trendingBanner: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff9f3', borderRadius: 16,
-    borderWidth: 1, borderColor: '#fddcb5',
-    marginBottom: 12, overflow: 'hidden',
-    paddingVertical: 14, paddingRight: 14,
-  },
-  trendingAccent: {
-    width: 5, alignSelf: 'stretch',
-    backgroundColor: ORANGE,
-    borderTopLeftRadius: 14, borderBottomLeftRadius: 14,
-    marginRight: 10,
-  },
-  trendingIconWrap: {
-    width: 38, height: 38, borderRadius: 10,
-    backgroundColor: '#fff3e0',
-    alignItems: 'center', justifyContent: 'center', marginRight: 10,
-  },
-  trendingTitle: { fontSize: 14, fontWeight: '800', color: ORANGE },
-  trendingSub:   { fontSize: 11, color: '#999', marginTop: 2 },
-  liveBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#f0fdf4', borderRadius: 20,
-    paddingVertical: 4, paddingHorizontal: 10,
-    borderWidth: 1, borderColor: '#bbf7d0',
-  },
-  liveTxt: { fontSize: 10, fontWeight: '800', color: '#16a34a' },
-
-  card: {
-    backgroundColor: '#fff', borderRadius: 16,
-    borderWidth: 1, borderColor: '#e8e8e8',
-    marginBottom: 14, overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 }, elevation: 3,
-  },
-  cardPhoto: {
-    height: 180, alignItems: 'center', justifyContent: 'center',
-    position: 'relative', overflow: 'hidden',
-  },
-  photoOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.30)' },
-  photosBadge: {
-    position: 'absolute', top: 10, left: 10,
-    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8,
-    paddingVertical: 5, paddingHorizontal: 11,
-  },
-  photosBadgeTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  availBadge: {
-    position: 'absolute', top: 10, right: 10,
-    borderRadius: 8, paddingVertical: 5, paddingHorizontal: 11,
-  },
-  availTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  newBadge: {
-    position: 'absolute', top: 44, right: 10,
-    backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 11,
-  },
-  newBadgeTxt: { color: '#fff', fontSize: 12, fontWeight: '800' },
-
-  cardInfo: { padding: 14, paddingTop: 13 },
-  cardTitle: { fontSize: 17, fontWeight: '800', color: '#111', marginBottom: 3, letterSpacing: -0.2 },
-  cardDesc:  { fontSize: 12.5, color: '#888', lineHeight: 18, marginBottom: 12 },
-  cardMetaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  cardMetaChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 20,
-    paddingVertical: 5, paddingHorizontal: 11, backgroundColor: '#fafafa',
-  },
-  cardMetaTxt: { fontSize: 12, color: '#444', fontWeight: '500' },
-
-  emptyWrap:  { alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 },
-  emptyTxt:   { color: '#9ca3af', fontSize: 15, fontWeight: '700', marginTop: 12 },
-  emptyClear: { color: ORANGE, fontWeight: '700', marginTop: 8, fontSize: 13 },
-
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 20, paddingBottom: 36,
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20,
-    shadowOffset: { width: 0, height: -4 }, elevation: 12,
-  },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e0e0e0', alignSelf: 'center', marginBottom: 16 },
-  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  sheetTitle:  { fontSize: 17, fontWeight: '800', color: '#111' },
-  resetTxt:    { fontSize: 13, fontWeight: '700', color: ORANGE },
-  filterLabel: { fontSize: 12, fontWeight: '800', color: '#aaa', letterSpacing: 0.5, marginBottom: 10, textTransform: 'uppercase' },
-  rangeRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderRadius: 10, marginBottom: 2 },
-  rangeActive: { backgroundColor: '#fff7f0' },
-  rangeTxt:    { fontSize: 14, color: '#444', fontWeight: '600' },
-  applyFilterBtn: { marginTop: 16, backgroundColor: ORANGE, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  applyFilterTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
-});
-
-/* ─────────────────────────── WEB STYLES ─────────────────────────── */
-const ws = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f7f7f7' },
-
-  // Sticky mini-header (web)
-  stickyBar: {
-    position: 'fixed',
-    top: 0, left: 0, right: 0,
-    zIndex: 999,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 8,
-  },
-  // placeholder — keeps index same as RoomScreen ws
-  stickyInner: {
-    maxWidth: 1400, width: '100%', alignSelf: 'center',
-    flexDirection: 'row', alignItems: 'center',
-    gap: 16, paddingHorizontal: 24, paddingVertical: 10,
-  },
-  stickyTitle: { fontSize: 17, fontWeight: '900', color: '#111', letterSpacing: -0.3, flexShrink: 0 },
-  stickySearch: {
-    flex: 1, flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f8f8f8', borderRadius: 10, height: 38,
-    borderWidth: 1.5, borderColor: '#ebebeb', overflow: 'hidden',
-  },
-  stickyInput: { flex: 1, height: 38, paddingHorizontal: 8, fontSize: 13, color: '#111', outlineStyle: 'none' },
-
-  body: {
-    flex: 1, flexDirection: 'row',
-    maxWidth: 1400, width: '100%', alignSelf: 'center',
-    paddingTop: 12, paddingHorizontal: 16, gap: 16,
-  },
-
-  leftSidebar: {
-    width: 220, flexShrink: 0, gap: 12,
-    alignSelf: 'flex-start', position: 'sticky', top: 70,
-    maxHeight: 'calc(100vh - 82px)', overflowY: 'auto', paddingBottom: 16,
-  },
-  mainCol: { flex: 1, minWidth: 0, flexShrink: 1 },
-  rightSidebar: {
-    width: 220, flexShrink: 0, gap: 12,
-    alignSelf: 'flex-start', position: 'sticky', top: 70,
-    maxHeight: 'calc(100vh - 82px)', overflowY: 'auto', paddingBottom: 16,
-  },
-
-  list: { paddingTop: 0, paddingBottom: 48 },
-
-  topBar: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff',
+  /* Title card */
+  titleCard: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12,
     borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
-    paddingVertical: 12, paddingHorizontal: 20, gap: 12,
-    position: 'sticky', top: 0, zIndex: 100,
   },
-  topBarBack: {
-    width: 34, height: 34, borderRadius: 17,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9',
-  },
-  topBarBackTxt: { fontSize: 13, fontWeight: '700', color: '#111' },
-  topBarTitle:   { fontSize: 15, fontWeight: '800', color: '#111' },
+  carName: { fontSize: 20, fontWeight: '900', color: '#111', letterSpacing: -0.3, marginBottom: 4 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  locationTxt:  { fontSize: 12, color: '#888', fontWeight: '500' },
+  priceBlock:   { alignItems: 'flex-end' },
+  priceAmt:     { fontSize: 24, fontWeight: '900', color: ORANGE },
+  perDay:       { fontSize: 12, color: '#888', marginTop: 1 },
+  deposit:      { fontSize: 11, color: '#aaa', marginTop: 2 },
 
-  header: {
-    backgroundColor: '#fff', borderRadius: 16, marginBottom: 12, padding: 20,
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  tagsRow: {
+    flexDirection: 'row', gap: 7, flexWrap: 'wrap',
+    backgroundColor: '#fff', paddingHorizontal: 16, paddingBottom: 14,
   },
-  pageTitle: { fontSize: 24, fontWeight: '900', color: '#111', letterSpacing: -0.5, marginBottom: 2, flexShrink: 1 },
-  pageCount: { fontSize: 13, color: '#999', fontWeight: '500', marginBottom: 16 },
-
-  iconBtn: {
-    height: 40, paddingHorizontal: 14, borderRadius: 10,
-    backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e8e8e8',
-    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4,
-  },
-  searchWrap: {
+  typeTag: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f8f8f8', borderRadius: 12, height: 48,
-    borderWidth: 1.5, borderColor: '#ebebeb', marginBottom: 14, overflow: 'hidden',
+    borderWidth: 1.5, borderColor: '#fed7aa', backgroundColor: '#fff7f0',
+    borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12,
   },
-  searchInput: { flex: 1, height: 48, paddingHorizontal: 10, fontSize: 14, color: '#111', outlineStyle: 'none' },
-  searchFilterBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    height: 48, paddingHorizontal: 16,
-    backgroundColor: '#fff7f0', borderLeftWidth: 1, borderLeftColor: '#ebebeb',
+  typeTagTxt: { fontSize: 12, color: ORANGE, fontWeight: '700' },
+  availTag: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#bbf7d0', backgroundColor: '#f0fdf4',
+    borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12,
   },
-  filterBtnTxt: { fontSize: 13, fontWeight: '700', color: ORANGE },
+  availTagTxt: { fontSize: 12, color: '#16a34a', fontWeight: '700' },
+  photoTag: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#bae6fd', backgroundColor: '#f0f9ff',
+    borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12,
+  },
+  photoTagTxt: { fontSize: 12, color: '#0369a1', fontWeight: '700' },
 
-  pillsRow: { gap: 8, paddingBottom: 14, alignItems: 'center' },
-  pill: {
-    borderWidth: 1.5, borderColor: '#e0e0e0', backgroundColor: '#fff',
-    paddingVertical: 7, paddingHorizontal: 18, borderRadius: 100,
+  /* Sections */
+  section:  { backgroundColor: '#fff', marginTop: 10, paddingBottom: 6 },
+  sectionTitle: {
+    fontSize: 10, fontWeight: '800', color: '#bbb',
+    letterSpacing: 1.2, paddingHorizontal: 16,
+    paddingTop: 16, paddingBottom: 10, backgroundColor: '#f5f5f5',
   },
-  pillActive:    { backgroundColor: '#111', borderColor: '#111' },
-  pillTxt:       { fontSize: 13, fontWeight: '600', color: '#555' },
-  pillTxtActive: { color: '#fff' },
 
-  activeFiltersRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-  activeFiltersLabel: { fontSize: 11, color: '#bbb', fontWeight: '600' },
-  activeChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#fff7f0', borderRadius: 100, borderWidth: 1, borderColor: '#fed7aa',
-    paddingVertical: 4, paddingHorizontal: 10,
-  },
-  activeChipTxt: { fontSize: 11, color: ORANGE, fontWeight: '700' },
-
-  sideCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 16,
+  /* Stats */
+  statsSection: { backgroundColor: '#fff', marginTop: 10, paddingBottom: 14 },
+  statsGrid: { flexDirection: 'row', paddingHorizontal: 14, gap: 10 },
+  statBox: {
+    flex: 1, backgroundColor: '#f9f9f9', borderRadius: 12,
+    paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center',
     borderWidth: 1, borderColor: '#f0f0f0',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 }, elevation: 2,
-    overflow: 'hidden', position: 'relative',
   },
-  sideTitle: { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statIconWrap: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: '#fff7f0', alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+  },
+  statValue: { fontSize: 13, fontWeight: '800', color: '#111', textAlign: 'center' },
+  statLabel: { fontSize: 10, color: '#aaa', fontWeight: '600', marginTop: 2, textAlign: 'center' },
 
-  ctaCard:    { backgroundColor: ORANGE },
-  ctaCircle1: { position: 'absolute', width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.12)', top: -30, right: -20 },
-  ctaCircle2: { position: 'absolute', width: 70,  height: 70,  borderRadius: 35, backgroundColor: 'rgba(255,255,255,0.08)', bottom: -15, right: 30 },
-  ctaEyebrow: { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.7)', letterSpacing: 1, marginBottom: 4, position: 'relative' },
-  ctaTitle:   { fontSize: 17, fontWeight: '900', color: '#fff', marginBottom: 5, position: 'relative' },
-  ctaSub:     { fontSize: 11, color: 'rgba(255,255,255,0.85)', lineHeight: 16, marginBottom: 14, position: 'relative' },
-  ctaBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)',
-    borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignSelf: 'flex-start', position: 'relative',
+  /* Features */
+  featuresGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    paddingHorizontal: 14, paddingBottom: 6, gap: 8,
+    backgroundColor: '#fff', paddingTop: 2,
   },
-  ctaBtnTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
-
-  catRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingVertical: 8, paddingHorizontal: 8, borderRadius: 10, marginBottom: 2,
-  },
-  catIconWrap: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#fff7f0', alignItems: 'center', justifyContent: 'center' },
-  catLabel: { flex: 1, fontSize: 13, fontWeight: '600', color: '#333' },
-
-  sortRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 9, paddingHorizontal: 10, borderRadius: 10, marginBottom: 2,
-  },
-  sortRowActive: { backgroundColor: '#fff7f0' },
-  sortTxt:       { fontSize: 13, fontWeight: '600', color: '#444' },
-  sortTxtActive: { color: ORANGE, fontWeight: '700' },
-
-  quickAction: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingVertical: 9, paddingHorizontal: 6, borderRadius: 10, marginBottom: 2,
-  },
-  quickIcon:  { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  quickLabel: { fontSize: 13, fontWeight: '600', color: '#222' },
-
-  tipCard:  { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' },
-  tipTitle: { fontSize: 13, fontWeight: '800', color: '#15803d', marginBottom: 10 },
-  tipRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
-  tipDot:   { width: 5, height: 5, borderRadius: 3, backgroundColor: '#16a34a', marginTop: 6, flexShrink: 0 },
-  tipTxt:   { fontSize: 12, color: '#166534', lineHeight: 18, flex: 1 },
-
-  centeredModal: {
-    position: 'absolute', top: '50%', left: '50%',
-    transform: [{ translateX: -180 }, { translateY: -200 }],
-    width: 360, borderRadius: 20, bottom: 'auto',
-  },
-
-  card: {
-    backgroundColor: '#fff', borderRadius: 16,
-    borderWidth: 1, borderColor: '#ebebeb', marginBottom: 14,
-    overflow: 'hidden', flexDirection: 'column',
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 }, elevation: 3,
-  },
-  cardPhoto: {
-    height: 200, alignItems: 'center', justifyContent: 'center',
-    position: 'relative', overflow: 'hidden',
-  },
-  photoOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.30)' },
-  photoPillsRow: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', justifyContent: 'center', gap: 8,
-    paddingBottom: 14, paddingHorizontal: 16,
-  },
-  photoPill:          { backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 18 },
-  photoPillActive:    { backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
-  photoPillTxt:       { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: '600' },
-  photoPillTxtActive: { color: '#fff', fontWeight: '700' },
-
-  photosBadge: {
-    position: 'absolute', top: 10, left: 10,
-    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 11,
-  },
-  photosBadgeTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  availBadge: {
-    position: 'absolute', top: 10, right: 10,
-    borderRadius: 8, paddingVertical: 5, paddingHorizontal: 11,
-  },
-  availTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  newBadge: {
-    position: 'absolute', top: 44, right: 10,
-    backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 11,
-  },
-  newBadgeTxt: { color: '#fff', fontSize: 12, fontWeight: '800' },
-
-  cardBody:     { flex: 1, padding: 16 },
-  cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 3, gap: 8 },
-  cardTitle:    { fontSize: 16, fontWeight: '800', color: '#111', flex: 1, lineHeight: 22 },
-  priceWrap:    { alignItems: 'flex-end', flexShrink: 0 },
-  priceAmt:     { fontSize: 14, fontWeight: '700', color: ORANGE },
-
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 10 },
-  locationTxt: { fontSize: 12, color: '#888', fontWeight: '500' },
-
-  tagsRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
-  tag: {
+  featureChip: {
     flexDirection: 'row', alignItems: 'center',
-    borderRadius: 20, borderWidth: 1, borderColor: '#e0e0e0',
-    paddingVertical: 4, paddingHorizontal: 10, backgroundColor: '#fafafa',
+    backgroundColor: '#f9f9f9', borderRadius: 10,
+    borderWidth: 1, borderColor: '#f0f0f0',
+    paddingVertical: 8, paddingHorizontal: 12,
+    minWidth: '45%',
   },
-  tagBlue: { borderColor: '#a5f3fc', backgroundColor: '#ecfeff' },
-  tagTxt:  { fontSize: 11, color: '#555', fontWeight: '500' },
+  featureChipTxt: { fontSize: 13, color: '#222', fontWeight: '600' },
 
-  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  ownerRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
+  /* Rental terms */
+  termsBox: {
+    marginHorizontal: 14, borderRadius: 12, overflow: 'hidden',
+    borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb',
+  },
+  termRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10, paddingHorizontal: 14 },
+  termDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: ORANGE, marginTop: 6, flexShrink: 0 },
+  termTxt: { fontSize: 13, color: '#78350f', lineHeight: 20, flex: 1, fontWeight: '500' },
+
+  /* Owner */
+  ownerCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginHorizontal: 14, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: '#ebebeb', backgroundColor: '#fafafa',
+  },
   ownerAvatar: {
-    width: 26, height: 26, borderRadius: 13,
-    backgroundColor: '#fff7f0', borderWidth: 1, borderColor: '#fed7aa',
+    width: 48, height: 48, borderRadius: 24,
     alignItems: 'center', justifyContent: 'center',
   },
-  ownerInitial: { fontSize: 11, fontWeight: '700', color: ORANGE },
-  ownerName:    { fontSize: 11, color: '#888', fontWeight: '600', flex: 1 },
+  ownerInitials: { fontSize: 18, fontWeight: '900' },
+  ownerName:  { fontSize: 15, fontWeight: '800', color: '#111' },
+  verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  verifiedTxt: { fontSize: 11, color: '#16a34a', fontWeight: '600' },
+  ownerBadge: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: '#fff7f0', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#fed7aa',
+  },
 
-  viewBtn:    { borderWidth: 1.5, borderColor: ORANGE, borderRadius: 22, paddingVertical: 7, paddingHorizontal: 22 },
-  viewBtnTxt: { fontSize: 12, fontWeight: '700', color: ORANGE },
+  /* Safety card */
+  safetyCard: {
+    margin: 14, borderRadius: 12, padding: 14,
+    backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe',
+  },
+  safetyHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  safetyTitle:  { fontSize: 13, fontWeight: '800', color: '#1d4ed8' },
+  safetyTip:    { fontSize: 12, color: '#1e40af', lineHeight: 20, fontWeight: '500' },
+
+  /* Sticky CTA */
+  stickyBar: {
+    flexDirection: 'row', gap: 10,
+    paddingHorizontal: 14, paddingTop: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1, borderTopColor: '#f0f0f0',
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: -4 },
+    elevation: 12,
+  },
+  ctaBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    borderRadius: 12, paddingVertical: 14,
+  },
+  ctaBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
 });
