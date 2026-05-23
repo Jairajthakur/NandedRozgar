@@ -21,7 +21,7 @@ import { useNavigation } from '@react-navigation/native';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
-const API_BASE = 'https://localloops-production.up.railway.app';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app';
 const PROMO_PLANS = {
   basic: { price: 99, days: 7 },
   popular: { price: 249, days: 15 },
