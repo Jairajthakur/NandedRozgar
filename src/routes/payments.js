@@ -53,10 +53,12 @@ function verifySignature(orderId, paymentId, signature) {
 
 // ── Helper: save a payment record ─────────────────────────────────────────────
 async function savePayment(userId, { amount, plan, paymentId, orderId }) {
+  // Razorpay amounts are in paise (1 ₹ = 100 paise). Convert to rupees before storing.
+  const amountInRupees = Math.round((amount || 0) / 100);
   const { rows } = await pool.query(
     `INSERT INTO payments (user_id, amount, plan, razorpay_payment_id, razorpay_order_id, status)
      VALUES ($1, $2, $3, $4, $5, 'paid') RETURNING id`,
-    [userId, amount, plan, paymentId || null, orderId || null]
+    [userId, amountInRupees, plan, paymentId || null, orderId || null]
   );
   return rows[0].id;
 }
