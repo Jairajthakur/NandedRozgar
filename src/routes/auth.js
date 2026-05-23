@@ -64,6 +64,11 @@ const forgotLimiter = rateLimit({
   message: { ok: false, error: 'Too many reset requests. Try again in 1 hour.' },
   standardHeaders: true, legacyHeaders: false,
 });
+const resetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 10,
+  message: { ok: false, error: 'Too many password reset attempts. Try again in 1 hour.' },
+  standardHeaders: true, legacyHeaders: false,
+});
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function makeToken(user) {
@@ -319,7 +324,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
 });
 
 // ── POST /api/auth/reset-password ─────────────────────────────────────────────
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', resetLimiter, async (req, res) => {
   try {
     const { token, password } = req.body;
     if (!token || !password) return res.json({ ok: false, error: 'Token and new password are required' });
