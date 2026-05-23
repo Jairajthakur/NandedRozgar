@@ -88,7 +88,7 @@ function HeroCarousel({ photos, cardBg, onImagePress }) {
       <View style={[hero.wrap, { backgroundColor: cardBg || DARK, height: HERO_H }]}>
         <View style={hero.placeholder}>
           <Ionicons name="home-outline" size={72} color="rgba(255,255,255,0.18)" />
-          <Text style={hero.placeholderTxt}>No Photos Available</Text>
+          <Text style={hero.placeholderTxt}>{t('noPhotosAvailable')}</Text>
         </View>
       </View>
     );
@@ -150,7 +150,7 @@ function HeroCarousel({ photos, cardBg, onImagePress }) {
       {/* Tap to expand hint */}
       <View style={hero.expandHint}>
         <Ionicons name="expand-outline" size={11} color="rgba(255,255,255,0.85)" />
-        <Text style={hero.expandHintTxt}>Tap to expand</Text>
+        <Text style={hero.expandHintTxt}>{t('tapToExpand')}</Text>
       </View>
     </View>
   );
@@ -235,7 +235,7 @@ function InfoRow({ icon, label, value }) {
 export default function RoomDetailScreen({ route, navigation }) {
   const { room } = route.params;
   const insets = useSafeAreaInsets();
-  const { lang } = useLang();
+  const { lang, t } = useLang();
 
   const [saved, setSaved]         = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -335,7 +335,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             </View>
             <View style={s.pricePill}>
               <Text style={s.rent}>{room.rent}</Text>
-              {room.deposit && <Text style={s.depositTxt}>Dep: {room.deposit}</Text>}
+              {room.deposit && <Text style={s.depositTxt}>{t('deposit')}: {room.deposit}</Text>}
             </View>
           </View>
 
@@ -371,7 +371,7 @@ export default function RoomDetailScreen({ route, navigation }) {
           {/* Thumbnail strip (if multiple photos) */}
           {photos.length > 1 && (
             <View style={s.thumbSection}>
-              <Text style={s.sectionLabel}>PHOTOS ({photos.length})</Text>
+              <Text style={s.sectionLabel}>{t('photos')} ({photos.length})</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.thumbRow}>
                 {photos.map((uri, i) => (
                   <TouchableOpacity key={i} onPress={() => openImageViewer(i)} activeOpacity={0.8}>
@@ -397,7 +397,7 @@ export default function RoomDetailScreen({ route, navigation }) {
           {/* Description */}
           {!!room.description && (
             <>
-              <Text style={s.sectionLabel}>DESCRIPTION</Text>
+              <Text style={s.sectionLabel}>{t('description')}</Text>
               <View style={s.descCard}>
                 <AutoTranslate text={room.description} lang={lang} style={s.descTxt} />
               </View>
@@ -407,7 +407,7 @@ export default function RoomDetailScreen({ route, navigation }) {
           {/* Amenities */}
           {amenities.length > 0 && (
             <>
-              <Text style={s.sectionLabel}>AMENITIES</Text>
+              <Text style={s.sectionLabel}>{t('amenities')}</Text>
               <View style={s.amenitiesWrap}>
                 {amenities.map((a, i) => (
                   <AmenityChip key={i} label={a} delay={i * 60} />
@@ -417,26 +417,26 @@ export default function RoomDetailScreen({ route, navigation }) {
           )}
 
           {/* Owner Card */}
-          <Text style={s.sectionLabel}>LISTED BY</Text>
+          <Text style={s.sectionLabel}>{t('listedBy')}</Text>
           <View style={s.ownerCard}>
             <View style={s.ownerAvatar}>
               <Ionicons name="person" size={24} color={TEAL} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.ownerName}>{room.owner?.name || 'Owner'}</Text>
+              <Text style={s.ownerName}>{room.owner?.name || t('listedBy')}</Text>
               {room.phone && <Text style={s.ownerPhone}>+91 {room.phone}</Text>}
             </View>
             {room.owner?.verified && (
               <View style={s.verifiedBadge}>
                 <Ionicons name="shield-checkmark" size={12} color="#16a34a" />
-                <Text style={s.verifiedTxt}>Verified</Text>
+                <Text style={s.verifiedTxt}>{t('verified')}</Text>
               </View>
             )}
           </View>
 
           {/* CTA Buttons */}
           <View style={s.ctaSection}>
-            <CTAButton label="Call Owner"       onPress={callOwner} color={GREEN_WA} icon="call"          delay={0}  />
+            <CTAButton label={t('callOwner')}       onPress={callOwner} color={GREEN_WA} icon="call"          delay={0}  />
             <CTAButton label="Chat on WhatsApp" onPress={whatsapp}  color={GREEN_WA} icon="logo-whatsapp" delay={80} />
             <CTAButton label="Share Listing"    onPress={shareListing} color={TEAL} icon="share-social-outline" delay={160} outline />
           </View>
