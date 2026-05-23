@@ -171,7 +171,7 @@ function HeroHeader({ step, total, title, sub, onBack }) {
 //  re-render (fixes single-character input bug)
 // ═══════════════════════════════════════════
 
-function Step1({ form, set }) {
+function Step1({ form, set, customCategory, setCustomCategory }) {
   return (
     <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Label text="AD TITLE" required />
@@ -190,7 +190,7 @@ function Step1({ form, set }) {
         {CATEGORIES.map(c => (
           <TouchableOpacity
             key={c.label}
-            onPress={() => set('category', c.label)}
+            onPress={() => { set('category', c.label); if (c.label !== 'Other') setCustomCategory(''); }}
             activeOpacity={0.8}
             style={[styles.catCard, form.category === c.label && styles.catCardActive]}
           >
@@ -205,6 +205,15 @@ function Step1({ form, set }) {
           </TouchableOpacity>
         ))}
       </View>
+      {form.category === 'Other' && (
+        <TextInput
+          style={styles.customCategoryInput}
+          placeholder="Type your category (e.g. Musical Instruments, Garden Tools…)"
+          value={customCategory}
+          onChangeText={setCustomCategory}
+          maxLength={60}
+        />
+      )}
 
       <Label text="CONDITION" />
       {CONDITIONS.map(c => (
@@ -494,10 +503,10 @@ function Step4({ form, set, appliedCoupon, setAppliedCoupon }) {
   );
 }
 
-function Step5({ form }) {
+function Step5({ form, customCategory }) {
   const rows1 = [
     ['TITLE',     form.title     || 'Not set'],
-    ['CATEGORY',  form.category],
+    ['CATEGORY',  form.category === 'Other' ? (customCategory?.trim() || 'Other') : form.category],
     ['CONDITION', form.condition],
     ['AGE',       form.age],
   ];
@@ -571,6 +580,7 @@ export default function PostItemScreen() {
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [customCategory, setCustomCategory] = useState('');
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim  = useRef(new Animated.Value(1)).current;
 
@@ -624,6 +634,11 @@ export default function PostItemScreen() {
       Alert.alert('Missing Info', 'Title, price and WhatsApp are required');
       return;
     }
+    if (form.category === 'Other' && !customCategory.trim()) {
+      Alert.alert('Required', 'Please type your category name');
+      return;
+    }
+    }
     setLoading(true);
     try {
       const planPrice   = form.plan?.price ?? 0;
@@ -654,7 +669,7 @@ export default function PostItemScreen() {
         couponId: appliedCoupon?.id || null,
         item: {
           title:       form.title.trim(),
-          category:    form.category,
+          category:    form.category === 'Other' ? customCategory.trim() : form.category,
           condition:   form.condition,
           age:         form.age,
           price:       parseInt(form.price) || 0,
@@ -687,11 +702,11 @@ export default function PostItemScreen() {
   // Render the current step — passing form + set as props (no inline definitions)
   function renderStep() {
     switch (step) {
-      case 1: return <Step1 form={form} set={set} />;
+      case 1: return <Step1 form={form} set={set} customCategory={customCategory} setCustomCategory={setCustomCategory} />;
       case 2: return <Step2 form={form} set={set} />;
       case 3: return <Step3 form={form} set={set} setForm={setForm} />;
       case 4: return <Step4 form={form} set={set} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} />;
-      case 5: return <Step5 form={form} />;
+      case 5: return <Step5 form={form} customCategory={customCategory} />;
       default: return null;
     }
   }
@@ -834,6 +849,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff7f0', borderColor: ORANGE,
   },
   catCardLabel: { fontSize: 10, fontWeight: '600', color: '#888', textAlign: 'center' },
+  customCategoryInput: {
+    marginTop: 10, borderWidth: 1.5, borderColor: ORANGE, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: '#111',
+    backgroundColor: '#fff',
+  },
 
   // Picker/chips
   pickerRow: { gap: 8, paddingBottom: 16, alignItems: 'center' },
