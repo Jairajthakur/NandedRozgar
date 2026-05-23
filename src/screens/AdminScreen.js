@@ -561,6 +561,9 @@ export default function AdminScreen() {
   const [banners, setBanners] = useState([]);
   const [users, setUsers] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [coupons, setCoupons] = useState([]);
+  const [couponForm, setCouponForm] = useState({ code:'', type:'percent', value:'', maxUses:'', validUntil:'' });
+  const [couponLoading, setCouponLoading] = useState(false);
 
   // UI state
   const [jobFilter, setJobFilter] = useState('all');
@@ -683,6 +686,12 @@ export default function AdminScreen() {
       if (uRes.ok) setUsers(uRes.users || []);
       if (pRes.ok) setPayments(pRes.payments || []);
 
+      // Load coupons
+      try {
+        const cRes = await apiCall('GET', '/api/coupons');
+        if (cRes.ok) setCoupons(cRes.coupons || []);
+      } catch (_) {}
+
       if (failedEndpoints.length > 0) {
         showToast(`Failed: ${failedEndpoints.join(', ')}`, true);
       }
@@ -791,6 +800,7 @@ export default function AdminScreen() {
     { id: 'users', label: `👥 Users (${users.length})` },
     { id: 'revenue', label: '₹ Revenue' },
     { id: 'payments', label: '🧾 Payments' },
+    { id: 'coupons', label: '🎟 Coupons' },
   ];
 
   // Show splash while checking saved token
@@ -1152,6 +1162,131 @@ export default function AdminScreen() {
           </View>
         )}
 
+        {activeTab === 'coupons' && (
+          <View>
+            {/* Create coupon form */}
+            <Card title="Create Coupon" icon="🎟" iconColor={C.green} iconBg={C.greenLight}>
+              <View style={{ gap: 10 }}>
+                <TextInput
+                  style={styles.adminInput}
+                  placeholder="Code (e.g. WELCOME50)"
+                  placeholderTextColor="#aaa"
+                  value={couponForm.code}
+                  onChangeText={v => setCouponForm(f => ({ ...f, code: v.toUpperCase() }))}
+                  autoCapitalize="characters"
+                />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {['percent','flat','free_days'].map(t => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[{ flex:1, paddingVertical:8, borderRadius:8, borderWidth:1, borderColor: couponForm.type===t ? C.green : '#e5e7eb', backgroundColor: couponForm.type===t ? C.greenLight : '#fff', alignItems:'center' }]}
+                      onPress={() => setCouponForm(f => ({ ...f, type: t }))}
+                    >
+                      <Text style={{ fontSize:12, fontWeight:'700', color: couponForm.type===t ? C.green : '#555' }}>
+                        {t === 'percent' ? '% Off' : t === 'flat' ? '₹ Off' : 'Free Days'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TextInput
+                  style={styles.adminInput}
+                  placeholder={couponForm.type === 'percent' ? 'Value (e.g. 20 for 20%)' : couponForm.type === 'flat' ? 'Amount off in ₹' : 'Free days (e.g. 7)'}
+                  placeholderTextColor="#aaa"
+                  value={couponForm.value}
+                  onChangeText={v => setCouponForm(f => ({ ...f, value: v.replace(/[^0-9]/g,'') }))}
+                  keyboardType="numeric"
+                />
+                <TextInput
+                  style={styles.adminInput}
+                  placeholder="Max uses (leave blank = unlimited)"
+                  placeholderTextColor="#aaa"
+                  value={couponForm.maxUses}
+                  onChangeText={v => setCouponForm(f => ({ ...f, maxUses: v.replace(/[^0-9]/g,'') }))}
+                  keyboardType="numeric"
+                />
+                <TextInput
+                  style={styles.adminInput}
+                  placeholder="Valid until (YYYY-MM-DD, blank = no expiry)"
+                  placeholderTextColor="#aaa"
+                  value={couponForm.validUntil}
+                  onChangeText={v => setCouponForm(f => ({ ...f, validUntil: v }))}
+                />
+                <TouchableOpacity
+                  style={{ backgroundColor: C.green, borderRadius: 10, paddingVertical: 12, alignItems: 'center', opacity: couponLoading ? 0.6 : 1 }}
+                  disabled={couponLoading}
+                  onPress={async () => {
+                    if (!couponForm.code.trim() || !couponForm.value) {
+                      showToast('Code and value are required', true); return;
+                    }
+                    setCouponLoading(true);
+                    try {
+                      const r = await apiCall('POST', '/api/coupons', {
+                        code: couponForm.code.trim(),
+                        type: couponForm.type,
+                        value: parseInt(couponForm.value),
+                        maxUses: couponForm.maxUses ? parseInt(couponForm.maxUses) : null,
+                        validUntil: couponForm.validUntil || null,
+                      });
+                      if (r.ok) {
+                        setCoupons(prev => [r.coupon, ...prev]);
+                        setCouponForm({ code:'', type:'percent', value:'', maxUses:'', validUntil:'' });
+                        showToast('Coupon created!');
+                      } else {
+                        showToast(r.error || 'Failed to create coupon', true);
+                      }
+                    } finally { setCouponLoading(false); }
+                  }}
+                >
+                  <Text style={{ color:'#fff', fontWeight:'700', fontSize:15 }}>
+                    {couponLoading ? 'Creating…' : '+ Create Coupon'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </Card>
+
+            {/* Coupon list */}
+            <Card title={`Coupons (${coupons.length})`} icon="📋" iconColor={C.orange} iconBg={C.orangeLight} style={{ marginTop: 14 }}>
+              {coupons.length === 0 ? (
+                <Text style={styles.emptyText}>No coupons yet. Create one above.</Text>
+              ) : coupons.map(c => (
+                <View key={c.id} style={{ borderBottomWidth:1, borderBottomColor:'#f3f4f6', paddingVertical:12 }}>
+                  <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
+                    <Text style={{ fontWeight:'800', fontSize:15, letterSpacing:1, color:'#111' }}>{c.code}</Text>
+                    <View style={{ flexDirection:'row', gap:8 }}>
+                      <TouchableOpacity
+                        style={{ paddingHorizontal:10, paddingVertical:4, borderRadius:6, backgroundColor: c.is_active ? '#fef9c3' : '#f3f4f6' }}
+                        onPress={async () => {
+                          const r = await apiCall('PATCH', `/api/coupons/${c.id}`, { isActive: !c.is_active });
+                          if (r.ok) setCoupons(prev => prev.map(x => x.id===c.id ? r.coupon : x));
+                        }}
+                      >
+                        <Text style={{ fontSize:11, fontWeight:'700', color: c.is_active ? '#854d0e' : '#6b7280' }}>
+                          {c.is_active ? '● ACTIVE' : '○ OFF'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{ paddingHorizontal:10, paddingVertical:4, borderRadius:6, backgroundColor:'#fee2e2' }}
+                        onPress={async () => {
+                          const r = await apiCall('DELETE', `/api/coupons/${c.id}`);
+                          if (r.ok) setCoupons(prev => prev.filter(x => x.id!==c.id));
+                        }}
+                      >
+                        <Text style={{ fontSize:11, fontWeight:'700', color:'#dc2626' }}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize:12, color:'#6b7280', marginTop:3 }}>
+                    {c.type === 'percent' ? `${c.value}% off` : c.type === 'flat' ? `₹${c.value} off` : `${c.value} free days`}
+                    {' · '}Used {c.uses_count}/{c.max_uses ?? '∞'}
+                    {c.valid_until ? ` · Expires ${new Date(c.valid_until).toLocaleDateString('en-IN')}` : ' · No expiry'}
+                  </Text>
+                </View>
+              ))}
+            </Card>
+            <View style={{ height: 30 }} />
+          </View>
+        )}
+
       </ScrollView>
 
       {/* Modals */}
@@ -1268,6 +1403,7 @@ const styles = StyleSheet.create({
 
   // Search
   searchBox: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 9, padding: 10, fontSize: 13, color: C.text, marginBottom: 12 },
+  adminInput: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 9, padding: 11, fontSize: 14, color: '#111' },
   resultCount: { fontSize: 11, color: C.text3, fontWeight: '600', marginBottom: 10 },
 
   // Listing Card
