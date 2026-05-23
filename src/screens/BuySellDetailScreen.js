@@ -141,7 +141,7 @@ function ImageGallery({ photos, category }) {
             <Ionicons name={iconName} size={64} color={catColor.icon} />
           </View>
         </Animated.View>
-        <Text style={[s.noPhotoTxt, { color: catColor.icon }]}>No photos uploaded</Text>
+        <Text style={[s.noPhotoTxt, { color: catColor.icon }]}>{t('noPhotosAvailable')}</Text>
       </View>
     );
   }
@@ -183,7 +183,7 @@ export default function BuySellDetailScreen() {
   const nav    = useNavigation();
   const route  = useRoute();
   const insets = useSafeAreaInsets();
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const item   = route.params?.item;
 
   const [saved, setSaved]   = useState(false);
@@ -305,7 +305,7 @@ export default function BuySellDetailScreen() {
                 {item.seller?.verified && (
                   <View style={s.verifiedTag}>
                     <Ionicons name="shield-checkmark" size={11} color="#16a34a" style={{ marginRight: 3 }} />
-                    <Text style={s.verifiedTagTxt}>Verified</Text>
+                    <Text style={s.verifiedTagTxt}>{t('verified')}</Text>
                   </View>
                 )}
                 {photoUrls.length > 0 && (
@@ -318,7 +318,7 @@ export default function BuySellDetailScreen() {
             </View>
             <View style={s.priceBlock}>
               <Text style={s.priceAmt}>{item.price}</Text>
-              {item.negotiable && <Text style={s.negotiableTxt}>Negotiable</Text>}
+              {item.negotiable && <Text style={s.negotiableTxt}>{t('makeOffer')}</Text>}
             </View>
           </View>
         </SlideIn>
@@ -326,7 +326,7 @@ export default function BuySellDetailScreen() {
         {/* ── Quick Stats ── */}
         <SlideIn delay={120}>
           <View style={s.statsSection}>
-            <Text style={s.sectionTitle}>DETAILS</Text>
+            <Text style={s.sectionTitle}>{t('itemDetails')}</Text>
             <View style={s.statsGrid}>
               {quickStats.map((stat, i) => (
                 <StatBox key={i} {...stat} delay={i * 55} />
@@ -338,7 +338,7 @@ export default function BuySellDetailScreen() {
         {/* ── Description ── */}
         <SlideIn delay={180}>
           <View style={s.section}>
-            <Text style={s.sectionTitle}>ABOUT THIS ITEM</Text>
+            <Text style={s.sectionTitle}>{t('description')}</Text>
             <View style={s.descBox}>
               <AutoTranslate
                 text={item.description ||
@@ -354,12 +354,12 @@ export default function BuySellDetailScreen() {
         {(item.brand || item.age || item.warranty) && (
           <SlideIn delay={220}>
             <View style={s.section}>
-              <Text style={s.sectionTitle}>SPECIFICATIONS</Text>
+              <Text style={s.sectionTitle}>{t('specifications')}</Text>
               <View style={s.detailGrid}>
-                {item.brand    && <View style={s.detailItem}><Text style={s.detailLabel}>Brand</Text><Text style={s.detailVal}>{item.brand}</Text></View>}
-                {item.age      && <View style={s.detailItem}><Text style={s.detailLabel}>Age</Text><Text style={s.detailVal}>{item.age}</Text></View>}
-                {item.warranty && <View style={s.detailItem}><Text style={s.detailLabel}>Warranty</Text><Text style={s.detailVal}>{item.warranty}</Text></View>}
-                <View style={s.detailItem}><Text style={s.detailLabel}>Price</Text><Text style={s.detailVal}>{item.negotiable ? 'Negotiable' : 'Fixed'}</Text></View>
+                {item.brand    && <View style={s.detailItem}><Text style={s.detailLabel}>{t('brand') || 'Brand'}</Text><Text style={s.detailVal}>{item.brand}</Text></View>}
+                {item.age      && <View style={s.detailItem}><Text style={s.detailLabel}>{t('age') || 'Age'}</Text><Text style={s.detailVal}>{item.age}</Text></View>}
+                {item.warranty && <View style={s.detailItem}><Text style={s.detailLabel}>{t('warranty') || 'Warranty'}</Text><Text style={s.detailVal}>{item.warranty}</Text></View>}
+                <View style={s.detailItem}><Text style={s.detailLabel}>{t('price') || 'Price'}</Text><Text style={s.detailVal}>{item.negotiable ? 'Negotiable' : 'Fixed'}</Text></View>
               </View>
             </View>
           </SlideIn>
@@ -368,7 +368,7 @@ export default function BuySellDetailScreen() {
         {/* ── Seller ── */}
         <SlideIn delay={260}>
           <View style={s.section}>
-            <Text style={s.sectionTitle}>SELLER</Text>
+            <Text style={s.sectionTitle}>{t('seller')}</Text>
             <View style={s.sellerCard}>
               <View style={[s.sellerAvatar, { backgroundColor: catColor.bg }]}>
                 <Text style={[s.sellerInitial, { color: catColor.icon }]}>
@@ -382,7 +382,7 @@ export default function BuySellDetailScreen() {
               {(item.seller?.verified || item.verified) && (
                 <View style={s.verifiedBadge}>
                   <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
-                  <Text style={s.verifiedBadgeTxt}>Verified</Text>
+                  <Text style={s.verifiedBadgeTxt}>{t('verified')}</Text>
                 </View>
               )}
             </View>
@@ -394,7 +394,7 @@ export default function BuySellDetailScreen() {
           <View style={s.safetyCard}>
             <View style={s.safetyHeader}>
               <Ionicons name="information-circle-outline" size={16} color="#0369a1" style={{ marginRight: 6 }} />
-              <Text style={s.safetyTitle}>Buying Tips</Text>
+              <Text style={s.safetyTitle}>{t('buyingTips')}</Text>
             </View>
             {['Inspect item in person before making payment', 'Prefer meeting in public places', 'Verify item condition matches listing'].map((tip, i) => (
               <Text key={i} style={s.safetyTip}>· {tip}</Text>
@@ -406,7 +406,7 @@ export default function BuySellDetailScreen() {
       {/* ── Sticky CTA Bar ── */}
       <SlideIn delay={380} from={40}>
         <View style={[s.stickyBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <CTAButton label="Call Seller"  onPress={callSeller}    color={PURPLE}    icon="call"           delay={0} />
+          <CTAButton label={t('callSeller')}  onPress={callSeller}    color={PURPLE}    icon="call"           delay={0} />
           <CTAButton label="WhatsApp"     onPress={openWhatsApp}  color={GREEN_WA}  icon="logo-whatsapp"  delay={60} />
         </View>
       </SlideIn>
