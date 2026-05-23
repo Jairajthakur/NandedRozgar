@@ -3,7 +3,7 @@
  * Adds: loginWithGoogle, sendOTP, verifyOTP, forgotPassword, loginWithBiometrics
  * Fixed: Google OAuth web support, Firebase OTP platform detection
  */
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { http, loadToken, saveToken, clearToken } from '../utils/api';
 
@@ -68,9 +68,9 @@ export function AuthProvider({ children }) {
     } catch (e) { console.warn('loadJobs:', e.message); }
   }
 
-  async function loadMoreJobs() {
+  const loadMoreJobs = useCallback(async () => {
     if (jobPagination?.hasNext) await loadJobs(jobPage + 1);
-  }
+  }, [jobPagination, jobPage]);
 
   async function loadUsers() {
     try {
@@ -202,6 +202,10 @@ export function AuthProvider({ children }) {
   // ── Sign out ──────────────────────────────────────────────────────────────
   async function signOut() {
     try { await clearToken(); } catch {}
+    try {
+      await SecureStore.deleteItemAsync(BIOMETRIC_EMAIL_KEY);
+      await SecureStore.deleteItemAsync(BIOMETRIC_TOKEN_KEY);
+    } catch {}
     setUser(null); setJobs([]); setUsers([]);
     setJobPage(1); setJobPagination(null);
   }
