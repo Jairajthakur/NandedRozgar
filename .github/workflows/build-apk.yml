@@ -21,7 +21,6 @@ jobs:
         with:
           node-version: '20'
 
-
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
@@ -57,7 +56,6 @@ jobs:
         with:
           node-version: '20'
 
-
       - name: Setup Java
         uses: actions/setup-java@v4.7.0
         with:
@@ -67,23 +65,16 @@ jobs:
       - name: Validate required secrets
         run: |
           MISSING=""
-          [ -z "$GOOGLE_SERVICES_JSON" ]        && MISSING="$MISSING GOOGLE_SERVICES_JSON"
-          [ -z "$EXPO_TOKEN" ]                   && MISSING="$MISSING EXPO_TOKEN"
-          [ -z "$EXPO_PROJECT_ID" ]              && MISSING="$MISSING EXPO_PROJECT_ID"
+          [ -z "$EXPO_TOKEN" ]      && MISSING="$MISSING EXPO_TOKEN"
+          [ -z "$EXPO_PROJECT_ID" ] && MISSING="$MISSING EXPO_PROJECT_ID"
           if [ -n "$MISSING" ]; then
             echo "❌ Missing required secrets:$MISSING"
             exit 1
           fi
           echo "✅ All required secrets are present."
         env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
-
-      - name: Create google-services.json
-        run: |
-          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
-          echo "✅ google-services.json created."
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
