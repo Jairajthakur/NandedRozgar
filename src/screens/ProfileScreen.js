@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { http } from '../utils/api';
+import { useLang } from '../utils/i18n';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -153,6 +154,7 @@ function MenuRow({ item, isLast, index }) {
 export default function ProfileScreen() {
   const nav = useNavigation();
   const { user, signOut, jobs } = useAuth();
+  const { t } = useLang();
   const [stats,      setStats]      = useState({ applied: 0, saved: 0 });
   const [loading,    setLoading]    = useState(true);
   const [logoutModal, setLogoutModal] = useState(false);
@@ -233,36 +235,36 @@ export default function ProfileScreen() {
       setLogoutModal(true);
     } else {
       const { Alert } = require('react-native');
-      Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-        { text: 'Cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: signOut },
+      Alert.alert(t('signOutTitle'), t('signOutSub'), [
+        { text: t('stayBtn') },
+        { text: t('signOut'), style: 'destructive', onPress: signOut },
       ]);
     }
   }
 
   const seekerMenu = [
-    { icon: 'person-outline',           label: 'Upload Resume',   onPress: () => nav.navigate('SeekerProfile') },
-    { icon: 'checkmark-circle-outline', label: 'My Applications',     badge: stats.applied, onPress: () => nav.navigate('MyApplications') },
-    { icon: 'bookmark-outline',         label: 'Saved Jobs',          badge: stats.saved,   onPress: () => nav.navigate('Jobs') },
-    { icon: 'notifications-outline',    label: 'Job Alerts',          onPress: () => nav.navigate('Alerts') },
-    { icon: 'chatbubbles-outline',      label: 'My Messages',         onPress: () => nav.navigate('ChatList') },
+    { icon: 'person-outline',           label: t('profileMenuUploadResume'),   onPress: () => nav.navigate('SeekerProfile') },
+    { icon: 'checkmark-circle-outline', label: t('profileMenuMyApplications'), badge: stats.applied, onPress: () => nav.navigate('MyApplications') },
+    { icon: 'bookmark-outline',         label: t('profileMenuSavedJobs'),      badge: stats.saved,   onPress: () => nav.navigate('Jobs') },
+    { icon: 'notifications-outline',    label: t('profileMenuJobAlerts'),      onPress: () => nav.navigate('Alerts') },
+    { icon: 'chatbubbles-outline',      label: t('profileMenuMyMessages'),     onPress: () => nav.navigate('ChatList') },
   ];
   const employerMenu = [
-    { icon: 'briefcase-outline',        label: 'My Job Posts',        badge: myJobs.length, onPress: () => nav.navigate('Jobs') },
-    { icon: 'bar-chart-outline',        label: 'Analytics Dashboard', onPress: () => nav.navigate('Analytics') },
-    { icon: 'chatbubbles-outline',      label: 'My Messages',         onPress: () => nav.navigate('ChatList') },
-    { icon: 'star-outline',             label: 'My Reviews',          onPress: () => nav.navigate('ChatList') },
+    { icon: 'briefcase-outline',        label: t('profileMenuMyJobPosts'),     badge: myJobs.length, onPress: () => nav.navigate('Jobs') },
+    { icon: 'bar-chart-outline',        label: t('profileMenuAnalytics'),      onPress: () => nav.navigate('Analytics') },
+    { icon: 'chatbubbles-outline',      label: t('profileMenuMyMessages'),     onPress: () => nav.navigate('ChatList') },
+    { icon: 'star-outline',             label: t('profileMenuMyReviews'),      onPress: () => nav.navigate('ChatList') },
   ];
   const adminMenu = [
-    { icon: 'shield-checkmark-outline', label: 'Admin Dashboard',     onPress: () => nav.navigate('Admin') },
-    { icon: 'people-outline',           label: 'Manage Users',        onPress: () => nav.navigate('Admin') },
-    { icon: 'bar-chart-outline',        label: 'Analytics',           onPress: () => nav.navigate('Analytics') },
-    { icon: 'chatbubbles-outline',      label: 'My Messages',         onPress: () => nav.navigate('ChatList') },
+    { icon: 'shield-checkmark-outline', label: t('profileMenuAdminDashboard'), onPress: () => nav.navigate('Admin') },
+    { icon: 'people-outline',           label: t('profileMenuManageUsers'),    onPress: () => nav.navigate('Admin') },
+    { icon: 'bar-chart-outline',        label: t('profileMenuAnalyticsShort'), onPress: () => nav.navigate('Analytics') },
+    { icon: 'chatbubbles-outline',      label: t('profileMenuMyMessages'),     onPress: () => nav.navigate('ChatList') },
   ];
   const commonMenu = [
-    { icon: 'share-social-outline',       label: 'Refer & Earn',      onPress: () => nav.navigate('Referral') },
-    { icon: 'help-circle-outline',        label: 'Help & Support',    onPress: () => nav.navigate('HelpSupport') },
-    { icon: 'information-circle-outline', label: 'About CityPlus',    onPress: () => nav.navigate('About') },
+    { icon: 'share-social-outline',       label: t('profileMenuReferEarn'),    onPress: () => nav.navigate('Referral') },
+    { icon: 'help-circle-outline',        label: t('profileMenuHelpSupport'),  onPress: () => nav.navigate('HelpSupport') },
+    { icon: 'information-circle-outline', label: t('profileMenuAbout'),        onPress: () => nav.navigate('About') },
   ];
 
   const roleMenu  = isAdmin ? adminMenu : isSeeker ? seekerMenu : employerMenu;
@@ -343,9 +345,9 @@ export default function ProfileScreen() {
 
           {/* Member since */}
           <Text style={styles.memberSince}>
-            Member since {user?.created_at
+            {t('memberSince')} {user?.created_at
               ? new Date(user.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-              : 'recently'}
+              : t('recentlyJoined')}
           </Text>
         </Animated.View>
 
@@ -360,7 +362,7 @@ export default function ProfileScreen() {
                   <Ionicons name="briefcase" size={16} color={ORANGE} />
                 </View>
                 <AnimatedNumber value={myJobs.length} style={styles.statNum} />
-                <Text style={styles.statLbl}>{isSeeker ? 'Posts' : 'Posted'}</Text>
+                <Text style={styles.statLbl}>{isSeeker ? t('profilePosted') : t('profilePosted')}</Text>
               </TouchableOpacity>
 
               <View style={styles.statSep} />
@@ -370,7 +372,7 @@ export default function ProfileScreen() {
                   <Ionicons name="checkmark-circle" size={16} color={GREEN} />
                 </View>
                 <AnimatedNumber value={stats.applied} style={styles.statNum} />
-                <Text style={styles.statLbl}>Applied</Text>
+                <Text style={styles.statLbl}>{t('profileApplied')}</Text>
               </TouchableOpacity>
 
               <View style={styles.statSep} />
@@ -380,7 +382,7 @@ export default function ProfileScreen() {
                   <Ionicons name="bookmark" size={16} color={AMBER} />
                 </View>
                 <AnimatedNumber value={stats.saved} style={styles.statNum} />
-                <Text style={styles.statLbl}>Saved</Text>
+                <Text style={styles.statLbl}>{t('profileSaved')}</Text>
               </TouchableOpacity>
             </>
           )}
@@ -392,7 +394,7 @@ export default function ProfileScreen() {
           <View style={styles.sectionWrap}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionDot} />
-              <Text style={styles.sectionTitle}>My Account</Text>
+              <Text style={styles.sectionTitle}>{t('myAccount')}</Text>
             </View>
             <View style={styles.menuCard}>
               {menuItems.map((item, i) => (
@@ -436,6 +438,7 @@ export default function ProfileScreen() {
 
 // ── Sign out button ───────────────────────────────────────────────────────────
 function SignOutButton({ onPress }) {
+  const { t } = useLang();
   const scale = useRef(new Animated.Value(1)).current;
   const glow  = useRef(new Animated.Value(0)).current;
 
@@ -462,7 +465,7 @@ function SignOutButton({ onPress }) {
           <View style={styles.signOutIconWrap}>
             <Ionicons name="log-out-outline" size={17} color="#ef4444" />
           </View>
-          <Text style={styles.signOutTxt}>Sign Out</Text>
+          <Text style={styles.signOutTxt}>{t('signOut')}</Text>
           <Ionicons name="chevron-forward" size={14} color="rgba(239,68,68,0.5)" style={{ marginLeft: 'auto' }} />
         </Animated.View>
       </TouchableOpacity>
@@ -472,6 +475,7 @@ function SignOutButton({ onPress }) {
 
 // ── Logout modal card ─────────────────────────────────────────────────────────
 function LogoutModalCard({ onCancel, onConfirm }) {
+  const { t } = useLang();
   const scale   = useRef(new Animated.Value(0.85)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -490,15 +494,15 @@ function LogoutModalCard({ onCancel, onConfirm }) {
           <Ionicons name="log-out-outline" size={26} color="#ef4444" />
         </View>
       </View>
-      <Text style={styles.modalTitle}>Sign Out?</Text>
-      <Text style={styles.modalSub}>You'll need to sign back in to access your account.</Text>
+      <Text style={styles.modalTitle}>{t('signOutTitle')}</Text>
+      <Text style={styles.modalSub}>{t('signOutSub')}</Text>
       <View style={styles.modalBtns}>
         <TouchableOpacity style={styles.modalCancelBtn} onPress={onCancel} activeOpacity={0.8}>
-          <Text style={styles.modalCancelTxt}>Stay</Text>
+          <Text style={styles.modalCancelTxt}>{t('stayBtn')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.modalLogoutBtn} onPress={onConfirm} activeOpacity={0.8}>
           <Ionicons name="log-out-outline" size={15} color="#fff" />
-          <Text style={styles.modalLogoutTxt}>Sign Out</Text>
+          <Text style={styles.modalLogoutTxt}>{t('signOut')}</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
