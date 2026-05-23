@@ -42,9 +42,18 @@ const AGE_OPTIONS = [
 ];
 
 const AREAS = [
-  'Nanded City', 'Vazirabad', 'Cidco', 'Shivaji Nagar',
-  'Old Nanded', 'Ardhapur', 'Naigaon', 'Taroda',
-  'SRTMU Area', 'Station Road', 'Other',
+  // ── Nanded City localities ──
+  'Nanded City', 'Vazirabad', 'Shivaji Nagar', 'Vishnupuri', 'Taroda Naka',
+  'Cidco', 'Old Nanded', 'New Mondha', 'Novena Colony',
+  'Kasturba Nagar', 'Santnagar', 'Padampur', 'Shantinagar',
+  'Guru Nanak Colony', 'Aurangpura', 'Subhash Nagar',
+  'SRTMU Area', 'Station Road',
+  // ── Nanded District Talukas ──
+  'Nanded (Taluka)', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Bhokar',
+  'Kinwat', 'Deglur', 'Biloli', 'Naigaon', 'Loha',
+  'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
+  'Mudkhed',
+  'Other',
 ];
 
 const PLANS = [
