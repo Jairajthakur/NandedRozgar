@@ -122,7 +122,7 @@ router.post('/order', auth, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify', auth, async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, job, plan, amount, days } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, job, plan, amount, days, couponId } = req.body;
 
     const check = checkPayment(req);
     if (!check.ok) return res.json({ ok: false, error: check.error });
@@ -172,6 +172,15 @@ router.post('/verify', auth, async (req, res) => {
     // Link payment → job
     await pool.query('UPDATE payments SET job_id = $1 WHERE id = $2', [rows[0].id, paymentId]);
 
+    // Mark coupon as used if one was applied
+    if (couponId) {
+      await pool.query(
+        `INSERT INTO coupon_usage (coupon_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [couponId, req.user.id]
+      );
+      await pool.query(`UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id=$1`, [couponId]);
+    }
+
     res.json({ ok: true, job: rows[0] });
   } catch (err) {
     console.error('verify/job error:', err);
@@ -184,7 +193,7 @@ router.post('/verify', auth, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/room', auth, async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, room, plan, amount, days } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, room, plan, amount, days, couponId } = req.body;
 
     const check = checkPayment(req);
     if (!check.ok) return res.json({ ok: false, error: check.error });
@@ -229,6 +238,11 @@ router.post('/verify/room', auth, async (req, res) => {
       expiresAt,
     ]);
 
+    if (couponId) {
+      await pool.query(`INSERT INTO coupon_usage (coupon_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [couponId, req.user.id]);
+      await pool.query(`UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id=$1`, [couponId]);
+    }
+
     res.json({ ok: true, room: rows[0] });
   } catch (err) {
     console.error('verify/room error:', err);
@@ -241,7 +255,7 @@ router.post('/verify/room', auth, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/vehicle', auth, async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, vehicle, plan, amount, days } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, vehicle, plan, amount, days, couponId } = req.body;
 
     const check = checkPayment(req);
     if (!check.ok) return res.json({ ok: false, error: check.error });
@@ -291,6 +305,11 @@ router.post('/verify/vehicle', auth, async (req, res) => {
       expiresAt,
     ]);
 
+    if (couponId) {
+      await pool.query(`INSERT INTO coupon_usage (coupon_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [couponId, req.user.id]);
+      await pool.query(`UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id=$1`, [couponId]);
+    }
+
     res.json({ ok: true, vehicle: rows[0] });
   } catch (err) {
     console.error('verify/vehicle error:', err);
@@ -303,7 +322,7 @@ router.post('/verify/vehicle', auth, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/buysell', auth, async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, item, plan, amount, days } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, item, plan, amount, days, couponId } = req.body;
 
     const check = checkPayment(req);
     if (!check.ok) return res.json({ ok: false, error: check.error });
@@ -345,6 +364,11 @@ router.post('/verify/buysell', auth, async (req, res) => {
       planDays, item.planLabel || plan || '15 Days', parseInt(item.planPrice) || 0,
       expiresAt,
     ]);
+
+    if (couponId) {
+      await pool.query(`INSERT INTO coupon_usage (coupon_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [couponId, req.user.id]);
+      await pool.query(`UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id=$1`, [couponId]);
+    }
 
     res.json({ ok: true, item: rows[0] });
   } catch (err) {
