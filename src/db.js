@@ -1,8 +1,14 @@
 const { Pool } = require('pg');
 
+// Enable SSL whenever the DATABASE_URL points to Railway's internal network
+// OR when NODE_ENV is explicitly set to production.
+// This ensures the DB connection works even if NODE_ENV is not set.
+const dbUrl = process.env.DATABASE_URL || '';
+const requireSsl = process.env.NODE_ENV === 'production' || dbUrl.includes('railway.internal') || dbUrl.includes('railway.app');
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  connectionString: dbUrl,
+  ssl: requireSsl ? { rejectUnauthorized: false } : false,
 });
 
 async function runMigrations() {
