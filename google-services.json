@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "947711727855",
+    "project_id": "cityplus-17411",
+    "storage_bucket": "cityplus-17411.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:947711727855:android:1d8662c4f72bda091ba31a",
+        "android_client_info": {
+          "package_name": "com.cityplus.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChJ9UWixyeRjCGDfGJtS_LBZTRcFcD5R4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
