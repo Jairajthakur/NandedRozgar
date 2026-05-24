@@ -589,3 +589,40 @@ router.delete('/account', auth, async (req, res) => {
     client.release();
   }
 });
+
+// ── GET /api/auth/google/callback ─────────────────────────────────────────────
+// Google redirects here after user approves sign-in (implicit/token flow).
+// We extract the access_token from the URL hash/query and redirect into the app
+// via the nanded:// deep link scheme.
+//
+// Add this URL to Google Console → Web Client → Authorized redirect URIs:
+//   https://localloops-production.up.railway.app/api/auth/google/callback
+//
+router.get('/google/callback', (req, res) => {
+  // Google sends token in query params for this flow
+  const { access_token, error, error_description } = req.query;
+
+  if (error || !access_token) {
+    // Redirect back to app with error
+    const msg = encodeURIComponent(error_description || error || 'Google sign-in failed');
+    return res.redirect(`nanded://google-auth?error=${msg}`);
+  }
+
+  // Redirect into app with the access token — LoginScreen will pick this up
+  return res.redirect(`nanded://google-auth?access_token=${encodeURIComponent(access_token)}`);
+});
+
+// ── GET /api/auth/google/start ─────────────────────────────────────────────────
+// Initiates Google OAuth — redirects user to Google's consent screen.
+// Called by opening a browser to this URL from the app.
+//
+router.get('/google/start', (req, res) => {
+  const clientId     = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const redirectUri  = encodeURIComponent(
+    `${process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app'}/api/auth/google/callback`
+  );
+  const scope        = encodeURIComponent('openid profile email');
+  const responseType = 'token';
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=${responseType}&scope=${scope}&access_type=online`;
+  res.redirect(url);
+});
