@@ -388,6 +388,12 @@ async function runMigrations() {
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS timing        VARCHAR(100)`,
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS template_id   INTEGER`,
       `ALTER TABLE rooms               ADD COLUMN IF NOT EXISTS plan_price    INTEGER`,
+
+      // ── users columns added in later versions ────────────────────────────────
+      // push_token: required for Expo push notifications & /api/auth/me query
+      // deleted_at: required for GDPR account deletion route
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token  TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at  TIMESTAMPTZ`,
     ];
     for (const sql of safeAlters) {
       try { await client.query(sql); } catch (e) { console.warn('Alter warn (non-fatal):', e.message); }
