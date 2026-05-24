@@ -172,7 +172,7 @@ function MainTabs() {
 
 // ── Root Navigator ────────────────────────────────────────────────────────────
 function RootNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, sessionPending } = useAuth();
   const { t } = useLang();
   const [showOnboarding, setShowOnboarding] = React.useState(null);
 
@@ -200,7 +200,7 @@ function RootNavigator() {
     return unsub;
   }, []);
 
-  if (loading || showOnboarding === null) return (
+  if (loading || showOnboarding === null || sessionPending) return (
     <View style={s.splash}>
       <View style={s.splashIcon}>
         <MaterialIcons name="location-city" size={36} color={ORANGE} />
