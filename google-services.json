@@ -12,7 +12,12 @@
           "package_name": "com.cityplus.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyChJ9UWixyeRjCGDfGJtS_LBZTRcFcD5R4"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
