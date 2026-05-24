@@ -2,6 +2,7 @@
  * CityPlus — AuthContext.js
  * Adds: loginWithGoogle, sendOTP, verifyOTP, forgotPassword, loginWithBiometrics
  * Fixed: Google OAuth web support, Firebase OTP platform detection
+ * Fixed: Refresh sign-out issue — keeps session on server errors/cold starts
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as SecureStore from 'expo-secure-store';
@@ -18,6 +19,10 @@ export function AuthProvider({ children }) {
   const [users,   setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // When true, we know a token exists but haven't confirmed with server yet.
+  // The app should show a loading/splash screen rather than the login screen.
+  const [sessionPending, setSessionPending] = useState(false);
+
   // Pagination state
   const [jobPage,       setJobPage]       = useState(1);
   const [jobPagination, setJobPagination] = useState(null);
@@ -26,33 +31,52 @@ export function AuthProvider({ children }) {
   const fetchingRef = useRef(false);
 
   useEffect(() => {
-    const fallback = setTimeout(() => setLoading(false), 8000);
+    const fallback = setTimeout(() => {
+      // If server never responded, keep sessionPending false but stop spinner
+      setLoading(false);
+      setSessionPending(false);
+    }, 10000);
     init().finally(() => { clearTimeout(fallback); setLoading(false); });
   }, []);
 
   async function init() {
     try {
       const token = await loadToken();
-      if (!token) return;
+      if (!token) return; // No token → not logged in, show login screen normally
+
+      // Token exists — signal that we have a session to restore.
+      // The app should show a loading/splash screen, NOT the login screen.
+      setSessionPending(true);
+
       const r = await http('GET', '/api/auth/me');
+
       if (r?.ok && r.user) {
+        // ✅ Server confirmed the session
         setUser(r.user);
+        setSessionPending(false);
         await loadJobs(1);
         if (r.user.role === 'admin') await loadUsers();
       } else if (r?.status === 401 || r?.status === 403) {
-        // Only clear token on explicit auth rejection — not on network/server errors
+        // ❌ Server explicitly rejected the token (expired or invalid)
+        // Only NOW should we clear it and send the user to login
         await clearToken();
+        setSessionPending(false);
+        setUser(null);
+      } else {
+        // ⚠️  Server error / cold start / network issue — keep the token!
+        // Leave sessionPending = false and user = null for now.
+        // The token is preserved; next app open will retry.
+        // Optionally: set a "offline mode" flag here to show a banner.
+        setSessionPending(false);
       }
-      // On network error or server hiccup (503 etc.), keep the token
-      // so user stays logged in once server recovers
     } catch (e) {
       console.warn('init error:', e.message);
       // Do NOT clear token on exceptions — could be a temporary network issue
+      setSessionPending(false);
     }
   }
 
   async function loadJobs(page = 1, category = null, search = null) {
-    // Skip if a fetch is already in progress (prevents redundant calls after login/register)
     if (fetchingRef.current && page === 1) return;
     fetchingRef.current = true;
     try {
@@ -116,7 +140,6 @@ export function AuthProvider({ children }) {
   }
 
   // ── Google OAuth login ────────────────────────────────────────────────────
-  // accessToken comes from expo-auth-session (all platforms)
   async function loginWithGoogle(accessToken) {
     try {
       const r = await http('POST', '/api/auth/google', { accessToken });
@@ -141,7 +164,6 @@ export function AuthProvider({ children }) {
       await saveToken(storedToken);
       const r = await http('GET', '/api/auth/me');
       if (!r?.ok) {
-        // Token expired or password changed — wipe everything and force full login
         await clearToken();
         try {
           await SecureStore.deleteItemAsync(BIOMETRIC_EMAIL_KEY);
@@ -158,9 +180,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // ── Phone OTP via Firebase (free · 10 K/month · no KYC needed) ──────────
-  // Firebase sends the SMS on the client — backend only validates the idToken
-  // via firebase-admin at /api/auth/verify-firebase-otp.
+  // ── Phone OTP via Firebase ────────────────────────────────────────────────
   async function sendOTP(phone) {
     try {
       const auth = require('@react-native-firebase/auth').default;
@@ -179,10 +199,8 @@ export function AuthProvider({ children }) {
 
   async function verifyOTP(confirmation, otp) {
     try {
-      // confirmation is the Firebase ConfirmationResult from signInWithPhoneNumber
       const credential = await confirmation.confirm(String(otp).trim());
       const idToken = await credential.user.getIdToken();
-      // Exchange Firebase idToken for our app JWT
       const r = await http('POST', '/api/auth/verify-firebase-otp', { idToken });
       if (!r?.ok) return r ?? { ok: false, error: 'OTP verification failed. Please try again.' };
       await saveToken(r.token);
@@ -224,6 +242,7 @@ export function AuthProvider({ children }) {
     } catch {}
     setUser(null); setJobs([]); setUsers([]);
     setJobPage(1); setJobPagination(null);
+    setSessionPending(false);
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────
@@ -241,6 +260,7 @@ export function AuthProvider({ children }) {
       jobs, setJobs, loadJobs, loadMoreJobs,
       jobPagination, jobPage,
       users, setUsers, loading,
+      sessionPending,   // ← expose this so App.js can show a splash instead of login
       login, register, signOut, loadUsers,
       loginWithGoogle,
       loginWithBiometrics,
