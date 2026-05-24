@@ -1,8 +1,10 @@
 /**
- * NandedRozgar — LoginScreen.js  (Light Theme, Animated)
- * Fixed: Google OAuth works on web + native + APK
- *        Deep link handling corrected for scheme: 'nanded'
- *        No dependency on Firebase client SDK for login
+ * CityPlus — LoginScreen.js
+ * Fixed:
+ *   1. Google OAuth now uses expo-auth-session/providers/google (client-side)
+ *      — No longer depends on the backend redirect chain, works offline for auth
+ *   2. Removed dead server-side /google/start → /google/callback redirect flow
+ *   3. Deep-link handler kept only for backward compat (no longer needed for Google)
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -14,10 +16,11 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
+import * as Google from 'expo-auth-session/providers/google';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
+// Required for expo-auth-session to close the browser after redirect
 WebBrowser.maybeCompleteAuthSession();
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
@@ -37,14 +40,6 @@ const DANGER      = '#dc2626';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const IS_WEB = Platform.OS === 'web';
-
-// ── API base URL (from .env) ──────────────────────────────────────────────────
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app';
-
-// ── Google OAuth URLs ─────────────────────────────────────────────────────────
-const GOOGLE_START_URL  = `${API_URL}/api/auth/google/start`;
-// On web, Google redirects back to this page URL (no deep link needed)
-// On native, Google redirects to nanded://google-auth deep link
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
@@ -181,6 +176,37 @@ export default function LoginScreen() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  // ── Google OAuth 2.0 — expo-auth-session (client-side, no backend redirect) ─
+  // This replaces the broken server-side /google/start → /google/callback chain.
+  // The access token is obtained directly from Google and then sent to the
+  // backend POST /api/auth/google endpoint.
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    webClientId:     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    // If you add an iOS build later:
+    // iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  });
+
+  // Handle the Google OAuth response when it arrives
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const accessToken = googleResponse.authentication?.accessToken;
+      if (accessToken) {
+        handleGoogleSuccess(accessToken);
+      } else {
+        setError('Google sign-in failed: no access token returned.');
+        triggerShake();
+        setGoogleLoading(false);
+      }
+    } else if (googleResponse?.type === 'error') {
+      setError(googleResponse.error?.message || 'Google sign-in failed. Please try again.');
+      triggerShake();
+      setGoogleLoading(false);
+    } else if (googleResponse?.type === 'cancel' || googleResponse?.type === 'dismiss') {
+      setGoogleLoading(false);
+    }
+  }, [googleResponse]);
+
   // ── Entrance animations ───────────────────────────────────────────────────
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoY       = useRef(new Animated.Value(-24)).current;
@@ -222,29 +248,6 @@ export default function LoginScreen() {
     checkBiometrics();
   }, []);
 
-  // ── Deep link handler (native) — picks up nanded://google-auth?access_token=...
-  useEffect(() => {
-    if (IS_WEB) return;
-    const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
-    // Also handle the case where app was cold-started by a deep link
-    Linking.getInitialURL().then(url => { if (url) handleDeepLink(url); }).catch(() => {});
-    return () => sub.remove();
-  }, []);
-
-  async function handleDeepLink(url) {
-    if (!url || !url.includes('google-auth')) return;
-    try {
-      const parsed    = new URL(url);
-      const token     = parsed.searchParams.get('access_token');
-      const err       = parsed.searchParams.get('error');
-      if (err)   { setError(decodeURIComponent(err)); triggerShake(); return; }
-      if (token) { await handleGoogleSuccess(decodeURIComponent(token)); }
-    } catch {
-      setError('Google sign-in failed. Please try again.');
-      triggerShake();
-    }
-  }
-
   async function checkBiometrics() {
     if (IS_WEB) return;
     try {
@@ -275,74 +278,30 @@ export default function LoginScreen() {
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
-  // ── Google sign-in ────────────────────────────────────────────────────────
-  // Strategy:
-  //   WEB  → open GOOGLE_START_URL in same tab; Google redirects back to
-  //           the web app URL (backend /google/callback must redirect to the
-  //           web origin + ?access_token=...). We poll via postMessage / URL
-  //           change. Simplest: open in a new window/tab and let the SPA
-  //           catch the token on page load (see useEffect below).
-  //   NATIVE → openAuthSessionAsync opens a SFSafariVC / Chrome Custom Tab,
-  //             Google redirects to nanded://google-auth?access_token=…,
-  //             which fires the Linking listener above.
-
-  // On web: check if the current URL has ?access_token (returned from Google callback)
-  useEffect(() => {
-    if (!IS_WEB) return;
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const token  = params.get('access_token');
-      const err    = params.get('error');
-      if (err) {
-        setError(decodeURIComponent(err));
-        // Clean URL
-        window.history.replaceState({}, '', window.location.pathname);
-        return;
-      }
-      if (token) {
-        // Clean URL first, then handle
-        window.history.replaceState({}, '', window.location.pathname);
-        handleGoogleSuccess(decodeURIComponent(token));
-      }
-    } catch {}
-  }, []);
-
-  async function handleGoogleSuccess(accessToken) {
-    setGoogleLoading(true); setError('');
-    const r = await loginWithGoogle(accessToken);
-    setGoogleLoading(false);
-    if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
-  }
-
+  // ── Google sign-in handler ────────────────────────────────────────────────
+  // Uses expo-auth-session/providers/google — no server redirect needed.
+  // promptGoogleAsync() opens a browser, user grants permission,
+  // Google returns an access_token directly to the app via the redirect URI.
+  // That token is then POSTed to /api/auth/google on our backend.
   async function handleGooglePress() {
     setError('');
-    if (IS_WEB) {
-      // On web: navigate to backend Google start — it redirects to Google,
-      // Google redirects back to web app URL with ?access_token=
-      // Make sure your backend /google/callback redirects to:
-      //   process.env.APP_URL + '?access_token=' + access_token
-      // (see auth.js fix below)
-      window.location.href = GOOGLE_START_URL;
-    } else {
-      // On native (Android APK / Expo Go): use openAuthSessionAsync so that
-      // the custom-tab result is returned and the deep link fires correctly.
-      try {
-        setGoogleLoading(true);
-        const result = await WebBrowser.openAuthSessionAsync(
-          GOOGLE_START_URL,
-          'nanded://google-auth'   // must match scheme in app.config.js
-        );
-        setGoogleLoading(false);
-        if (result.type === 'success' && result.url) {
-          await handleDeepLink(result.url);
-        } else if (result.type === 'cancel') {
-          // User cancelled — no error message needed
-        }
-      } catch (e) {
-        setGoogleLoading(false);
-        setError('Could not open Google sign-in. Please try again.');
-        triggerShake();
-      }
+    if (!googleRequest) {
+      setError('Google sign-in is not ready yet. Please wait a moment and try again.');
+      return;
+    }
+    setGoogleLoading(true);
+    // promptGoogleAsync() result is handled in the useEffect([googleResponse]) above
+    await promptGoogleAsync();
+  }
+
+  async function handleGoogleSuccess(accessToken) {
+    setGoogleLoading(true);
+    setError('');
+    const r = await loginWithGoogle(accessToken);
+    setGoogleLoading(false);
+    if (!r?.ok) {
+      setError(r?.error || 'Google sign-in failed');
+      triggerShake();
     }
   }
 
@@ -472,9 +431,9 @@ export default function LoginScreen() {
 
             {/* GOOGLE */}
             <TouchableOpacity
-              style={[S.googleBtn, isGoogleBusy && { opacity: 0.55 }]}
+              style={[S.googleBtn, (isGoogleBusy || !googleRequest) && { opacity: 0.55 }]}
               onPress={handleGooglePress}
-              disabled={isGoogleBusy}
+              disabled={isGoogleBusy || !googleRequest}
               activeOpacity={0.82}
             >
               {googleLoading
