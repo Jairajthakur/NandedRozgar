@@ -45,9 +45,13 @@ const GOOGLE_DISCOVERY = {
   revocationEndpoint:    'https://oauth2.googleapis.com/revoke',
 };
 
-// Always use Web Client ID with expo-auth-session (even on Android)
-// The Android Client ID is only for native Google Sign-In SDK, not for OAuth web flow
-const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
+// On Android standalone APK with native scheme redirect:
+//   → use Android Client ID (registered with package + SHA-1, no redirect URI needed)
+// On Web:
+//   → use Web Client ID
+const GOOGLE_CLIENT_ID = Platform.OS === 'android'
+  ? (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '')
+  : (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '');
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const ALL_TABS = [
@@ -263,12 +267,17 @@ export default function LoginScreen() {
   });
 
   // ── Google ────────────────────────────────────────────────────────────────
-  // Hardcode the Expo proxy redirect URI — makeRedirectUri with useProxy:true
-  // returns the app scheme (nanded://) in standalone APKs instead of the proxy URL.
-  // Hardcoding ensures Google always gets https://auth.expo.io/@jai234/nanded.
+  // auth.expo.io proxy is SHUT DOWN — use the app's own scheme directly.
+  // On Android standalone APK: redirectUri = nanded://
+  // This must be registered in Google Cloud Console → Web Client → Authorized redirect URIs
+  // as: https://localloops-production.up.railway.app/auth/google/callback
+  // The backend at that route will receive the token and redirect to nanded://...
+  //
+  // SIMPLER approach: use responseType=Token so Google redirects directly to nanded://
+  // with the access_token in the URL fragment, which expo-auth-session handles natively.
   const redirectUri = Platform.OS === 'web'
     ? AuthSession.makeRedirectUri({ useProxy: false })
-    : 'https://auth.expo.io/@jai234/nanded';
+    : AuthSession.makeRedirectUri({ native: 'nanded://' });
 
   const [googleRequest, googleResponse, promptGoogleAsync] = AuthSession.useAuthRequest(
     {
