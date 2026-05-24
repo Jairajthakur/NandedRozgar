@@ -264,15 +264,12 @@ export default function LoginScreen() {
   });
 
   // ── Google ────────────────────────────────────────────────────────────────
-  // For standalone APK/AAB builds, use the app's own URI scheme.
-  // The Expo proxy (useProxy:true) only works inside Expo Go, NOT in production APKs.
-  // Android OAuth client in Google Console must have:
-  //   Package name: com.cityplus.app
-  //   SHA-1: your release keystore SHA-1
+  // Uses Expo auth proxy for both Expo Go and standalone APK.
+  // Web Client ID must have https://auth.expo.io/@jai234/nanded in Authorized redirect URIs.
   const redirectUri = AuthSession.makeRedirectUri(
     Platform.OS === 'web'
       ? { useProxy: false }
-      : { native: 'com.cityplus.app://', useProxy: false }
+      : { useProxy: true, projectNameForProxy: '@jai234/nanded' }
   );
   const [googleRequest, googleResponse, promptGoogleAsync] = AuthSession.useAuthRequest(
     {
