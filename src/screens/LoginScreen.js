@@ -24,12 +24,24 @@ import { useAuth } from '../context/AuthContext';
 // Required for expo-auth-session to close the browser after redirect
 WebBrowser.maybeCompleteAuthSession();
 
-// Build the exact redirect URI that will be sent to Google.
-// This MUST match what is registered in Google Cloud Console exactly.
-// Log it during development: console.log('Redirect URI:', redirectUri)
+// ── Redirect URI for Google OAuth (expo-auth-session v6 / Expo SDK 53) ────────
+//
+// useProxy was REMOVED in expo-auth-session v5+. Do NOT use { useProxy: true }.
+//
+// How redirect URIs work per environment:
+//   • Android APK / dev build  → "nanded://"  (custom scheme, handled natively)
+//   • Expo Go (dev testing)    → "exp://..."  (auto-detected by makeRedirectUri)
+//   • Web                      → window.location.origin
+//
+// makeRedirectUri() with no args auto-picks the right URI for the current env.
+// For the native APK case, Google Console does NOT need this URI — Android OAuth
+// clients handle it via the SHA-1 + package name, not a redirect URI.
+//
+// ⚠️  If you see redirect_uri_mismatch in Expo Go: create a separate OAuth 2.0
+//     Web Client in Google Console with redirect URI = the exp:// URL printed below.
 const redirectUri = AuthSession.makeRedirectUri({
-  scheme: 'nanded',   // must match app.config.js → expo.scheme
-  useProxy: true,     // forces https://auth.expo.io/@<username>/<slug>
+  scheme: 'nanded',         // matches app.config.js → expo.scheme
+  // Do NOT pass useProxy — removed in expo-auth-session v6
 });
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
@@ -185,20 +197,35 @@ export default function LoginScreen() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // ── Google OAuth 2.0 — expo-auth-session (client-side, no backend redirect) ─
-  // This replaces the broken server-side /google/start → /google/callback chain.
-  // The access token is obtained directly from Google and then sent to the
-  // backend POST /api/auth/google endpoint.
+  // ── Google OAuth 2.0 — expo-auth-session v6 / Expo SDK 53 ───────────────────
   //
-  // FIX: redirectUri is now explicitly set via makeRedirectUri({ useProxy: true })
-  // so the URI sent to Google always matches the one registered in Google Console.
-  // Remove the console.log below once Google sign-in is confirmed working.
-  useEffect(() => { console.log('[Google OAuth] redirectUri:', redirectUri); }, []);
+  // WHAT WAS WRONG:
+  //   The app was sending redirect_uri=https://localloops-production.up.railway.app
+  //   because useProxy (removed in v6) was causing expo-auth-session to fall back
+  //   to the EXPO_PUBLIC_API_URL as the redirect origin.
+  //
+  // THE FIX:
+  //   • Removed useProxy (not available in expo-auth-session v6)
+  //   • redirectUri now uses makeRedirectUri({ scheme: 'nanded' }) which correctly
+  //     resolves to:
+  //       - "nanded://"     on Android APK / dev build (native custom scheme)
+  //       - "exp://x.x.x.x/--/..." in Expo Go
+  //   • androidClientId handles Android native builds via SHA-1, not redirect URI
+  //   • webClientId is used for web/Expo Go — add its redirect URI to Google Console
+  //
+  // GOOGLE CLOUD CONSOLE — what to add under "Authorized redirect URIs":
+  //   Run the app and check the console log below for the exact URI.
+  //   Paste that URI into Google Console → Web Client → Authorized redirect URIs.
+  //
+  useEffect(() => {
+    console.log('[Google OAuth] redirectUri in use:', redirectUri);
+    console.log('[Google OAuth] Add the above URI to Google Cloud Console if not already there');
+  }, []);
 
   const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
     webClientId:     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    redirectUri,     // ← explicitly set to avoid redirect_uri_mismatch (Error 400)
+    redirectUri,     // ← correct SDK 53 redirect URI (no useProxy)
     // If you add an iOS build later:
     // iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
   });
