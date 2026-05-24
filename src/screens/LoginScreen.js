@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import * as AuthSession from 'expo-auth-session';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
@@ -45,13 +46,9 @@ const GOOGLE_DISCOVERY = {
   revocationEndpoint:    'https://oauth2.googleapis.com/revoke',
 };
 
-// On Android standalone APK with native scheme redirect:
-//   → use Android Client ID (registered with package + SHA-1, no redirect URI needed)
-// On Web:
-//   → use Web Client ID
-const GOOGLE_CLIENT_ID = Platform.OS === 'android'
-  ? (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '')
-  : (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '');
+// Always use Web Client ID — it supports both browser OAuth and PKCE code flow.
+// Android Client ID only works with the native Google Sign-In SDK, not browser OAuth.
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const ALL_TABS = [
@@ -267,32 +264,41 @@ export default function LoginScreen() {
   });
 
   // ── Google ────────────────────────────────────────────────────────────────
-  // auth.expo.io proxy is SHUT DOWN — use the app's own scheme directly.
-  // On Android standalone APK: redirectUri = nanded://
-  // This must be registered in Google Cloud Console → Web Client → Authorized redirect URIs
-  // as: https://localloops-production.up.railway.app/auth/google/callback
-  // The backend at that route will receive the token and redirect to nanded://...
+  // ── Google OAuth via backend callback ────────────────────────────────────────
+  // Flow:
+  //   1. App opens browser to /api/auth/google/start (on Railway backend)
+  //   2. Backend redirects to Google consent screen with backend callback URL
+  //   3. Google redirects to /api/auth/google/callback (https — accepted by Google)
+  //   4. Backend redirects to nanded://google-auth?access_token=...
+  //   5. App receives deep link and calls /api/auth/google with the token
   //
-  // SIMPLER approach: use responseType=Token so Google redirects directly to nanded://
-  // with the access_token in the URL fragment, which expo-auth-session handles natively.
-  const redirectUri = Platform.OS === 'web'
-    ? AuthSession.makeRedirectUri({ useProxy: false })
-    : AuthSession.makeRedirectUri({ native: 'nanded://' });
+  // This avoids the custom scheme issue in Google Console entirely.
+  const GOOGLE_START_URL = `${process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app'}/api/auth/google/start`;
 
-  const [googleRequest, googleResponse, promptGoogleAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: GOOGLE_CLIENT_ID,
-      redirectUri,
-      scopes: ['openid', 'profile', 'email'],
-      responseType: AuthSession.ResponseType.Token,
-      usePKCE: false,
-      extraParams: { access_type: 'online' },
-    },
-    GOOGLE_DISCOVERY
-  );
+  // Listen for deep link return from Google OAuth
   useEffect(() => {
-    if (googleResponse?.type === 'success') handleGoogleSuccess(googleResponse.authentication.accessToken);
-  }, [googleResponse]);
+    const sub = Linking.addEventListener('url', handleDeepLink);
+    return () => sub.remove();
+  }, []);
+
+  async function handleDeepLink({ url }) {
+    if (!url || !url.includes('google-auth')) return;
+    try {
+      const parsed = new URL(url);
+      const token  = parsed.searchParams.get('access_token');
+      const err    = parsed.searchParams.get('error');
+      if (err)   { setError(decodeURIComponent(err)); triggerShake(); return; }
+      if (token) { await handleGoogleSuccess(decodeURIComponent(token)); }
+    } catch (e) {
+      setError('Google sign-in failed. Please try again.');
+      triggerShake();
+    }
+  }
+
+  // Keep these stubs so nothing else breaks
+  const googleRequest  = null;
+  const googleResponse = null;
+  const promptGoogleAsync = null;
 
   async function handleGoogleSuccess(accessToken) {
     setLoading(true); setError('');
@@ -302,13 +308,11 @@ export default function LoginScreen() {
   }
 
   function handleGooglePress() {
-    if (!GOOGLE_CLIENT_ID) {
-      setError('Google sign-in not configured. Check EAS environment variables.');
-      return;
-    }
-    console.log('[Google OAuth] redirectUri:', redirectUri);
-    console.log('[Google OAuth] clientId:', GOOGLE_CLIENT_ID);
-    promptGoogleAsync();
+    // Open backend Google start URL in the system browser
+    // Backend handles redirect to Google and back to nanded:// deep link
+    WebBrowser.openBrowserAsync(GOOGLE_START_URL).catch(() => {
+      setError('Could not open browser. Please try again.');
+    });
   }
 
   // ── Biometric ─────────────────────────────────────────────────────────────
