@@ -45,10 +45,9 @@ const GOOGLE_DISCOVERY = {
   revocationEndpoint:    'https://oauth2.googleapis.com/revoke',
 };
 
-// Use Android client ID for native APK, Web client ID for web/proxy
-const GOOGLE_CLIENT_ID = Platform.OS === 'android'
-  ? (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID)
-  : process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+// Always use Web Client ID with expo-auth-session (even on Android)
+// The Android Client ID is only for native Google Sign-In SDK, not for OAuth web flow
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const ALL_TABS = [
@@ -264,13 +263,13 @@ export default function LoginScreen() {
   });
 
   // ── Google ────────────────────────────────────────────────────────────────
-  // Uses Expo auth proxy for both Expo Go and standalone APK.
-  // Web Client ID must have https://auth.expo.io/@jai234/nanded in Authorized redirect URIs.
-  const redirectUri = AuthSession.makeRedirectUri(
-    Platform.OS === 'web'
-      ? { useProxy: false }
-      : { useProxy: true, projectNameForProxy: '@jai234/nanded' }
-  );
+  // Hardcode the Expo proxy redirect URI — makeRedirectUri with useProxy:true
+  // returns the app scheme (nanded://) in standalone APKs instead of the proxy URL.
+  // Hardcoding ensures Google always gets https://auth.expo.io/@jai234/nanded.
+  const redirectUri = Platform.OS === 'web'
+    ? AuthSession.makeRedirectUri({ useProxy: false })
+    : 'https://auth.expo.io/@jai234/nanded';
+
   const [googleRequest, googleResponse, promptGoogleAsync] = AuthSession.useAuthRequest(
     {
       clientId: GOOGLE_CLIENT_ID,
