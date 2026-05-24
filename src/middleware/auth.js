@@ -6,14 +6,32 @@ async function auth(req, res, next) {
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ ok: false, error: 'Not authenticated' });
   }
+
+  // Step 1: Verify the JWT — this is a pure crypto check, no DB needed
+  let payload;
   try {
-    const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
-    const { rows } = await pool.query('SELECT id, name, email, phone, role, active, avatar_url, company, push_token FROM users WHERE id = $1 AND active = true', [payload.id]);
-    if (!rows[0]) return res.status(401).json({ ok: false, error: 'User not found' });
+    payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
+  } catch (e) {
+    // Token is genuinely invalid or expired — correct to return 401
+    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
+  }
+
+  // Step 2: Look up the user in DB — DB errors are NOT auth failures
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, name, email, phone, role, active, avatar_url, company, push_token FROM users WHERE id = $1 AND active = true',
+      [payload.id]
+    );
+    if (!rows[0]) {
+      // User deleted or deactivated — correct to return 401
+      return res.status(401).json({ ok: false, error: 'User not found or deactivated' });
+    }
     req.user = rows[0];
     next();
-  } catch {
-    return res.status(401).json({ ok: false, error: 'Invalid token' });
+  } catch (e) {
+    // DB is down or timed out — return 503 so the frontend does NOT clear the token
+    console.error('auth middleware DB error:', e.message);
+    return res.status(503).json({ ok: false, error: 'Server temporarily unavailable. Please try again.' });
   }
 }
 
