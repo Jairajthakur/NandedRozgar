@@ -217,11 +217,18 @@ router.post('/google', loginLimiter, async (req, res) => {
 });
 
 // ── GET /api/auth/google/start ────────────────────────────────────────────────
-// Starts Google OAuth flow.
-// The redirect_uri sent to Google MUST be registered in Google Cloud Console:
-//   https://localloops-production.up.railway.app/api/auth/google/callback
-//
+// DEPRECATED: The app now uses expo-auth-session/providers/google (client-side
+// OAuth) and no longer needs this server-side redirect route.
+// Kept for backward compatibility only.
 router.get('/google/start', (req, res) => {
+  return res.status(410).json({
+    ok: false,
+    error: 'This endpoint is deprecated. The app now handles Google OAuth client-side.',
+  });
+});
+
+// ── DEPRECATED google/start (original code kept below as comment) ─────────────
+router.get('/google/start_legacy_DISABLED', (req, res) => {
   const clientId    = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   const apiBase     = process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app';
   const redirectUri = encodeURIComponent(`${apiBase}/api/auth/google/callback`);
