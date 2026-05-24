@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
+import { urisToBase64DataUris } from '../utils/imageUtils';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/razorpay';
 import CouponInput from '../components/CouponInput';
@@ -658,6 +659,8 @@ export default function PostItemScreen() {
       }
 
       // ── Step 2: Verify payment & create listing ────────────────────────────
+      // Convert local file:// URIs → base64 data URIs so they display on all devices
+      const uploadedPhotos = await urisToBase64DataUris(form.photos);
       const res = await http('POST', '/api/payments/verify/buysell', {
         razorpay_order_id:   payResult.free ? undefined : payResult.razorpay_order_id,
         razorpay_payment_id: payResult.free ? undefined : payResult.razorpay_payment_id,
@@ -676,7 +679,7 @@ export default function PostItemScreen() {
           area:        form.area,
           description: form.description.trim(),
           whatsapp:    form.whatsapp.trim(),
-          photos:      form.photos,
+          photos:      uploadedPhotos,
           planDays:    form.plan?.days   || 15,
           planLabel:   form.plan?.label  || '15 Days',
           planPrice:   planPrice,
