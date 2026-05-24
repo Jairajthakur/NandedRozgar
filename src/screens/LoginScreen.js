@@ -17,11 +17,20 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
 // Required for expo-auth-session to close the browser after redirect
 WebBrowser.maybeCompleteAuthSession();
+
+// Build the exact redirect URI that will be sent to Google.
+// This MUST match what is registered in Google Cloud Console exactly.
+// Log it during development: console.log('Redirect URI:', redirectUri)
+const redirectUri = AuthSession.makeRedirectUri({
+  scheme: 'nanded',   // must match app.config.js → expo.scheme
+  useProxy: true,     // forces https://auth.expo.io/@<username>/<slug>
+});
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const ORANGE      = '#f97316';
@@ -180,9 +189,16 @@ export default function LoginScreen() {
   // This replaces the broken server-side /google/start → /google/callback chain.
   // The access token is obtained directly from Google and then sent to the
   // backend POST /api/auth/google endpoint.
+  //
+  // FIX: redirectUri is now explicitly set via makeRedirectUri({ useProxy: true })
+  // so the URI sent to Google always matches the one registered in Google Console.
+  // Remove the console.log below once Google sign-in is confirmed working.
+  useEffect(() => { console.log('[Google OAuth] redirectUri:', redirectUri); }, []);
+
   const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
     webClientId:     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    redirectUri,     // ← explicitly set to avoid redirect_uri_mismatch (Error 400)
     // If you add an iOS build later:
     // iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
   });
