@@ -294,7 +294,7 @@ export default function LoginScreen() {
 
   function handleGooglePress() {
     if (!GOOGLE_CLIENT_ID) {
-      setError('Google sign-in not configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in .env');
+      setError('Google sign-in not configured. Check EAS environment variables.');
       return;
     }
     console.log('[Google OAuth] redirectUri:', redirectUri);
