@@ -29,8 +29,8 @@ async function auth(req, res, next) {
     req.user = rows[0];
     next();
   } catch (e) {
-    // DB is down or timed out — return 503 so the frontend does NOT clear the token
-    console.error('auth middleware DB error:', e.message);
+    // DB is down or timed out — log full error details for Railway logs debugging
+    console.error('auth middleware DB error:', e.message, '| code:', e.code, '| detail:', e.detail);
     return res.status(503).json({ ok: false, error: 'Server temporarily unavailable. Please try again.' });
   }
 }
