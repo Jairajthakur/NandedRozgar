@@ -3,6 +3,7 @@
  * Warm light brand identity · staggered entrance animations
  * · floating orbs · polished form card
  * Works on web + Android APK (React Native / Expo).
+ * OTP login removed — only email/password + Google.
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -15,7 +16,6 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import * as AuthSession from 'expo-auth-session';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
@@ -40,23 +40,13 @@ const { width: SW, height: SH } = Dimensions.get('window');
 const IS_WEB = Platform.OS === 'web';
 
 // ── Google discovery ──────────────────────────────────────────────────────────
-const GOOGLE_DISCOVERY = {
-  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-  tokenEndpoint:         'https://oauth2.googleapis.com/token',
-  revocationEndpoint:    'https://oauth2.googleapis.com/revoke',
-};
-
-// Always use Web Client ID — it supports both browser OAuth and PKCE code flow.
-// Android Client ID only works with the native Google Sign-In SDK, not browser OAuth.
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
-const ALL_TABS = [
-  { key: 'login',    label: 'Sign In',   icon: 'log-in-outline' },
-  { key: 'register', label: 'Register',  icon: 'person-add-outline' },
-  { key: 'phone',    label: 'Phone OTP', icon: 'phone-portrait-outline' },
+// ── Tabs (no phone/OTP tab) ───────────────────────────────────────────────────
+const TABS = [
+  { key: 'login',    label: 'Sign In',  icon: 'log-in-outline' },
+  { key: 'register', label: 'Register', icon: 'person-add-outline' },
 ];
-const TABS = IS_WEB ? ALL_TABS.filter(t => t.key !== 'phone') : ALL_TABS;
 
 // ── Password strength ─────────────────────────────────────────────────────────
 function getPasswordStrength(pw) {
@@ -131,8 +121,7 @@ function GridDots() {
   return <View style={StyleSheet.absoluteFill} pointerEvents="none">{items}</View>;
 }
 
-// ── Main screen ───────────────────────────────────────────────────────────────
-// ── Field — defined outside LoginScreen to prevent remount on every keystroke ──
+// ── Field ─────────────────────────────────────────────────────────────────────
 const Field = ({ label, icon, value, onChange, placeholder, secure, rightIcon, rightPress, keyboard, maxLen, editable = true, fkey, focusedField, setFocusedField }) => {
   const focused = focusedField === fkey;
   return (
@@ -167,15 +156,11 @@ const Field = ({ label, icon, value, onChange, placeholder, secure, rightIcon, r
 export default function LoginScreen() {
   const {
     login, register, loginWithGoogle,
-    sendOTP, verifyOTP, forgotPassword, loginWithBiometrics,
+    forgotPassword, loginWithBiometrics,
   } = useAuth();
 
   const [tab, setTab]             = useState('login');
   const [form, setForm]           = useState({ email: '', password: '', name: '', phone: '', confirmPassword: '' });
-  const [otpPhone, setOtpPhone]   = useState('');
-  const [otp, setOtp]             = useState('');
-  const [otpSent, setOtpSent]     = useState(false);
-  const [otpConfirmation, setOtpConfirmation] = useState(null);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
   const [showPass, setShowPass]   = useState(false);
@@ -254,7 +239,7 @@ export default function LoginScreen() {
   function switchTab(t) {
     const idx = TABS.findIndex(x => x.key === t);
     Animated.spring(tabX, { toValue: idx, damping: 18, stiffness: 220, useNativeDriver: false }).start();
-    setTab(t); setError(''); setOtpSent(false); setFocusedField(null);
+    setTab(t); setError(''); setFocusedField(null);
   }
 
   const tabCount = TABS.length;
@@ -263,19 +248,9 @@ export default function LoginScreen() {
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
-  // ── Google ────────────────────────────────────────────────────────────────
   // ── Google OAuth via backend callback ────────────────────────────────────────
-  // Flow:
-  //   1. App opens browser to /api/auth/google/start (on Railway backend)
-  //   2. Backend redirects to Google consent screen with backend callback URL
-  //   3. Google redirects to /api/auth/google/callback (https — accepted by Google)
-  //   4. Backend redirects to nanded://google-auth?access_token=...
-  //   5. App receives deep link and calls /api/auth/google with the token
-  //
-  // This avoids the custom scheme issue in Google Console entirely.
   const GOOGLE_START_URL = `${process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app'}/api/auth/google/start`;
 
-  // Listen for deep link return from Google OAuth
   useEffect(() => {
     const sub = Linking.addEventListener('url', handleDeepLink);
     return () => sub.remove();
@@ -295,11 +270,6 @@ export default function LoginScreen() {
     }
   }
 
-  // Keep these stubs so nothing else breaks
-  const googleRequest  = null;
-  const googleResponse = null;
-  const promptGoogleAsync = null;
-
   async function handleGoogleSuccess(accessToken) {
     setLoading(true); setError('');
     const r = await loginWithGoogle(accessToken);
@@ -308,8 +278,6 @@ export default function LoginScreen() {
   }
 
   function handleGooglePress() {
-    // Open backend Google start URL in the system browser
-    // Backend handles redirect to Google and back to nanded:// deep link
     WebBrowser.openBrowserAsync(GOOGLE_START_URL).catch(() => {
       setError('Could not open browser. Please try again.');
     });
@@ -348,26 +316,7 @@ export default function LoginScreen() {
     }
   }
 
-  // ── OTP ───────────────────────────────────────────────────────────────────
-  async function handleSendOTP() {
-    if (!otpPhone || otpPhone.length < 10) { setError('Enter a valid 10-digit number'); triggerShake(); return; }
-    setLoading(true); setError('');
-    const r = await sendOTP(otpPhone);
-    setLoading(false);
-    if (r.ok) { setOtpSent(true); setOtpConfirmation(r.confirmation); }
-    else { setError(r.error || 'Failed to send OTP'); triggerShake(); }
-  }
-
-  async function handleVerifyOTP() {
-    if (!otp || otp.length < 4) { setError('Enter the OTP'); triggerShake(); return; }
-    if (!otpConfirmation) { setError('Please request a new OTP'); triggerShake(); return; }
-    setLoading(true); setError('');
-    const r = await verifyOTP(otpConfirmation, otp);
-    setLoading(false);
-    if (!r.ok) { setError(r.error || 'Invalid OTP'); triggerShake(); }
-  }
-
-  // ── Forgot ────────────────────────────────────────────────────────────────
+  // ── Forgot password ───────────────────────────────────────────────────────
   async function handleForgotPassword() {
     if (!forgotEmail) { setError('Please enter your email address'); return; }
     setForgotLoading(true);
@@ -449,24 +398,20 @@ export default function LoginScreen() {
             </View>
 
             {/* GOOGLE */}
-            {tab !== 'phone' && (
-              <TouchableOpacity
-                style={[S.googleBtn, !GOOGLE_CLIENT_ID && { opacity: 0.4 }]}
-                onPress={handleGooglePress}
-                disabled={loading}
-                activeOpacity={0.82}
-              >
-                <MaterialCommunityIcons name="google" size={18} color="#EA4335" />
-                <Text style={S.googleTxt}>{tab === 'login' ? 'Continue with Google' : 'Sign up with Google'}</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[S.googleBtn, !GOOGLE_CLIENT_ID && { opacity: 0.4 }]}
+              onPress={handleGooglePress}
+              disabled={loading}
+              activeOpacity={0.82}
+            >
+              <MaterialCommunityIcons name="google" size={18} color="#EA4335" />
+              <Text style={S.googleTxt}>{tab === 'login' ? 'Continue with Google' : 'Sign up with Google'}</Text>
+            </TouchableOpacity>
 
             {/* DIVIDER */}
-            {tab !== 'phone' && (
-              <View style={S.divRow}>
-                <View style={S.divLine} /><Text style={S.divTxt}>or with email</Text><View style={S.divLine} />
-              </View>
-            )}
+            <View style={S.divRow}>
+              <View style={S.divLine} /><Text style={S.divTxt}>or with email</Text><View style={S.divLine} />
+            </View>
 
             {/* Register name */}
             {tab === 'register' && (
@@ -474,50 +419,46 @@ export default function LoginScreen() {
             )}
 
             {/* Email */}
-            {tab !== 'phone' && (
-              <Field fkey="email" label="Email Address *" icon="mail-outline" value={form.email} onChange={v => set('email', v)} placeholder="you@email.com" keyboard="email-address" focusedField={focusedField} setFocusedField={setFocusedField} />
-            )}
+            <Field fkey="email" label="Email Address *" icon="mail-outline" value={form.email} onChange={v => set('email', v)} placeholder="you@email.com" keyboard="email-address" focusedField={focusedField} setFocusedField={setFocusedField} />
 
             {/* Password */}
-            {tab !== 'phone' && (
-              <View style={S.fw}>
-                <View style={S.passLabelRow}>
-                  <Text style={S.flabel}>Password *</Text>
-                  {tab === 'login' && (
-                    <TouchableOpacity onPress={() => setForgotVisible(true)}>
-                      <Text style={S.forgotLink}>Forgot?</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                <View style={[S.irow, focusedField === 'pass' && S.irowF]}>
-                  <Ionicons name="lock-closed-outline" size={16} color={focusedField === 'pass' ? ORANGE : TEXT_DIM} style={S.ficon} />
-                  <TextInput
-                    style={S.tinput}
-                    value={form.password}
-                    onChangeText={v => set('password', v)}
-                    placeholder="Enter password"
-                    placeholderTextColor="#c5c3bb"
-                    secureTextEntry={!showPass}
-                    autoCapitalize="none"
-                    onFocus={() => setFocusedField('pass')}
-                    onBlur={() => setFocusedField(null)}
-                  />
-                  <TouchableOpacity onPress={() => setShowPass(p => !p)} style={S.eyeBtn}>
-                    <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={17} color={TEXT_DIM} />
+            <View style={S.fw}>
+              <View style={S.passLabelRow}>
+                <Text style={S.flabel}>Password *</Text>
+                {tab === 'login' && (
+                  <TouchableOpacity onPress={() => setForgotVisible(true)}>
+                    <Text style={S.forgotLink}>Forgot?</Text>
                   </TouchableOpacity>
-                </View>
-                {tab === 'register' && form.password.length > 0 && (
-                  <View style={{ marginTop: 6 }}>
-                    <View style={S.strTrack}>
-                      {[0,1,2,3].map(i => (
-                        <View key={i} style={[S.strSeg, { backgroundColor: i < pwStrength.score ? pwStrength.color : BORDER }]} />
-                      ))}
-                    </View>
-                    <Text style={[S.strLabel, { color: pwStrength.color }]}>{pwStrength.label}</Text>
-                  </View>
                 )}
               </View>
-            )}
+              <View style={[S.irow, focusedField === 'pass' && S.irowF]}>
+                <Ionicons name="lock-closed-outline" size={16} color={focusedField === 'pass' ? ORANGE : TEXT_DIM} style={S.ficon} />
+                <TextInput
+                  style={S.tinput}
+                  value={form.password}
+                  onChangeText={v => set('password', v)}
+                  placeholder="Enter password"
+                  placeholderTextColor="#c5c3bb"
+                  secureTextEntry={!showPass}
+                  autoCapitalize="none"
+                  onFocus={() => setFocusedField('pass')}
+                  onBlur={() => setFocusedField(null)}
+                />
+                <TouchableOpacity onPress={() => setShowPass(p => !p)} style={S.eyeBtn}>
+                  <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={17} color={TEXT_DIM} />
+                </TouchableOpacity>
+              </View>
+              {tab === 'register' && form.password.length > 0 && (
+                <View style={{ marginTop: 6 }}>
+                  <View style={S.strTrack}>
+                    {[0,1,2,3].map(i => (
+                      <View key={i} style={[S.strSeg, { backgroundColor: i < pwStrength.score ? pwStrength.color : BORDER }]} />
+                    ))}
+                  </View>
+                  <Text style={[S.strLabel, { color: pwStrength.color }]}>{pwStrength.label}</Text>
+                </View>
+              )}
+            </View>
 
             {/* Register extras */}
             {tab === 'register' && (
@@ -568,56 +509,6 @@ export default function LoginScreen() {
               </>
             )}
 
-            {/* Phone OTP */}
-            {tab === 'phone' && (
-              <View>
-                <View style={S.fw}>
-                  <Text style={S.flabel}>Mobile Number *</Text>
-                  <View style={[S.irow, focusedField === 'otpPhone' && S.irowF]}>
-                    <Text style={S.flagPfx}>🇮🇳 +91</Text>
-                    <TextInput
-                      style={[S.tinput, { paddingLeft: 4 }]}
-                      value={otpPhone}
-                      onChangeText={v => { setOtpPhone(v); setOtpSent(false); setOtp(''); setOtpConfirmation(null); }}
-                      placeholder="10-digit number"
-                      placeholderTextColor="#c5c3bb"
-                      keyboardType="phone-pad"
-                      maxLength={10}
-                      editable={!otpSent}
-                      onFocus={() => setFocusedField('otpPhone')}
-                      onBlur={() => setFocusedField(null)}
-                    />
-                  </View>
-                </View>
-                {otpSent && (
-                  <View style={S.fw}>
-                    <Text style={S.flabel}>Enter OTP</Text>
-                    <View style={[S.irow, focusedField === 'otpCode' && S.irowF]}>
-                      <Ionicons name="keypad-outline" size={16} color={focusedField === 'otpCode' ? ORANGE : TEXT_DIM} style={S.ficon} />
-                      <TextInput
-                        style={S.tinput}
-                        value={otp}
-                        onChangeText={setOtp}
-                        placeholder="4–6 digit OTP"
-                        placeholderTextColor="#c5c3bb"
-                        keyboardType="number-pad"
-                        maxLength={6}
-                        onFocus={() => setFocusedField('otpCode')}
-                        onBlur={() => setFocusedField(null)}
-                      />
-                    </View>
-                    <TouchableOpacity onPress={handleSendOTP} style={{ marginTop: 4 }}>
-                      <Text style={S.resendTxt}>Didn't receive? <Text style={{ color: ORANGE, fontWeight: '700' }}>Resend OTP</Text></Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-                <View style={[S.otpInfo, { marginHorizontal: 20, marginBottom: 14 }]}>
-                  <Ionicons name="shield-checkmark-outline" size={14} color={SUCCESS} style={{ marginRight: 8 }} />
-                  <Text style={S.otpInfoTxt}>OTP sent via SMS · Powered by Firebase</Text>
-                </View>
-              </View>
-            )}
-
             {/* Error */}
             {!!error && (
               <View style={S.errBox}>
@@ -633,26 +524,10 @@ export default function LoginScreen() {
                 <Text style={{ color: TEXT_MID, fontSize: 13, marginLeft: 10 }}>Please wait…</Text>
               </View>
             ) : (
-              <>
-                {tab === 'login' && (
-                  <TouchableOpacity style={S.submitBtn} onPress={handleSubmit} activeOpacity={0.87}>
-                    <Text style={S.submitTxt}>Sign In</Text>
-                    <Ionicons name="arrow-forward" size={18} color="#fff" />
-                  </TouchableOpacity>
-                )}
-                {tab === 'register' && (
-                  <TouchableOpacity style={S.submitBtn} onPress={handleSubmit} activeOpacity={0.87}>
-                    <Text style={S.submitTxt}>Create Account</Text>
-                    <Ionicons name="arrow-forward" size={18} color="#fff" />
-                  </TouchableOpacity>
-                )}
-                {tab === 'phone' && (
-                  <TouchableOpacity style={S.submitBtn} onPress={otpSent ? handleVerifyOTP : handleSendOTP} activeOpacity={0.87}>
-                    <Ionicons name={otpSent ? 'checkmark-circle-outline' : 'send-outline'} size={18} color="#fff" />
-                    <Text style={S.submitTxt}>{otpSent ? 'Verify OTP' : 'Send OTP'}</Text>
-                  </TouchableOpacity>
-                )}
-              </>
+              <TouchableOpacity style={S.submitBtn} onPress={handleSubmit} activeOpacity={0.87}>
+                <Text style={S.submitTxt}>{tab === 'login' ? 'Sign In' : 'Create Account'}</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </TouchableOpacity>
             )}
 
             {/* Biometric */}
@@ -665,14 +540,10 @@ export default function LoginScreen() {
 
             {/* Switch tab link */}
             <View style={S.switchRow}>
-              {tab === 'login' && (
+              {tab === 'login' ? (
                 <><Text style={S.switchTxt}>New here? </Text><TouchableOpacity onPress={() => switchTab('register')}><Text style={S.switchLink}>Create account →</Text></TouchableOpacity></>
-              )}
-              {tab === 'register' && (
+              ) : (
                 <><Text style={S.switchTxt}>Have an account? </Text><TouchableOpacity onPress={() => switchTab('login')}><Text style={S.switchLink}>Sign in →</Text></TouchableOpacity></>
-              )}
-              {tab === 'phone' && (
-                <><Text style={S.switchTxt}>Prefer email? </Text><TouchableOpacity onPress={() => switchTab('login')}><Text style={S.switchLink}>Sign in with email →</Text></TouchableOpacity></>
               )}
             </View>
           </Animated.View>
@@ -772,19 +643,6 @@ const S = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-  netLine: {
-    position: 'absolute', height: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderRadius: 1,
-  },
-  netNode: {
-    position: 'absolute', width: 9, height: 9, borderRadius: 4.5,
-    backgroundColor: '#fff',
-  },
-  netAccent: {
-    position: 'absolute', width: 3.5, height: 3.5, borderRadius: 2,
-    backgroundColor: ORANGE2,
-  },
   logoName:  { fontSize: 30, fontWeight: '900', letterSpacing: 0.3, marginBottom: 6 },
   tagRow:    { flexDirection: 'row', alignItems: 'center', gap: 7 },
   tagDot:    { width: 4, height: 4, borderRadius: 2, backgroundColor: ORANGE },
@@ -832,7 +690,6 @@ const S = StyleSheet.create({
   ficon:   { marginRight: 9 },
   tinput:  { flex: 1, paddingVertical: 12, fontSize: 14, color: TEXT },
   eyeBtn:  { padding: 5 },
-  flagPfx: { fontSize: 14, color: TEXT_MID, fontWeight: '600', marginRight: 8 },
 
   // Password strength
   strTrack: { flexDirection: 'row', gap: 4, marginTop: 5 },
@@ -845,11 +702,6 @@ const S = StyleSheet.create({
   chkOn:    { backgroundColor: ORANGE, borderColor: ORANGE },
   termsTxt: { fontSize: 12, color: TEXT_DIM, flex: 1, lineHeight: 18 },
   termsLink:{ color: ORANGE, fontWeight: '700' },
-
-  // OTP
-  otpInfo:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginHorizontal: 20, marginBottom: 14 },
-  otpInfoTxt: { fontSize: 12, color: '#15803d', flex: 1 },
-  resendTxt:  { fontSize: 12, color: TEXT_DIM, marginTop: 4 },
 
   // Error
   errBox: {
@@ -888,13 +740,6 @@ const S = StyleSheet.create({
   },
   switchTxt:  { fontSize: 13, color: TEXT_DIM },
   switchLink: { fontSize: 13, fontWeight: '800', color: ORANGE },
-
-  // Trust badges
-  badgeRow: { flexDirection: 'row', marginTop: 22, gap: 10, flexWrap: 'wrap', justifyContent: 'center' },
-  badge:    { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(249,115,22,0.06)', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 13, borderWidth: 1, borderColor: 'rgba(249,115,22,0.14)' },
-  badgeTxt: { color: TEXT_MID, fontSize: 11, fontWeight: '600' },
-
-  footerTxt: { color: TEXT_DIM, fontSize: 11, marginTop: 12, letterSpacing: 0.4 },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
