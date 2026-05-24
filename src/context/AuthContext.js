@@ -1,8 +1,7 @@
 /**
  * CityPlus — AuthContext.js
- * Adds: loginWithGoogle, sendOTP, verifyOTP, forgotPassword, loginWithBiometrics
- * Fixed: Google OAuth web support, Firebase OTP platform detection
- * Fixed: Refresh sign-out issue — keeps session on server errors/cold starts
+ * OTP (sendOTP / verifyOTP) removed.
+ * Keeps: login, register, loginWithGoogle, loginWithBiometrics, forgotPassword, resetPassword.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as SecureStore from 'expo-secure-store';
@@ -19,20 +18,15 @@ export function AuthProvider({ children }) {
   const [users,   setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // When true, we know a token exists but haven't confirmed with server yet.
-  // The app should show a loading/splash screen rather than the login screen.
   const [sessionPending, setSessionPending] = useState(false);
 
-  // Pagination state
   const [jobPage,       setJobPage]       = useState(1);
   const [jobPagination, setJobPagination] = useState(null);
 
-  // Guard against concurrent/redundant loadJobs calls
   const fetchingRef = useRef(false);
 
   useEffect(() => {
     const fallback = setTimeout(() => {
-      // If server never responded, keep sessionPending false but stop spinner
       setLoading(false);
       setSessionPending(false);
     }, 10000);
@@ -42,36 +36,26 @@ export function AuthProvider({ children }) {
   async function init() {
     try {
       const token = await loadToken();
-      if (!token) return; // No token → not logged in, show login screen normally
+      if (!token) return;
 
-      // Token exists — signal that we have a session to restore.
-      // The app should show a loading/splash screen, NOT the login screen.
       setSessionPending(true);
 
       const r = await http('GET', '/api/auth/me');
 
       if (r?.ok && r.user) {
-        // ✅ Server confirmed the session
         setUser(r.user);
         setSessionPending(false);
         await loadJobs(1);
         if (r.user.role === 'admin') await loadUsers();
       } else if (r?.status === 401 || r?.status === 403) {
-        // ❌ Server explicitly rejected the token (expired or invalid)
-        // Only NOW should we clear it and send the user to login
         await clearToken();
         setSessionPending(false);
         setUser(null);
       } else {
-        // ⚠️  Server error / cold start / network issue — keep the token!
-        // Leave sessionPending = false and user = null for now.
-        // The token is preserved; next app open will retry.
-        // Optionally: set a "offline mode" flag here to show a banner.
         setSessionPending(false);
       }
     } catch (e) {
       console.warn('init error:', e.message);
-      // Do NOT clear token on exceptions — could be a temporary network issue
       setSessionPending(false);
     }
   }
@@ -180,43 +164,6 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // ── Phone OTP via Firebase ────────────────────────────────────────────────
-  async function sendOTP(phone) {
-    try {
-      const auth = require('@react-native-firebase/auth').default;
-      const e164 = phone.startsWith('+') ? phone : `+91${phone.trim()}`;
-      const confirmation = await auth().signInWithPhoneNumber(e164);
-      return { ok: true, confirmation };
-    } catch (e) {
-      console.warn('sendOTP error:', e.message);
-      if (e.code === 'auth/invalid-phone-number')
-        return { ok: false, error: 'Invalid phone number. Please check and try again.' };
-      if (e.code === 'auth/too-many-requests')
-        return { ok: false, error: 'Too many attempts. Please try again later.' };
-      return { ok: false, error: 'Failed to send OTP. Please check your connection.' };
-    }
-  }
-
-  async function verifyOTP(confirmation, otp) {
-    try {
-      const credential = await confirmation.confirm(String(otp).trim());
-      const idToken = await credential.user.getIdToken();
-      const r = await http('POST', '/api/auth/verify-firebase-otp', { idToken });
-      if (!r?.ok) return r ?? { ok: false, error: 'OTP verification failed. Please try again.' };
-      await saveToken(r.token);
-      setUser(r.user);
-      await loadJobs(1);
-      return r;
-    } catch (e) {
-      console.warn('verifyOTP error:', e.message);
-      if (e.code === 'auth/invalid-verification-code')
-        return { ok: false, error: 'Incorrect OTP. Please try again.' };
-      if (e.code === 'auth/session-expired')
-        return { ok: false, error: 'OTP expired. Please request a new one.' };
-      return { ok: false, error: 'OTP verification failed. Please try again.' };
-    }
-  }
-
   // ── Forgot password ───────────────────────────────────────────────────────
   async function forgotPassword(email) {
     try {
@@ -260,11 +207,10 @@ export function AuthProvider({ children }) {
       jobs, setJobs, loadJobs, loadMoreJobs,
       jobPagination, jobPage,
       users, setUsers, loading,
-      sessionPending,   // ← expose this so App.js can show a splash instead of login
+      sessionPending,
       login, register, signOut, loadUsers,
       loginWithGoogle,
       loginWithBiometrics,
-      sendOTP, verifyOTP,
       forgotPassword, resetPassword,
     }}>
       {children}
