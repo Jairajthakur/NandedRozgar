@@ -45,9 +45,10 @@ const GOOGLE_DISCOVERY = {
   revocationEndpoint:    'https://oauth2.googleapis.com/revoke',
 };
 
-const GOOGLE_CLIENT_ID =
-  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+// Use Android client ID for native APK, Web client ID for web/proxy
+const GOOGLE_CLIENT_ID = Platform.OS === 'android'
+  ? (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID)
+  : process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const ALL_TABS = [
@@ -263,13 +264,21 @@ export default function LoginScreen() {
   });
 
   // ── Google ────────────────────────────────────────────────────────────────
+  // Expo username: jai234 | App slug: nanded | Package: com.cityplus.app
   const redirectUri = AuthSession.makeRedirectUri(
     Platform.OS === 'web'
-      ? { useProxy: false }                          // web: use current origin as redirect
-      : { scheme: 'nanded', useProxy: true }         // native: use auth.expo.io proxy
+      ? { useProxy: false }
+      : { useProxy: true, projectNameForProxy: '@jai234/nanded' }
   );
   const [googleRequest, googleResponse, promptGoogleAsync] = AuthSession.useAuthRequest(
-    { clientId: GOOGLE_CLIENT_ID, redirectUri, scopes: ['openid', 'profile', 'email'], responseType: AuthSession.ResponseType.Token, usePKCE: false },
+    {
+      clientId: GOOGLE_CLIENT_ID,
+      redirectUri,
+      scopes: ['openid', 'profile', 'email'],
+      responseType: AuthSession.ResponseType.Token,
+      usePKCE: false,
+      extraParams: { access_type: 'online' },
+    },
     GOOGLE_DISCOVERY
   );
   useEffect(() => {
@@ -284,7 +293,12 @@ export default function LoginScreen() {
   }
 
   function handleGooglePress() {
-    if (!GOOGLE_CLIENT_ID) { setError('Google sign-in not configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID'); return; }
+    if (!GOOGLE_CLIENT_ID) {
+      setError('Google sign-in not configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in .env');
+      return;
+    }
+    console.log('[Google OAuth] redirectUri:', redirectUri);
+    console.log('[Google OAuth] clientId:', GOOGLE_CLIENT_ID);
     promptGoogleAsync();
   }
 
