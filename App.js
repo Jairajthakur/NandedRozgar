@@ -3,6 +3,7 @@ import React from 'react';
 import {
   View, Text, ActivityIndicator, StatusBar,
   TouchableOpacity, StyleSheet, Platform, useWindowDimensions,
+  Animated, Easing,
 } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -78,6 +79,118 @@ function TabIcon({ name, focused, library = 'ion' }) {
   return <Ionicons name={name} size={size} color={color} />;
 }
 
+// ── Animated Post Button ──────────────────────────────────────────────────────
+function AnimatedPostButton({ onPress }) {
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+  const ringAnim  = React.useRef(new Animated.Value(0)).current;
+  const rotateAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    // Pulse: gentle scale breathe
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,    duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    ).start();
+
+    // Ring: expanding ripple
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(ringAnim, { toValue: 1, duration: 1400, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        Animated.delay(300),
+      ])
+    ).start();
+
+    // Icon: slow spin on mount then idle
+    Animated.sequence([
+      Animated.timing(rotateAnim, { toValue: 1, duration: 500, easing: Easing.out(Easing.back(2)), useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const ringScale   = ringAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.65] });
+  const ringOpacity = ringAnim.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.55, 0.2, 0] });
+  const rotate      = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+
+  // Web gets CSS-based animation via inline styles
+  if (Platform.OS === 'web') {
+    return (
+      <button
+        onClick={onPress}
+        style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+        }}
+      >
+        <style>{`
+          @keyframes cityplus-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+          }
+          @keyframes cityplus-ring {
+            0% { transform: scale(1); opacity: 0.55; }
+            70% { opacity: 0.15; }
+            100% { transform: scale(1.65); opacity: 0; }
+          }
+          @keyframes cityplus-spin-in {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+          }
+          .cp-post-wrap {
+            position: relative; display: flex;
+            align-items: center; justify-content: center;
+            width: 54px; height: 54px; margin-top: -22px;
+          }
+          .cp-ring {
+            position: absolute; inset: 0; border-radius: 50%;
+            background: #f97316;
+            animation: cityplus-ring 1.7s ease-out infinite;
+          }
+          .cp-btn {
+            position: relative; z-index: 1;
+            width: 54px; height: 54px; border-radius: 50%;
+            background: #f97316;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 5px 18px rgba(249,115,22,0.55);
+            animation: cityplus-pulse 1.8s ease-in-out infinite;
+          }
+          .cp-icon {
+            animation: cityplus-spin-in 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
+          }
+        `}</style>
+        <div className="cp-post-wrap">
+          <div className="cp-ring" />
+          <div className="cp-btn">
+            <span className="cp-icon" style={{ fontSize: 28, color: '#fff', lineHeight: 1, fontWeight: 300 }}>＋</span>
+          </div>
+        </div>
+        <span style={{ fontSize: 10, fontWeight: 700, color: '#f97316', marginTop: 2 }}>Post</span>
+      </button>
+    );
+  }
+
+  // Native (iOS / Android)
+  return (
+    <TouchableOpacity onPress={onPress} style={s.postSlot} activeOpacity={0.85}>
+      <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+        {/* Ripple ring */}
+        <Animated.View style={[
+          s.postRing,
+          { transform: [{ scale: ringScale }], opacity: ringOpacity }
+        ]} />
+        {/* Main button */}
+        <Animated.View style={[s.postBtn, { transform: [{ scale: pulseAnim }] }]}>
+          <Animated.View style={{ transform: [{ rotate }] }}>
+            <Ionicons name="add" size={28} color="#fff" />
+          </Animated.View>
+        </Animated.View>
+      </View>
+      <Text style={s.postLabel}>Post</Text>
+    </TouchableOpacity>
+  );
+}
+
 function CustomTabBar({ state, descriptors, navigation }) {
   const { t } = useLang();
   const { width } = useWindowDimensions();
@@ -98,12 +211,7 @@ function CustomTabBar({ state, descriptors, navigation }) {
         };
 
         if (isPost) return (
-          <TouchableOpacity key={route.key} onPress={onPress} style={s.postSlot} activeOpacity={0.85}>
-            <View style={s.postBtn}>
-              <Ionicons name="add" size={28} color="#fff" />
-            </View>
-            <Text style={s.postLabel}>Post</Text>
-          </TouchableOpacity>
+          <AnimatedPostButton key={route.key} onPress={onPress} />
         );
 
         const routeKey = route.name.toLowerCase();
@@ -343,6 +451,12 @@ const s = StyleSheet.create({
   tabLabelActive: { fontSize: 10, fontWeight: '700', color: ORANGE },
 
   postSlot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  postRing: {
+    position: 'absolute',
+    width: 54, height: 54, borderRadius: 27,
+    backgroundColor: ORANGE,
+    marginTop: -22,
+  },
   postBtn: {
     width: 54, height: 54, borderRadius: 27,
     backgroundColor: ORANGE,
