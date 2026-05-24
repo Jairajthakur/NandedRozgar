@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
+import { urisToBase64DataUris } from '../utils/imageUtils';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/razorpay';
 import { useAuth } from '../context/AuthContext';
@@ -277,7 +278,8 @@ export default function PostCarScreen() {
       }
 
       // ── Step 2: Post listing ───────────────────────────────────────────────
-      const validPhotos = photos.filter(Boolean);
+      // Convert local file:// URIs → base64 data URIs so they display on all devices
+      const validPhotos = await urisToBase64DataUris(photos);
       const r = await http('POST','/api/payments/verify/vehicle',{
         razorpay_order_id:   payResult.free ? undefined : payResult.razorpay_order_id,
         razorpay_payment_id: payResult.free ? undefined : payResult.razorpay_payment_id,
