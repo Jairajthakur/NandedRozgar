@@ -638,7 +638,6 @@ export default function PostItemScreen() {
       Alert.alert('Required', 'Please type your category name');
       return;
     }
-    }
     setLoading(true);
     try {
       const planPrice   = form.plan?.price ?? 0;
