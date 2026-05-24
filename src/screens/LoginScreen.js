@@ -1,9 +1,8 @@
 /**
- * CityPlus — LoginScreen.js  (Light Theme, Animated)
- * Warm light brand identity · staggered entrance animations
- * · floating orbs · polished form card
- * Works on web + Android APK (React Native / Expo).
- * OTP login removed — only email/password + Google.
+ * NandedRozgar — LoginScreen.js  (Light Theme, Animated)
+ * Fixed: Google OAuth works on web + native + APK
+ *        Deep link handling corrected for scheme: 'nanded'
+ *        No dependency on Firebase client SDK for login
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -21,28 +20,33 @@ import { useAuth } from '../context/AuthContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
-// ── Brand tokens (Light Theme) ────────────────────────────────────────────────
-const ORANGE     = '#f97316';
-const ORANGE2    = '#fb923c';
-const ORANGE_SOFT= '#fff7ed';
-const BG         = '#fbf9f6';
-const CARD       = '#ffffff';
-const BORDER     = '#e8e4dd';
-const BORDER_FOC = '#f97316';
-const TEXT       = '#1a1a18';
-const TEXT_DIM   = '#888780';
-const TEXT_MID   = '#5f5e5a';
-const SURFACE    = '#f4f2ee';
-const SUCCESS    = '#16a34a';
-const DANGER     = '#dc2626';
+// ── Brand tokens ──────────────────────────────────────────────────────────────
+const ORANGE      = '#f97316';
+const ORANGE2     = '#fb923c';
+const ORANGE_SOFT = '#fff7ed';
+const BG          = '#fbf9f6';
+const CARD        = '#ffffff';
+const BORDER      = '#e8e4dd';
+const BORDER_FOC  = '#f97316';
+const TEXT        = '#1a1a18';
+const TEXT_DIM    = '#888780';
+const TEXT_MID    = '#5f5e5a';
+const SURFACE     = '#f4f2ee';
+const SUCCESS     = '#16a34a';
+const DANGER      = '#dc2626';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const IS_WEB = Platform.OS === 'web';
 
-// ── Google discovery ──────────────────────────────────────────────────────────
-const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
+// ── API base URL (from .env) ──────────────────────────────────────────────────
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app';
 
-// ── Tabs (no phone/OTP tab) ───────────────────────────────────────────────────
+// ── Google OAuth URLs ─────────────────────────────────────────────────────────
+const GOOGLE_START_URL  = `${API_URL}/api/auth/google/start`;
+// On web, Google redirects back to this page URL (no deep link needed)
+// On native, Google redirects to nanded://google-auth deep link
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
   { key: 'login',    label: 'Sign In',  icon: 'log-in-outline' },
   { key: 'register', label: 'Register', icon: 'person-add-outline' },
@@ -75,12 +79,12 @@ function Orb({ size, color, top, left, right, bottom, duration = 4500 }) {
     Animated.loop(
       Animated.parallel([
         Animated.sequence([
-          Animated.timing(y,  { toValue: -18, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(y,  { toValue: 0,   duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(y,  { toValue: -18,  duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(y,  { toValue: 0,    duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
         ]),
         Animated.sequence([
-          Animated.timing(x,  { toValue: 10,  duration: duration * 1.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(x,  { toValue: 0,   duration: duration * 1.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(x,  { toValue: 10,   duration: duration * 1.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(x,  { toValue: 0,    duration: duration * 1.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
         ]),
         Animated.sequence([
           Animated.timing(sc, { toValue: 1.08, duration: duration * 0.9, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
@@ -153,25 +157,27 @@ const Field = ({ label, icon, value, onChange, placeholder, secure, rightIcon, r
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
 export default function LoginScreen() {
   const {
     login, register, loginWithGoogle,
     forgotPassword, loginWithBiometrics,
   } = useAuth();
 
-  const [tab, setTab]             = useState('login');
-  const [form, setForm]           = useState({ email: '', password: '', name: '', phone: '', confirmPassword: '' });
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState('');
-  const [showPass, setShowPass]   = useState(false);
+  const [tab, setTab]                 = useState('login');
+  const [form, setForm]               = useState({ email: '', password: '', name: '', phone: '', confirmPassword: '' });
+  const [loading, setLoading]         = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError]             = useState('');
+  const [showPass, setShowPass]       = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [forgotVisible, setForgotVisible]   = useState(false);
-  const [forgotEmail, setForgotEmail]       = useState('');
-  const [forgotLoading, setForgotLoading]   = useState(false);
-  const [forgotDone, setForgotDone]         = useState(false);
-  const [focusedField, setFocusedField]     = useState(null);
+  const [forgotVisible, setForgotVisible] = useState(false);
+  const [forgotEmail, setForgotEmail]     = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotDone, setForgotDone]       = useState(false);
+  const [focusedField, setFocusedField]   = useState(null);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -181,7 +187,6 @@ export default function LoginScreen() {
   const logoScale   = useRef(new Animated.Value(0.85)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardY       = useRef(new Animated.Value(40)).current;
-  const footOpacity = useRef(new Animated.Value(0)).current;
   const shake       = useRef(new Animated.Value(0)).current;
   const tabX        = useRef(new Animated.Value(0)).current;
   const pulse       = useRef(new Animated.Value(1)).current;
@@ -198,7 +203,6 @@ export default function LoginScreen() {
         Animated.timing(cardOpacity, { toValue: 1, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
         Animated.timing(cardY,       { toValue: 0, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       ]),
-      Animated.timing(footOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
     ]).start();
 
     Animated.loop(
@@ -217,6 +221,29 @@ export default function LoginScreen() {
 
     checkBiometrics();
   }, []);
+
+  // ── Deep link handler (native) — picks up nanded://google-auth?access_token=...
+  useEffect(() => {
+    if (IS_WEB) return;
+    const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
+    // Also handle the case where app was cold-started by a deep link
+    Linking.getInitialURL().then(url => { if (url) handleDeepLink(url); }).catch(() => {});
+    return () => sub.remove();
+  }, []);
+
+  async function handleDeepLink(url) {
+    if (!url || !url.includes('google-auth')) return;
+    try {
+      const parsed    = new URL(url);
+      const token     = parsed.searchParams.get('access_token');
+      const err       = parsed.searchParams.get('error');
+      if (err)   { setError(decodeURIComponent(err)); triggerShake(); return; }
+      if (token) { await handleGoogleSuccess(decodeURIComponent(token)); }
+    } catch {
+      setError('Google sign-in failed. Please try again.');
+      triggerShake();
+    }
+  }
 
   async function checkBiometrics() {
     if (IS_WEB) return;
@@ -248,49 +275,88 @@ export default function LoginScreen() {
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
-  // ── Google OAuth via backend callback ────────────────────────────────────────
-  const GOOGLE_START_URL = `${process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app'}/api/auth/google/start`;
+  // ── Google sign-in ────────────────────────────────────────────────────────
+  // Strategy:
+  //   WEB  → open GOOGLE_START_URL in same tab; Google redirects back to
+  //           the web app URL (backend /google/callback must redirect to the
+  //           web origin + ?access_token=...). We poll via postMessage / URL
+  //           change. Simplest: open in a new window/tab and let the SPA
+  //           catch the token on page load (see useEffect below).
+  //   NATIVE → openAuthSessionAsync opens a SFSafariVC / Chrome Custom Tab,
+  //             Google redirects to nanded://google-auth?access_token=…,
+  //             which fires the Linking listener above.
 
+  // On web: check if the current URL has ?access_token (returned from Google callback)
   useEffect(() => {
-    const sub = Linking.addEventListener('url', handleDeepLink);
-    return () => sub.remove();
+    if (!IS_WEB) return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const token  = params.get('access_token');
+      const err    = params.get('error');
+      if (err) {
+        setError(decodeURIComponent(err));
+        // Clean URL
+        window.history.replaceState({}, '', window.location.pathname);
+        return;
+      }
+      if (token) {
+        // Clean URL first, then handle
+        window.history.replaceState({}, '', window.location.pathname);
+        handleGoogleSuccess(decodeURIComponent(token));
+      }
+    } catch {}
   }, []);
 
-  async function handleDeepLink({ url }) {
-    if (!url || !url.includes('google-auth')) return;
-    try {
-      const parsed = new URL(url);
-      const token  = parsed.searchParams.get('access_token');
-      const err    = parsed.searchParams.get('error');
-      if (err)   { setError(decodeURIComponent(err)); triggerShake(); return; }
-      if (token) { await handleGoogleSuccess(decodeURIComponent(token)); }
-    } catch (e) {
-      setError('Google sign-in failed. Please try again.');
-      triggerShake();
-    }
-  }
-
   async function handleGoogleSuccess(accessToken) {
-    setLoading(true); setError('');
+    setGoogleLoading(true); setError('');
     const r = await loginWithGoogle(accessToken);
-    setLoading(false);
-    if (!r.ok) { setError(r.error || 'Google sign-in failed'); triggerShake(); }
+    setGoogleLoading(false);
+    if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
   }
 
-  function handleGooglePress() {
-    WebBrowser.openBrowserAsync(GOOGLE_START_URL).catch(() => {
-      setError('Could not open browser. Please try again.');
-    });
+  async function handleGooglePress() {
+    setError('');
+    if (IS_WEB) {
+      // On web: navigate to backend Google start — it redirects to Google,
+      // Google redirects back to web app URL with ?access_token=
+      // Make sure your backend /google/callback redirects to:
+      //   process.env.APP_URL + '?access_token=' + access_token
+      // (see auth.js fix below)
+      window.location.href = GOOGLE_START_URL;
+    } else {
+      // On native (Android APK / Expo Go): use openAuthSessionAsync so that
+      // the custom-tab result is returned and the deep link fires correctly.
+      try {
+        setGoogleLoading(true);
+        const result = await WebBrowser.openAuthSessionAsync(
+          GOOGLE_START_URL,
+          'nanded://google-auth'   // must match scheme in app.config.js
+        );
+        setGoogleLoading(false);
+        if (result.type === 'success' && result.url) {
+          await handleDeepLink(result.url);
+        } else if (result.type === 'cancel') {
+          // User cancelled — no error message needed
+        }
+      } catch (e) {
+        setGoogleLoading(false);
+        setError('Could not open Google sign-in. Please try again.');
+        triggerShake();
+      }
+    }
   }
 
   // ── Biometric ─────────────────────────────────────────────────────────────
   async function handleBiometric() {
-    const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Verify your identity', fallbackLabel: 'Use password' });
+    const res = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Verify your identity',
+      fallbackLabel: 'Use password',
+    });
     if (res.success) {
       setLoading(true);
       const r = await loginWithBiometrics();
       setLoading(false);
-      if (!r.ok) setError(r.error || 'Biometric sign-in failed');
+      if (!r?.ok) setError(r?.error || 'Biometric sign-in failed');
     }
   }
 
@@ -300,19 +366,25 @@ export default function LoginScreen() {
     if (tab === 'login') {
       if (!form.email || !form.password) { setError('Enter email and password'); triggerShake(); return; }
       setLoading(true);
-      const r = await login(form.email, form.password);
+      const r = await login(form.email.trim().toLowerCase(), form.password);
       setLoading(false);
-      if (!r.ok) { setError(r.error || 'Login failed'); triggerShake(); }
+      if (!r?.ok) { setError(r?.error || 'Login failed'); triggerShake(); }
     } else {
       if (!form.name || !form.email || !form.password) { setError('Fill all required fields'); triggerShake(); return; }
-      if (form.password.length < 8) { setError('Password must be at least 8 characters'); triggerShake(); return; }
-      if (form.password !== form.confirmPassword) { setError('Passwords do not match'); triggerShake(); return; }
-      if (!termsAccepted) { setError('Please accept Terms & Privacy Policy'); triggerShake(); return; }
+      if (form.password.length < 8)                    { setError('Password must be at least 8 characters'); triggerShake(); return; }
+      if (form.password !== form.confirmPassword)       { setError('Passwords do not match'); triggerShake(); return; }
+      if (!termsAccepted)                              { setError('Please accept Terms & Privacy Policy'); triggerShake(); return; }
       if (getPasswordStrength(form.password).score < 2) { setError('Password too weak — add numbers & symbols'); triggerShake(); return; }
       setLoading(true);
-      const r = await register({ name: form.name, email: form.email, password: form.password, role: 'user', phone: form.phone });
+      const r = await register({
+        name:     form.name.trim(),
+        email:    form.email.trim().toLowerCase(),
+        password: form.password,
+        role:     'user',
+        phone:    form.phone || undefined,
+      });
       setLoading(false);
-      if (!r.ok) { setError(r.error || 'Registration failed'); triggerShake(); }
+      if (!r?.ok) { setError(r?.error || 'Registration failed'); triggerShake(); }
     }
   }
 
@@ -320,7 +392,7 @@ export default function LoginScreen() {
   async function handleForgotPassword() {
     if (!forgotEmail) { setError('Please enter your email address'); return; }
     setForgotLoading(true);
-    const r = await forgotPassword(forgotEmail);
+    const r = await forgotPassword(forgotEmail.trim().toLowerCase());
     setForgotLoading(false);
     if (r?.ok === false) {
       setError(r.error || 'Failed to send reset email. Please try again.');
@@ -331,6 +403,7 @@ export default function LoginScreen() {
 
   const pwStrength = getPasswordStrength(form.password);
   const tabW = `${100 / tabCount}%`;
+  const isGoogleBusy = googleLoading || loading;
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -399,13 +472,21 @@ export default function LoginScreen() {
 
             {/* GOOGLE */}
             <TouchableOpacity
-              style={[S.googleBtn, !GOOGLE_CLIENT_ID && { opacity: 0.4 }]}
+              style={[S.googleBtn, isGoogleBusy && { opacity: 0.55 }]}
               onPress={handleGooglePress}
-              disabled={loading}
+              disabled={isGoogleBusy}
               activeOpacity={0.82}
             >
-              <MaterialCommunityIcons name="google" size={18} color="#EA4335" />
-              <Text style={S.googleTxt}>{tab === 'login' ? 'Continue with Google' : 'Sign up with Google'}</Text>
+              {googleLoading
+                ? <ActivityIndicator size="small" color="#EA4335" />
+                : <MaterialCommunityIcons name="google" size={18} color="#EA4335" />
+              }
+              <Text style={S.googleTxt}>
+                {googleLoading
+                  ? 'Connecting…'
+                  : tab === 'login' ? 'Continue with Google' : 'Sign up with Google'
+                }
+              </Text>
             </TouchableOpacity>
 
             {/* DIVIDER */}
@@ -524,7 +605,7 @@ export default function LoginScreen() {
                 <Text style={{ color: TEXT_MID, fontSize: 13, marginLeft: 10 }}>Please wait…</Text>
               </View>
             ) : (
-              <TouchableOpacity style={S.submitBtn} onPress={handleSubmit} activeOpacity={0.87}>
+              <TouchableOpacity style={S.submitBtn} onPress={handleSubmit} activeOpacity={0.87} disabled={isGoogleBusy}>
                 <Text style={S.submitTxt}>{tab === 'login' ? 'Sign In' : 'Create Account'}</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />
               </TouchableOpacity>
@@ -532,7 +613,7 @@ export default function LoginScreen() {
 
             {/* Biometric */}
             {tab === 'login' && biometricAvailable && !IS_WEB && (
-              <TouchableOpacity style={S.bioBtn} onPress={handleBiometric} activeOpacity={0.8}>
+              <TouchableOpacity style={S.bioBtn} onPress={handleBiometric} activeOpacity={0.8} disabled={isGoogleBusy}>
                 <Ionicons name="finger-print-outline" size={20} color={ORANGE} />
                 <Text style={S.bioTxt}>Sign in with Biometrics</Text>
               </TouchableOpacity>
@@ -628,120 +709,66 @@ const S = StyleSheet.create({
   dline1: { position: 'absolute', width: 1.5, height: '50%', backgroundColor: 'rgba(249,115,22,0.07)', top: '10%', left: '10%', transform: [{ rotate: '18deg' }] },
   dline2: { position: 'absolute', width: 1,   height: '34%', backgroundColor: 'rgba(249,115,22,0.05)', bottom: '6%', right: '16%', transform: [{ rotate: '-22deg' }] },
 
-  // Logo
   logoWrap:  { alignItems: 'center', marginBottom: 28 },
   pulseWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  pulseRing: {
-    position: 'absolute', width: 88, height: 88, borderRadius: 44,
-    borderWidth: 2, borderColor: 'rgba(249,115,22,0.5)',
-  },
-  logoMark: {
-    width: 72, height: 72, borderRadius: 22,
-    backgroundColor: ORANGE,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12,
-    overflow: 'hidden',
-    position: 'relative',
-  },
+  pulseRing: { position: 'absolute', width: 88, height: 88, borderRadius: 44, borderWidth: 2, borderColor: 'rgba(249,115,22,0.5)' },
+  logoMark:  { width: 72, height: 72, borderRadius: 22, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center', shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12, overflow: 'hidden' },
   logoName:  { fontSize: 30, fontWeight: '900', letterSpacing: 0.3, marginBottom: 6 },
   tagRow:    { flexDirection: 'row', alignItems: 'center', gap: 7 },
   tagDot:    { width: 4, height: 4, borderRadius: 2, backgroundColor: ORANGE },
   tagline:   { color: TEXT_DIM, fontSize: 12, fontWeight: '500', letterSpacing: 0.4 },
 
-  // Card
-  card: {
-    backgroundColor: CARD, borderRadius: 24, width: '100%', maxWidth: 440,
-    borderWidth: 1, borderColor: BORDER, overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 12,
-  },
+  card: { backgroundColor: CARD, borderRadius: 24, width: '100%', maxWidth: 440, borderWidth: 1, borderColor: BORDER, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 12 },
   accentBar: { height: 3, backgroundColor: ORANGE },
 
-  // Tabs
   tabRow:    { flexDirection: 'row', backgroundColor: SURFACE, borderBottomWidth: 1, borderBottomColor: BORDER, position: 'relative', paddingTop: 4 },
   tabSlider: { position: 'absolute', bottom: 0, height: 2.5, backgroundColor: ORANGE, borderRadius: 2 },
   tabBtn:    { flex: 1, paddingVertical: 12, alignItems: 'center', gap: 3 },
   tabTxt:    { fontSize: 11.5, fontWeight: '600', color: TEXT_DIM },
   tabTxtOn:  { color: TEXT, fontWeight: '800' },
 
-  // Google
-  googleBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingVertical: 13,
-    backgroundColor: CARD, marginHorizontal: 20, marginTop: 20,
-  },
+  googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingVertical: 13, backgroundColor: CARD, marginHorizontal: 20, marginTop: 20 },
   googleTxt: { fontSize: 14, fontWeight: '700', color: TEXT },
 
-  // Divider
   divRow:  { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginVertical: 14, gap: 10 },
   divLine: { flex: 1, height: 1, backgroundColor: BORDER },
   divTxt:  { fontSize: 11, color: TEXT_DIM, fontWeight: '500' },
 
-  // Fields
-  fw:          { marginHorizontal: 20, marginBottom: 14 },
-  flabel:      { fontSize: 12, fontWeight: '700', color: TEXT_MID, marginBottom: 7, letterSpacing: 0.2 },
-  passLabelRow:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
-  forgotLink:  { fontSize: 12, fontWeight: '700', color: ORANGE },
-  irow: {
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1.5, borderColor: BORDER, borderRadius: 13,
-    backgroundColor: '#fff', paddingHorizontal: 13, minHeight: 50,
-  },
-  irowF:   { borderColor: BORDER_FOC, backgroundColor: ORANGE_SOFT },
-  ficon:   { marginRight: 9 },
-  tinput:  { flex: 1, paddingVertical: 12, fontSize: 14, color: TEXT },
-  eyeBtn:  { padding: 5 },
+  fw:           { marginHorizontal: 20, marginBottom: 14 },
+  flabel:       { fontSize: 12, fontWeight: '700', color: TEXT_MID, marginBottom: 7, letterSpacing: 0.2 },
+  passLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
+  forgotLink:   { fontSize: 12, fontWeight: '700', color: ORANGE },
+  irow:   { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: BORDER, borderRadius: 13, backgroundColor: '#fff', paddingHorizontal: 13, minHeight: 50 },
+  irowF:  { borderColor: BORDER_FOC, backgroundColor: ORANGE_SOFT },
+  ficon:  { marginRight: 9 },
+  tinput: { flex: 1, paddingVertical: 12, fontSize: 14, color: TEXT },
+  eyeBtn: { padding: 5 },
 
-  // Password strength
   strTrack: { flexDirection: 'row', gap: 4, marginTop: 5 },
   strSeg:   { flex: 1, height: 3, borderRadius: 2 },
   strLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 4 },
 
-  // Terms
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', marginHorizontal: 20, marginBottom: 16, gap: 10 },
   chk:      { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: BORDER, alignItems: 'center', justifyContent: 'center', marginTop: 1, backgroundColor: '#fff' },
   chkOn:    { backgroundColor: ORANGE, borderColor: ORANGE },
   termsTxt: { fontSize: 12, color: TEXT_DIM, flex: 1, lineHeight: 18 },
-  termsLink:{ color: ORANGE, fontWeight: '700' },
+  termsLink: { color: ORANGE, fontWeight: '700' },
 
-  // Error
-  errBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#fef2f2', borderRadius: 12, padding: 12,
-    marginHorizontal: 20, marginBottom: 12,
-    borderWidth: 1, borderColor: 'rgba(220,38,38,0.2)',
-  },
+  errBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fef2f2', borderRadius: 12, padding: 12, marginHorizontal: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(220,38,38,0.2)' },
   errTxt: { color: DANGER, fontSize: 13, fontWeight: '600', flex: 1 },
 
-  // Loading
   loadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, marginHorizontal: 20 },
 
-  // Submit
-  submitBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: ORANGE, borderRadius: 14, paddingVertical: 15, marginHorizontal: 20,
-    shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 8,
-  },
+  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ORANGE, borderRadius: 14, paddingVertical: 15, marginHorizontal: 20, shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 8 },
   submitTxt: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
 
-  // Biometric
-  bioBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.3)',
-    backgroundColor: ORANGE_SOFT,
-    borderRadius: 14, paddingVertical: 12, marginHorizontal: 20, marginTop: 12,
-  },
+  bioBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.3)', backgroundColor: ORANGE_SOFT, borderRadius: 14, paddingVertical: 12, marginHorizontal: 20, marginTop: 12 },
   bioTxt: { color: ORANGE, fontWeight: '700', fontSize: 13 },
 
-  // Switch
-  switchRow: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    marginTop: 18, marginBottom: 20, paddingTop: 16,
-    borderTopWidth: 1, borderTopColor: BORDER, marginHorizontal: 20,
-  },
+  switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 18, marginBottom: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: BORDER, marginHorizontal: 20 },
   switchTxt:  { fontSize: 13, color: TEXT_DIM },
   switchLink: { fontSize: 13, fontWeight: '800', color: ORANGE },
 
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
   modalCard:    { backgroundColor: CARD, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 28, paddingBottom: 44, borderTopWidth: 1, borderColor: BORDER },
   modalHandle:  { width: 40, height: 4, borderRadius: 2, backgroundColor: BORDER, alignSelf: 'center', marginBottom: 22 },
