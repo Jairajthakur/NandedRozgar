@@ -36,18 +36,32 @@ import {
   Dimensions, Image,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+// GoogleSignin is a native-only module — guard against web/SSR environments
+import { Platform } from 'react-native';
+let GoogleSignin = null;
+let statusCodes = {};
+if (Platform.OS !== 'web') {
+  try {
+    const gs = require('@react-native-google-signin/google-signin');
+    GoogleSignin = gs.GoogleSignin;
+    statusCodes = gs.statusCodes;
+  } catch (e) {
+    console.warn('GoogleSignin not available:', e.message);
+  }
+}
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
 // Configure once at module level.
 // webClientId (Web Client ID) is required here — it tells Google which audience
 // to embed in the idToken so your backend can verify it.
-GoogleSignin.configure({
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  offlineAccess: false,
-  scopes: ['profile', 'email'],
-});
+if (GoogleSignin) {
+  GoogleSignin.configure({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    offlineAccess: false,
+    scopes: ['profile', 'email'],
+  });
+}
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const ORANGE      = '#f97316';
@@ -281,6 +295,11 @@ export default function LoginScreen() {
   async function handleGooglePress() {
     setError('');
     setGoogleLoading(true);
+    if (!GoogleSignin) {
+      setError('Google Sign-In is not supported on this platform.');
+      setGoogleLoading(false);
+      return;
+    }
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const userInfo = await GoogleSignin.signIn();
