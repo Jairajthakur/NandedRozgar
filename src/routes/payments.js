@@ -155,9 +155,9 @@ router.post('/verify', auth, async (req, res) => {
         posted_by, title, company, category, type, location, salary,
         phone, whatsapp, description, skills, requirements,
         education, experience, hours, openings,
-        featured, urgent, expires_at
+        featured, urgent, expires_at, district
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
       RETURNING *
     `, [
       req.user.id,
@@ -167,6 +167,7 @@ router.post('/verify', auth, async (req, res) => {
       skillsArr, reqArr,
       job.education || '', job.experience || '', job.hours || '', job.openings || '1',
       !!job.featured, !!job.urgent, expiresAt,
+      job.district || 'nanded',
     ]);
 
     // Link payment → job
@@ -218,11 +219,11 @@ router.post('/verify/room', auth, async (req, res) => {
         bhk_size, facing, vacancies, rent, deposit, maintenance, broker_free,
         amenities, rules, available_from, tenant_pref,
         area, address, landmark, owner_name, whatsapp, description, photos,
-        plan_days, plan_label, plan_price, expires_at
+        plan_days, plan_label, plan_price, expires_at, district
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
         $14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
-        $25,$26,$27,$28
+        $25,$26,$27,$28,$29
       ) RETURNING *
     `, [
       req.user.id,
@@ -235,7 +236,7 @@ router.post('/verify/room', auth, async (req, res) => {
       room.area, room.address || '', room.landmark || '', room.ownerName || '', room.whatsapp,
       room.description || '', JSON.stringify(room.photos || []),
       planDays, room.planLabel || plan || '1 Month', parseInt(room.planPrice) || 0,
-      expiresAt,
+      expiresAt, room.district || 'nanded',
     ]);
 
     if (couponId) {
@@ -280,11 +281,11 @@ router.post('/verify/vehicle', auth, async (req, res) => {
         ac_type, seats, daily_rate, hourly_rate, km_limit, extra_km_rate,
         min_booking, advance_amt, purpose, includes, availability,
         area, address, owner_name, whatsapp, description, photos,
-        plan_days, plan_label, plan_price, expires_at
+        plan_days, plan_label, plan_price, expires_at, district
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
         $14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
-        $25,$26,$27,$28
+        $25,$26,$27,$28,$29
       ) RETURNING *
     `, [
       req.user.id,
@@ -302,7 +303,7 @@ router.post('/verify/vehicle', auth, async (req, res) => {
       vehicle.whatsapp, vehicle.description || '',
       JSON.stringify(vehicle.photos || []),
       planDays, vehicle.planLabel || plan || '1 Month', parseInt(vehicle.planPrice) || 0,
-      expiresAt,
+      expiresAt, vehicle.district || 'nanded',
     ]);
 
     if (couponId) {
