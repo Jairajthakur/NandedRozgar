@@ -1,10 +1,31 @@
 /**
  * CityPlus — LoginScreen.js
- * Fixed:
- *   1. Google OAuth now uses expo-auth-session/providers/google (client-side)
- *      — No longer depends on the backend redirect chain, works offline for auth
- *   2. Removed dead server-side /google/start → /google/callback redirect flow
- *   3. Deep-link handler kept only for backward compat (no longer needed for Google)
+ *
+ * Google Sign-In — NATIVE APK FIX via @react-native-google-signin/google-signin
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Why expo-auth-session kept failing on APK:
+ *   It opens a Chrome browser tab. Chrome cannot resolve the nanded:// custom
+ *   scheme redirect → ERR_QUIC_PROTOCOL_ERROR.
+ *   No browser-based OAuth works on Android APKs with custom schemes.
+ *
+ * This fix uses the NATIVE Google Sign-In SDK:
+ *   • Shows Google's native account picker (no browser, no redirect URI)
+ *   • Returns idToken directly to the app
+ *   • Works with your existing Android OAuth client + SHA-1 in Google Console
+ *
+ * ─── ONE-TIME SETUP (must rebuild APK after) ─────────────────────────────────
+ *   1.  npm install @react-native-google-signin/google-signin
+ *
+ *   2.  In app.config.js → plugins array, add:
+ *         ["@react-native-google-signin/google-signin"]
+ *
+ *   3.  eas build --platform android --profile preview
+ *
+ * ─── GOOGLE CONSOLE — NO CHANGES NEEDED ──────────────────────────────────────
+ *   Your Android client is already configured:
+ *     Package: com.cityplus.app
+ *     SHA-1:   4E:81:9A:AB:EF:CA:28:8A:58:F0:51:42:1C:37:AE:34:6C:4F:3C:7F
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -15,33 +36,17 @@ import {
   Dimensions, Image,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import * as AuthSession from 'expo-auth-session';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
-// Required for expo-auth-session to close the browser after redirect
-WebBrowser.maybeCompleteAuthSession();
-
-// ── Redirect URI for Google OAuth (expo-auth-session v6 / Expo SDK 53) ────────
-//
-// useProxy was REMOVED in expo-auth-session v5+. Do NOT use { useProxy: true }.
-//
-// How redirect URIs work per environment:
-//   • Android APK / dev build  → "nanded://"  (custom scheme, handled natively)
-//   • Expo Go (dev testing)    → "exp://..."  (auto-detected by makeRedirectUri)
-//   • Web                      → window.location.origin
-//
-// makeRedirectUri() with no args auto-picks the right URI for the current env.
-// For the native APK case, Google Console does NOT need this URI — Android OAuth
-// clients handle it via the SHA-1 + package name, not a redirect URI.
-//
-// ⚠️  If you see redirect_uri_mismatch in Expo Go: create a separate OAuth 2.0
-//     Web Client in Google Console with redirect URI = the exp:// URL printed below.
-const redirectUri = AuthSession.makeRedirectUri({
-  scheme: 'nanded',         // matches app.config.js → expo.scheme
-  // Do NOT pass useProxy — removed in expo-auth-session v6
+// Configure once at module level.
+// webClientId (Web Client ID) is required here — it tells Google which audience
+// to embed in the idToken so your backend can verify it.
+GoogleSignin.configure({
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  offlineAccess: false,
+  scopes: ['profile', 'email'],
 });
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
@@ -197,58 +202,9 @@ export default function LoginScreen() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // ── Google OAuth 2.0 — expo-auth-session v6 / Expo SDK 53 ───────────────────
-  //
-  // WHAT WAS WRONG:
-  //   The app was sending redirect_uri=https://localloops-production.up.railway.app
-  //   because useProxy (removed in v6) was causing expo-auth-session to fall back
-  //   to the EXPO_PUBLIC_API_URL as the redirect origin.
-  //
-  // THE FIX:
-  //   • Removed useProxy (not available in expo-auth-session v6)
-  //   • redirectUri now uses makeRedirectUri({ scheme: 'nanded' }) which correctly
-  //     resolves to:
-  //       - "nanded://"     on Android APK / dev build (native custom scheme)
-  //       - "exp://x.x.x.x/--/..." in Expo Go
-  //   • androidClientId handles Android native builds via SHA-1, not redirect URI
-  //   • webClientId is used for web/Expo Go — add its redirect URI to Google Console
-  //
-  // GOOGLE CLOUD CONSOLE — what to add under "Authorized redirect URIs":
-  //   Run the app and check the console log below for the exact URI.
-  //   Paste that URI into Google Console → Web Client → Authorized redirect URIs.
-  //
-  useEffect(() => {
-    console.log('[Google OAuth] redirectUri in use:', redirectUri);
-    console.log('[Google OAuth] Add the above URI to Google Cloud Console if not already there');
-  }, []);
-
-  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    webClientId:     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    redirectUri,     // ← correct SDK 53 redirect URI (no useProxy)
-    // If you add an iOS build later:
-    // iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-  });
-
-  // Handle the Google OAuth response when it arrives
-  useEffect(() => {
-    if (googleResponse?.type === 'success') {
-      const accessToken = googleResponse.authentication?.accessToken;
-      if (accessToken) {
-        handleGoogleSuccess(accessToken);
-      } else {
-        setError('Google sign-in failed: no access token returned.');
-        triggerShake();
-        setGoogleLoading(false);
-      }
-    } else if (googleResponse?.type === 'error') {
-      setError(googleResponse.error?.message || 'Google sign-in failed. Please try again.');
-      triggerShake();
-      setGoogleLoading(false);
-    } else if (googleResponse?.type === 'cancel' || googleResponse?.type === 'dismiss') {
-      setGoogleLoading(false);
-    }
-  }, [googleResponse]);
+  // ── Google Sign-In — native SDK (@react-native-google-signin/google-signin) ─
+  // GoogleSignin.configure() is called at module level above.
+  // No browser, no redirect URI, no ERR_QUIC_PROTOCOL_ERROR.
 
   // ── Entrance animations ───────────────────────────────────────────────────
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -321,26 +277,42 @@ export default function LoginScreen() {
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
-  // ── Google sign-in handler ────────────────────────────────────────────────
-  // Uses expo-auth-session/providers/google — no server redirect needed.
-  // promptGoogleAsync() opens a browser, user grants permission,
-  // Google returns an access_token directly to the app via the redirect URI.
-  // That token is then POSTed to /api/auth/google on our backend.
+  // ── Google Sign-In handler (native SDK) ──────────────────────────────────
   async function handleGooglePress() {
     setError('');
-    if (!googleRequest) {
-      setError('Google sign-in is not ready yet. Please wait a moment and try again.');
-      return;
-    }
     setGoogleLoading(true);
-    // promptGoogleAsync() result is handled in the useEffect([googleResponse]) above
-    await promptGoogleAsync();
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const userInfo = await GoogleSignin.signIn();
+      // userInfo.data.idToken is the JWT to send to your backend
+      const idToken = userInfo?.data?.idToken;
+      if (!idToken) {
+        setError('Google sign-in failed: no token returned.');
+        triggerShake();
+        setGoogleLoading(false);
+        return;
+      }
+      await handleGoogleSuccess(idToken);
+    } catch (err) {
+      setGoogleLoading(false);
+      if (err.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user cancelled — silent
+      } else if (err.code === statusCodes.IN_PROGRESS) {
+        setError('Sign-in already in progress.');
+      } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setError('Google Play Services not available on this device.');
+        triggerShake();
+      } else {
+        console.error('GoogleSignin error:', err);
+        setError('Google sign-in failed. Please try again.');
+        triggerShake();
+      }
+    }
   }
 
-  async function handleGoogleSuccess(accessToken) {
-    setGoogleLoading(true);
+  async function handleGoogleSuccess(idToken) {
     setError('');
-    const r = await loginWithGoogle(accessToken);
+    const r = await loginWithGoogle(idToken);
     setGoogleLoading(false);
     if (!r?.ok) {
       setError(r?.error || 'Google sign-in failed');
@@ -474,9 +446,9 @@ export default function LoginScreen() {
 
             {/* GOOGLE */}
             <TouchableOpacity
-              style={[S.googleBtn, (isGoogleBusy || !googleRequest) && { opacity: 0.55 }]}
+              style={[S.googleBtn, isGoogleBusy && { opacity: 0.55 }]}
               onPress={handleGooglePress}
-              disabled={isGoogleBusy || !googleRequest}
+              disabled={isGoogleBusy}
               activeOpacity={0.82}
             >
               {googleLoading
