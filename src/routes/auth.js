@@ -167,17 +167,47 @@ router.post('/login', loginLimiter, async (req, res) => {
 });
 
 // ── POST /api/auth/google ──────────────────────────────────────────────────────
+// Accepts either:
+//   { idToken }     — from native @react-native-google-signin (preferred, verified via tokeninfo)
+//   { accessToken } — from web GSI / legacy flow (verified via userinfo)
 router.post('/google', loginLimiter, async (req, res) => {
   try {
-    const { accessToken } = req.body;
-    if (!accessToken) return res.json({ ok: false, error: 'Access token required' });
+    const { idToken, accessToken } = req.body;
+    if (!idToken && !accessToken) return res.json({ ok: false, error: 'Google token required' });
 
-    const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (!googleRes.ok) return res.json({ ok: false, error: 'Invalid Google token' });
+    let googleId, email, name, picture, email_verified;
 
-    const { sub: googleId, email, name, picture, email_verified } = await googleRes.json();
+    if (idToken) {
+      // Verify idToken via Google's tokeninfo endpoint — works for native SDK tokens
+      const tokenRes = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
+      );
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || tokenData.error) {
+        console.error('Google tokeninfo error:', tokenData);
+        return res.json({ ok: false, error: 'Invalid Google ID token' });
+      }
+      // Verify the token was issued for our app
+      const validAudiences = [
+        process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+        process.env.GOOGLE_ANDROID_CLIENT_ID,
+      ].filter(Boolean);
+      if (validAudiences.length > 0 && !validAudiences.includes(tokenData.aud)) {
+        return res.json({ ok: false, error: 'Google token audience mismatch' });
+      }
+      googleId      = tokenData.sub;
+      email         = tokenData.email;
+      name          = tokenData.name;
+      picture       = tokenData.picture;
+      email_verified = tokenData.email_verified === 'true' || tokenData.email_verified === true;
+    } else {
+      // Verify accessToken via userinfo endpoint — for web GSI flow
+      const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!googleRes.ok) return res.json({ ok: false, error: 'Invalid Google access token' });
+      ({ sub: googleId, email, name, picture, email_verified } = await googleRes.json());
+    }
 
     if (!email_verified) return res.json({ ok: false, error: 'Google account email not verified' });
     if (!email)          return res.json({ ok: false, error: 'Could not retrieve email from Google' });
