@@ -8,21 +8,33 @@ router.get('/', async (req, res) => {
     const page  = Math.max(1, parseInt(req.query.page)  || 1);
     const limit = Math.min(50, parseInt(req.query.limit) || 20);
     const offset = (page - 1) * limit;
+    const district = req.query.district || null;
+
+    const conditions = ["r.status = 'active'", "(r.expires_at IS NULL OR r.expires_at > NOW())"];
+    const params = [];
+
+    if (district) {
+      params.push(district);
+      conditions.push(`(r.district = $${params.length} OR r.district IS NULL)`);
+    }
+
+    const where = conditions.join(' AND ');
+    params.push(limit, offset);
 
     const { rows } = await pool.query(`
       SELECT r.*, u.name AS poster_name
       FROM rooms r
       LEFT JOIN users u ON u.id = r.posted_by
-      WHERE r.status = 'active'
-        AND (r.expires_at IS NULL OR r.expires_at > NOW())
+      WHERE ${where}
       ORDER BY r.created_at DESC
-      LIMIT $1 OFFSET $2
-    `, [limit, offset]);
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
 
-    const { rows: countRows } = await pool.query(`
-      SELECT COUNT(*) FROM rooms
-      WHERE status = 'active' AND (expires_at IS NULL OR expires_at > NOW())
-    `);
+    const countParams = district ? [district] : [];
+    const countWhere = district
+      ? "status = 'active' AND (expires_at IS NULL OR expires_at > NOW()) AND (district = $1 OR district IS NULL)"
+      : "status = 'active' AND (expires_at IS NULL OR expires_at > NOW())";
+    const { rows: countRows } = await pool.query(`SELECT COUNT(*) FROM rooms WHERE ${countWhere}`, countParams);
     const total = parseInt(countRows[0].count);
 
     res.json({
