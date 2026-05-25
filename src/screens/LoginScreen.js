@@ -37,7 +37,6 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 // GoogleSignin is a native-only module — guard against web/SSR environments
-import { Platform } from 'react-native';
 let GoogleSignin = null;
 let statusCodes = {};
 if (Platform.OS !== 'web') {
