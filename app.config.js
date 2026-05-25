@@ -51,6 +51,7 @@ export default {
     },
     scheme: 'nanded',
     plugins: [
+      '@react-native-google-signin/google-signin',
       '@react-native-firebase/app',
       '@react-native-firebase/auth',
       'expo-secure-store',
