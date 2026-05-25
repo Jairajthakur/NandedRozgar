@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
+import { useDistrict } from '../context/DistrictContext';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/razorpay';
 import CouponInput from '../components/CouponInput';
@@ -222,6 +223,7 @@ export default function PostJobScreen() {
   const nav = useNavigation();
   const insets = useSafeAreaInsets();
   const { user, loadJobs } = useAuth();
+  const { district } = useDistrict();
   const scrollRef = useRef(null);
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
 
@@ -347,6 +349,7 @@ export default function PostJobScreen() {
         planDays,
         planLabel,
         planPrice,
+        district:    district || 'nanded',
       };
 
       // ── Step 1: Razorpay payment ───────────────────────────────────────────
