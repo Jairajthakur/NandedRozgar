@@ -13,6 +13,7 @@ import { urisToBase64DataUris } from '../utils/imageUtils';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/razorpay';
 import { useAuth } from '../context/AuthContext';
+import { useDistrict } from '../context/DistrictContext';
 import CouponInput from '../components/CouponInput';
 
 const { width: SW } = Dimensions.get('window');
@@ -140,6 +141,7 @@ function PhotoItem({ uri, label, onPress, onRemove }) {
 export default function PostCarScreen() {
   const nav = useNavigation();
   const { user } = useAuth();
+  const { district } = useDistrict();
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
@@ -298,6 +300,7 @@ export default function PostCarScreen() {
           description:form.notes, planDays:form.plan?.days || 30,
           planLabel:form.plan?.label || '1 Month', planPrice: planPrice,
           photos: validPhotos,
+          district: district || 'nanded',
         },
       });
       if (r.ok) {
