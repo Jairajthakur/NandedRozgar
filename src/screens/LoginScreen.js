@@ -290,112 +290,30 @@ export default function LoginScreen() {
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
-  // ── Google Sign-In handler ────────────────────────────────────────────────
-  // • Native (Android/iOS): uses @react-native-google-signin/google-signin SDK
-  // • Web: loads GSI script dynamically, opens Google popup
+  // ── Google Sign-In handler (native SDK) ──────────────────────────────────
   async function handleGooglePress() {
     setError('');
     setGoogleLoading(true);
-
-    // ── WEB path ─────────────────────────────────────────────────────────────
-    if (IS_WEB) {
-      try {
-        const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-        if (!clientId) {
-          setError('Google client ID not configured. Check EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID.');
-          setGoogleLoading(false);
-          return;
-        }
-
-        // Dynamically load GSI script if not already present
-        await new Promise((resolve, reject) => {
-          if (window.google?.accounts?.id) { resolve(); return; }
-          const existing = document.getElementById('gsi-script');
-          if (existing) existing.remove();
-          const script = document.createElement('script');
-          script.id = 'gsi-script';
-          script.src = 'https://accounts.google.com/gsi/client';
-          script.async = true;
-          script.defer = true;
-          script.onload = resolve;
-          script.onerror = () => reject(new Error('Failed to load Google Sign-In script. Check your network.'));
-          document.head.appendChild(script);
-        });
-
-        // Give GSI a tick to fully initialise after load
-        await new Promise(r => setTimeout(r, 150));
-
-        if (!window.google?.accounts?.id) {
-          setError('Google Sign-In failed to initialise. Please refresh and try again.');
-          setGoogleLoading(false);
-          return;
-        }
-
-        // Initialise GSI with a callback to receive the credential (idToken)
-        await new Promise((resolve, reject) => {
-          window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: async (response) => {
-              if (response.error) { reject(new Error(response.error)); return; }
-              try { await handleGoogleSuccess(response.credential); resolve(); }
-              catch (e) { reject(e); }
-            },
-            cancel_on_tap_outside: true,
-          });
-
-          // Try One Tap first; fall back to OAuth popup if suppressed
-          window.google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-              // One Tap blocked — use full OAuth popup via token client
-              const tokenClient = window.google.accounts.oauth2.initTokenClient({
-                client_id: clientId,
-                scope: 'openid email profile',
-                callback: async (tokenResponse) => {
-                  if (tokenResponse.error) { reject(new Error(tokenResponse.error)); return; }
-                  try {
-                    // Fetch user profile with the access token
-                    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                      headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-                    });
-                    const userInfo = await res.json();
-                    // Pass access_token — your backend needs to accept this
-                    // OR configure backend to accept access_token for Google verification
-                    await handleGoogleSuccess(tokenResponse.access_token, userInfo);
-                    resolve();
-                  } catch (e) { reject(e); }
-                },
-              });
-              tokenClient.requestAccessToken({ prompt: 'select_account' });
-            }
-          });
-        });
-
-      } catch (err) {
-        console.error('Web Google Sign-In error:', err);
-        setError(err.message || 'Google sign-in failed. Please try again.');
-        triggerShake();
-        setGoogleLoading(false);
-      }
-      return;
-    }
-
-    // ── NATIVE path (Android / iOS) ───────────────────────────────────────
     if (!GoogleSignin) {
-      setError('Google Sign-In is not available on this platform.');
+      setError('Google Sign-In is not supported on this platform.');
       setGoogleLoading(false);
       return;
     }
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const userInfo = await GoogleSignin.signIn();
-      const idToken = userInfo?.data?.idToken;
-      if (!idToken) {
-        setError('Google sign-in failed: no token returned.');
+      // Backend /api/auth/google calls googleapis.com/oauth2/v3/userinfo
+      // with Bearer <token> — this requires an accessToken, NOT an idToken.
+      // Get the tokens object which contains the accessToken.
+      const tokens = await GoogleSignin.getTokens();
+      const accessToken = tokens?.accessToken;
+      if (!accessToken) {
+        setError('Google sign-in failed: no access token returned.');
         triggerShake();
         setGoogleLoading(false);
         return;
       }
-      await handleGoogleSuccess(idToken);
+      await handleGoogleSuccess(accessToken);
     } catch (err) {
       setGoogleLoading(false);
       if (err.code === statusCodes.SIGN_IN_CANCELLED) {
