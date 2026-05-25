@@ -18,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useDistrict } from '../context/DistrictContext';
 import { C, CAT_ICONS } from '../utils/constants';
 import { useLang, LANGUAGES } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
@@ -424,7 +425,9 @@ export default function HomeScreen() {
   const { lang, changeLang, t } = useLang();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
+  const { currentDistrict, selectDistrict, DISTRICTS } = useDistrict();
   const [showLangPicker, setShowLangPicker] = useState(false);
+  const [showDistrictPicker, setShowDistrictPicker] = useState(false);
   const [searchText, setSearchText]         = useState('');
 
   // Responsive breakpoints (web only)
@@ -436,11 +439,14 @@ export default function HomeScreen() {
   const [vehicles, setVehicles] = useState([]);
   const [stats,    setStats]    = useState({ jobs: 7, rooms: 3, vehicles: 2, items: 580 });
 
+  const { loadJobs } = useAuth();
+
   const fetchHomeData = useCallback(async () => {
     try {
+      const districtParam = currentDistrict?.id ? `?district=${currentDistrict.id}` : '';
       const [roomRes, vehicleRes] = await Promise.all([
-        http('GET', '/api/rooms'),
-        http('GET', '/api/vehicles'),
+        http('GET', `/api/rooms${districtParam}`),
+        http('GET', `/api/vehicles${districtParam}`),
       ]);
       if (roomRes?.ok && Array.isArray(roomRes.rooms))           setRooms(roomRes.rooms);
       if (vehicleRes?.ok && Array.isArray(vehicleRes.vehicles)) setVehicles(vehicleRes.vehicles);
@@ -454,9 +460,15 @@ export default function HomeScreen() {
         items:    prev.items,
       }));
     } catch {}
-  }, [jobs]);
+  }, [jobs, currentDistrict]);
 
-  useEffect(() => { fetchHomeData(); }, [fetchHomeData]);
+  // Reload jobs & home data whenever district changes
+  useEffect(() => {
+    if (currentDistrict?.id) {
+      loadJobs(1, null, null, currentDistrict.id);
+    }
+    fetchHomeData();
+  }, [currentDistrict?.id]);
 
   const currentLang  = LANGUAGES.find(l => l.code === lang);
   const langBtnLabel = currentLang?.native || 'EN';
@@ -514,14 +526,15 @@ export default function HomeScreen() {
             <View style={ws.topNavSm}>
               {/* Row 1: Brand + icons */}
               <View style={ws.topNavSmRow1}>
-                <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+                <TouchableOpacity onPress={() => setShowDistrictPicker(true)} activeOpacity={0.8}>
                   <Text style={ws.brandText}>
                     <Text style={ws.brandCity}>City</Text>
                     <Text style={ws.brandRozgar}>Plus</Text>
                   </Text>
                   <View style={ws.locRow}>
                     <Ionicons name="location-sharp" size={11} color={ORANGE} />
-                    <Text style={ws.locText}>Nanded, Maharashtra</Text>
+                    <Text style={ws.locText}>{currentDistrict?.name || 'Select District'}, Maharashtra</Text>
+                    <Ionicons name="chevron-down" size={10} color={ORANGE} style={{ marginLeft: 2 }} />
                   </View>
                 </TouchableOpacity>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -543,14 +556,15 @@ export default function HomeScreen() {
           ) : (
             /* ── Desktop web: single row ── */
             <View style={ws.topNavInner}>
-              <TouchableOpacity style={ws.brandRow} onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+              <TouchableOpacity style={ws.brandRow} onPress={() => setShowDistrictPicker(true)} activeOpacity={0.8}>
                 <Text style={ws.brandText}>
                   <Text style={ws.brandCity}>City</Text>
                   <Text style={ws.brandRozgar}>Plus</Text>
                 </Text>
                 <View style={ws.locRow}>
                   <Ionicons name="location-sharp" size={12} color={ORANGE} />
-                  <Text style={ws.locText}>Nanded, Maharashtra</Text>
+                  <Text style={ws.locText}>{currentDistrict?.name || 'Select District'}, Maharashtra</Text>
+                  <Ionicons name="chevron-down" size={11} color={ORANGE} style={{ marginLeft: 2 }} />
                 </View>
               </TouchableOpacity>
               <View style={ws.topSearchWrap}>
@@ -848,14 +862,15 @@ export default function HomeScreen() {
       {/* ── Sticky White Header ── */}
       <View style={[s.headerBand, { paddingTop: insets.top + 6 }]}>
         <View style={s.headerTop}>
-          <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
+          <TouchableOpacity onPress={() => setShowDistrictPicker(true)} activeOpacity={0.8}>
             <Text style={s.brandText}>
               <Text style={s.brandCity}>City</Text>
               <Text style={s.brandRozgar}>Plus</Text>
             </Text>
             <View style={s.locRow}>
               <Ionicons name="location-sharp" size={12} color={ORANGE} />
-              <Text style={s.locText}>Nanded, Maharashtra</Text>
+              <Text style={s.locText}>{currentDistrict?.name || 'Select District'}, Maharashtra</Text>
+              <Ionicons name="chevron-down" size={11} color={ORANGE} style={{ marginLeft: 2 }} />
             </View>
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -875,6 +890,38 @@ export default function HomeScreen() {
       </View>
 
       <LangModal visible={showLangPicker} current={lang} onSelect={changeLang} onClose={() => setShowLangPicker(false)} />
+
+      {/* ── District Picker Modal ── */}
+      {showDistrictPicker && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setShowDistrictPicker(false)}>
+          <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} activeOpacity={1} onPress={() => setShowDistrictPicker(false)} />
+          <View style={s.districtModalSheet}>
+            <View style={s.districtModalHandle} />
+            <Text style={s.districtModalTitle}>Switch District</Text>
+            <Text style={s.districtModalSub}>All listings will update for your selected area</Text>
+            <View style={s.districtModalCards}>
+              {DISTRICTS.map(d => {
+                const isActive = currentDistrict?.id === d.id;
+                return (
+                  <TouchableOpacity
+                    key={d.id}
+                    style={[s.districtModalCard, isActive && { borderColor: d.color, backgroundColor: d.color + '08' }]}
+                    onPress={async () => { await selectDistrict(d.id); setShowDistrictPicker(false); }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={s.districtModalEmoji}>{d.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.districtModalName, isActive && { color: d.color }]}>{d.name}</Text>
+                      <Text style={s.districtModalMarathi}>{d.nameMarathi}</Text>
+                    </View>
+                    {isActive && <Ionicons name="checkmark-circle" size={22} color={d.color} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </Modal>
+      )}
 
       <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={true}>
 
@@ -1392,6 +1439,42 @@ const s = StyleSheet.create({
     paddingBottom: 8,
     gap: 12,
   },
+
+  // ── District picker bottom sheet ──────────────────────────────────────────
+  districtModalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  districtModalHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#ddd',
+    alignSelf: 'center',
+    marginBottom: 18,
+  },
+  districtModalTitle: {
+    fontSize: 20, fontWeight: '800', color: '#111',
+    marginBottom: 4,
+  },
+  districtModalSub: {
+    fontSize: 13, color: '#888', marginBottom: 20,
+  },
+  districtModalCards: { gap: 12 },
+  districtModalCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    borderWidth: 1.5, borderColor: '#ebebeb',
+    borderRadius: 14, padding: 14,
+    backgroundColor: '#fafafa',
+  },
+  districtModalEmoji: { fontSize: 28 },
+  districtModalName:  { fontSize: 17, fontWeight: '700', color: '#111' },
+  districtModalMarathi: { fontSize: 13, color: '#888', marginTop: 1 },
 });
 
 const lm = StyleSheet.create({
