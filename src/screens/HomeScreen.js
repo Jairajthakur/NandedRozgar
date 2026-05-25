@@ -525,6 +525,11 @@ export default function HomeScreen() {
                   </View>
                 </TouchableOpacity>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity style={ws.langBtn} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
+                    <Ionicons name="language" size={13} color={ORANGE} />
+                    <Text style={ws.langBtnTxt}>{langBtnLabel}</Text>
+                    <Ionicons name="chevron-down" size={11} color={ORANGE} />
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => nav.navigate('Profile')} activeOpacity={0.8} style={ws.bellBtn}>
                     <Ionicons name="notifications-outline" size={20} color="#555" />
                   </TouchableOpacity>
