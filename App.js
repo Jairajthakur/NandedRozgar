@@ -13,7 +13,9 @@ import Toast from 'react-native-toast-message';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { DistrictProvider, useDistrict } from './src/context/DistrictContext';
 import { LangProvider, useLang } from './src/utils/i18n';
+import DistrictPickerScreen from './src/screens/DistrictPickerScreen';
 import LoginScreen      from './src/screens/LoginScreen';
 import HomeScreen       from './src/screens/HomeScreen';
 import BoardScreen      from './src/screens/BoardScreen';
@@ -281,6 +283,7 @@ function MainTabs() {
 // ── Root Navigator ────────────────────────────────────────────────────────────
 function RootNavigator() {
   const { user, loading, sessionPending } = useAuth();
+  const { district, districtLoading } = useDistrict();
   const { t } = useLang();
   const [showOnboarding, setShowOnboarding] = React.useState(null);
 
@@ -308,7 +311,7 @@ function RootNavigator() {
     return unsub;
   }, []);
 
-  if (loading || showOnboarding === null || sessionPending) return (
+  if (loading || showOnboarding === null || sessionPending || districtLoading) return (
     <View style={s.splash}>
       <View style={s.splashIcon}>
         <MaterialIcons name="location-city" size={36} color={ORANGE} />
@@ -324,6 +327,11 @@ function RootNavigator() {
 
   if (showOnboarding && !user) {
     return <OnboardingScreen onDone={() => setShowOnboarding(false)} />;
+  }
+
+  // ── District picker: shown when no district selected yet ─────────────────
+  if (!district) {
+    return <DistrictPickerScreen onDone={() => {}} />;
   }
 
   // ── Unauthenticated stack: only Login is accessible ─────────────────────
@@ -415,6 +423,7 @@ export default function App() {
       <ErrorBoundary>
         <SafeAreaProvider>
           <AuthProvider>
+            <DistrictProvider>
             <LangProvider>
             <NavigationContainer linking={linking} ref={navigationRef}>
               <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -422,6 +431,7 @@ export default function App() {
             </NavigationContainer>
             <Toast />
           </LangProvider>
+          </DistrictProvider>
           </AuthProvider>
         </SafeAreaProvider>
       </ErrorBoundary>
