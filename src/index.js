@@ -29,6 +29,8 @@ const explicitOrigins = (process.env.CORS_ORIGINS || '')
 
 const staticOrigins = [
   'https://localloops-production.up.railway.app',
+  'https://thecityplus.in',
+  'https://www.thecityplus.in',
   ...(process.env.APP_URL ? [process.env.APP_URL] : []),
   ...explicitOrigins,
 ];
@@ -57,6 +59,25 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '5mb' }));
+
+// ── Security headers ──────────────────────────────────────────────────────────
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// ── Force HTTPS in production ─────────────────────────────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    const proto = req.headers['x-forwarded-proto'];
+    if (proto && proto !== 'https') {
+      return res.redirect(301, 'https://' + req.headers.host + req.url);
+    }
+    next();
+  });
+}
 
 // ── Global rate limiter ────────────────────────────────────────────────────────
 const globalLimiter = rateLimit({
