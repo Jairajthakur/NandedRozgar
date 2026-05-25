@@ -77,7 +77,7 @@ function safeUser(u) {
 // ── POST /api/auth/register ────────────────────────────────────────────────────
 router.post('/register', registerLimiter, async (req, res) => {
   try {
-    const { name, email, password, phone, company, referralCode } = req.body;
+    const { name, email, password, phone, company, referralCode, district } = req.body;
 
     if (!name?.trim() || !email?.trim() || !password)
       return res.json({ ok: false, error: 'Name, email and password are required' });
@@ -88,11 +88,14 @@ router.post('/register', registerLimiter, async (req, res) => {
     if (!/[0-9]/.test(password) && !/[^A-Za-z0-9]/.test(password))
       return res.json({ ok: false, error: 'Password must contain at least one number or symbol' });
 
+    const validDistricts = ['nanded', 'latur'];
+    const userDistrict = validDistricts.includes(district) ? district : 'nanded';
+
     const hash = await bcrypt.hash(password, 12);
     const { rows } = await pool.query(
-      `INSERT INTO users (name, email, password, role, phone, company)
-       VALUES ($1, $2, $3, 'user', $4, $5) RETURNING *`,
-      [name.trim(), email.toLowerCase().trim(), hash, phone || null, company || null]
+      `INSERT INTO users (name, email, password, role, phone, company, district)
+       VALUES ($1, $2, $3, 'user', $4, $5, $6) RETURNING *`,
+      [name.trim(), email.toLowerCase().trim(), hash, phone || null, company || null, userDistrict]
     );
     const user = rows[0];
 
