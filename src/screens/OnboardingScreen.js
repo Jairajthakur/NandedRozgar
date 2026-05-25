@@ -10,9 +10,33 @@ const { width } = Dimensions.get('window');
 const ORANGE = '#f97316';
 
 const SLIDES = [
-  { icon: 'briefcase', iconColor: ORANGE,     iconBg: '#fff3e8', title: 'Find Local Jobs',     titleMr: 'स्थानिक नोकऱ्या शोधा',       sub: 'Browse hundreds of jobs in Nanded — driver, security, shop assistant, and much more. All free.', subMr: 'नांदेडमधील शेकडो नोकऱ्या — चालक, सुरक्षा, दुकान सहाय्यक आणि बरेच काही. पूर्णपणे मोफत.' },
-  { icon: 'business',  iconColor: '#6366f1',   iconBg: '#f0f4ff', title: 'Rooms, Cars & More', titleMr: 'खोल्या, गाड्या आणि बरेच काही', sub: 'Rent a room, hire a car, or buy & sell used items — all in one local app built for Nanded.',     subMr: 'खोली भाड्याने घ्या, कार भाड्याने द्या किंवा जुन्या वस्तू खरेदी-विक्री करा — नांदेडसाठी एकच ॲप.' },
-  { icon: 'rocket',    iconColor: '#16a34a',   iconBg: '#f0fdf4', title: 'Post in Minutes',   titleMr: 'काही मिनिटांत पोस्ट करा',      sub: 'Employers post jobs for just ₹49. Boost listings to reach more people faster. AI-powered matching included.', subMr: 'नियोक्ते फक्त ₹49 मध्ये नोकऱ्या पोस्ट करतात. अधिक लोकांपर्यंत पोहोचण्यासाठी बूस्ट करा.' },
+  {
+    icon: 'briefcase', iconColor: ORANGE, iconBg: '#fff3e8',
+    title:   'Find Local Jobs',
+    titleMr: 'स्थानिक नोकऱ्या शोधा',
+    titleHi: 'स्थानीय नौकरियाँ खोजें',
+    sub:   'Browse hundreds of jobs in Nanded — driver, security, shop assistant, and much more. All free.',
+    subMr: 'नांदेडमधील शेकडो नोकऱ्या — चालक, सुरक्षा, दुकान सहाय्यक आणि बरेच काही. पूर्णपणे मोफत.',
+    subHi: 'नांदेड में सैकड़ों नौकरियाँ — ड्राइवर, सुरक्षा, दुकान सहायक और भी बहुत कुछ। बिल्कुल मुफ्त।',
+  },
+  {
+    icon: 'business', iconColor: '#6366f1', iconBg: '#f0f4ff',
+    title:   'Rooms, Cars & More',
+    titleMr: 'खोल्या, गाड्या आणि बरेच काही',
+    titleHi: 'कमरे, गाड़ियाँ और बहुत कुछ',
+    sub:   'Rent a room, hire a car, or buy & sell used items — all in one local app built for Nanded.',
+    subMr: 'खोली भाड्याने घ्या, कार भाड्याने द्या किंवा जुन्या वस्तू खरेदी-विक्री करा — नांदेडसाठी एकच ॲप.',
+    subHi: 'कमरा किराए पर लें, कार किराए पर दें या पुरानी वस्तुएं खरीदें-बेचें — नांदेड के लिए एक ही ऐप।',
+  },
+  {
+    icon: 'rocket', iconColor: '#16a34a', iconBg: '#f0fdf4',
+    title:   'Post in Minutes',
+    titleMr: 'काही मिनिटांत पोस्ट करा',
+    titleHi: 'मिनटों में पोस्ट करें',
+    sub:   'Employers post jobs for just ₹49. Boost listings to reach more people faster. AI-powered matching included.',
+    subMr: 'नियोक्ते फक्त ₹49 मध्ये नोकऱ्या पोस्ट करतात. अधिक लोकांपर्यंत पोहोचण्यासाठी बूस्ट करा.',
+    subHi: 'नियोक्ता केवल ₹49 में नौकरी पोस्ट करें। ज़्यादा लोगों तक पहुँचने के लिए बूस्ट करें। AI मिलान सहित।',
+  },
 ];
 
 export const ONBOARDING_KEY = 'nr_onboarded_v1';
@@ -20,7 +44,9 @@ export async function markOnboarded() { await storage.setItem(ONBOARDING_KEY, '1
 export async function isOnboarded() { try { const v = await storage.getItem(ONBOARDING_KEY); return v === '1'; } catch { return false; } }
 
 // ── Animated slide content ────────────────────────────────────────────────────
-function SlideContent({ slide, isMr, active }) {
+function SlideContent({ slide, lang, active }) {
+  const getTitle = () => lang === 'mr' ? slide.titleMr : lang === 'hi' ? slide.titleHi : slide.title;
+  const getSub   = () => lang === 'mr' ? slide.subMr   : lang === 'hi' ? slide.subHi   : slide.sub;
   const iconScale = useRef(new Animated.Value(0.5)).current;
   const iconOpacity = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
@@ -66,8 +92,8 @@ function SlideContent({ slide, isMr, active }) {
         <Ionicons name={slide.icon} size={52} color={slide.iconColor} />
       </Animated.View>
       <Animated.View style={{ opacity: textOpacity, transform: [{ translateY: textY }] }}>
-        <Text style={os.title}>{isMr ? slide.titleMr : slide.title}</Text>
-        <Text style={os.sub}>{isMr ? slide.subMr : slide.sub}</Text>
+        <Text style={os.title}>{getTitle()}</Text>
+        <Text style={os.sub}>{getSub()}</Text>
       </Animated.View>
     </View>
   );
@@ -77,7 +103,6 @@ export default function OnboardingScreen({ onDone }) {
   const [page, setPage] = useState(0);
   const [lang, setLang] = useState('en');
   const scrollRef = useRef(null);
-  const isMr = lang === 'mr';
 
   // dot width animation
   const dotWidths = SLIDES.map((_, i) => useRef(new Animated.Value(i === 0 ? 24 : 8)).current);
@@ -121,9 +146,13 @@ export default function OnboardingScreen({ onDone }) {
 
       {/* Language toggle */}
       <View style={os.langRow}>
-        {['en', 'mr'].map(code => (
+        {[
+          { code: 'en', label: 'English' },
+          { code: 'mr', label: 'मराठी' },
+          { code: 'hi', label: 'हिंदी' },
+        ].map(({ code, label }) => (
           <TouchableOpacity key={code} style={[os.langBtn, lang === code && os.langActive]} onPress={() => setLang(code)}>
-            <Text style={[os.langTxt, lang === code && os.langActiveTxt]}>{code === 'en' ? 'English' : 'मराठी'}</Text>
+            <Text style={[os.langTxt, lang === code && os.langActiveTxt]}>{label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -131,7 +160,7 @@ export default function OnboardingScreen({ onDone }) {
       {/* Slides */}
       <ScrollView ref={scrollRef} horizontal pagingEnabled showsHorizontalScrollIndicator={false} scrollEnabled={false} style={{ flex: 1 }}>
         {SLIDES.map((slide, i) => (
-          <SlideContent key={i} slide={slide} isMr={isMr} active={page === i} />
+          <SlideContent key={i} slide={slide} lang={lang} active={page === i} />
         ))}
       </ScrollView>
 
@@ -145,12 +174,14 @@ export default function OnboardingScreen({ onDone }) {
       {/* Buttons */}
       <View style={os.btnRow}>
         <TouchableOpacity style={os.skipBtn} onPress={finish}>
-          <Text style={os.skipTxt}>{isMr ? 'वगळा' : 'Skip'}</Text>
+          <Text style={os.skipTxt}>{lang === 'mr' ? 'वगळा' : lang === 'hi' ? 'छोड़ें' : 'Skip'}</Text>
         </TouchableOpacity>
         <Animated.View style={{ transform: [{ scale: btnScale }] }}>
           <TouchableOpacity style={os.nextBtn} onPress={next} activeOpacity={0.85}>
             <Text style={os.nextTxt}>
-              {page === SLIDES.length - 1 ? (isMr ? 'सुरू करा' : 'Get Started') : (isMr ? 'पुढे' : 'Next')}
+              {page === SLIDES.length - 1
+                ? (lang === 'mr' ? 'सुरू करा' : lang === 'hi' ? 'शुरू करें' : 'Get Started')
+                : (lang === 'mr' ? 'पुढे' : lang === 'hi' ? 'आगे' : 'Next')}
             </Text>
             <Ionicons name="arrow-forward" size={16} color="#fff" style={{ marginLeft: 6 }} />
           </TouchableOpacity>
