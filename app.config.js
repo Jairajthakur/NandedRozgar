@@ -35,6 +35,10 @@ export default {
       description: 'Local Jobs · Local Life · Nanded',
       themeColor: '#f97316',
       backgroundColor: '#111111',
+      inject: [
+        // Google Sign-In (GSI) script for web Google OAuth
+        '<script src="https://accounts.google.com/gsi/client" async defer></script>',
+      ],
     },
     ios: {
       supportsTablet: false,
