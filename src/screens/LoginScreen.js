@@ -290,19 +290,110 @@ export default function LoginScreen() {
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
-  // ── Google Sign-In handler (native SDK) ──────────────────────────────────
+  // ── Google Sign-In handler ────────────────────────────────────────────────
+  // • Web:    dynamically loads GSI script → Google One Tap / OAuth popup → idToken
+  // • Native: uses @react-native-google-signin/google-signin SDK → idToken
+  // Backend accepts { idToken } and verifies via Google tokeninfo endpoint.
   async function handleGooglePress() {
     setError('');
     setGoogleLoading(true);
+
+    // ── WEB path ─────────────────────────────────────────────────────────────
+    if (IS_WEB) {
+      try {
+        const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+        if (!clientId) {
+          setError('Google client ID not configured.');
+          setGoogleLoading(false);
+          return;
+        }
+        // Dynamically inject GSI script if not already loaded
+        await new Promise((resolve, reject) => {
+          if (window.google?.accounts?.id) { resolve(); return; }
+          const existing = document.getElementById('gsi-script');
+          if (existing) existing.remove();
+          const script = document.createElement('script');
+          script.id = 'gsi-script';
+          script.src = 'https://accounts.google.com/gsi/client';
+          script.async = true;
+          script.defer = true;
+          script.onload = resolve;
+          script.onerror = () => reject(new Error('Failed to load Google Sign-In. Check your connection.'));
+          document.head.appendChild(script);
+        });
+        // Give GSI a tick to initialise
+        await new Promise(r => setTimeout(r, 150));
+        if (!window.google?.accounts?.id) {
+          setError('Google Sign-In failed to initialise. Please refresh and try again.');
+          setGoogleLoading(false);
+          return;
+        }
+        // Use GSI credential (idToken) callback
+        await new Promise((resolve, reject) => {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: async (response) => {
+              if (response.error) { reject(new Error(response.error)); return; }
+              try { await handleGoogleSuccess(response.credential); resolve(); }
+              catch (e) { reject(e); }
+            },
+            cancel_on_tap_outside: true,
+          });
+          window.google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              // One Tap suppressed — fall back to full OAuth popup
+              try {
+                const tokenClient = window.google.accounts.oauth2.initCodeClient({
+                  client_id: clientId,
+                  scope: 'openid email profile',
+                  ux_mode: 'popup',
+                  callback: async (codeResponse) => {
+                    if (codeResponse.error) { reject(new Error(codeResponse.error)); return; }
+                    // Exchange code via backend
+                    try {
+                      const r = await fetch(
+                        (process.env.EXPO_PUBLIC_API_URL || 'https://thecityplus.in') + '/api/auth/google/code',
+                        {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ code: codeResponse.code }),
+                        }
+                      );
+                      const data = await r.json();
+                      if (!data?.ok) { reject(new Error(data?.error || 'Google sign-in failed')); return; }
+                      // Backend returned JWT — save directly
+                      const { loginWithGoogle: lgw } = require('../context/AuthContext') || {};
+                      await handleGoogleSuccess(null, data);
+                      resolve();
+                    } catch (e) { reject(e); }
+                  },
+                });
+                tokenClient.requestCode();
+              } catch (e) {
+                reject(new Error('Google popup blocked or not supported. Try a different browser.'));
+              }
+            }
+          });
+        });
+      } catch (err) {
+        console.error('Web Google Sign-In error:', err);
+        setError(err.message || 'Google sign-in failed. Please try again.');
+        triggerShake();
+        setGoogleLoading(false);
+      }
+      return;
+    }
+
+    // ── NATIVE path (Android / iOS) ───────────────────────────────────────
     if (!GoogleSignin) {
-      setError('Google Sign-In is not supported on this platform.');
+      setError('Google Sign-In is not available on this platform.');
       setGoogleLoading(false);
       return;
     }
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const userInfo = await GoogleSignin.signIn();
-      // idToken is a signed JWT — verified by backend via Google tokeninfo endpoint
+      // idToken is a signed JWT verified by backend via Google tokeninfo endpoint
       const idToken = userInfo?.data?.idToken ?? userInfo?.idToken;
       if (!idToken) {
         setError('Google sign-in failed: no token returned.');
@@ -328,9 +419,15 @@ export default function LoginScreen() {
     }
   }
 
-  async function handleGoogleSuccess(idToken) {
+  // prebuilt response from code exchange (web fallback) bypasses token check
+  async function handleGoogleSuccess(idToken, prebuiltResponse) {
     setError('');
-    const r = await loginWithGoogle(idToken);
+    let r;
+    if (prebuiltResponse) {
+      r = prebuiltResponse;
+    } else {
+      r = await loginWithGoogle(idToken);
+    }
     setGoogleLoading(false);
     if (!r?.ok) {
       setError(r?.error || 'Google sign-in failed');
