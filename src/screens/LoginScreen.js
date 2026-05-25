@@ -302,18 +302,15 @@ export default function LoginScreen() {
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const userInfo = await GoogleSignin.signIn();
-      // Backend /api/auth/google calls googleapis.com/oauth2/v3/userinfo
-      // with Bearer <token> — this requires an accessToken, NOT an idToken.
-      // Get the tokens object which contains the accessToken.
-      const tokens = await GoogleSignin.getTokens();
-      const accessToken = tokens?.accessToken;
-      if (!accessToken) {
-        setError('Google sign-in failed: no access token returned.');
+      // idToken is a signed JWT — verified by backend via Google tokeninfo endpoint
+      const idToken = userInfo?.data?.idToken ?? userInfo?.idToken;
+      if (!idToken) {
+        setError('Google sign-in failed: no token returned.');
         triggerShake();
         setGoogleLoading(false);
         return;
       }
-      await handleGoogleSuccess(accessToken);
+      await handleGoogleSuccess(idToken);
     } catch (err) {
       setGoogleLoading(false);
       if (err.code === statusCodes.SIGN_IN_CANCELLED) {
