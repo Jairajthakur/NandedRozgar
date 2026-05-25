@@ -1,7 +1,15 @@
-// app.config.js — replaces app.json so EXPO_PUBLIC_* env vars are
-// injected at build time (EAS Secrets) and at dev time (.env file).
-// Delete or rename app.json after adding this file — Expo will use
-// app.config.js first when both exist, but keeping both can cause confusion.
+// app.config.js — dynamic config so native-only plugins are excluded on web builds
+// Railway runs `expo export --platform web` and doesn't have native packages installed,
+// so we skip native-only plugins (google-signin, firebase) when building for web.
+
+const IS_WEB = process.env.EXPO_PLATFORM === 'web' || process.env.RAILWAY_ENVIRONMENT !== undefined;
+
+// Plugins that only work in native (Android/iOS) builds
+const nativePlugins = IS_WEB ? [] : [
+  '@react-native-google-signin/google-signin',
+  '@react-native-firebase/app',
+  '@react-native-firebase/auth',
+];
 
 export default {
   expo: {
@@ -51,9 +59,7 @@ export default {
     },
     scheme: 'nanded',
     plugins: [
-      '@react-native-google-signin/google-signin',
-      '@react-native-firebase/app',
-      '@react-native-firebase/auth',
+      ...nativePlugins,
       'expo-secure-store',
       [
         'expo-notifications',
@@ -87,9 +93,6 @@ export default {
       eas: {
         projectId: 'da8f053f-5fd8-4bff-9004-7c4ecba82ff8',
       },
-      // ── Public env vars — read from EAS Secrets / .env at build time ────────
-      // Access anywhere in the app via: process.env.EXPO_PUBLIC_*
-      // These are baked into the JS bundle — never put secrets here.
       googleWebClientId:    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID  || '',
       firebaseApiKey:       process.env.EXPO_PUBLIC_FIREBASE_API_KEY       || '',
       firebaseAuthDomain:   process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN   || '',
