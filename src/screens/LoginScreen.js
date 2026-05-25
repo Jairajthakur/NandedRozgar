@@ -1,30 +1,29 @@
 /**
  * CityPlus — LoginScreen.js
  *
- * Google Sign-In — NATIVE APK FIX via @react-native-google-signin/google-signin
+ * Google Sign-In — NATIVE + WEB support
  * ─────────────────────────────────────────────────────────────────────────────
- * Why expo-auth-session kept failing on APK:
- *   It opens a Chrome browser tab. Chrome cannot resolve the nanded:// custom
- *   scheme redirect → ERR_QUIC_PROTOCOL_ERROR.
- *   No browser-based OAuth works on Android APKs with custom schemes.
+ * NATIVE (Android APK):
+ *   Uses @react-native-google-signin/google-signin — native account picker,
+ *   no browser, no redirect URI needed.
  *
- * This fix uses the NATIVE Google Sign-In SDK:
- *   • Shows Google's native account picker (no browser, no redirect URI)
- *   • Returns idToken directly to the app
- *   • Works with your existing Android OAuth client + SHA-1 in Google Console
+ * WEB (thecityplus.in in browser):
+ *   Uses Google Identity Services (GSI) popup via window.google.accounts.oauth2
+ *   Returns access_token → sent to /api/auth/google backend endpoint.
  *
- * ─── ONE-TIME SETUP (must rebuild APK after) ─────────────────────────────────
+ * ─── WEB SETUP (one-time) ────────────────────────────────────────────────────
+ *   In web/index.html <head>, add:
+ *     <script src="https://accounts.google.com/gsi/client" async defer></script>
+ *
+ * ─── NATIVE SETUP (must rebuild APK after) ───────────────────────────────────
  *   1.  npm install @react-native-google-signin/google-signin
- *
  *   2.  In app.config.js → plugins array, add:
  *         ["@react-native-google-signin/google-signin"]
- *
  *   3.  eas build --platform android --profile preview
  *
- * ─── GOOGLE CONSOLE — NO CHANGES NEEDED ──────────────────────────────────────
- *   Your Android client is already configured:
- *     Package: com.cityplus.app
- *     SHA-1:   4E:81:9A:AB:EF:CA:28:8A:58:F0:51:42:1C:37:AE:34:6C:4F:3C:7F
+ * ─── GOOGLE CONSOLE ───────────────────────────────────────────────────────────
+ *   Authorized JS origins:  https://thecityplus.in, https://www.thecityplus.in
+ *   Authorized redirect URIs: https://thecityplus.in/auth/google/callback
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -290,19 +289,60 @@ export default function LoginScreen() {
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
-  // ── Google Sign-In handler (native SDK) ──────────────────────────────────
+  // ── Google Sign-In handler (web + native) ────────────────────────────────
   async function handleGooglePress() {
     setError('');
     setGoogleLoading(true);
+
+    // ── WEB: Google Identity Services popup ──────────────────────────────
+    if (IS_WEB) {
+      try {
+        const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+        if (!clientId) {
+          setError('Google client ID not configured.');
+          setGoogleLoading(false);
+          return;
+        }
+        if (!window.google?.accounts?.oauth2) {
+          setError('Google Sign-In script not loaded. Please refresh the page.');
+          setGoogleLoading(false);
+          return;
+        }
+        const accessToken = await new Promise((resolve, reject) => {
+          const client = window.google.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: 'openid profile email',
+            callback: (response) => {
+              if (response.error) {
+                reject(new Error(response.error_description || response.error));
+              } else {
+                resolve(response.access_token);
+              }
+            },
+          });
+          client.requestAccessToken({ prompt: 'select_account' });
+        });
+        await handleGoogleSuccess(accessToken);
+      } catch (err) {
+        setGoogleLoading(false);
+        // User closed the popup — silent
+        if (err?.message?.includes('popup_closed') || err?.message?.includes('access_denied')) return;
+        console.error('Web Google Sign-In error:', err);
+        setError('Google sign-in failed. Please try again.');
+        triggerShake();
+      }
+      return;
+    }
+
+    // ── NATIVE: @react-native-google-signin/google-signin ────────────────
     if (!GoogleSignin) {
-      setError('Google Sign-In is not supported on this platform.');
+      setError('Google Sign-In is not available on this device.');
       setGoogleLoading(false);
       return;
     }
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const userInfo = await GoogleSignin.signIn();
-      // userInfo.data.idToken is the JWT to send to your backend
       const idToken = userInfo?.data?.idToken;
       if (!idToken) {
         setError('Google sign-in failed: no token returned.');
