@@ -11,6 +11,7 @@ router.get('/', async (req, res) => {
     const category = req.query.category || null;
     const search   = req.query.search   || null;
     const jobType  = req.query.type     || null;   // Full-time | Part-time | Fresher | Work from Home
+    const district = req.query.district || null;   // nanded | latur
 
     // Build dynamic WHERE clauses
     const conditions = ["j.status = 'active'", "(j.expires_at IS NULL OR j.expires_at > NOW())"];
@@ -33,6 +34,10 @@ router.get('/', async (req, res) => {
     if (search) {
       params.push(`%${search}%`);
       conditions.push(`(j.title ILIKE $${params.length} OR j.company ILIKE $${params.length} OR j.description ILIKE $${params.length} OR j.location ILIKE $${params.length})`);
+    }
+    if (district) {
+      params.push(district);
+      conditions.push(`(j.district = $${params.length} OR j.district IS NULL)`);
     }
 
     const where = conditions.join(' AND ');
