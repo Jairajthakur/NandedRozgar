@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useDistrict } from '../context/DistrictContext';
 import JobCard from '../components/JobCard';
 import { Empty } from '../components/UI';
 import { CAT_ICONS } from '../utils/constants';
@@ -137,6 +138,7 @@ function QuickAction({ icon, label, color, onPress }) {
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function BoardScreen({ route }) {
   const { jobs, loadJobs, role } = useAuth();
+  const { district } = useDistrict();
   const { t } = useLang();
   const nav    = useNavigation();
   const insets = useSafeAreaInsets();
@@ -271,7 +273,7 @@ export default function BoardScreen({ route }) {
   async function onRefresh() {
     setRefreshing(true);
     try {
-      await loadJobs();
+      await loadJobs(1, null, null, district);
       const res = await http('GET', '/api/promotions/all');
       if (res.ok && Array.isArray(res.promotions)) setLivePromos(res.promotions);
     } catch {}
