@@ -124,9 +124,9 @@ export function AuthProvider({ children }) {
   }
 
   // ── Google OAuth login ────────────────────────────────────────────────────
-  async function loginWithGoogle(accessToken) {
+  async function loginWithGoogle(idToken) {
     try {
-      const r = await http('POST', '/api/auth/google', { accessToken });
+      const r = await http('POST', '/api/auth/google', { idToken });
       if (!r?.ok) return r ?? { ok: false, error: 'Google sign-in failed.' };
       await saveToken(r.token);
       await _saveBiometricCredentials(r.user.email, r.token);
