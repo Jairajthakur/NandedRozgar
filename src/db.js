@@ -34,8 +34,34 @@ async function runMigrations() {
         reset_token      VARCHAR(200),
         reset_expires    TIMESTAMPTZ,
         last_seen        TIMESTAMPTZ,
+        district         VARCHAR(50) DEFAULT 'nanded',
         created_at       TIMESTAMPTZ DEFAULT NOW()
       );
+    `);
+
+    // Migration: add district column if it doesn't exist yet (for existing DBs)
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS district VARCHAR(50) DEFAULT 'nanded';
+    `);
+
+    // Migration: add district column to jobs table for filtering
+    await client.query(`
+      ALTER TABLE jobs ADD COLUMN IF NOT EXISTS district VARCHAR(50) DEFAULT 'nanded';
+    `);
+
+    // Migration: add district column to vehicles table
+    await client.query(`
+      ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS district VARCHAR(50) DEFAULT 'nanded';
+    `);
+
+    // Migration: add district column to rooms table
+    await client.query(`
+      ALTER TABLE rooms ADD COLUMN IF NOT EXISTS district VARCHAR(50) DEFAULT 'nanded';
+    `);
+
+    // Migration: add district column to buysell_items table
+    await client.query(`
+      ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS district VARCHAR(50) DEFAULT 'nanded';
     `);
 
     await client.query(`
