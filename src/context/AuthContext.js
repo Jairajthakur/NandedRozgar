@@ -60,13 +60,14 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function loadJobs(page = 1, category = null, search = null) {
+  async function loadJobs(page = 1, category = null, search = null, district = null) {
     if (fetchingRef.current && page === 1) return;
     fetchingRef.current = true;
     try {
       let path = `/api/jobs?page=${page}&limit=20`;
       if (category && category !== 'All') path += `&category=${encodeURIComponent(category)}`;
       if (search) path += `&search=${encodeURIComponent(search)}`;
+      if (district) path += `&district=${encodeURIComponent(district)}`;
       const r = await http('GET', path);
       if (r?.ok && Array.isArray(r.jobs)) {
         const normalised = r.jobs.map(j => ({
