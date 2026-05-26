@@ -283,7 +283,7 @@ function MainTabs() {
 // ── Root Navigator ────────────────────────────────────────────────────────────
 function RootNavigator() {
   const { user, loading, sessionPending } = useAuth();
-  const { district, districtLoading } = useDistrict();
+  const { districtLoading } = useDistrict();
   const { t } = useLang();
   const [showOnboarding, setShowOnboarding] = React.useState(null);
 
@@ -327,11 +327,6 @@ function RootNavigator() {
 
   if (showOnboarding && !user) {
     return <OnboardingScreen onDone={() => setShowOnboarding(false)} />;
-  }
-
-  // ── District picker: shown when no district selected yet ─────────────────
-  if (!district) {
-    return <DistrictPickerScreen onDone={() => {}} />;
   }
 
   // ── Unauthenticated stack: only Login is accessible ─────────────────────
