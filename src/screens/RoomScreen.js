@@ -11,6 +11,7 @@ import { http } from '../utils/api';
 import PromoBanner, { BannerCard } from '../components/PromoBanner';
 import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
+import { useDistrict } from '../context/DistrictContext';
 
 const ORANGE = '#f97316';
 const TEAL   = '#0d9488';
@@ -391,6 +392,7 @@ function RoomCard({ item, index, onPress }) {
 ═══════════════════════════════════════════ */
 export default function RoomScreen({ route }) {
   const nav    = useNavigation();
+  const { currentDistrict } = useDistrict();
   const insets = useSafeAreaInsets();
   const { lang, t } = useLang();
   const { width } = useWindowDimensions();
@@ -457,7 +459,8 @@ export default function RoomScreen({ route }) {
   const fetchRooms = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const res = await http('GET', '/api/rooms');
+      const districtParam = currentDistrict?.id ? `?district=${currentDistrict.id}` : '';
+      const res = await http('GET', `/api/rooms${districtParam}`);
       if (res.ok && res.rooms?.length > 0) {
         const apiRooms = res.rooms.map((r) => ({
           id:            String(r.id),
@@ -487,6 +490,10 @@ export default function RoomScreen({ route }) {
 
   // ── Fetch on mount ────────────────────────────────────────────────────────
   useEffect(() => { fetchRooms(); }, [fetchRooms]);
+
+  useEffect(() => {
+    if (currentDistrict?.id) fetchRooms();
+  }, [currentDistrict?.id]);
 
   useEffect(() => {
     http('GET', '/api/promotions/all').then(res => {
@@ -541,7 +548,7 @@ export default function RoomScreen({ route }) {
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
           <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
             <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>{t('roomsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>Nanded</Text>{t('roomsInNanded').split('Nanded')[1] || ''}</Text>
+              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>{t('roomsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>{currentDistrict?.name || 'Nanded'}</Text>{t('roomsInNanded').split('Nanded')[1] || ''}</Text>
             </TouchableOpacity>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
@@ -717,7 +724,7 @@ export default function RoomScreen({ route }) {
       <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
         <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
           <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-            {t('roomsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>Nanded</Text>{t('roomsInNanded').split('Nanded')[1] || ''}
+            {t('roomsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>{currentDistrict?.name || 'Nanded'}</Text>{t('roomsInNanded').split('Nanded')[1] || ''}
           </Text>
         </TouchableOpacity>
         <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
