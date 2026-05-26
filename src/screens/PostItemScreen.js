@@ -13,6 +13,7 @@ import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/razorpay';
 import CouponInput from '../components/CouponInput';
 import { useAuth } from '../context/AuthContext';
+import { useDistrict } from '../context/DistrictContext';
 
 const { width: SW } = Dimensions.get('window');
 const ORANGE = '#f97316';
@@ -42,20 +43,32 @@ const AGE_OPTIONS = [
   '2-3 Years', '3-5 Years', 'More than 5 Years',
 ];
 
-const AREAS = [
-  // ── Nanded City localities ──
-  'Nanded City', 'Vazirabad', 'Shivaji Nagar', 'Vishnupuri', 'Taroda Naka',
-  'Cidco', 'Old Nanded', 'New Mondha', 'Novena Colony',
-  'Kasturba Nagar', 'Santnagar', 'Padampur', 'Shantinagar',
-  'Guru Nanak Colony', 'Aurangpura', 'Subhash Nagar',
-  'SRTMU Area', 'Station Road',
-  // ── Nanded District Talukas ──
-  'Nanded (Taluka)', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Bhokar',
-  'Kinwat', 'Deglur', 'Biloli', 'Naigaon', 'Loha',
-  'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
-  'Mudkhed',
-  'Other',
-];
+const AREAS_BY_DISTRICT = {
+  nanded: [
+    // ── Nanded City localities ──
+    'Nanded City', 'Vazirabad', 'Shivaji Nagar', 'Vishnupuri', 'Taroda Naka',
+    'Cidco', 'Old Nanded', 'New Mondha', 'Novena Colony',
+    'Kasturba Nagar', 'Santnagar', 'Padampur', 'Shantinagar',
+    'Guru Nanak Colony', 'Aurangpura', 'Subhash Nagar',
+    'SRTMU Area', 'Station Road',
+    // ── Nanded District Talukas ──
+    'Nanded (Taluka)', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Bhokar',
+    'Kinwat', 'Deglur', 'Biloli', 'Naigaon', 'Loha',
+    'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
+    'Mudkhed',
+    'Other',
+  ],
+  latur: [
+    // ── Latur City localities ──
+    'Latur City', 'Ausa Road', 'Udgir Road', 'Railway Station Area',
+    'Nit Nagar', 'Gandhi Nagar', 'Shivaji Nagar', 'Budhwar Peth',
+    'Sadar Bazar', 'Renuka Nagar',
+    // ── Latur District Talukas ──
+    'Latur (Taluka)', 'Ausa', 'Udgir', 'Nilanga', 'Deoni',
+    'Chakur', 'Renapur', 'Ahmedpur', 'Shirur Anantpal', 'Jalkot',
+    'Other',
+  ],
+};
 
 const PLANS = [
   { days: 7,  label: '7 Days',  price: 39,  popular: false, strikePrice: null },
@@ -234,7 +247,7 @@ function Step1({ form, set, customCategory, setCustomCategory }) {
   );
 }
 
-function Step2({ form, set }) {
+function Step2({ form, set, areas, districtName, onChangeDistrict }) {
   return (
     <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Label text="SELLING PRICE (₹)" required />
@@ -264,7 +277,26 @@ function Step2({ form, set }) {
       />
 
       <Label text="YOUR LOCATION / AREA" required />
-      <Picker value={form.area} options={AREAS} onSelect={v => set('area', v)} fullWidth />
+      {/* District indicator — read-only, change from Home */}
+      {districtName ? (
+        <TouchableOpacity
+          onPress={onChangeDistrict}
+          activeOpacity={0.75}
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 6,
+            backgroundColor: '#fff7ed', borderRadius: 10,
+            paddingHorizontal: 12, paddingVertical: 8,
+            borderWidth: 1, borderColor: '#fed7aa', marginBottom: 10,
+          }}
+        >
+          <Ionicons name="location" size={14} color={ORANGE} />
+          <Text style={{ fontSize: 13, color: '#92400e', fontWeight: '600', flex: 1 }}>
+            Posting in <Text style={{ color: ORANGE }}>{districtName}</Text> district
+          </Text>
+          <Text style={{ fontSize: 11, color: ORANGE }}>Change ›</Text>
+        </TouchableOpacity>
+      ) : null}
+      <Picker value={form.area} options={areas} onSelect={v => set('area', v)} fullWidth />
       <View style={{ height: 24 }} />
     </ScrollView>
   );
@@ -504,7 +536,7 @@ function Step4({ form, set, appliedCoupon, setAppliedCoupon }) {
   );
 }
 
-function Step5({ form, customCategory }) {
+function Step5({ form, customCategory, districtName }) {
   const rows1 = [
     ['TITLE',     form.title     || 'Not set'],
     ['CATEGORY',  form.category === 'Other' ? (customCategory?.trim() || 'Other') : form.category],
@@ -514,6 +546,7 @@ function Step5({ form, customCategory }) {
   const rows2 = [
     ['PRICE',      form.price ? `₹${parseInt(form.price).toLocaleString('en-IN')}` : 'Not set'],
     ['NEGOTIABLE', form.negotiable ? 'Yes' : 'No, Fixed Price'],
+    ['DISTRICT',   districtName || 'Nanded'],
     ['LOCATION',   form.area],
   ];
   return (
@@ -577,7 +610,11 @@ function Step5({ form, customCategory }) {
 export default function PostItemScreen() {
   const nav = useNavigation();
   const { user } = useAuth();
+  const { currentDistrict } = useDistrict();
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
+
+  // Derive area list from current district (default to nanded)
+  const AREAS = AREAS_BY_DISTRICT[currentDistrict?.id] || AREAS_BY_DISTRICT.nanded;
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -592,7 +629,7 @@ export default function PostItemScreen() {
     age:         '1-2 Years',
     price:       '',
     negotiable:  true,
-    area:        'Nanded City',
+    area:        (AREAS_BY_DISTRICT[currentDistrict?.id] || AREAS_BY_DISTRICT.nanded)[0],
     description: '',
     whatsapp:    '',
     photos:      [],
@@ -677,6 +714,7 @@ export default function PostItemScreen() {
           price:       parseInt(form.price) || 0,
           negotiable:  form.negotiable,
           area:        form.area,
+          district:    currentDistrict?.id || 'nanded',
           description: form.description.trim(),
           whatsapp:    form.whatsapp.trim(),
           photos:      uploadedPhotos,
@@ -705,10 +743,10 @@ export default function PostItemScreen() {
   function renderStep() {
     switch (step) {
       case 1: return <Step1 form={form} set={set} customCategory={customCategory} setCustomCategory={setCustomCategory} />;
-      case 2: return <Step2 form={form} set={set} />;
+      case 2: return <Step2 form={form} set={set} areas={AREAS} districtName={currentDistrict?.name} onChangeDistrict={() => nav.navigate('Home')} />;
       case 3: return <Step3 form={form} set={set} setForm={setForm} />;
       case 4: return <Step4 form={form} set={set} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} />;
-      case 5: return <Step5 form={form} customCategory={customCategory} />;
+      case 5: return <Step5 form={form} customCategory={customCategory} districtName={currentDistrict?.name} />;
       default: return null;
     }
   }
