@@ -1,8 +1,28 @@
+const path   = require('path');
+const fs     = require('fs');
+const crypto = require('crypto');
 const router = require('express').Router();
 const { pool } = require('../db');
 const { auth } = require('../middleware/auth');
 
-// GET /api/seeker/profile
+// ── Resume storage directory ──────────────────────────────────────────────────
+// FIX #4: Resumes are written to disk (or a mounted volume) instead of being
+// stored as multi-megabyte base64 strings inside the database. The DB only
+// stores a short relative path like "resumes/<uuid>.pdf".
+//
+// In production (Railway): set RESUME_STORAGE_DIR to a persistent volume path,
+// e.g. /data/resumes. Without it, files land in <project_root>/uploads/resumes
+// which is ephemeral on Railway — acceptable only for local dev. Use an object
+// store (S3, Cloudflare R2) for true production durability; this change at
+// minimum stops the DB from bloating.
+const RESUME_DIR = process.env.RESUME_STORAGE_DIR
+  ? path.resolve(process.env.RESUME_STORAGE_DIR)
+  : path.resolve(__dirname, '../../uploads/resumes');
+
+// Ensure the directory exists on startup (safe to call repeatedly)
+try { fs.mkdirSync(RESUME_DIR, { recursive: true }); } catch { /* ignore */ }
+
+// ── GET /api/seeker/profile ───────────────────────────────────────────────────
 router.get('/profile', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -15,7 +35,7 @@ router.get('/profile', auth, async (req, res) => {
   }
 });
 
-// PUT /api/seeker/profile — create or update
+// ── PUT /api/seeker/profile — create or update ────────────────────────────────
 router.put('/profile', auth, async (req, res) => {
   try {
     const { headline, bio, skills, experience, education, location, expectedSalary, openToWork } = req.body;
@@ -42,7 +62,11 @@ router.put('/profile', auth, async (req, res) => {
   }
 });
 
-// POST /api/seeker/resume — upload resume (base64 PDF only, max 5 MB)
+// ── POST /api/seeker/resume — upload resume (base64 PDF only, max 5 MB) ───────
+//
+// FIX #4: Instead of writing the raw base64 (~6.7 MB string) into the DB column,
+// we decode the bytes, write them to a file on disk, and store only the relative
+// path in the DB. This keeps the DB row small regardless of file size.
 router.post('/resume', auth, async (req, res) => {
   try {
     const { resumeBase64, fileName } = req.body;
@@ -51,15 +75,11 @@ router.post('/resume', auth, async (req, res) => {
     // ── Extract the raw base64 payload and declared MIME type ────────────────
     let rawBase64, declaredMime;
     if (resumeBase64.startsWith('data:')) {
-      // Data URI format: "data:<mime>;base64,<data>"
       const matches = resumeBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-      if (!matches) {
-        return res.json({ ok: false, error: 'Invalid data URI format.' });
-      }
+      if (!matches) return res.json({ ok: false, error: 'Invalid data URI format.' });
       declaredMime = matches[1].toLowerCase();
       rawBase64    = matches[2];
     } else {
-      // Raw base64 with no data URI prefix — assume PDF
       declaredMime = 'application/pdf';
       rawBase64    = resumeBase64;
     }
@@ -69,8 +89,7 @@ router.post('/resume', auth, async (req, res) => {
       return res.json({ ok: false, error: 'Only PDF files are accepted.' });
     }
 
-    // ── Validate file magic bytes (first 4 bytes must be %PDF) ───────────────
-    // This catches files where the client lies about the MIME type.
+    // ── Decode and validate magic bytes (%PDF) ───────────────────────────────
     let fileBuffer;
     try {
       fileBuffer = Buffer.from(rawBase64, 'base64');
@@ -82,41 +101,108 @@ router.post('/resume', auth, async (req, res) => {
       return res.json({ ok: false, error: 'File does not appear to be a valid PDF.' });
     }
 
-    // ── Size check (5 MB limit on actual decoded bytes) ──────────────────────
+    // ── Size check (5 MB limit on decoded bytes) ─────────────────────────────
     if (fileBuffer.length > 5 * 1024 * 1024) {
       return res.json({ ok: false, error: 'Resume file too large (max 5 MB).' });
     }
 
-    // ── Sanitise fileName — strip path separators and enforce .pdf extension ─
+    // ── Sanitise fileName ────────────────────────────────────────────────────
     const safeName = (fileName || 'resume.pdf')
-      .replace(/[/\]/g, '')   // no path traversal
-      .replace(/[^a-zA-Z0-9._\- ]/g, '') // only safe chars
-      .slice(0, 200)           // cap length
+      .replace(/[/\\]/g, '')
+      .replace(/[^a-zA-Z0-9._\- ]/g, '')
+      .slice(0, 200)
       || 'resume.pdf';
-    const safeNameWithExt = safeName.toLowerCase().endsWith('.pdf')
-      ? safeName
-      : `${safeName}.pdf`;
+    const safeNameWithExt = safeName.toLowerCase().endsWith('.pdf') ? safeName : `${safeName}.pdf`;
 
-    // Reconstruct a clean, canonical data URI
-    const dataUri = `data:application/pdf;base64,${rawBase64}`;
+    // ── Delete old resume file if one exists ────────────────────────────────
+    try {
+      const { rows: existing } = await pool.query(
+        'SELECT resume_url FROM seeker_profiles WHERE user_id=$1', [req.user.id]
+      );
+      const oldPath = existing[0]?.resume_url;
+      // resume_url values stored by this version start with "resumes/"
+      if (oldPath && oldPath.startsWith('resumes/') && !oldPath.includes('..')) {
+        const absOld = path.join(RESUME_DIR, path.basename(oldPath));
+        fs.unlink(absOld, () => {}); // best-effort; ignore errors
+      }
+    } catch { /* ignore */ }
 
-    // ── Upsert seeker profile with validated resume ──────────────────────────
+    // ── Write file to disk with a collision-free name ────────────────────────
+    const uniqueName = `${req.user.id}_${crypto.randomBytes(8).toString('hex')}.pdf`;
+    const absPath    = path.join(RESUME_DIR, uniqueName);
+    fs.writeFileSync(absPath, fileBuffer);
+
+    // Store only the relative path segment — not the full absolute path
+    const relPath = `resumes/${uniqueName}`;
+
+    // ── Upsert seeker profile with the file path (not the raw data) ──────────
     await pool.query(`
       INSERT INTO seeker_profiles (user_id, resume_url, updated_at)
       VALUES ($1, $2, NOW())
       ON CONFLICT (user_id) DO UPDATE SET resume_url=$2, updated_at=NOW()
-    `, [req.user.id, dataUri]);
+    `, [req.user.id, relPath]);
 
-    res.json({ ok: true, resumeUrl: dataUri, fileName: safeNameWithExt });
+    // Return a URL the client can use to download/display the resume.
+    // The API base is read from APP_URL so it works in both dev and prod.
+    const apiBase   = (process.env.APP_URL || '').replace(/\/$/, '');
+    const resumeUrl = `${apiBase}/api/seeker/resume/file/${uniqueName}`;
+
+    res.json({ ok: true, resumeUrl, fileName: safeNameWithExt });
   } catch (err) {
-    console.error(err);
+    console.error('resume upload error:', err);
     res.json({ ok: false, error: 'Failed to upload resume' });
   }
 });
 
-// DELETE /api/seeker/resume — remove resume
+// ── GET /api/seeker/resume/file/:filename — serve a resume file ───────────────
+// Only the owner (or an admin) can download their own resume.
+router.get('/resume/file/:filename', auth, async (req, res) => {
+  try {
+    const { filename } = req.params;
+
+    // Guard against path traversal
+    if (!filename || filename.includes('/') || filename.includes('..')) {
+      return res.status(400).json({ ok: false, error: 'Invalid filename.' });
+    }
+
+    // Verify ownership: the stored path must start with "resumes/<filename>"
+    const { rows } = await pool.query(
+      'SELECT resume_url FROM seeker_profiles WHERE user_id=$1', [req.user.id]
+    );
+    const storedPath = rows[0]?.resume_url;
+    const expectedRel = `resumes/${filename}`;
+
+    // Allow admin to download any resume by skipping the ownership check
+    if (req.user.role !== 'admin' && storedPath !== expectedRel) {
+      return res.status(403).json({ ok: false, error: 'Access denied.' });
+    }
+
+    const absPath = path.join(RESUME_DIR, filename);
+    if (!fs.existsSync(absPath)) {
+      return res.status(404).json({ ok: false, error: 'Resume file not found.' });
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    fs.createReadStream(absPath).pipe(res);
+  } catch (err) {
+    console.error('resume download error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to retrieve resume.' });
+  }
+});
+
+// ── DELETE /api/seeker/resume — remove resume ────────────────────────────────
 router.delete('/resume', auth, async (req, res) => {
   try {
+    const { rows } = await pool.query(
+      'SELECT resume_url FROM seeker_profiles WHERE user_id=$1', [req.user.id]
+    );
+    const oldPath = rows[0]?.resume_url;
+    if (oldPath && oldPath.startsWith('resumes/') && !oldPath.includes('..')) {
+      const absOld = path.join(RESUME_DIR, path.basename(oldPath));
+      fs.unlink(absOld, () => {}); // best-effort
+    }
+
     await pool.query(
       'UPDATE seeker_profiles SET resume_url=NULL, updated_at=NOW() WHERE user_id=$1',
       [req.user.id]
