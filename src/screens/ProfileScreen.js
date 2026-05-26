@@ -158,6 +158,8 @@ export default function ProfileScreen() {
   const [stats,      setStats]      = useState({ applied: 0, saved: 0 });
   const [loading,    setLoading]    = useState(true);
   const [logoutModal, setLogoutModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [deleting,    setDeleting]    = useState(false);
 
   const myJobs   = jobs?.filter(j => String(j.posted_by) === String(user?.id)) || [];
   const isSeeker = !user?.company || user.company.trim() === '';
@@ -242,7 +244,26 @@ export default function ProfileScreen() {
     }
   }
 
-  const seekerMenu = [
+  async function deleteAccount() {
+    setDeleting(true);
+    try {
+      const r = await http('DELETE', '/api/auth/account');
+      if (r?.ok) {
+        setDeleteModal(false);
+        await signOut();
+      } else {
+        const { Alert } = require('react-native');
+        Alert.alert('Error', r?.error || 'Failed to delete account. Please contact support.');
+      }
+    } catch {
+      const { Alert } = require('react-native');
+      Alert.alert('Error', 'Failed to delete account. Please check your connection.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+
     { icon: 'person-outline',           label: t('profileMenuUploadResume'),   onPress: () => nav.navigate('SeekerProfile') },
     { icon: 'checkmark-circle-outline', label: t('profileMenuMyApplications'), badge: stats.applied, onPress: () => nav.navigate('MyApplications') },
     { icon: 'bookmark-outline',         label: t('profileMenuSavedJobs'),      badge: stats.saved,   onPress: () => nav.navigate('Jobs') },
@@ -409,6 +430,11 @@ export default function ProfileScreen() {
             <SignOutButton onPress={confirmLogout} />
           </View>
 
+          {/* ── Delete Account ── */}
+          <View style={[styles.sectionWrap, { marginTop: 8 }]}>
+            <DeleteAccountButton onPress={() => setDeleteModal(true)} />
+          </View>
+
           <Text style={styles.version}>CityPlus v1.2.0</Text>
         </View>
 
@@ -425,6 +451,22 @@ export default function ProfileScreen() {
           <LogoutModalCard
             onCancel={() => setLogoutModal(false)}
             onConfirm={() => { setLogoutModal(false); signOut(); }}
+          />
+        </View>
+      </Modal>
+
+      {/* ── Delete Account Modal ──────────────────────────────────── */}
+      <Modal
+        visible={deleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !deleting && setDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <DeleteAccountModalCard
+            deleting={deleting}
+            onCancel={() => setDeleteModal(false)}
+            onConfirm={deleteAccount}
           />
         </View>
       </Modal>
@@ -505,7 +547,79 @@ function LogoutModalCard({ onCancel, onConfirm }) {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ── Delete account button ─────────────────────────────────────────────────────
+function DeleteAccountButton({ onPress }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }).start();
+  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 20 }).start();
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity onPress={onPress} onPressIn={onIn} onPressOut={onOut} activeOpacity={1}>
+        <View style={styles.deleteBtn}>
+          <View style={styles.deleteIconWrap}>
+            <Ionicons name="trash-outline" size={17} color="#dc2626" />
+          </View>
+          <Text style={styles.deleteBtnTxt}>Delete Account</Text>
+          <Ionicons name="chevron-forward" size={14} color="rgba(220,38,38,0.4)" style={{ marginLeft: 'auto' }} />
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// ── Delete account modal card ─────────────────────────────────────────────────
+function DeleteAccountModalCard({ deleting, onCancel, onConfirm }) {
+  const scale   = useRef(new Animated.Value(0.85)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale,   { toValue: 1, damping: 16, stiffness: 200, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={[styles.modalCard, { opacity, transform: [{ scale }] }]}>
+      <View style={[styles.modalIconRing, { borderColor: 'rgba(220,38,38,0.25)' }]}>
+        <View style={[styles.modalIconInner, { backgroundColor: 'rgba(220,38,38,0.08)' }]}>
+          <Ionicons name="trash-outline" size={26} color="#dc2626" />
+        </View>
+      </View>
+      <Text style={styles.modalTitle}>Delete Account</Text>
+      <Text style={styles.modalSub}>
+        This will permanently delete your profile, all listings, and data. This action cannot be undone.
+      </Text>
+      <View style={styles.modalBtns}>
+        <TouchableOpacity
+          style={styles.modalCancelBtn}
+          onPress={onCancel}
+          disabled={deleting}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.modalCancelTxt}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modalDeleteBtn, deleting && { opacity: 0.6 }]}
+          onPress={onConfirm}
+          disabled={deleting}
+          activeOpacity={0.8}
+        >
+          {deleting
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <>
+                <Ionicons name="trash-outline" size={15} color="#fff" />
+                <Text style={styles.modalLogoutTxt}>Delete</Text>
+              </>
+          }
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
+  );
+}
+
+
 const styles = StyleSheet.create({
   root:         { flex: 1, backgroundColor: BG },
   scroll:       { flex: 1 },
@@ -687,7 +801,36 @@ const styles = StyleSheet.create({
   },
   signOutTxt:   { fontSize: 14, fontWeight: '700', color: '#ef4444' },
 
-  version: { textAlign: 'center', fontSize: 10, color: 'rgba(0,0,0,0.2)', marginTop: 24, letterSpacing: 0.5 },
+  // ── Delete account
+  deleteBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: 'rgba(220,38,38,0.25)',
+    backgroundColor: 'rgba(220,38,38,0.03)',
+    gap: 12,
+  },
+  deleteIconWrap: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: 'rgba(220,38,38,0.08)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  deleteBtnTxt: { fontSize: 14, fontWeight: '700', color: '#dc2626' },
+
+  modalDeleteBtn: {
+    flex: 1.2, paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'center', gap: 7,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 16px rgba(220,38,38,0.4)' },
+      default: { elevation: 6, shadowColor: '#dc2626', shadowOpacity: 0.4, shadowRadius: 10 },
+    }),
+  },
+
+ { textAlign: 'center', fontSize: 10, color: 'rgba(0,0,0,0.2)', marginTop: 24, letterSpacing: 0.5 },
 
   // ── Modal
   modalOverlay: {
