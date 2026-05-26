@@ -331,7 +331,7 @@ export default function AboutScreen() {
             sub="How we collect and use your data"
             color="#0ea5e9"
             bg="rgba(14,165,233,0.1)"
-            onPress={() => openLink('https://cityplus.in/privacy')}
+            onPress={() => openLink('https://thecityplus.in/privacy')}
           />
           <LinkRow
             icon="document-text-outline"
@@ -339,7 +339,7 @@ export default function AboutScreen() {
             sub="Rules for using CityPlus"
             color="#6366f1"
             bg="rgba(99,102,241,0.1)"
-            onPress={() => openLink('https://cityplus.in/terms')}
+            onPress={() => openLink('https://thecityplus.in/terms')}
           />
           <LinkRow
             icon="newspaper-outline"
@@ -347,7 +347,7 @@ export default function AboutScreen() {
             sub="Keep CityPlus safe for everyone"
             color="#f59e0b"
             bg="rgba(245,158,11,0.1)"
-            onPress={() => openLink('https://cityplus.in/guidelines')}
+            onPress={() => openLink('https://thecityplus.in/guidelines')}
           />
           <LinkRow
             icon="logo-instagram"
@@ -368,10 +368,10 @@ export default function AboutScreen() {
           <LinkRow
             icon="globe-outline"
             label="Website"
-            sub="cityplus.in"
+            sub="thecityplus.in"
             color={ORANGE}
             bg="#fff7ed"
-            onPress={() => openLink('https://cityplus.in')}
+            onPress={() => openLink('https://thecityplus.in')}
             isLast
           />
         </View>
