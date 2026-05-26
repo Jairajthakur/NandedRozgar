@@ -394,7 +394,13 @@ export default function RoomScreen({ route }) {
   const nav    = useNavigation();
   const { currentDistrict } = useDistrict();
   const insets = useSafeAreaInsets();
-  const { lang, t } = useLang();
+  const { lang, t, tDistrict } = useLang();
+  // Localised district name for Marathi/Hindi display
+  const districtLocalName = currentDistrict
+    ? (lang === 'mr' ? (currentDistrict.nameMarathi || currentDistrict.name)
+     : lang === 'hi' ? (currentDistrict.nameHindi   || currentDistrict.name)
+     : currentDistrict.name)
+    : 'Nanded';
   const { width } = useWindowDimensions();
 
   /* Hide the native nav header on web — we render our own top bar */
@@ -548,7 +554,7 @@ export default function RoomScreen({ route }) {
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
           <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
             <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>{t('roomsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>{currentDistrict?.name || 'Nanded'}</Text>{t('roomsInNanded').split('Nanded')[1] || ''}</Text>
+              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>{t('roomsInNanded').split('{DISTRICT}')[0]}<Text style={{ color: ORANGE }}>{districtLocalName}</Text>{t('roomsInNanded').split('{DISTRICT}')[1] || ''}</Text>
             </TouchableOpacity>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
@@ -724,7 +730,7 @@ export default function RoomScreen({ route }) {
       <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
         <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
           <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-            {t('roomsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>{currentDistrict?.name || 'Nanded'}</Text>{t('roomsInNanded').split('Nanded')[1] || ''}
+            {t('roomsInNanded').split('{DISTRICT}')[0]}<Text style={{ color: ORANGE }}>{districtLocalName}</Text>{t('roomsInNanded').split('{DISTRICT}')[1] || ''}
           </Text>
         </TouchableOpacity>
         <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
