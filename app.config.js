@@ -75,7 +75,22 @@ export default {
         backgroundColor: '#111111',
       },
       package: 'com.cityplus.app',
-      versionCode: 1,
+      // Bug fix: versionCode was hardcoded to 1, which blocks every Play Store
+      // update after the first release (Store rejects equal or lower codes).
+      // Now read from the ANDROID_VERSION_CODE env var set in your CI / EAS
+      // build profile. Fall back to 1 only as a last resort and warn loudly so
+      // the value is never silently forgotten before a release build.
+      // In eas.json, add:  "env": { "ANDROID_VERSION_CODE": "2" }  (increment each release)
+      versionCode: (() => {
+        const code = parseInt(process.env.ANDROID_VERSION_CODE, 10);
+        if (!isNaN(code) && code > 0) return code;
+        console.warn(
+          '[app.config.js] WARNING: ANDROID_VERSION_CODE env var is not set or invalid. ' +
+          'Falling back to versionCode 1. Set ANDROID_VERSION_CODE in your EAS build ' +
+          'profile or CI environment and increment it before every Play Store release.'
+        );
+        return 1;
+      })(),
       permissions: [
         'android.permission.INTERNET',
         'android.permission.ACCESS_NETWORK_STATE',
