@@ -102,10 +102,25 @@ router.post('/register', registerLimiter, async (req, res) => {
     if (referralCode?.startsWith('NR')) {
       const refId = parseInt(referralCode.slice(2), 10);
       if (!isNaN(refId) && refId !== user.id) {
-        await pool.query(
-          `UPDATE users SET referral_credits = COALESCE(referral_credits, 0) + 1 WHERE id = $1`,
+        // Self-referral abuse check: verify the referrer does not share the
+        // same phone or email as the new account. This blocks the most common
+        // multi-account farming pattern (different email, same phone number).
+        const { rows: referrerRows } = await pool.query(
+          'SELECT phone, email FROM users WHERE id = $1',
           [refId]
-        ).catch(() => {});
+        ).catch(() => ({ rows: [] }));
+
+        const referrer = referrerRows[0];
+        const samePhone = referrer?.phone && user.phone && referrer.phone === user.phone;
+        const sameEmail = referrer?.email && user.email &&
+          referrer.email.toLowerCase() === user.email.toLowerCase();
+
+        if (referrer && !samePhone && !sameEmail) {
+          await pool.query(
+            `UPDATE users SET referral_credits = COALESCE(referral_credits, 0) + 1 WHERE id = $1`,
+            [refId]
+          ).catch(() => {});
+        }
       }
     }
 
