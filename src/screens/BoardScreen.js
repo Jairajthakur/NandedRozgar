@@ -139,7 +139,13 @@ function QuickAction({ icon, label, color, onPress }) {
 export default function BoardScreen({ route }) {
   const { jobs, loadJobs, role } = useAuth();
   const { district, currentDistrict } = useDistrict();
-  const { t } = useLang();
+  const { lang, t, tDistrict } = useLang();
+  // Localised district name for Marathi/Hindi display
+  const districtLocalName = currentDistrict
+    ? (lang === 'mr' ? (currentDistrict.nameMarathi || currentDistrict.name)
+     : lang === 'hi' ? (currentDistrict.nameHindi   || currentDistrict.name)
+     : currentDistrict.name)
+    : 'Nanded';
   const nav    = useNavigation();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
@@ -296,7 +302,7 @@ export default function BoardScreen({ route }) {
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
           <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
             <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>{t('jobsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>{currentDistrict?.name || 'Nanded'}</Text></Text>
+              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>{t('jobsInNanded').split('{DISTRICT}')[0]}<Text style={{ color: ORANGE }}>{districtLocalName}</Text></Text>
             </TouchableOpacity>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
@@ -471,7 +477,7 @@ export default function BoardScreen({ route }) {
         {/* Title */}
         <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
           <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-            {t('jobsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>{currentDistrict?.name || 'Nanded'}</Text>
+            {t('jobsInNanded').split('{DISTRICT}')[0]}<Text style={{ color: ORANGE }}>{districtLocalName}</Text>
           </Text>
         </TouchableOpacity>
 
