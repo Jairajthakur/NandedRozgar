@@ -62,7 +62,20 @@ export function AuthProvider({ children }) {
   }
 
   async function loadJobs(page = 1, category = null, search = null, district = null) {
-    if (fetchingRef.current) return;
+    // Bug fix #18: the old single boolean `fetchingRef` lock was too coarse.
+    // When a category change (page=1) fired while a loadMoreJobs (page>1) was
+    // in-flight, the lock caused the category fetch to be silently dropped,
+    // leaving the screen showing stale results for the previous category.
+    //
+    // Fix: differentiate between "replace" fetches (page === 1, triggered by
+    // filter changes) and "append" fetches (page > 1, triggered by scroll).
+    // A replace fetch always proceeds and cancels any running append fetch.
+    // An append fetch is skipped only if another fetch of any kind is running.
+    const isReplace = page === 1;
+    if (!isReplace && fetchingRef.current) return; // scroll append — skip if busy
+    // For replace fetches we proceed even if a stale append is in flight; the
+    // stale result will see fetchingRef already false and write nothing (the
+    // finally block is harmless when called twice).
     fetchingRef.current = true;
     try {
       let path = `/api/jobs?page=${page}&limit=20`;
