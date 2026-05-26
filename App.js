@@ -490,7 +490,20 @@ const linking = {
       SeekerProfile:   'seeker-profile',
       Analytics:       'analytics',
       Alerts:          'alerts',
-      Board:           'board',
+      // Bug fix: screens that were registered in the Stack Navigator but missing
+      // from the linking config — deep links and push notification tap-targets
+      // for these screens now resolve correctly instead of crashing or redirecting.
+      HelpSupport:     'help-support',
+      About:           'about',
+      Chat:            'chat/:chatId',
+      ChatList:        'chat-list',
+      SellItemForm:    'sell-item',
+      AdminPanel:      'admin-panel',
+      // NOTE: "Board" was removed from here — BoardScreen is only registered as
+      // a Tab screen inside MainTabs (name "Jobs"), NOT as a named Stack screen.
+      // The correct deep-link path for the board is already covered by
+      // Main > Jobs: 'jobs' above. Having a phantom "Board: 'board'" entry here
+      // caused any /board deep link to fail to resolve.
     },
   },
 };
