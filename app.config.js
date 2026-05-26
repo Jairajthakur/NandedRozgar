@@ -156,7 +156,10 @@ export default {
     ],
     extra: {
       eas: {
-        projectId: 'da8f053f-5fd8-4bff-9004-7c4ecba82ff8',
+        // Read from EXPO_PROJECT_ID env var (set as a GitHub Actions secret).
+        // Never hardcode this — the slug was renamed from 'nanded' to 'cityplus'
+        // and the old hardcoded ID caused EAS slug-mismatch build failures.
+        projectId: process.env.EXPO_PROJECT_ID || '',
       },
       googleWebClientId:    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID  || '',
       firebaseApiKey:       process.env.EXPO_PUBLIC_FIREBASE_API_KEY       || '',
