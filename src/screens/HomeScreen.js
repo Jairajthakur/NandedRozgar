@@ -516,6 +516,7 @@ export default function HomeScreen() {
   // ── WEB LAYOUT ─────────────────────────────────────────────────────────────
   if (IS_WEB) {
     return (
+      <>
       <View style={ws.root}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
@@ -895,10 +896,9 @@ export default function HomeScreen() {
           </View>
         </Modal>
       )}
+      </>
     );
   }
-
-  // ── MOBILE LAYOUT (unchanged) ───────────────────────────────────────────────
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
