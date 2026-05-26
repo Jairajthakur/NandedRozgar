@@ -54,6 +54,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Node cache must come AFTER checkout so package-lock.json is present
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -83,34 +84,46 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Verify EAS project ID matches secret
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      # ── KEY FIX ──────────────────────────────────────────────────────────────
+      # app.config.js reads projectId from EXPO_PROJECT_ID at runtime, so we
+      # cannot verify the ID before the build (it will always be empty in a
+      # static check). Instead we verify the EAS *slug* registered for the
+      # secret project ID matches the slug in app.config.js. A mismatch here
+      # is exactly what caused the "slug … does not match" build failure.
+      - name: Verify EAS slug matches app.config.js
         run: |
-          # app.config.js uses "export default" (ES module syntax).
-          # We must use --input-type=module or a .mjs wrapper — NOT require().
-          CONFIG_ID=$(node --input-type=module << 'EOF'
-          import { createRequire } from 'module';
+          CONFIG_SLUG=$(node --input-type=module << 'EOF'
           import { pathToFileURL } from 'url';
           process.env.EXPO_PROJECT_ID = process.env.EXPO_PROJECT_ID || '';
           const { default: cfg } = await import(pathToFileURL('./app.config.js').href);
-          const id = cfg?.expo?.extra?.eas?.projectId || '';
-          process.stdout.write(id);
+          process.stdout.write(cfg?.expo?.slug || '');
           EOF
           )
-          SECRET_ID="${{ secrets.EXPO_PROJECT_ID }}"
-          if [ -z "$CONFIG_ID" ]; then
-            echo "⚠️  projectId in app.config.js is empty (resolved from env at runtime — OK)."
-          elif [ "$CONFIG_ID" != "$SECRET_ID" ]; then
-            echo "❌ app.config.js projectId ($CONFIG_ID) != EXPO_PROJECT_ID secret ($SECRET_ID)"
-            echo "   Run: eas project:init — then update the EXPO_PROJECT_ID secret."
+          echo "app.config.js slug: $CONFIG_SLUG"
+
+          # Fetch the slug registered for this project ID on Expo's servers
+          EAS_SLUG=$(eas project:info --id "$EXPO_PROJECT_ID" --json 2>/dev/null \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);process.stdout.write(j.slug||j.name||'');}catch{}})")
+
+          echo "EAS registered slug: $EAS_SLUG"
+
+          if [ -z "$EAS_SLUG" ]; then
+            echo "⚠️  Could not fetch EAS project info — skipping slug check."
+            echo "   Make sure EXPO_TOKEN and EXPO_PROJECT_ID are correct."
+          elif [ "$EAS_SLUG" != "$CONFIG_SLUG" ]; then
+            echo "❌ Slug mismatch: EAS project has slug '$EAS_SLUG' but app.config.js uses '$CONFIG_SLUG'."
+            echo "   Fix: run 'eas project:init' locally to re-link the project,"
+            echo "   then update the EXPO_PROJECT_ID GitHub secret with the new UUID."
             exit 1
           else
-            echo "✅ EAS project ID verified: $CONFIG_ID"
+            echo "✅ Slug verified: $CONFIG_SLUG"
           fi
         env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
-
-      - name: Install EAS CLI
-        run: npm install -g eas-cli@latest
 
       - name: Write google-services.json
         run: |
