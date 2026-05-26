@@ -41,19 +41,31 @@ const SUITABLE_FOR  = [
   { label: 'Female only',      sub: null },
   { label: 'Family preferred', sub: null },
 ];
-const AREAS = [
-  // ── Nanded City localities ──
-  'Nanded City', 'Vazirabad', 'Shivaji Nagar', 'Vishnupuri', 'Taroda Naka',
-  'Cidco', 'Old Nanded', 'New Mondha', 'Novena Colony',
-  'Kasturba Nagar', 'Santnagar', 'Padampur', 'Shantinagar',
-  'Guru Nanak Colony', 'Aurangpura', 'Subhash Nagar',
-  // ── Nanded District Talukas ──
-  'Nanded (Taluka)', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Bhokar',
-  'Kinwat', 'Deglur', 'Biloli', 'Naigaon', 'Loha',
-  'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
-  'Mudkhed',
-  'Other',
-];
+const AREAS_BY_DISTRICT = {
+  nanded: [
+    // ── Nanded City localities ──
+    'Nanded City', 'Vazirabad', 'Shivaji Nagar', 'Vishnupuri', 'Taroda Naka',
+    'Cidco', 'Old Nanded', 'New Mondha', 'Novena Colony',
+    'Kasturba Nagar', 'Santnagar', 'Padampur', 'Shantinagar',
+    'Guru Nanak Colony', 'Aurangpura', 'Subhash Nagar',
+    'SRTMU Area', 'Station Road',
+    // ── Nanded District Talukas ──
+    'Nanded (Taluka)', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Bhokar',
+    'Kinwat', 'Deglur', 'Biloli', 'Naigaon', 'Loha',
+    'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
+    'Mudkhed', 'Other',
+  ],
+  latur: [
+    // ── Latur City localities ──
+    'Latur City', 'Ausa Road', 'Udgir Road', 'Railway Station Area',
+    'Nit Nagar', 'Gandhi Nagar', 'Shivaji Nagar', 'Budhwar Peth',
+    'Sadar Bazar', 'Renuka Nagar',
+    // ── Latur District Talukas ──
+    'Latur (Taluka)', 'Ausa', 'Udgir', 'Nilanga', 'Deoni',
+    'Chakur', 'Renapur', 'Ahmedpur', 'Shirur Anantpal', 'Jalkot',
+    'Other',
+  ],
+};
 const AVAILABLE_FROM = [
   { label: 'Immediately',   sub: 'Ready to move in right now' },
   { label: 'Within 7 Days', sub: null },
@@ -161,7 +173,8 @@ function PhotoItem({ uri, label, onPress, onRemove }) {
 export default function PostRoomScreen() {
   const nav = useNavigation();
   const { user } = useAuth();
-  const { district } = useDistrict();
+  const { district, currentDistrict } = useDistrict();
+  const AREAS = AREAS_BY_DISTRICT[currentDistrict?.id] || AREAS_BY_DISTRICT.nanded;
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
@@ -170,7 +183,7 @@ export default function PostRoomScreen() {
 
   const [form, setForm] = useState({
     roomType:'1 BHK Flat', furnishing:'Fully Furnished', floor:'Ground',
-    bathrooms:'1', suitableFor:'Anyone', area:'Vazirabad',
+    bathrooms:'1', suitableFor:'Anyone', area:(AREAS_BY_DISTRICT[currentDistrict?.id] || AREAS_BY_DISTRICT.nanded)[0],
     landmark:'', rent:'', deposit:'', availableFrom:'Immediately',
     amenities:[], notes:'', whatsapp:'', plan:PLANS[1],
   });
@@ -420,6 +433,24 @@ export default function PostRoomScreen() {
           {/* ── STEP 2: Location & Rent ── */}
           {step===2&&<>
             <Lbl>AREA / LOCALITY *</Lbl>
+            {currentDistrict && (
+              <TouchableOpacity
+                onPress={()=>nav.navigate('Home')}
+                activeOpacity={0.75}
+                style={{
+                  flexDirection:'row', alignItems:'center', gap:6,
+                  backgroundColor:'#fff7ed', borderRadius:10,
+                  paddingHorizontal:12, paddingVertical:8,
+                  borderWidth:1, borderColor:'#fed7aa', marginBottom:10,
+                }}
+              >
+                <Ionicons name="location" size={14} color={ORANGE} />
+                <Text style={{fontSize:13, color:'#92400e', fontWeight:'600', flex:1}}>
+                  Posting in <Text style={{color:ORANGE}}>{currentDistrict.name}</Text> district
+                </Text>
+                <Text style={{fontSize:11, color:ORANGE}}>Change ›</Text>
+              </TouchableOpacity>
+            )}
             <Picker value={form.area} options={AREAS} onSelect={v=>{ set('area',v); if(v!=='Other') setCustomArea(''); }} fullWidth/>
             {form.area==='Other'&&(
               <TextInput style={[s.input,{marginTop:10}]}
