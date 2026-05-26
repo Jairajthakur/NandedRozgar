@@ -48,58 +48,9 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ── POST /api/rooms — create a room listing ──────────────────────────────────
-router.post('/', auth, async (req, res) => {
-  try {
-    const {
-      roomType, forGender, furnished, floor, totalFloors, bhkSize, facing,
-      vacancies, rent, deposit, maintenance, brokerFree,
-      amenities, rules, availableFrom, tenantPref,
-      area, address, landmark, ownerName, whatsapp, description,
-      photos,
-      planDays, planLabel, planPrice,
-    } = req.body;
-
-    if (!rent || !area || !whatsapp) {
-      return res.json({ ok: false, error: 'Rent, area, and WhatsApp are required' });
-    }
-
-    const days = parseInt(planDays) || 30;
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + days);
-
-    const { rows } = await pool.query(`
-      INSERT INTO rooms (
-        posted_by, room_type, for_gender, furnished, floor, total_floors,
-        bhk_size, facing, vacancies, rent, deposit, maintenance, broker_free,
-        amenities, rules, available_from, tenant_pref,
-        area, address, landmark, owner_name, whatsapp, description, photos,
-        plan_days, plan_label, plan_price, expires_at
-      ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
-        $14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
-        $25,$26,$27,$28
-      ) RETURNING *
-    `, [
-      req.user.id,
-      roomType || 'PG', forGender || 'Any', furnished || 'Semi-furnished',
-      floor || '', totalFloors || '', bhkSize || '', facing || '',
-      parseInt(vacancies) || 1,
-      rent, deposit || '', maintenance || '', brokerFree !== false,
-      JSON.stringify(amenities || []), JSON.stringify(rules || []),
-      availableFrom || 'Immediately', tenantPref || 'Any',
-      area, address || '', landmark || '', ownerName || '', whatsapp,
-      description || '', JSON.stringify(photos || []),
-      days, planLabel || '1 Month', parseInt(planPrice) || 99,
-      expiresAt,
-    ]);
-
-    res.json({ ok: true, room: rows[0] });
-  } catch (err) {
-    console.error(err);
-    res.json({ ok: false, error: 'Failed to post room' });
-  }
-});
+// NOTE: Room creation is handled exclusively by POST /api/payments/verify/room
+// to ensure payment is always completed before a listing goes live.
+// The direct POST route has been removed to prevent payment bypass.
 
 // ── DELETE /api/rooms/:id — owner can delete their own listing ────────────────
 router.delete('/:id', auth, async (req, res) => {
