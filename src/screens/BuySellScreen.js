@@ -901,7 +901,6 @@ export default function BuySellScreen({ route }) {
       <FlatList
         data={interleavedFeed}
         keyExtractor={item => item.id}
-        stickyHeaderIndices={[0]}
         ListHeaderComponent={<>{Header}{ListHeader}</>}
         contentContainerStyle={s.list}
         ListEmptyComponent={Empty}
@@ -920,12 +919,6 @@ export default function BuySellScreen({ route }) {
           return <ItemCard item={item.data} index={index} onPress={() => nav.navigate('BuySellDetail', { item: item.data })} />;
         }}
       />
-
-      {/* Sell FAB */}
-      <TouchableOpacity style={s.sellBtn} activeOpacity={0.9} onPress={() => nav.navigate('Post')}>
-        <Ionicons name="add-circle-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
-        <Text style={s.sellBtnTxt}>{t('sellAnItem')}</Text>
-      </TouchableOpacity>
 
       {FilterModal}
     </View>
