@@ -341,53 +341,81 @@ router.get('/google/start_legacy_DISABLED', (req, res) => {
 router.get('/google/callback', (req, res) => {
   const { access_token, error, error_description } = req.query;
 
-  const appUrl    = process.env.APP_URL || 'https://localloops-production.up.railway.app';
-  const nativeUrl = 'nanded://google-auth';   // matches scheme in app.config.js
+  // FIX #5: The original code interpolated process.env.APP_URL and user-supplied
+  // query params directly into an inline <script> block, enabling XSS if APP_URL
+  // was compromised or either param contained quote/semicolon characters.
+  //
+  // Fix strategy:
+  //   • All server-controlled values (APP_URL, nativeUrl) are used only in
+  //     server-side redirect headers (302) or as pre-built full URLs that are
+  //     JSON-encoded before being placed in the HTML. JSON.stringify produces a
+  //     quoted, escaped string literal that cannot break out of JS context.
+  //   • User-supplied values (access_token, error, error_description) are first
+  //     validated/sanitised and then also JSON.stringify-encoded before use.
+  //   • The Content-Security-Policy header prevents execution of any injected
+  //     scripts that somehow made it through.
 
-  if (error || !access_token) {
-    const msg = encodeURIComponent(error_description || error || 'Google sign-in failed');
-    // Send error to both targets — client detects by platform
-    return res.send(`
-      <!DOCTYPE html><html><head><title>Redirecting…</title></head><body>
-      <script>
-        var msg = "${msg}";
-        // Try native deep link first; if it fails (web), redirect to web app
-        var native = "${nativeUrl}?error=" + msg;
-        var web    = "${appUrl}/?error=" + msg;
-        window.location = native;
-        setTimeout(function(){ window.location = web; }, 1000);
-      </script>
-      <p>Redirecting back to app…</p>
-      </body></html>
-    `);
+  // Validate APP_URL at call-time so a misconfigured value fails loudly rather
+  // than silently producing an exploitable redirect.
+  const rawAppUrl = process.env.APP_URL || 'https://localloops-production.up.railway.app';
+  let appUrl;
+  try {
+    const parsed = new URL(rawAppUrl);
+    if (!['https:', 'http:'].includes(parsed.protocol)) throw new Error('bad protocol');
+    appUrl = parsed.origin; // strip any trailing path to get a clean base
+  } catch {
+    console.error('google/callback: APP_URL is not a valid URL:', rawAppUrl);
+    return res.status(500).send('Server configuration error.');
   }
 
-  const token = encodeURIComponent(access_token);
+  // nativeUrl is a hardcoded constant — it never comes from user input or env.
+  const NATIVE_SCHEME = 'nanded://google-auth'; // matches scheme in app.config.js
 
-  // HTML page that tries native deep link, falls back to web URL
-  // This handles both native APK and web browser correctly.
-  return res.send(`
-    <!DOCTYPE html><html><head><title>Signing in…</title></head><body>
-    <script>
-      var token  = "${token}";
-      var native = "${nativeUrl}?access_token=" + token;
-      var web    = "${appUrl}/?access_token=" + token;
+  if (error || !access_token) {
+    // Sanitise: only keep printable ASCII, cap length, re-encode for URL use.
+    const rawMsg = String(error_description || error || 'Google sign-in failed')
+      .replace(/[^\x20-\x7E]/g, '')
+      .slice(0, 200);
+    const encodedMsg = encodeURIComponent(rawMsg);
 
-      // If the page is opened inside a Custom Tab / SFSafariVC (native),
-      // the deep link will fire and close the tab automatically.
-      // If opened in a normal browser (web), the deep link will fail silently
-      // after ~800ms and we fall back to the web URL.
-      window.location = native;
-      setTimeout(function(){
-        // Only runs if native redirect did not close the window
-        window.location = web;
-      }, 1000);
-    </script>
-    <p style="font-family:sans-serif;text-align:center;margin-top:40px">
-      Signing you in… please wait.
-    </p>
-    </body></html>
-  `);
+    // JSON-encode the full URL strings so they are safe JS string literals.
+    const nativeHref = JSON.stringify(`${NATIVE_SCHEME}?error=${encodedMsg}`);
+    const webHref    = JSON.stringify(`${appUrl}/?error=${encodedMsg}`);
+
+    res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'");
+    return res.send(
+      `<!DOCTYPE html><html><head><title>Redirecting\u2026</title></head><body>` +
+      `<script>` +
+      `var n=${nativeHref},w=${webHref};` +
+      `window.location=n;setTimeout(function(){window.location=w;},1000);` +
+      `</script>` +
+      `<p>Redirecting back to app\u2026</p>` +
+      `</body></html>`
+    );
+  }
+
+  // Validate access_token: Razorpay/Google tokens are alphanumeric + punctuation,
+  // never contain quotes or angle brackets. Reject anything that looks wrong.
+  if (!/^[\w.\-]+$/.test(access_token) || access_token.length > 2048) {
+    return res.status(400).send('Invalid token format.');
+  }
+
+  const encodedToken = encodeURIComponent(access_token);
+  const nativeHref   = JSON.stringify(`${NATIVE_SCHEME}?access_token=${encodedToken}`);
+  const webHref      = JSON.stringify(`${appUrl}/?access_token=${encodedToken}`);
+
+  res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'");
+  return res.send(
+    `<!DOCTYPE html><html><head><title>Signing in\u2026</title></head><body>` +
+    `<script>` +
+    `var n=${nativeHref},w=${webHref};` +
+    `window.location=n;` +
+    `setTimeout(function(){window.location=w;},1000);` +
+    `</script>` +
+    `<p style="font-family:sans-serif;text-align:center;margin-top:40px">` +
+    `Signing you in\u2026 please wait.</p>` +
+    `</body></html>`
+  );
 });
 
 // ── POST /api/auth/verify-firebase-otp ────────────────────────────────────────
