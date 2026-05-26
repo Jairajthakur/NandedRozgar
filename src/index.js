@@ -125,10 +125,10 @@ function startExpiryCleanup() {
     try {
       const now = new Date();
       const results = await Promise.all([
-        pool.query(`DELETE FROM jobs WHERE expires_at IS NOT NULL AND expires_at < $1 RETURNING id`, [now]),
-        pool.query(`DELETE FROM vehicles WHERE expires_at IS NOT NULL AND expires_at < $1 RETURNING id`, [now]),
-        pool.query(`DELETE FROM rooms WHERE expires_at IS NOT NULL AND expires_at < $1 RETURNING id`, [now]),
-        pool.query(`DELETE FROM buysell_items WHERE expires_at IS NOT NULL AND expires_at < $1 RETURNING id`, [now]),
+        pool.query(`UPDATE jobs SET status='deleted' WHERE expires_at IS NOT NULL AND expires_at < $1 AND status != 'deleted' RETURNING id`, [now]),
+        pool.query(`UPDATE vehicles SET status='deleted' WHERE expires_at IS NOT NULL AND expires_at < $1 AND status != 'deleted' RETURNING id`, [now]),
+        pool.query(`UPDATE rooms SET status='deleted' WHERE expires_at IS NOT NULL AND expires_at < $1 AND status != 'deleted' RETURNING id`, [now]),
+        pool.query(`UPDATE buysell_items SET status='deleted' WHERE expires_at IS NOT NULL AND expires_at < $1 AND status != 'deleted' RETURNING id`, [now]),
         pool.query(`UPDATE business_promotions SET status='expired' WHERE expires_at IS NOT NULL AND expires_at < $1 AND status='active' RETURNING id`, [now]),
       ]);
       const [jobs, vehicles, rooms, items, promos] = results;
