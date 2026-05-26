@@ -534,7 +534,7 @@ export default function BoardScreen({ route }) {
                 <View style={ws.ctaCircle2} />
                 <Text style={ws.ctaEyebrow}>{t('forEmployers')}</Text>
                 <Text style={ws.ctaTitle}>{t('postJobsFree')}</Text>
-                <Text style={ws.ctaSub}>{t('postJobsSub')}</Text>
+                <Text style={ws.ctaSub}>{t('postJobsSub').replace('{DISTRICT}', districtLocalName || '')}</Text>
                 <TouchableOpacity style={ws.ctaBtn} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
                   <Ionicons name="add-circle-outline" size={15} color="#fff" />
                   <Text style={ws.ctaBtnTxt}>{t('postAJob')}</Text>
