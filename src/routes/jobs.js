@@ -9,7 +9,13 @@ router.get('/', async (req, res) => {
     const limit = Math.min(50, parseInt(req.query.limit) || 20);
     const offset = (page - 1) * limit;
     const category = req.query.category || null;
-    const search   = req.query.search   || null;
+    // Bug fix: no server-side length cap meant a 100 000-char search string
+    // would be handed straight to the DB as a LIKE pattern, tying up a
+    // Postgres worker for the full scan duration — a trivial DoS vector.
+    // Cap at 200 chars (well beyond any real search term) and strip
+    // leading/trailing whitespace so the ILIKE index is used correctly.
+    const rawSearch = req.query.search || null;
+    const search    = rawSearch ? String(rawSearch).trim().slice(0, 200) || null : null;
     const jobType  = req.query.type     || null;   // Full-time | Part-time | Fresher | Work from Home
     const district = req.query.district || null;   // nanded | latur
 
