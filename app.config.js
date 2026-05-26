@@ -81,6 +81,16 @@ export default {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#111111',
       },
+      // Android API 24–30 uses the legacy SplashScreen API which does not
+      // honour the top-level splash.resizeMode:'cover'. On those devices
+      // 'cover' can clip the icon or leave artefacts. We set 'contain' here
+      // so older devices show the icon centred with the solid background colour
+      // while API 31+ (Android 12+) uses the adaptive-icon system and ignores
+      // this field anyway.
+      splash: {
+        resizeMode: 'contain',
+        backgroundColor: '#111111',
+      },
       package: 'com.cityplus.app',
       // Bug fix: versionCode was hardcoded to 1, which blocks every Play Store
       // update after the first release (Store rejects equal or lower codes).
