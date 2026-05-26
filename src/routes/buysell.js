@@ -87,10 +87,14 @@ router.get('/count', async (req, res) => {
 // ── DELETE /api/buysell/:id — owner can delete their own listing ──────────────
 router.delete('/:id', auth, async (req, res) => {
   try {
-    await pool.query(
-      `UPDATE buysell_items SET status = 'deleted' WHERE id = $1 AND posted_by = $2`,
-      [req.params.id, req.user.id]
+    // Bug #4 fix: return an error when nothing was deleted (wrong owner / not found)
+    const result = await pool.query(
+      `UPDATE buysell_items SET status = 'deleted' WHERE id = $1 AND (posted_by = $2 OR $3 = 'admin')`,
+      [req.params.id, req.user.id, req.user.role]
     );
+    if (result.rowCount === 0) {
+      return res.json({ ok: false, error: 'Item not found or you do not have permission to delete it.' });
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
