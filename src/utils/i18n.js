@@ -17,8 +17,8 @@ const STRINGS = {
 
     // ── HomeScreen ───────────────────────────────────────────────────
     // Hero
-    heroTitle: 'Find Jobs &\nRooms in Nanded',
-    heroTitleWeb: 'Find Jobs & Rooms in Nanded',
+    heroTitle: 'Find Jobs &\nRooms in {DISTRICT}',
+    heroTitleWeb: 'Find Jobs & Rooms in {DISTRICT}',
     heroSub: '10,000+ opportunities nearby',
     heroSubWeb: '10,000+ opportunities for everyone nearby',
     heroCityTag: '🏙️ Your City\'s #1 Local Platform',
@@ -318,8 +318,8 @@ const STRINGS = {
     viewAllJobs: 'सर्व नोकऱ्या पहा', seeAll: 'सर्व पहा',
 
     // ── HomeScreen ───────────────────────────────────────────────────
-    heroTitle: 'नांदेडमध्ये नोकऱ्या &\nखोल्या शोधा',
-    heroTitleWeb: 'नांदेडमध्ये नोकऱ्या & खोल्या शोधा',
+    heroTitle: '{DISTRICT}मध्ये नोकऱ्या &\nखोल्या शोधा',
+    heroTitleWeb: '{DISTRICT}मध्ये नोकऱ्या & खोल्या शोधा',
     heroSub: '10,000+ संधी जवळ',
     heroSubWeb: '10,000+ सर्वांसाठी संधी जवळ',
     heroCityTag: '🏙️ तुमच्या शहराचे #1 स्थानिक व्यासपीठ',
@@ -610,8 +610,8 @@ const STRINGS = {
     viewAllJobs: 'सभी नौकरियाँ देखें', seeAll: 'सब देखें',
 
     // ── HomeScreen ───────────────────────────────────────────────────
-    heroTitle: 'नांदेड में नौकरियाँ &\nकमरे खोजें',
-    heroTitleWeb: 'नांदेड में नौकरियाँ & कमरे खोजें',
+    heroTitle: '{DISTRICT} में नौकरियाँ &\nकमरे खोजें',
+    heroTitleWeb: '{DISTRICT} में नौकरियाँ & कमरे खोजें',
     heroSub: '10,000+ अवसर पास में',
     heroSubWeb: '10,000+ सभी के लिए अवसर पास में',
     heroCityTag: '🏙️ आपके शहर का #1 स्थानीय प्लेटफॉर्म',
