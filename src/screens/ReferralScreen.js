@@ -42,7 +42,7 @@ export default function ReferralScreen() {
           <Ionicons name="gift-outline" size={36} color={ORANGE} />
         </View>
         <Text style={styles.title}>Refer Friends & Earn</Text>
-        <Text style={styles.sub}>Share your code. When your friend signs up, you earn ₹20–₹50 credits!</Text>
+        <Text style={styles.sub}>Share your code. When your friend signs up, you earn 1 credit = ₹1 off your next listing!</Text>
 
         {/* Credit Balance */}
         <View style={styles.balanceBox}>
@@ -57,7 +57,7 @@ export default function ReferralScreen() {
           )}
           <Text style={styles.balanceNote}>
             {credits > 0
-              ? `Use ${credits} credit${credits !== 1 ? 's' : ''} to unlock Featured or Urgent job listings`
+              ? `Use ${credits} credit${credits !== 1 ? 's' : ''} to post a free listing directly`
               : 'Invite friends to earn credits for free featured listings'}
           </Text>
         </View>
@@ -83,7 +83,7 @@ export default function ReferralScreen() {
           { n: '1', t: 'Share your code',   s: 'Send it to friends looking for work in Nanded' },
           { n: '2', t: 'Friend signs up',   s: 'They enter your code during registration' },
           { n: '3', t: 'You earn 1 credit', s: 'Each successful referral = 1 credit added to your balance' },
-          { n: '4', t: 'Redeem credits',    s: 'Credits unlock Featured (₹49) or Urgent (₹99) listings for free' },
+          { n: '4', t: 'Redeem credits',    s: 'Use credits to post a free listing directly — no payment needed' },
         ].map(step => (
           <View key={step.n} style={styles.step}>
             <View style={styles.stepNum}><Text style={styles.stepNumTxt}>{step.n}</Text></View>
