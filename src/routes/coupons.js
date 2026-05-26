@@ -61,6 +61,7 @@ router.post('/validate', auth, async (req, res) => {
 
     // Calculate discount
     let finalAmount = originalAmount;
+    let extraDays   = 0;
     let label = '';
 
     if (coupon.type === 'percent') {
@@ -71,9 +72,9 @@ router.post('/validate', auth, async (req, res) => {
       finalAmount = Math.max(0, originalAmount - coupon.value);
       label = `₹${coupon.value} OFF`;
     } else if (coupon.type === 'free_days') {
-      // For free_days, the amount stays the same but the listing gets extra days
-      finalAmount = 0; // free trial — 0 payment
-      label = `${coupon.value} Days FREE`;
+      // free_days adds bonus days to the listing — the payment amount is unchanged
+      extraDays = coupon.value;
+      label = `+${coupon.value} Bonus Days`;
     }
 
     res.json({
@@ -84,6 +85,7 @@ router.post('/validate', auth, async (req, res) => {
         type:        coupon.type,
         value:       coupon.value,
         finalAmount,
+        extraDays,
         label,
       },
     });
