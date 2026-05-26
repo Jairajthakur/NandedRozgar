@@ -631,11 +631,11 @@ export default function BuySellScreen({ route }) {
 
   const defaultBuySellPromo = {
     name:        'Advertise Your Business',
-    tagline:     'Reach thousands of buyers & sellers in Nanded!',
+    tagline:     `Reach thousands of buyers & sellers in ${districtLocalName}!`,
     description: 'List your shop, service or product and get inquiries from verified buyers daily.',
     category:    'buy & sell',
     phone:       '',
-    location:    'Nanded, Maharashtra',
+    location:    `${districtLocalName}, Maharashtra`,
     plan:        'popular',
   };
 
