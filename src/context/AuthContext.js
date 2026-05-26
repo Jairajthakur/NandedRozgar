@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { http, loadToken, saveToken, clearToken } from '../utils/api';
+import { registerForPushNotifications, savePushTokenToServer } from '../utils/notifications';
 
 const AuthContext = createContext(null);
 
@@ -105,6 +106,7 @@ export function AuthProvider({ children }) {
       if (!r?.ok) return r ?? { ok: false, error: 'Login failed. Try again.' };
       await saveToken(r.token);
       await _saveBiometricCredentials(email, r.token);
+      await _registerAndSavePushToken(r.token);
       setUser(r.user);
       await loadJobs(1);
       if (r.user.role === 'admin') await loadUsers();
@@ -118,6 +120,7 @@ export function AuthProvider({ children }) {
       const r = await http('POST', '/api/auth/register', data);
       if (!r?.ok) return r ?? { ok: false, error: 'Registration failed. Try again.' };
       await saveToken(r.token);
+      await _registerAndSavePushToken(r.token);
       setUser(r.user);
       await loadJobs(1);
       return r;
@@ -131,6 +134,7 @@ export function AuthProvider({ children }) {
       if (!r?.ok) return r ?? { ok: false, error: 'Google sign-in failed.' };
       await saveToken(r.token);
       await _saveBiometricCredentials(r.user.email, r.token);
+      await _registerAndSavePushToken(r.token);
       setUser(r.user);
       await loadJobs(1);
       if (r.user.role === 'admin') await loadUsers();
@@ -198,6 +202,15 @@ export function AuthProvider({ children }) {
     try {
       await SecureStore.setItemAsync(BIOMETRIC_EMAIL_KEY, email);
       await SecureStore.setItemAsync(BIOMETRIC_TOKEN_KEY, token);
+    } catch {}
+  }
+
+  // Register device for push notifications and persist the token to the server.
+  // Called after every successful login/register so the token stays current.
+  async function _registerAndSavePushToken(authToken) {
+    try {
+      const pushToken = await registerForPushNotifications();
+      if (pushToken) await savePushTokenToServer(authToken, pushToken);
     } catch {}
   }
 
