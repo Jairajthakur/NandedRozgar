@@ -111,6 +111,29 @@ function resolveExtraDays(coupon) {
   return 0;
 }
 
+// ── Helper: resolve how many credits to apply and what remains to pay ──────────
+// 1 credit = ₹1 = 100 paise.
+// Returns { creditsToUse, remainingPaise }
+function resolveCredits(userCredits, amountPaise) {
+  if (!userCredits || userCredits <= 0 || amountPaise <= 0) {
+    return { creditsToUse: 0, remainingPaise: amountPaise };
+  }
+  const maxCreditsPaise = userCredits * 100;
+  const creditsPaise    = Math.min(maxCreditsPaise, amountPaise);
+  const creditsToUse    = Math.ceil(creditsPaise / 100); // credits spent (1 credit = ₹1)
+  const remainingPaise  = amountPaise - creditsToUse * 100;
+  return { creditsToUse, remainingPaise };
+}
+
+// ── Helper: deduct credits from user inside a transaction ─────────────────────
+async function deductCredits(dbClient, userId, creditsToUse) {
+  if (!creditsToUse || creditsToUse <= 0) return;
+  await dbClient.query(
+    `UPDATE users SET referral_credits = GREATEST(0, referral_credits - $1) WHERE id = $2`,
+    [creditsToUse, userId]
+  );
+}
+
 // ── Helper: common signature check + free-plan bypass ─────────────────────────
 // expectedAmountPaise must come from resolveExpectedAmount() — never from req.body.
 function checkPayment(req, expectedAmountPaise) {
@@ -230,6 +253,18 @@ router.post('/order', auth, async (req, res) => {
       return res.json({ ok: false, error: 'Invalid listing type or plan.' });
     }
 
+    // Apply user credits (1 credit = ₹1 = 100 paise)
+    const { rows: userRows } = await pool.query(
+      'SELECT referral_credits FROM users WHERE id = $1', [req.user.id]
+    );
+    const userCredits = userRows[0]?.referral_credits || 0;
+    const { creditsToUse, remainingPaise } = resolveCredits(userCredits, amount);
+
+    // Fully covered by credits — no Razorpay order needed
+    if (remainingPaise === 0) {
+      return res.json({ ok: true, free: true, creditsToUse, creditsApplied: creditsToUse * 100 });
+    }
+
     // Free plan — no Razorpay order needed
     if (amount === 0) {
       return res.json({ ok: true, free: true });
@@ -244,14 +279,14 @@ router.post('/order', auth, async (req, res) => {
     }
 
     const order = await rzp.orders.create({
-      amount,           // paise — server-derived, never from client
+      amount: remainingPaise,  // paise after credits deducted
       currency: 'INR',
       receipt: `rcpt_${req.user.id}_${Date.now()}`,
-      notes: { description, userId: req.user.id, listingType, plan },
+      notes: { description, userId: req.user.id, listingType, plan, creditsToUse },
     });
 
-    // Return the server-computed amount so the client UI can display it correctly
-    res.json({ ok: true, orderId: order.id, amount, currency: 'INR' });
+    // Return server-computed amounts so UI can display correctly
+    res.json({ ok: true, orderId: order.id, amount: remainingPaise, currency: 'INR', creditsToUse, creditsApplied: creditsToUse * 100 });
   } catch (err) {
     console.error('Razorpay order error:', err);
     res.json({ ok: false, error: 'Failed to create payment order.' });
@@ -267,7 +302,7 @@ router.post('/order', auth, async (req, res) => {
 router.post('/verify', auth, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, job, plan, couponId } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, job, plan, couponId, creditsToUse: clientCredits } = req.body;
     // NOTE: `amount` and `days` from req.body are intentionally NOT used below.
 
     await client.query('BEGIN');
@@ -281,7 +316,12 @@ router.post('/verify', auth, async (req, res) => {
       return res.json({ ok: false, error: 'Invalid plan.' });
     }
 
-    const check = checkPayment(req, expectedAmount);
+    // Apply credits server-side (re-read from DB, never trust client)
+    const { rows: uRows } = await client.query('SELECT referral_credits FROM users WHERE id = $1', [req.user.id]);
+    const userCredits = uRows[0]?.referral_credits || 0;
+    const { creditsToUse, remainingPaise } = resolveCredits(userCredits, expectedAmount);
+
+    const check = checkPayment(req, remainingPaise);
     if (!check.ok) {
       await client.query('ROLLBACK');
       return res.json({ ok: false, error: check.error });
@@ -298,11 +338,14 @@ router.post('/verify', auth, async (req, res) => {
 
     // FIX #1: use server-computed expectedAmount, never req.body.amount
     const paymentId = await savePayment(client, req.user.id, {
-      serverAmountPaise: expectedAmount,
+      serverAmountPaise: remainingPaise,
       plan,
       paymentId: razorpay_payment_id || null,
       orderId:   razorpay_order_id   || null,
     });
+
+    // Deduct credits atomically in same transaction
+    await deductCredits(client, req.user.id, creditsToUse);
 
     // FIX #7: planDays from server table, not client
     const planDays = resolvePlanDays('job', plan) + resolveExtraDays(couponRow);
@@ -391,7 +434,10 @@ router.post('/verify/room', auth, async (req, res) => {
       return res.json({ ok: false, error: 'Invalid plan.' });
     }
 
-    const check = checkPayment(req, expectedAmount);
+    const { rows: uRowsR } = await client.query('SELECT referral_credits FROM users WHERE id = $1', [req.user.id]);
+    const { creditsToUse: creditsR, remainingPaise: remainR } = resolveCredits(uRowsR[0]?.referral_credits || 0, expectedAmount);
+
+    const check = checkPayment(req, remainR);
     if (!check.ok) {
       await client.query('ROLLBACK');
       return res.json({ ok: false, error: check.error });
@@ -407,11 +453,12 @@ router.post('/verify/room', auth, async (req, res) => {
 
     // FIX #1
     await savePayment(client, req.user.id, {
-      serverAmountPaise: expectedAmount,
+      serverAmountPaise: remainR,
       plan,
       paymentId: razorpay_payment_id || null,
       orderId:   razorpay_order_id   || null,
     });
+    await deductCredits(client, req.user.id, creditsR);
 
     // FIX #7
     const planDays = resolvePlanDays('room', plan) + resolveExtraDays(couponRow);
@@ -485,7 +532,10 @@ router.post('/verify/vehicle', auth, async (req, res) => {
       return res.json({ ok: false, error: 'Invalid plan.' });
     }
 
-    const check = checkPayment(req, expectedAmount);
+    const { rows: uRowsV } = await client.query('SELECT referral_credits FROM users WHERE id = $1', [req.user.id]);
+    const { creditsToUse: creditsV, remainingPaise: remainV } = resolveCredits(uRowsV[0]?.referral_credits || 0, expectedAmount);
+
+    const check = checkPayment(req, remainV);
     if (!check.ok) {
       await client.query('ROLLBACK');
       return res.json({ ok: false, error: check.error });
@@ -501,11 +551,12 @@ router.post('/verify/vehicle', auth, async (req, res) => {
 
     // FIX #1
     await savePayment(client, req.user.id, {
-      serverAmountPaise: expectedAmount,
+      serverAmountPaise: remainV,
       plan,
       paymentId: razorpay_payment_id || null,
       orderId:   razorpay_order_id   || null,
     });
+    await deductCredits(client, req.user.id, creditsV);
 
     // FIX #7
     const planDays = resolvePlanDays('vehicle', plan) + resolveExtraDays(couponRow);
@@ -584,7 +635,10 @@ router.post('/verify/buysell', auth, async (req, res) => {
       return res.json({ ok: false, error: 'Invalid plan.' });
     }
 
-    const check = checkPayment(req, expectedAmount);
+    const { rows: uRowsB } = await client.query('SELECT referral_credits FROM users WHERE id = $1', [req.user.id]);
+    const { creditsToUse: creditsB, remainingPaise: remainB } = resolveCredits(uRowsB[0]?.referral_credits || 0, expectedAmount);
+
+    const check = checkPayment(req, remainB);
     if (!check.ok) {
       await client.query('ROLLBACK');
       return res.json({ ok: false, error: check.error });
@@ -600,11 +654,12 @@ router.post('/verify/buysell', auth, async (req, res) => {
 
     // FIX #1
     await savePayment(client, req.user.id, {
-      serverAmountPaise: expectedAmount,
+      serverAmountPaise: remainB,
       plan,
       paymentId: razorpay_payment_id || null,
       orderId:   razorpay_order_id   || null,
     });
+    await deductCredits(client, req.user.id, creditsB);
 
     // FIX #7
     const planDays = resolvePlanDays('buysell', plan) + resolveExtraDays(couponRow);
@@ -691,7 +746,12 @@ router.post('/verify/promotion', auth, async (req, res) => {
 
     // Promotions are always paid — price comes from server table, never the client
     const expectedAmountPaise = planMeta.price * 100;
-    const check = checkPayment(req, expectedAmountPaise);
+
+    // Apply credits server-side
+    const { rows: uRowsP } = await client.query('SELECT referral_credits FROM users WHERE id = $1', [req.user.id]);
+    const { creditsToUse: creditsP, remainingPaise: remainP } = resolveCredits(uRowsP[0]?.referral_credits || 0, expectedAmountPaise);
+
+    const check = checkPayment(req, remainP);
     if (!check.ok) {
       await client.query('ROLLBACK');
       return res.json({ ok: false, error: check.error });
@@ -710,11 +770,12 @@ router.post('/verify/promotion', auth, async (req, res) => {
 
     // FIX #1: use server-computed price
     await savePayment(client, req.user.id, {
-      serverAmountPaise: expectedAmountPaise,
+      serverAmountPaise: remainP,
       plan:   planKey,
       paymentId: razorpay_payment_id || null,
       orderId:   razorpay_order_id   || null,
     });
+    await deductCredits(client, req.user.id, creditsP);
 
     // FIX #7: days from server table
     const expiresAt = new Date();
