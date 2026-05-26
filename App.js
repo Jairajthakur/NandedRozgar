@@ -389,6 +389,22 @@ function MainTabs() {
   );
 }
 
+// ── Admin Panel Guard ─────────────────────────────────────────────────────────
+// Extracted into a real component so React hooks (useLayoutEffect) are called
+// at the top level of a component, not inside a render prop / inline function.
+// The previous pattern violated the Rules of Hooks and threw a warning in dev
+// and could silently misbehave in production.
+function AdminPanelGuard(props) {
+  const { user: currentUser } = useAuth();
+  React.useLayoutEffect(() => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      props.navigation.replace('Main');
+    }
+  }, [currentUser]);
+  if (!currentUser || currentUser.role !== 'admin') return null;
+  return <AdminScreen {...props} />;
+}
+
 // ── Root Navigator ────────────────────────────────────────────────────────────
 function RootNavigator() {
   const { user, loading, sessionPending } = useAuth();
@@ -473,21 +489,9 @@ function RootNavigator() {
           admin UI. The admin-only root screen ("Admin") is unaffected. */}
       <Stack.Screen
         name="AdminPanel"
+        component={AdminPanelGuard}
         options={{ headerShown: true, headerTitle: t('admin'), ...HEADER }}
-      >
-        {(props) => {
-          const { user: currentUser } = useAuth();
-          if (!currentUser || currentUser.role !== 'admin') {
-            // Redirect non-admins away — use a layout-effect so it fires before
-            // the first paint and the admin UI is never flashed to the user.
-            React.useLayoutEffect(() => {
-              props.navigation.replace('Main');
-            }, []);
-            return null;
-          }
-          return <AdminScreen {...props} />;
-        }}
-      </Stack.Screen>
+      />
       <Stack.Screen name="Referral"        component={ReferralScreen}        options={{ headerShown: true, headerTitle: t('referralTitle'), ...HEADER }} />
       <Stack.Screen name="MyApplications"  component={MyApplicationsScreen}  options={{ headerShown: true, headerTitle: 'My Applications',      ...HEADER }} />
       <Stack.Screen name="SeekerProfile"   component={SeekerProfileScreen}   options={{ headerShown: true, headerTitle: 'My Seeker Profile',     ...HEADER }} />
