@@ -79,7 +79,7 @@ async function postItemToServer(formData, photoFiles) {
     });
 
     const apiBase = (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_API_URL)
-      || "https://localloops-production.up.railway.app";
+      || "https://thecityplus.in";
 
     const res = await fetch(`${apiBase}/api/buysell`, {
       method: "POST",
