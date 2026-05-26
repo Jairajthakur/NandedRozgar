@@ -26,14 +26,41 @@ router.get('/employer/:userId', async (req, res) => {
 });
 
 // POST /api/ratings — submit a rating
+// Requires the rater to have applied to the specific job, and the ratedId
+// must be the actual poster of that job — prevents rating strangers.
 router.post('/', auth, async (req, res) => {
   try {
     const { jobId, ratedId, stars, comment } = req.body;
+
     if (!stars || stars < 1 || stars > 5) {
       return res.json({ ok: false, error: 'Stars must be between 1 and 5' });
     }
+    if (!jobId) {
+      return res.json({ ok: false, error: 'A job must be specified to submit a rating' });
+    }
     if (ratedId === req.user.id) {
       return res.json({ ok: false, error: 'Cannot rate yourself' });
+    }
+
+    // Verify the rater actually applied to this job
+    const { rows: appRows } = await pool.query(
+      'SELECT id FROM applications WHERE job_id = $1 AND user_id = $2',
+      [jobId, req.user.id]
+    );
+    if (!appRows.length) {
+      return res.json({ ok: false, error: 'You can only rate employers for jobs you applied to' });
+    }
+
+    // Verify the ratedId is the actual poster of this job
+    const { rows: jobRows } = await pool.query(
+      'SELECT posted_by FROM jobs WHERE id = $1',
+      [jobId]
+    );
+    if (!jobRows.length) {
+      return res.json({ ok: false, error: 'Job not found' });
+    }
+    if (jobRows[0].posted_by !== ratedId) {
+      return res.json({ ok: false, error: 'You can only rate the employer who posted this job' });
     }
 
     const { rows } = await pool.query(`
@@ -41,7 +68,7 @@ router.post('/', auth, async (req, res) => {
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (job_id, rater_id) DO UPDATE SET stars=$4, comment=$5
       RETURNING *
-    `, [jobId || null, req.user.id, ratedId, stars, comment?.trim() || null]);
+    `, [jobId, req.user.id, ratedId, stars, comment?.trim() || null]);
 
     res.json({ ok: true, rating: rows[0] });
   } catch (err) {
