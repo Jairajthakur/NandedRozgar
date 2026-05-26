@@ -88,7 +88,7 @@ function TopVehiclesBanner() {
       </Animated.View>
       <View style={{ flex: 1 }}>
         <Text style={s.trendingTitle}>{t('topListingsThisWeek')}</Text>
-        <Text style={s.trendingSub}>{t('carsAvailable')}</Text>
+        <Text style={s.trendingSub}>{t('carsAvailable').replace('{DISTRICT}', districtLocalName || '')}</Text>
       </View>
       <View style={s.liveBadge}>
         <PulseDot />
@@ -632,7 +632,7 @@ export default function CarsScreen({ route }) {
                 <View style={ws.ctaCircle2} />
                 <Text style={ws.ctaEyebrow}>{t('vehicleOwner')}</Text>
                 <Text style={ws.ctaTitle}>{t('listYourVehicle')}</Text>
-                <Text style={ws.ctaSub}>{t('listYourVehicleSub')}</Text>
+                <Text style={ws.ctaSub}>{t('listYourVehicleSub').replace('{DISTRICT}', districtLocalName || '')}</Text>
                 <TouchableOpacity style={ws.ctaBtn} onPress={() => nav.navigate('PostCar')}>
                   <Ionicons name="add-circle-outline" size={15} color="#fff" />
                   <Text style={ws.ctaBtnTxt}>{t('postAVehicle')}</Text>
