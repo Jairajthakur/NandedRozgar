@@ -70,7 +70,13 @@ function PulseDot() {
 
 /* ─── Top Vehicles Banner ─── */
 function TopVehiclesBanner() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const { currentDistrict } = useDistrict();
+  const districtLocalName = currentDistrict
+    ? (lang === 'mr' ? (currentDistrict.nameMarathi || currentDistrict.name)
+     : lang === 'hi' ? (currentDistrict.nameHindi   || currentDistrict.name)
+     : currentDistrict.name)
+    : 'Nanded';
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.loop(
