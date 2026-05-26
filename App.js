@@ -44,6 +44,8 @@ import PromoteBusinessScreen from './src/screens/PromoteBusinessScreen';
 import HelpSupportScreen    from './src/screens/HelpSupportScreen';
 import SellItemForm         from './src/screens/SellItemForm';
 import AboutScreen          from './src/screens/AboutScreen';
+import ChatScreen           from './src/screens/ChatScreen';
+import ChatListScreen       from './src/screens/ChatListScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
 
 const Stack = createNativeStackNavigator();
@@ -302,7 +304,7 @@ function RootNavigator() {
       if (data?.screen === 'JobDetail' && data?.id)
         navigationRef.navigate('JobDetail', { id: data.id });
       else if (data?.screen === 'ChatScreen' && data?.id)
-        navigationRef.navigate('ChatScreen', { chatId: data.id });
+        navigationRef.navigate('Chat', { chatId: data.id });
       else if (data?.screen === 'RoomDetail' && data?.id)
         navigationRef.navigate('RoomDetail', { id: data.id });
       else if (data?.screen === 'CarDetail' && data?.id)
@@ -366,6 +368,8 @@ function RootNavigator() {
       <Stack.Screen name="HelpSupport"     component={HelpSupportScreen}     options={{ headerShown: true, headerTitle: 'Help & Support',         ...HEADER }} />
       <Stack.Screen name="SellItemForm"    component={SellItemForm}          options={{ headerShown: false }} />
       <Stack.Screen name="About"           component={AboutScreen}           options={{ headerShown: true, headerTitle: 'About CityPlus',          ...HEADER }} />
+      <Stack.Screen name="Chat"            component={ChatScreen}            options={{ headerShown: true, ...HEADER }} />
+      <Stack.Screen name="ChatList"        component={ChatListScreen}        options={{ headerShown: true, headerTitle: 'Messages',                 ...HEADER }} />
     </Stack.Navigator>
   );
 }
