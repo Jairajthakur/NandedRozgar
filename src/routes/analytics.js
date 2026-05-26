@@ -72,6 +72,30 @@ router.get('/employer', auth, async (req, res) => {
   }
 });
 
+// GET /api/analytics/stats — public platform stats for About screen
+router.get('/stats', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM users WHERE role != 'admin')                        AS users,
+        (SELECT COUNT(*) FROM jobs WHERE status = 'active')                       AS jobs,
+        (SELECT COUNT(*) FROM rooms WHERE status = 'active')                      AS rooms,
+        (SELECT ROUND(AVG(stars)::numeric, 1) FROM ratings)                       AS rating
+    `);
+    const s = rows[0];
+    res.json({
+      ok: true,
+      users:  parseInt(s.users)  || 0,
+      jobs:   parseInt(s.jobs)   || 0,
+      rooms:  parseInt(s.rooms)  || 0,
+      rating: s.rating ? parseFloat(s.rating) : null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false });
+  }
+});
+
 // POST /api/analytics/job/:id/view — increment view count
 router.post('/job/:id/view', async (req, res) => {
   try {
