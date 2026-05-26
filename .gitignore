@@ -3,6 +3,13 @@
 .env.production
 .env.*.local
 
+# ── Firebase / Google — contains sensitive API keys ───────────────────────────
+# Use EAS secrets or environment variables instead.
+# The checked-in google-services.json is a placeholder template only.
+# Your REAL google-services.json must never be committed.
+google-services.json
+GoogleService-Info.plist
+
 # ── Node ──────────────────────────────────────────────────────────────────────
 node_modules/
 npm-debug.log*
