@@ -3,7 +3,6 @@
     "version": ">= 16.0.0",
     "appVersionSource": "local"
   },
-
   "build": {
     "development": {
       "developmentClient": true,
@@ -12,7 +11,6 @@
         "NODE_ENV": "development"
       }
     },
-
     "preview": {
       "distribution": "internal",
       "android": {
@@ -23,19 +21,15 @@
         "NODE_ENV": "production"
       }
     },
-
     "production": {
       "android": {
         "buildType": "app-bundle"
       },
       "env": {
         "NODE_ENV": "production",
-        // Bug fix #4 (from previous batch): versionCode is read from this env
-        // var at build time. Increment before every Play Store release.
         "ANDROID_VERSION_CODE": "2"
       }
     },
-
     "web": {
       "distribution": "internal",
       "env": {
@@ -43,32 +37,11 @@
       }
     }
   },
-
   "submit": {
-    // Bug fix #20: the previous submit.production block was empty ({}), which
-    // caused `eas submit` to fail or prompt interactively on every run because
-    // EAS had no service account key path or release track configured.
-    //
-    // How to set up:
-    //   1. In Google Play Console → Setup → API access, link a Google Cloud
-    //      project and create a service account with "Release manager" role.
-    //   2. Download the JSON key and save it somewhere outside your repo,
-    //      e.g. ~/secrets/cityplus-play-service-account.json
-    //   3. Set the PLAY_SERVICE_ACCOUNT_KEY_PATH env var in CI to that path,
-    //      OR replace the env var reference below with the actual path once
-    //      you have confirmed it works.
-    //   4. `eas submit --platform android --profile production` will now run
-    //      non-interactively.
     "production": {
       "android": {
-        // Path to the Google Play service account JSON key.
-        // Use an env var in CI so the secret is never committed.
         "serviceAccountKeyPath": "${PLAY_SERVICE_ACCOUNT_KEY_PATH}",
-        // "internal" | "alpha" | "beta" | "production"
-        // Start with "internal" for the first submission; promote in Play Console.
         "track": "internal",
-        // The app bundle to submit is taken from the most recent production build
-        // unless you pass --latest or a specific build ID to `eas submit`.
         "releaseStatus": "draft"
       }
     }
