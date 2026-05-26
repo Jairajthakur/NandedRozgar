@@ -81,6 +81,20 @@ router.post('/:userId/:jobId', auth, async (req, res) => {
     if (content.trim().length > 1000) return res.json({ ok: false, error: 'Message too long (max 1000 characters)' });
     if (receiver === req.user.id) return res.json({ ok: false, error: 'Cannot message yourself' });
 
+    // Bug #3 fix: verify the receiver exists and is active before inserting.
+    // Without this, messages are silently written to deleted/suspended/ghost
+    // user IDs and the sender never finds out.
+    if (!Number.isInteger(receiver) || receiver <= 0) {
+      return res.json({ ok: false, error: 'Invalid recipient.' });
+    }
+    const { rows: receiverRows } = await pool.query(
+      'SELECT id FROM users WHERE id = $1 AND active = true LIMIT 1',
+      [receiver]
+    );
+    if (!receiverRows.length) {
+      return res.json({ ok: false, error: 'Recipient not found or unavailable.' });
+    }
+
     const { rows } = await pool.query(
       `INSERT INTO messages (sender_id, receiver_id, job_id, content)
        VALUES ($1, $2, $3, $4) RETURNING *`,
