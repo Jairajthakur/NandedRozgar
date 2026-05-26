@@ -442,6 +442,9 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_rooms_status     ON rooms(status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_reports_job      ON job_reports(job_id);`);
 
+    // Prevent replay attacks: a Razorpay payment ID must never be accepted twice
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_razorpay_payment_id ON payments(razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL`);
+
     await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_sender   ON messages(sender_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_ratings_rated     ON ratings(rated_id);`);
