@@ -19,7 +19,7 @@ async function auth(req, res, next) {
   // Step 2: Look up the user in DB — DB errors are NOT auth failures
   try {
     const { rows } = await pool.query(
-      'SELECT id, name, email, phone, role, active, avatar_url, company, push_token FROM users WHERE id = $1 AND active = true',
+      'SELECT id, name, email, phone, role, active, avatar_url, company FROM users WHERE id = $1 AND active = true',
       [payload.id]
     );
     if (!rows[0]) {
