@@ -543,8 +543,12 @@ export default function HomeScreen() {
                     <Text style={ws.langBtnTxt}>{langBtnLabel}</Text>
                     <Ionicons name="chevron-down" size={11} color={ORANGE} />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => nav.navigate('Profile')} activeOpacity={0.8} style={ws.bellBtn}>
-                    <Ionicons name="notifications-outline" size={20} color="#555" />
+                  <TouchableOpacity
+                    onPress={() => setShowDistrictPicker(true)}
+                    activeOpacity={0.8}
+                    style={[ws.bellBtn, { backgroundColor: (currentDistrict?.color || ORANGE) + '15', borderWidth: 1, borderColor: (currentDistrict?.color || ORANGE) + '40' }]}
+                  >
+                    <Ionicons name="location-sharp" size={16} color={currentDistrict?.color || ORANGE} />
                   </TouchableOpacity>
                   <TouchableOpacity style={ws.profileBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
                     <Text style={ws.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'T'}</Text>
@@ -588,8 +592,12 @@ export default function HomeScreen() {
                   <Text style={ws.langBtnTxt}>{langBtnLabel}</Text>
                   <Ionicons name="chevron-down" size={11} color={ORANGE} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => nav.navigate('Profile')} activeOpacity={0.8} style={ws.bellBtn}>
-                  <Ionicons name="notifications-outline" size={20} color="#555" />
+                <TouchableOpacity
+                  onPress={() => setShowDistrictPicker(true)}
+                  activeOpacity={0.8}
+                  style={[ws.bellBtn, { backgroundColor: (currentDistrict?.color || ORANGE) + '15', borderWidth: 1, borderColor: (currentDistrict?.color || ORANGE) + '40' }]}
+                >
+                  <Ionicons name="location-sharp" size={16} color={currentDistrict?.color || ORANGE} />
                 </TouchableOpacity>
                 <TouchableOpacity style={ws.profileBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
                   <Text style={ws.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'T'}</Text>
@@ -643,7 +651,9 @@ export default function HomeScreen() {
                 <View style={ws.heroBannerCompact}>
                   <View style={ws.heroCircle1} />
                   <View style={ws.heroCircle2} />
-                  <Text style={ws.heroBannerCompactTitle}>{t('heroTitleWeb')}</Text>
+                  <Text style={ws.heroBannerCompactTitle}>
+                    {t('heroTitleWeb').replace('Nanded', '')}<Text style={{ color: '#ffd580' }}>{currentDistrict?.name || 'Nanded'}</Text>
+                  </Text>
                   <Text style={ws.heroBannerCompactSub}>{t('heroSubWeb')}</Text>
                   <View style={ws.heroBannerCompactSearch}>
                     <Ionicons name="search" size={16} color="#aaa" style={{ marginLeft: 12 }} />
@@ -670,7 +680,9 @@ export default function HomeScreen() {
                   <View style={ws.heroContent}>
                     <View style={{ flex: 1 }}>
                       <Text style={ws.heroTag}>{t('heroCityTag')}</Text>
-                      <Text style={ws.heroTitle}>{t('heroTitleWeb')}</Text>
+                      <Text style={ws.heroTitle}>
+                        {t('heroTitleWeb').replace('Nanded', '')}<Text style={{ color: '#ffd580' }}>{currentDistrict?.name || 'Nanded'}</Text>
+                      </Text>
                       <Text style={ws.heroSub}>{t('heroSubWeb')}</Text>
                       <View style={ws.heroBadges}>
                         <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>{t('heroBadgeFree')}</Text></View>
@@ -879,8 +891,12 @@ export default function HomeScreen() {
               <Text style={s.langToggleTxt}>{langBtnLabel}</Text>
               <Ionicons name="chevron-down" size={10} color={ORANGE} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => nav.navigate('Profile')} activeOpacity={0.8} style={s.bellBtn}>
-              <Ionicons name="notifications-outline" size={20} color="#333" />
+            <TouchableOpacity
+              onPress={() => setShowDistrictPicker(true)}
+              activeOpacity={0.8}
+              style={[s.bellBtn, { backgroundColor: (currentDistrict?.color || ORANGE) + '15', borderWidth: 1, borderColor: (currentDistrict?.color || ORANGE) + '40' }]}
+            >
+              <Ionicons name="location-sharp" size={16} color={currentDistrict?.color || ORANGE} />
             </TouchableOpacity>
             <TouchableOpacity style={s.profileBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
               <Text style={s.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'T'}</Text>
@@ -930,7 +946,9 @@ export default function HomeScreen() {
           <View style={s.heroBanner}>
             <View style={s.heroCircle1} />
             <View style={s.heroCircle2} />
-            <Text style={s.heroTitle}>{t('heroTitle')}</Text>
+            <Text style={s.heroTitle}>
+              {t('heroTitle').replace('Nanded', '')}<Text style={{ color: '#ffd580' }}>{currentDistrict?.name || 'Nanded'}</Text>
+            </Text>
             <Text style={s.heroSub}>{t('heroSub')}</Text>
             <View style={s.searchBar}>
               <Ionicons name="search" size={18} color="#aaa" style={{ marginLeft: 12 }} />
