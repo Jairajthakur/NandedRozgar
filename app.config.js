@@ -43,6 +43,9 @@ export default {
     ios: {
       supportsTablet: false,
       bundleIdentifier: 'com.cityplus.app',
+      infoPlist: {
+        NSLocationWhenInUseUsageDescription: 'CityPlus uses your location to automatically set your district so you see nearby jobs, rooms and listings.',
+      },
     },
     android: {
       adaptiveIcon: {
@@ -58,6 +61,8 @@ export default {
         'android.permission.POST_NOTIFICATIONS',
         'android.permission.CAMERA',
         'android.permission.READ_MEDIA_IMAGES',
+        'android.permission.ACCESS_COARSE_LOCATION',
+        'android.permission.ACCESS_FINE_LOCATION',
       ],
       googleServicesFile: './google-services.json',
     },
@@ -65,6 +70,7 @@ export default {
     plugins: [
       ...nativePlugins,
       'expo-secure-store',
+      'expo-location',
       [
         'expo-notifications',
         {
