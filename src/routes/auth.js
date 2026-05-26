@@ -325,7 +325,7 @@ router.get('/google/start', (req, res) => {
 // ── DEPRECATED google/start (original code kept below as comment) ─────────────
 router.get('/google/start_legacy_DISABLED', (req, res) => {
   const clientId    = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-  const apiBase     = process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app';
+  const apiBase     = process.env.EXPO_PUBLIC_API_URL || 'https://thecityplus.in';
   const redirectUri = encodeURIComponent(`${apiBase}/api/auth/google/callback`);
   const scope       = encodeURIComponent('openid profile email');
   // We use response_type=token (implicit flow) — simplest, no client secret needed.
@@ -362,7 +362,7 @@ router.get('/google/callback', (req, res) => {
 
   // Validate APP_URL at call-time so a misconfigured value fails loudly rather
   // than silently producing an exploitable redirect.
-  const rawAppUrl = process.env.APP_URL || 'https://localloops-production.up.railway.app';
+  const rawAppUrl = process.env.APP_URL || 'https://thecityplus.in';
   let appUrl;
   try {
     const parsed = new URL(rawAppUrl);
@@ -483,7 +483,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
       [resetHash, expires, user.id]
     );
 
-    const appUrl   = process.env.APP_URL || 'https://localloops-production.up.railway.app';
+    const appUrl   = process.env.APP_URL || 'https://thecityplus.in';
     const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
 
     // Escape HTML special characters to prevent XSS — a user who registered
