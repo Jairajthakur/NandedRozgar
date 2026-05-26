@@ -13,13 +13,7 @@
 
 const router   = require('express').Router();
 const { pool } = require('../db');
-const { auth } = require('../middleware/auth');
-
-// ── Helper: fetch user role ───────────────────────────────────────────────────
-async function isAdmin(userId) {
-  const { rows } = await pool.query('SELECT role FROM users WHERE id=$1', [userId]);
-  return rows[0]?.role === 'admin';
-}
+const { auth, adminOnly } = require('../middleware/auth');
 
 // ── POST /api/coupons/validate ────────────────────────────────────────────────
 // Body: { code, listingType, originalAmount }
@@ -197,9 +191,8 @@ router.post('/mark-used', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════════════════════════
 
 // GET /api/coupons — list all
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, adminOnly, async (req, res) => {
   try {
-    if (!(await isAdmin(req.user.id))) return res.json({ ok: false, error: 'Unauthorized.' });
     const { rows } = await pool.query('SELECT * FROM coupon_codes ORDER BY created_at DESC');
     res.json({ ok: true, coupons: rows });
   } catch (err) {
@@ -210,10 +203,8 @@ router.get('/', auth, async (req, res) => {
 
 // POST /api/coupons — create
 // Body: { code, type, value, maxUses, validUntil, appliesTo }
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, adminOnly, async (req, res) => {
   try {
-    if (!(await isAdmin(req.user.id))) return res.json({ ok: false, error: 'Unauthorized.' });
-
     const { code, type, value, maxUses, validUntil, appliesTo = [] } = req.body;
 
     if (!code?.trim())             return res.json({ ok: false, error: 'Code is required.' });
@@ -236,10 +227,8 @@ router.post('/', auth, async (req, res) => {
 });
 
 // PATCH /api/coupons/:id — update
-router.patch('/:id', auth, async (req, res) => {
+router.patch('/:id', auth, adminOnly, async (req, res) => {
   try {
-    if (!(await isAdmin(req.user.id))) return res.json({ ok: false, error: 'Unauthorized.' });
-
     const { isActive, maxUses, validUntil } = req.body;
     const { rows } = await pool.query(`
       UPDATE coupon_codes
@@ -258,9 +247,8 @@ router.patch('/:id', auth, async (req, res) => {
 });
 
 // DELETE /api/coupons/:id
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, adminOnly, async (req, res) => {
   try {
-    if (!(await isAdmin(req.user.id))) return res.json({ ok: false, error: 'Unauthorized.' });
     await pool.query('DELETE FROM coupon_codes WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
