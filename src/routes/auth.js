@@ -70,7 +70,7 @@ function makeToken(user) {
 }
 
 function safeUser(u) {
-  const { password, reset_token, reset_expires, ...rest } = u;
+  const { password, reset_token, reset_expires, push_token, ...rest } = u;
   return rest;
 }
 
