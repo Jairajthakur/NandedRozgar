@@ -24,7 +24,13 @@ export function AuthProvider({ children }) {
   const [jobPage,       setJobPage]       = useState(1);
   const [jobPagination, setJobPagination] = useState(null);
 
-  const fetchingRef = useRef(false);
+  const fetchingRef  = useRef(false);
+  // Stable ref to the latest loadJobs so loadMoreJobs never closes over a
+  // stale copy. loadJobs is redefined on every render (it's a plain async
+  // function, not memoised), so putting it directly in the useCallback dep
+  // array would cause loadMoreJobs to be recreated on every render — worse
+  // than the stale-closure problem. The ref gives us "always latest" for free.
+  const loadJobsRef  = useRef(null);
 
   useEffect(() => {
     const fallback = setTimeout(() => {
@@ -101,8 +107,11 @@ export function AuthProvider({ children }) {
     finally { fetchingRef.current = false; }
   }
 
+  // Keep the ref pointing at the freshest loadJobs after every render.
+  loadJobsRef.current = loadJobs;
+
   const loadMoreJobs = useCallback(async () => {
-    if (jobPagination?.hasNext) await loadJobs(jobPage + 1);
+    if (jobPagination?.hasNext) await loadJobsRef.current(jobPage + 1);
   }, [jobPagination, jobPage]);
 
   async function loadUsers() {
@@ -227,13 +236,24 @@ export function AuthProvider({ children }) {
     } catch {}
   }
 
+  // ── Safe public updaters ──────────────────────────────────────────────────
+  // Expose a controlled updater instead of the raw setUser / setJobs state
+  // setters. Raw setters let any screen silently corrupt shared state (e.g.
+  // setUser(null) without clearing the token, or setJobs([]) without resetting
+  // pagination). Screens that need to refresh data should call loadJobs();
+  // screens that need to patch profile fields should use updateUser().
+  function updateUser(patch) {
+    setUser(prev => (prev ? { ...prev, ...patch } : prev));
+  }
+
   return (
     <AuthContext.Provider value={{
-      user, setUser,
+      user,
+      updateUser,
       role: user?.role ?? null,
-      jobs, setJobs, loadJobs, loadMoreJobs,
+      jobs, loadJobs, loadMoreJobs,
       jobPagination, jobPage,
-      users, setUsers, loading,
+      users, loading,
       sessionPending,
       login, register, signOut, loadUsers,
       loginWithGoogle,
