@@ -863,6 +863,38 @@ export default function HomeScreen() {
           </View>
         )}
       </View>
+
+      {/* ── District Picker Modal (web) ── */}
+      {showDistrictPicker && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setShowDistrictPicker(false)}>
+          <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} activeOpacity={1} onPress={() => setShowDistrictPicker(false)} />
+          <View style={s.districtModalSheet}>
+            <View style={s.districtModalHandle} />
+            <Text style={s.districtModalTitle}>Switch District</Text>
+            <Text style={s.districtModalSub}>All listings will update for your selected area</Text>
+            <View style={s.districtModalCards}>
+              {DISTRICTS.map(d => {
+                const isActive = currentDistrict?.id === d.id;
+                return (
+                  <TouchableOpacity
+                    key={d.id}
+                    style={[s.districtModalCard, isActive && { borderColor: d.color, backgroundColor: d.color + '08' }]}
+                    onPress={async () => { await selectDistrict(d.id); setShowDistrictPicker(false); }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={s.districtModalEmoji}>{d.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.districtModalName, isActive && { color: d.color }]}>{d.name}</Text>
+                      <Text style={s.districtModalMarathi}>{d.nameMarathi}</Text>
+                    </View>
+                    {isActive && <Ionicons name="checkmark-circle" size={22} color={d.color} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </Modal>
+      )}
     );
   }
 
