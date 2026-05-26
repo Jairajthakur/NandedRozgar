@@ -50,6 +50,7 @@ import AboutScreen          from './src/screens/AboutScreen';
 import ChatScreen           from './src/screens/ChatScreen';
 import ChatListScreen       from './src/screens/ChatListScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
+import { BASE_URL } from './src/utils/constants';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -57,11 +58,28 @@ const ORANGE = '#f97316';
 
 export const navigationRef = createNavigationContainerRef();
 
+// ── Per-screen error boundary HOC (defined later, used here via forward ref) ──
+// Screens are wrapped below after the HOC class is declared. The wrappers are
+// defined at module level so React Navigation never sees a new component
+// identity between renders (which would cause unnecessary unmount/remount).
+// These are filled in after the HOC definition — see the assignment block
+// just before RootNavigator.
+let _HomeScreen, _BoardScreen, _JobDetailScreen, _PostScreen, _PostJobScreen,
+    _ProfileScreen, _AIScreen, _AdminScreen, _CarScreen, _CarDetailScreen,
+    _RoomScreen, _RoomDetailScreen, _PostCarScreen, _PostRoomScreen,
+    _BuySellScreen, _BuySellDetailScreen, _PostItemScreen, _LoginScreen,
+    _ReferralScreen, _MyApplicationsScreen, _SeekerProfileScreen,
+    _AnalyticsScreen, _AlertsScreen, _PromoteBusinessScreen,
+    _HelpSupportScreen, _SellItemForm, _AboutScreen, _ChatScreen, _ChatListScreen;
+
 // ── Online / offline detection ────────────────────────────────────────────────
-// Uses a lightweight HEAD fetch to a reliable endpoint so it works on both
-// native (no navigator.onLine) and web. Re-checks whenever the app comes to
-// the foreground so the banner disappears as soon as connectivity returns.
-const PING_URL = 'https://www.google.com/generate_204';
+// Uses the app's own /health endpoint rather than google.com/generate_204.
+// Pinging Google fails in regions where Google is blocked (e.g. some corporate
+// networks, certain ISPs) and gives a false "offline" even when the user can
+// reach our server just fine. Our /health endpoint is a tiny JSON response so
+// it adds negligible load and is a true indicator of whether the app's backend
+// is reachable.
+const PING_URL = `${BASE_URL}/health`;
 const PING_TIMEOUT_MS = 4000;
 
 function useOnlineStatus() {
@@ -179,6 +197,59 @@ class ErrorBoundary extends React.Component {
     );
     return <React.Fragment key={this.state.retryKey}>{this.props.children}</React.Fragment>;
   }
+}
+
+// ── Debounced window width ────────────────────────────────────────────────────
+// useWindowDimensions fires on every resize event, including when the software
+// keyboard opens/closes on Android. This causes CustomTabBar to flicker because
+// it re-renders and conditionally returns null on web (width >= 600). A short
+// debounce prevents rapid toggling while the keyboard is animating in/out.
+function useStableWidth(delayMs = 150) {
+  const { width } = useWindowDimensions();
+  const [stableWidth, setStableWidth] = React.useState(width);
+  const timerRef = React.useRef(null);
+  React.useEffect(() => {
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setStableWidth(width), delayMs);
+    return () => clearTimeout(timerRef.current);
+  }, [width, delayMs]);
+  return stableWidth;
+}
+
+// ── Per-screen Error Boundary HOC ─────────────────────────────────────────────
+// Wraps an individual screen so a crash in one screen shows a contained
+// "Go back" card rather than the full-app error boundary. The full-app
+// ErrorBoundary above is kept as the last-resort catch-all.
+function withScreenErrorBoundary(WrappedScreen, displayName) {
+  class ScreenErrorBoundary extends React.Component {
+    state = { hasError: false, error: null };
+    static getDerivedStateFromError(e) { return { hasError: true, error: e }; }
+    componentDidCatch(e, info) { console.error(`[${displayName}] crashed:`, e, info); }
+    render() {
+      if (this.state.hasError) {
+        return (
+          <View style={s.screenErrBox}>
+            <MaterialIcons name="warning-amber" size={40} color={ORANGE} style={{ marginBottom: 12 }} />
+            <Text style={s.screenErrTitle}>This screen ran into a problem</Text>
+            <Text style={s.screenErrMsg}>{this.state.error?.message || 'Unexpected error'}</Text>
+            <TouchableOpacity
+              style={s.screenErrBtn}
+              onPress={() => {
+                this.setState({ hasError: false, error: null });
+                // Navigate back if possible, otherwise reset to Main
+                try { this.props.navigation.goBack(); } catch { /* no-op */ }
+              }}
+            >
+              <Text style={s.screenErrBtnTxt}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      }
+      return <WrappedScreen {...this.props} />;
+    }
+  }
+  ScreenErrorBoundary.displayName = `withScreenErrorBoundary(${displayName})`;
+  return ScreenErrorBoundary;
 }
 
 // ── Custom Tab Bar ────────────────────────────────────────────────────────────
@@ -304,7 +375,7 @@ function AnimatedPostButton({ onPress }) {
 
 function CustomTabBar({ state, descriptors, navigation }) {
   const { t } = useLang();
-  const { width } = useWindowDimensions();
+  const width = useStableWidth();
 
   // On web, only show the bottom tab bar when the viewport is mobile-sized (< 600px)
   // On desktop web, the HomeScreen renders its own sidebar navigation
@@ -363,10 +434,10 @@ function MainTabs() {
       tabBar={props => <CustomTabBar {...props} />}
       screenOptions={HEADER}
     >
-      <Tab.Screen name="Home"  component={HomeScreen}  options={{ headerShown: false, tabBarLabel: t('home') }} />
+      <Tab.Screen name="Home"  component={_HomeScreen}  options={{ headerShown: false, tabBarLabel: t('home') }} />
       <Tab.Screen
         name="Jobs"
-        component={BoardScreen}
+        component={_BoardScreen}
         options={({ navigation }) => ({
           headerTitle: 'Jobs',
           tabBarLabel: t('jobs'),
@@ -382,9 +453,9 @@ function MainTabs() {
           ),
         })}
       />
-      <Tab.Screen name="Post"  component={PostScreen}  options={{ headerShown: false, tabBarLabel: t('post') }} />
-      <Tab.Screen name="Rooms" component={RoomScreen}  options={{ headerTitle: 'Rooms', tabBarLabel: t('rooms') }} />
-      <Tab.Screen name="Cars"  component={CarScreen}   options={{ headerTitle: 'Cars', tabBarLabel: t('cars') }} />
+      <Tab.Screen name="Post"  component={_PostScreen}  options={{ headerShown: false, tabBarLabel: t('post') }} />
+      <Tab.Screen name="Rooms" component={_RoomScreen}  options={{ headerTitle: 'Rooms', tabBarLabel: t('rooms') }} />
+      <Tab.Screen name="Cars"  component={_CarScreen}   options={{ headerTitle: 'Cars', tabBarLabel: t('cars') }} />
     </Tab.Navigator>
   );
 }
@@ -404,6 +475,39 @@ function AdminPanelGuard(props) {
   if (!currentUser || currentUser.role !== 'admin') return null;
   return <AdminScreen {...props} />;
 }
+
+// ── Assign per-screen error boundary wrappers ─────────────────────────────────
+// Defined at module scope (not inside a render function) so React Navigation
+// always receives the same component reference and never needlessly remounts.
+_HomeScreen            = withScreenErrorBoundary(HomeScreen,            'HomeScreen');
+_BoardScreen           = withScreenErrorBoundary(BoardScreen,           'BoardScreen');
+_JobDetailScreen       = withScreenErrorBoundary(JobDetailScreen,       'JobDetailScreen');
+_PostScreen            = withScreenErrorBoundary(PostScreen,            'PostScreen');
+_PostJobScreen         = withScreenErrorBoundary(PostJobScreen,         'PostJobScreen');
+_ProfileScreen         = withScreenErrorBoundary(ProfileScreen,         'ProfileScreen');
+_AIScreen              = withScreenErrorBoundary(AIScreen,              'AIScreen');
+_AdminScreen           = withScreenErrorBoundary(AdminScreen,           'AdminScreen');
+_CarScreen             = withScreenErrorBoundary(CarScreen,             'CarScreen');
+_CarDetailScreen       = withScreenErrorBoundary(CarDetailScreen,       'CarDetailScreen');
+_RoomScreen            = withScreenErrorBoundary(RoomScreen,            'RoomScreen');
+_RoomDetailScreen      = withScreenErrorBoundary(RoomDetailScreen,      'RoomDetailScreen');
+_PostCarScreen         = withScreenErrorBoundary(PostCarScreen,         'PostCarScreen');
+_PostRoomScreen        = withScreenErrorBoundary(PostRoomScreen,        'PostRoomScreen');
+_BuySellScreen         = withScreenErrorBoundary(BuySellScreen,         'BuySellScreen');
+_BuySellDetailScreen   = withScreenErrorBoundary(BuySellDetailScreen,   'BuySellDetailScreen');
+_PostItemScreen        = withScreenErrorBoundary(PostItemScreen,        'PostItemScreen');
+_LoginScreen           = withScreenErrorBoundary(LoginScreen,           'LoginScreen');
+_ReferralScreen        = withScreenErrorBoundary(ReferralScreen,        'ReferralScreen');
+_MyApplicationsScreen  = withScreenErrorBoundary(MyApplicationsScreen,  'MyApplicationsScreen');
+_SeekerProfileScreen   = withScreenErrorBoundary(SeekerProfileScreen,   'SeekerProfileScreen');
+_AnalyticsScreen       = withScreenErrorBoundary(AnalyticsScreen,       'AnalyticsScreen');
+_AlertsScreen          = withScreenErrorBoundary(AlertsScreen,          'AlertsScreen');
+_PromoteBusinessScreen = withScreenErrorBoundary(PromoteBusinessScreen, 'PromoteBusinessScreen');
+_HelpSupportScreen     = withScreenErrorBoundary(HelpSupportScreen,     'HelpSupportScreen');
+_SellItemForm          = withScreenErrorBoundary(SellItemForm,          'SellItemForm');
+_AboutScreen           = withScreenErrorBoundary(AboutScreen,           'AboutScreen');
+_ChatScreen            = withScreenErrorBoundary(ChatScreen,            'ChatScreen');
+_ChatListScreen        = withScreenErrorBoundary(ChatListScreen,        'ChatListScreen');
 
 // ── Root Navigator ────────────────────────────────────────────────────────────
 function RootNavigator() {
@@ -458,7 +562,7 @@ function RootNavigator() {
   if (!user) {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Login" component={_LoginScreen} />
       </Stack.Navigator>
     );
   }
@@ -467,41 +571,36 @@ function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user.role === 'admin'
-        ? <Stack.Screen name="Admin" component={AdminScreen} options={{ headerShown: true, headerTitle: 'Admin Panel', ...HEADER }} />
+        ? <Stack.Screen name="Admin" component={_AdminScreen} options={{ headerShown: true, headerTitle: 'Admin Panel', ...HEADER }} />
         : <Stack.Screen name="Main"  component={MainTabs} />
       }
-      <Stack.Screen name="JobDetail"  component={JobDetailScreen}  options={{ headerShown: true, headerTitle: t('jobDetails'), ...HEADER }} />
-      <Stack.Screen name="CarDetail"  component={CarDetailScreen}  options={{ headerShown: false }} />
-      <Stack.Screen name="RoomDetail" component={RoomDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="PostJob"    component={PostJobScreen}    options={{ headerShown: true, headerTitle: t('postAJobTitle'), ...HEADER }} />
-      <Stack.Screen name="PostCar"    component={PostCarScreen}    options={{ headerShown: false }} />
-      <Stack.Screen name="PostRoom"   component={PostRoomScreen}   options={{ headerShown: false }} />
-      <Stack.Screen name="BuySell"    component={BuySellScreen}       options={{ headerShown: true, headerTitle: t('buySell'), ...HEADER }} />
-      <Stack.Screen name="BuySellDetail" component={BuySellDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="PostItem"   component={PostItemScreen}       options={{ headerShown: false }} />
-      <Stack.Screen name="PromoteBusiness" component={PromoteBusinessScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Profile"    component={ProfileScreen}    options={{ headerShown: true, headerTitle: t('myProfile'), ...HEADER }} />
-      <Stack.Screen name="AIMatch"    component={AIScreen}         options={{ headerShown: true, headerTitle: t('aiJobMatch'), ...HEADER }} />
-      {/* Bug fix #14: AdminPanel was a duplicate of the root "Admin" screen and
-          was reachable by any authenticated user via navigation.navigate('AdminPanel').
-          The route is now guarded: non-admin users who land here (e.g. via a stale
-          deep link) are immediately redirected to the Main tab instead of seeing the
-          admin UI. The admin-only root screen ("Admin") is unaffected. */}
+      <Stack.Screen name="JobDetail"  component={_JobDetailScreen}  options={{ headerShown: true, headerTitle: t('jobDetails'), ...HEADER }} />
+      <Stack.Screen name="CarDetail"  component={_CarDetailScreen}  options={{ headerShown: false }} />
+      <Stack.Screen name="RoomDetail" component={_RoomDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="PostJob"    component={_PostJobScreen}    options={{ headerShown: true, headerTitle: t('postAJobTitle'), ...HEADER }} />
+      <Stack.Screen name="PostCar"    component={_PostCarScreen}    options={{ headerShown: false }} />
+      <Stack.Screen name="PostRoom"   component={_PostRoomScreen}   options={{ headerShown: false }} />
+      <Stack.Screen name="BuySell"    component={_BuySellScreen}       options={{ headerShown: true, headerTitle: t('buySell'), ...HEADER }} />
+      <Stack.Screen name="BuySellDetail" component={_BuySellDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="PostItem"   component={_PostItemScreen}       options={{ headerShown: false }} />
+      <Stack.Screen name="PromoteBusiness" component={_PromoteBusinessScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Profile"    component={_ProfileScreen}    options={{ headerShown: true, headerTitle: t('myProfile'), ...HEADER }} />
+      <Stack.Screen name="AIMatch"    component={_AIScreen}         options={{ headerShown: true, headerTitle: t('aiJobMatch'), ...HEADER }} />
       <Stack.Screen
         name="AdminPanel"
         component={AdminPanelGuard}
         options={{ headerShown: true, headerTitle: t('admin'), ...HEADER }}
       />
-      <Stack.Screen name="Referral"        component={ReferralScreen}        options={{ headerShown: true, headerTitle: t('referralTitle'), ...HEADER }} />
-      <Stack.Screen name="MyApplications"  component={MyApplicationsScreen}  options={{ headerShown: true, headerTitle: 'My Applications',      ...HEADER }} />
-      <Stack.Screen name="SeekerProfile"   component={SeekerProfileScreen}   options={{ headerShown: true, headerTitle: 'My Seeker Profile',     ...HEADER }} />
-      <Stack.Screen name="Analytics"       component={AnalyticsScreen}       options={{ headerShown: true, headerTitle: 'Analytics',             ...HEADER }} />
-      <Stack.Screen name="Alerts"          component={AlertsScreen}          options={{ headerShown: true, headerTitle: 'Job Alerts',            ...HEADER }} />
-      <Stack.Screen name="HelpSupport"     component={HelpSupportScreen}     options={{ headerShown: true, headerTitle: 'Help & Support',         ...HEADER }} />
-      <Stack.Screen name="SellItemForm"    component={SellItemForm}          options={{ headerShown: false }} />
-      <Stack.Screen name="About"           component={AboutScreen}           options={{ headerShown: true, headerTitle: 'About CityPlus',          ...HEADER }} />
-      <Stack.Screen name="Chat"            component={ChatScreen}            options={{ headerShown: true, ...HEADER }} />
-      <Stack.Screen name="ChatList"        component={ChatListScreen}        options={{ headerShown: true, headerTitle: 'Messages',                 ...HEADER }} />
+      <Stack.Screen name="Referral"        component={_ReferralScreen}        options={{ headerShown: true, headerTitle: t('referralTitle'), ...HEADER }} />
+      <Stack.Screen name="MyApplications"  component={_MyApplicationsScreen}  options={{ headerShown: true, headerTitle: 'My Applications',      ...HEADER }} />
+      <Stack.Screen name="SeekerProfile"   component={_SeekerProfileScreen}   options={{ headerShown: true, headerTitle: 'My Seeker Profile',     ...HEADER }} />
+      <Stack.Screen name="Analytics"       component={_AnalyticsScreen}       options={{ headerShown: true, headerTitle: 'Analytics',             ...HEADER }} />
+      <Stack.Screen name="Alerts"          component={_AlertsScreen}          options={{ headerShown: true, headerTitle: 'Job Alerts',            ...HEADER }} />
+      <Stack.Screen name="HelpSupport"     component={_HelpSupportScreen}     options={{ headerShown: true, headerTitle: 'Help & Support',         ...HEADER }} />
+      <Stack.Screen name="SellItemForm"    component={_SellItemForm}          options={{ headerShown: false }} />
+      <Stack.Screen name="About"           component={_AboutScreen}           options={{ headerShown: true, headerTitle: 'About CityPlus',          ...HEADER }} />
+      <Stack.Screen name="Chat"            component={_ChatScreen}            options={{ headerShown: true, ...HEADER }} />
+      <Stack.Screen name="ChatList"        component={_ChatListScreen}        options={{ headerShown: true, headerTitle: 'Messages',                 ...HEADER }} />
     </Stack.Navigator>
   );
 }
@@ -647,4 +746,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
   },
   offlineTxt: { color: '#fff', fontSize: 13, fontWeight: '600' },
+
+  screenErrBox:    { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 32 },
+  screenErrTitle:  { color: '#111', fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  screenErrMsg:    { color: '#888', fontSize: 13, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  screenErrBtn:    { backgroundColor: ORANGE, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 28 },
+  screenErrBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });
