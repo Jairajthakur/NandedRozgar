@@ -40,20 +40,22 @@ export async function registerForPushNotifications() {
   }
 
   try {
-    const token = await Notifications.getExpoPushTokenAsync();
-    return token.data;
+    // Use native FCM/APNs device token for standalone (Play Store) builds.
+    // getExpoPushTokenAsync only works inside Expo Go; standalone APKs/AABs
+    // must use getDevicePushTokenAsync to get a real FCM registration token.
+    const tokenData = await Notifications.getDevicePushTokenAsync();
+    return tokenData.data;
   } catch {
     return null;
   }
 }
 
 /**
- * Persist the Expo push token to the authenticated user's DB record.
- * Call this once after login/register, passing the JWT and the token
- * returned by registerForPushNotifications().
+ * Persist the device push token to the authenticated user's DB record.
+ * Called automatically after login/register via AuthContext.
  *
  * @param {string} authToken  - JWT from login/register response
- * @param {string} pushToken  - Expo push token (token.data)
+ * @param {string} pushToken  - Device push token from registerForPushNotifications()
  */
 export async function savePushTokenToServer(authToken, pushToken) {
   if (!authToken || !pushToken) return;
