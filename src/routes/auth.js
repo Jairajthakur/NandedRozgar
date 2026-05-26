@@ -442,16 +442,15 @@ router.post('/reset-password', resetLimiter, async (req, res) => {
     if (password.length < 8)  return res.json({ ok: false, error: 'Password must be at least 8 characters' });
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    // Query by the hash directly — lets the DB use an index and avoids loading
+    // every pending reset token into memory for in-process comparison.
+    // timingSafeEqual is not needed here: the token is already hashed before
+    // storage, so the DB comparison on the hex digest is safe.
     const { rows } = await pool.query(
-      'SELECT * FROM users WHERE reset_expires > NOW() AND reset_token IS NOT NULL'
+      'SELECT * FROM users WHERE reset_token = $1 AND reset_expires > NOW()',
+      [tokenHash]
     );
-    const user = rows.find(u => {
-      if (!u.reset_token) return false;
-      const a = Buffer.from(tokenHash);
-      const b = Buffer.from(u.reset_token);
-      if (a.length !== b.length) return false;
-      return crypto.timingSafeEqual(a, b);
-    });
+    const user = rows[0];
     if (!user) return res.json({ ok: false, error: 'Reset link is invalid or has expired' });
 
     const hash = await bcrypt.hash(password, 12);
