@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
     }),
   },
 
- { textAlign: 'center', fontSize: 10, color: 'rgba(0,0,0,0.2)', marginTop: 24, letterSpacing: 0.5 },
+  version: { textAlign: 'center', fontSize: 10, color: 'rgba(0,0,0,0.2)', marginTop: 24, letterSpacing: 0.5 },
 
   // ── Modal
   modalOverlay: {
