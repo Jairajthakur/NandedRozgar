@@ -148,7 +148,7 @@ function TopDealsBanner() {
       </Animated.View>
       <View style={{ flex: 1 }}>
         <Text style={s.trendingTitle}>{t('topDealsThisWeek')}</Text>
-        <Text style={s.trendingSub}>{t('electronicsEtc')}</Text>
+        <Text style={s.trendingSub}>{t('electronicsEtc').replace('{DISTRICT}', districtLocalName || '')}</Text>
       </View>
       <View style={s.liveBadge}>
         <PulseDot />
@@ -670,7 +670,7 @@ export default function BuySellScreen({ route }) {
       <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
         <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
           <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-            {t('buySellInNanded').split('{DISTRICT}')[0]}<Text style={{ color: ORANGE }}>Nanded</Text>{t('buySellInNanded').split('{DISTRICT}')[1] || ''}
+            {t('buySellInNanded').split('{DISTRICT}')[0]}<Text style={{ color: ORANGE }}>{districtLocalName}</Text>{t('buySellInNanded').split('{DISTRICT}')[1] || ''}
           </Text>
         </TouchableOpacity>
         <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
@@ -785,7 +785,7 @@ export default function BuySellScreen({ route }) {
                 <View style={ws.ctaCircle2} />
                 <Text style={ws.ctaEyebrow}>{t('haveSomething')}</Text>
                 <Text style={ws.ctaTitle}>{t('sellItFree')}</Text>
-                <Text style={ws.ctaSub}>{t('sellItFreeSub')}</Text>
+                <Text style={ws.ctaSub}>{t('sellItFreeSub').replace('{DISTRICT}', districtLocalName || '')}</Text>
                 <TouchableOpacity style={ws.ctaBtn} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
                   <Ionicons name="add-circle-outline" size={15} color="#fff" />
                   <Text style={ws.ctaBtnTxt}>{t('postAnItem')}</Text>
