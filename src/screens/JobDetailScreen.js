@@ -171,6 +171,22 @@ export default function JobDetailScreen({ route, navigation }) {
   const [submittingRating,  setSubmittingRating]   = useState(false);
   const [showReport,        setShowReport]         = useState(false);
   const [applying,          setApplying]           = useState(false);
+  const [saved,             setSaved]              = useState(job.is_saved || false);
+  const savedScale = useRef(new Animated.Value(1)).current;
+
+  async function toggleSave() {
+    const next = !saved;
+    setSaved(next);
+    Animated.sequence([
+      Animated.spring(savedScale, { toValue: 1.4, useNativeDriver: true, speed: 25, bounciness: 12 }),
+      Animated.spring(savedScale, { toValue: 1,   useNativeDriver: true, speed: 25 }),
+    ]).start();
+    try {
+      await http('POST', `/api/jobs/${job.id}/save`);
+    } catch {
+      setSaved(!next); // revert on error
+    }
+  }
 
   // Hero animation refs
   const iconScale   = useRef(new Animated.Value(0)).current;
@@ -312,9 +328,11 @@ export default function JobDetailScreen({ route, navigation }) {
           <TouchableOpacity style={s.navBtn} onPress={() => setShowReport(true)} activeOpacity={0.85}>
             <Ionicons name="flag-outline" size={18} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={s.navBtn} activeOpacity={0.85}>
-            <Ionicons name="heart-outline" size={18} color="#fff" />
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: savedScale }] }}>
+            <TouchableOpacity style={s.navBtn} onPress={toggleSave} activeOpacity={0.85}>
+              <Ionicons name={saved ? 'heart' : 'heart-outline'} size={18} color={saved ? '#ef4444' : '#fff'} />
+            </TouchableOpacity>
+          </Animated.View>
         </View>
 
         {/* Pulsing ring + icon, stacked via absolute inside a sized wrapper */}
