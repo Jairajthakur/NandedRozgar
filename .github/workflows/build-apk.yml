@@ -7,7 +7,7 @@ on:
 
 jobs:
 
-  # ── Job 1: Build & export Expo web ─────────────────────────────────────────
+  # ── Job 1: Build & export Expo web ──────────────────────────────────────────
   build-web:
     name: Build & Deploy Web (via Railway)
     runs-on: ubuntu-latest
@@ -45,7 +45,7 @@ jobs:
           path: ./dist
           retention-days: 7
 
-  # ── Job 2: Build Android APK ────────────────────────────────────────────────
+  # ── Job 2: Build Android APK ─────────────────────────────────────────────────
   build-android:
     name: Build Android APK
     runs-on: ubuntu-latest
@@ -54,68 +54,53 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check required secrets
-        id: check_secrets
-        run: |
-          if [ -z "${{ secrets.EXPO_TOKEN }}" ] || [ -z "${{ secrets.EXPO_PROJECT_ID }}" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "⚠️  EXPO_TOKEN or EXPO_PROJECT_ID secret is missing — skipping APK build."
-            echo "   Go to: Settings → Secrets and variables → Actions → New repository secret"
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-            echo "✅ Secrets found. Proceeding with APK build."
-          fi
-
       - name: Setup Node.js
-        if: steps.check_secrets.outputs.skip == 'false'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Setup Java
-        if: steps.check_secrets.outputs.skip == 'false'
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Validate required secrets
+        run: |
+          MISSING=""
+          [ -z "$EXPO_TOKEN" ]      && MISSING="$MISSING EXPO_TOKEN"
+          [ -z "$EXPO_PROJECT_ID" ] && MISSING="$MISSING EXPO_PROJECT_ID"
+          if [ -n "$MISSING" ]; then
+            echo "❌ Missing required secrets:$MISSING"
+            exit 1
+          fi
+          echo "✅ All required secrets present."
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
+
       - name: Install dependencies
-        if: steps.check_secrets.outputs.skip == 'false'
         run: npm install --legacy-peer-deps
 
-      - name: Install EAS CLI
-        if: steps.check_secrets.outputs.skip == 'false'
-        run: npm install -g eas-cli@latest
-
-      - name: Write google-services.json
-        if: steps.check_secrets.outputs.skip == 'false'
-        run: |
-          if [ -n '${{ secrets.GOOGLE_SERVICES_JSON }}' ]; then
-            echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
-            echo "✅ google-services.json written from secret."
-          else
-            echo "⚠️  GOOGLE_SERVICES_JSON secret not set — using repo file."
-          fi
-
       - name: Verify EAS project ID matches secret
-        if: steps.check_secrets.outputs.skip == 'false'
         run: |
-          CONFIG_ID=$(node -e "
-            const c = require('./app.config.js');
-            const cfg = c.default || c;
-            console.log(cfg.expo?.extra?.eas?.projectId || '');
-          " --input-type module 2>/dev/null || node -e "
-            process.env.EXPO_PROJECT_ID = '${{ secrets.EXPO_PROJECT_ID }}';
-            const c = require('./app.config.js');
-            const cfg = c.default || c;
-            console.log(cfg.expo?.extra?.eas?.projectId || '');
-          ")
+          # app.config.js uses "export default" (ES module syntax).
+          # We must use --input-type=module or a .mjs wrapper — NOT require().
+          CONFIG_ID=$(node --input-type=module << 'EOF'
+          import { createRequire } from 'module';
+          import { pathToFileURL } from 'url';
+          process.env.EXPO_PROJECT_ID = process.env.EXPO_PROJECT_ID || '';
+          const { default: cfg } = await import(pathToFileURL('./app.config.js').href);
+          const id = cfg?.expo?.extra?.eas?.projectId || '';
+          process.stdout.write(id);
+          EOF
+          )
           SECRET_ID="${{ secrets.EXPO_PROJECT_ID }}"
-          if [ -z "$CONFIG_ID" ] || [ "$CONFIG_ID" = "" ]; then
-            echo "⚠️  projectId in app.config.js is empty (reads from env at build time — OK)."
+          if [ -z "$CONFIG_ID" ]; then
+            echo "⚠️  projectId in app.config.js is empty (resolved from env at runtime — OK)."
           elif [ "$CONFIG_ID" != "$SECRET_ID" ]; then
-            echo "❌ app.config.js projectId ($CONFIG_ID) does not match EXPO_PROJECT_ID secret."
+            echo "❌ app.config.js projectId ($CONFIG_ID) != EXPO_PROJECT_ID secret ($SECRET_ID)"
             echo "   Run: eas project:init — then update the EXPO_PROJECT_ID secret."
             exit 1
           else
@@ -124,14 +109,21 @@ jobs:
         env:
           EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
 
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Write google-services.json
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
+          echo "✅ google-services.json written."
+
       - name: Build APK
-        if: steps.check_secrets.outputs.skip == 'false'
         run: eas build --platform android --profile preview --local --output ./CityPlus.apk --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
           NODE_ENV: production
-          ANDROID_VERSION_CODE: ${{ secrets.ANDROID_VERSION_CODE || '1' }}
+          ANDROID_VERSION_CODE: '1'
           EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
           EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
@@ -141,15 +133,8 @@ jobs:
           EXPO_PUBLIC_RAZORPAY_KEY_ID: ${{ secrets.EXPO_PUBLIC_RAZORPAY_KEY_ID }}
 
       - name: Upload APK artifact
-        if: steps.check_secrets.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: CityPlus-APK
           path: ./CityPlus.apk
           retention-days: 30
-
-      - name: APK build skipped notice
-        if: steps.check_secrets.outputs.skip == 'true'
-        run: |
-          echo "::warning::APK build was skipped because EXPO_TOKEN or EXPO_PROJECT_ID secrets are not set."
-          echo "Add them at: Settings → Secrets and variables → Actions"
