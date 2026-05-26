@@ -3,7 +3,7 @@ import React from 'react';
 import {
   View, Text, ActivityIndicator, StatusBar,
   TouchableOpacity, StyleSheet, Platform, useWindowDimensions,
-  Animated, Easing,
+  Animated, Easing, AppState,
 } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -54,23 +54,101 @@ const ORANGE = '#f97316';
 
 export const navigationRef = createNavigationContainerRef();
 
+// ── Online / offline detection ────────────────────────────────────────────────
+// Uses a lightweight HEAD fetch to a reliable endpoint so it works on both
+// native (no navigator.onLine) and web. Re-checks whenever the app comes to
+// the foreground so the banner disappears as soon as connectivity returns.
+const PING_URL = 'https://www.google.com/generate_204';
+const PING_TIMEOUT_MS = 4000;
+
+function useOnlineStatus() {
+  const [isOnline, setIsOnline] = React.useState(true);
+  const timerRef = React.useRef(null);
+
+  const check = React.useCallback(async () => {
+    if (Platform.OS === 'web') {
+      setIsOnline(navigator.onLine);
+      return;
+    }
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), PING_TIMEOUT_MS);
+      await fetch(PING_URL, { method: 'HEAD', signal: controller.signal });
+      clearTimeout(timeout);
+      setIsOnline(true);
+    } catch {
+      setIsOnline(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    check();
+    // Re-check every 8 s while the app is active
+    timerRef.current = setInterval(check, 8000);
+
+    // Re-check immediately when app returns to foreground
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') check();
+    });
+
+    // Web — listen to native online/offline events
+    if (Platform.OS === 'web') {
+      window.addEventListener('online',  () => setIsOnline(true));
+      window.addEventListener('offline', () => setIsOnline(false));
+    }
+
+    return () => {
+      clearInterval(timerRef.current);
+      sub.remove();
+    };
+  }, [check]);
+
+  return isOnline;
+}
+
+// ── Offline banner ─────────────────────────────────────────────────────────────
+function OfflineBanner() {
+  const slideAnim = React.useRef(new Animated.Value(-48)).current;
+
+  React.useEffect(() => {
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  return (
+    <Animated.View style={[s.offlineBanner, { transform: [{ translateY: slideAnim }] }]}>
+      <Ionicons name="cloud-offline-outline" size={16} color="#fff" />
+      <Text style={s.offlineTxt}>No internet connection</Text>
+    </Animated.View>
+  );
+}
+
 // ── Error Boundary ────────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
-  state = { hasError: false, error: null };
+  state = { hasError: false, error: null, retryKey: 0 };
   static getDerivedStateFromError(e) { return { hasError: true, error: e }; }
   componentDidCatch(e, i) { console.error('ErrorBoundary:', e, i); }
+  handleRetry = () => {
+    // Increment retryKey so the child tree fully remounts on retry,
+    // rather than re-rendering into the same broken state.
+    this.setState(prev => ({ hasError: false, error: null, retryKey: prev.retryKey + 1 }));
+  };
   render() {
     if (this.state.hasError) return (
       <View style={s.errBox}>
         <MaterialIcons name="warning" size={48} color={ORANGE} style={{ marginBottom: 16 }} />
         <Text style={s.errTitle}>Something went wrong</Text>
         <Text style={s.errMsg}>{this.state.error?.message || 'Unexpected error'}</Text>
-        <TouchableOpacity style={s.errBtn} onPress={() => this.setState({ hasError: false, error: null })}>
+        <TouchableOpacity style={s.errBtn} onPress={this.handleRetry}>
           <Text style={s.errBtnTxt}>Try Again</Text>
         </TouchableOpacity>
       </View>
     );
-    return this.props.children;
+    return <React.Fragment key={this.state.retryKey}>{this.props.children}</React.Fragment>;
   }
 }
 
@@ -417,6 +495,7 @@ const linking = {
 };
 
 export default function App() {
+  const isOnline = useOnlineStatus();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
@@ -426,6 +505,7 @@ export default function App() {
             <LangProvider>
             <NavigationContainer linking={linking} ref={navigationRef}>
               <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+              {!isOnline && <OfflineBanner />}
               <RootNavigator />
             </NavigationContainer>
             <Toast />
@@ -486,4 +566,18 @@ const s = StyleSheet.create({
   splashIcon: { width:80, height:80, backgroundColor:'#222', borderRadius:20, alignItems:'center', justifyContent:'center', marginBottom:16 },
   splashTitle:{ fontSize:28, fontWeight:'900', letterSpacing:0.5 },
   splashSub:  { color:'#888', fontSize:13, marginTop:4 },
+
+  offlineBanner: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    zIndex: 9999,
+    backgroundColor: '#1f2937',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  offlineTxt: { color: '#fff', fontSize: 13, fontWeight: '600' },
 });
