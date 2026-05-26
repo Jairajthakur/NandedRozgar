@@ -241,26 +241,78 @@ router.get('/stats', async (req, res) => {
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
 
-// POST /api/admin/notifications — send push notification
+// POST /api/admin/notifications — send push notification via Expo push API
+//
+// Targets users by push_token (stored in users.push_token by POST /api/auth/push-token).
+// Delivers in batches of 100 as required by the Expo push service.
+// Returns { ok, sent_to, failed } so the admin sees accurate delivery counts.
+const EXPO_PUSH_URL  = 'https://exp.host/--/api/v2/push/send';
+const EXPO_BATCH_MAX = 100;
+
 router.post('/notifications', async (req, res) => {
   try {
     const { title, body, target } = req.body;
     if (!title || !body) return res.json({ ok: false, error: 'Title and body required' });
 
-    // Build target query
-    let userQuery = 'SELECT id FROM users WHERE active = true';
+    // Fetch push tokens for the target audience.
+    // Only rows with a non-null push_token can receive a notification.
+    let userQuery = 'SELECT push_token FROM users WHERE active = true AND push_token IS NOT NULL';
     if (target === 'pro')  userQuery += ' AND premium = true';
     if (target === 'free') userQuery += ' AND premium = false';
 
-    // In a real app, you'd fetch push tokens and call Expo/FCM here.
-    // For now, log and return success.
     const { rows } = await pool.query(userQuery);
-    console.log(`📣 Admin notification to ${rows.length} users (${target}): "${title}" — "${body}"`);
+    const tokens = rows.map(r => r.push_token).filter(Boolean);
 
-    // TODO: integrate with Expo push tokens table and call
-    // https://exp.host/--/api/v2/push/send in batches of 100
+    if (tokens.length === 0) {
+      return res.json({ ok: true, sent_to: 0, failed: 0, message: 'No push tokens found for target audience' });
+    }
 
-    res.json({ ok: true, sent_to: rows.length });
+    // Build Expo message objects
+    const messages = tokens.map(token => ({
+      to:    token,
+      title,
+      body,
+      sound: 'default',
+    }));
+
+    // Send in batches of EXPO_BATCH_MAX
+    let sentCount  = 0;
+    let failCount  = 0;
+    const batchErrors = [];
+
+    for (let i = 0; i < messages.length; i += EXPO_BATCH_MAX) {
+      const batch = messages.slice(i, i + EXPO_BATCH_MAX);
+      try {
+        const response = await fetch(EXPO_PUSH_URL, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body:    JSON.stringify(batch),
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          batchErrors.push(`Batch ${Math.floor(i / EXPO_BATCH_MAX) + 1} HTTP ${response.status}: ${text}`);
+          failCount += batch.length;
+          continue;
+        }
+
+        const result = await response.json();
+        // Expo returns { data: [ { status: 'ok' | 'error', ... } ] }
+        for (const ticket of result.data || []) {
+          ticket.status === 'ok' ? sentCount++ : failCount++;
+        }
+      } catch (batchErr) {
+        batchErrors.push(`Batch ${Math.floor(i / EXPO_BATCH_MAX) + 1} fetch error: ${batchErr.message}`);
+        failCount += batch.length;
+      }
+    }
+
+    if (batchErrors.length) {
+      console.error('📣 Notification batch errors:', batchErrors);
+    }
+    console.log(`📣 Admin notification (${target}): "${title}" — sent=${sentCount}, failed=${failCount}`);
+
+    res.json({ ok: true, sent_to: sentCount, failed: failCount });
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to send notification' });
