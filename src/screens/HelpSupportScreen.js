@@ -341,7 +341,7 @@ const FAQ_CATEGORIES = [
       },
       {
         q: 'How do referral credits work?',
-        a: 'Earn 1 credit for every friend who signs up using your referral code. 1 credit = ₹20 off a Featured listing, or ₹49 off an Urgent listing. Credits never expire.',
+        a: 'Earn 1 credit for every friend who signs up using your referral code. 1 credit = ₹1 off any paid listing. Credits stack — if a listing costs ₹49 and you have 49 credits, it\'s completely free. Credits never expire.',
       },
     ],
   },
