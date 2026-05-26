@@ -49,6 +49,7 @@ import SellItemForm         from './src/screens/SellItemForm';
 import AboutScreen          from './src/screens/AboutScreen';
 import ChatScreen           from './src/screens/ChatScreen';
 import ChatListScreen       from './src/screens/ChatListScreen';
+import SavedJobsScreen      from './src/screens/SavedJobsScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
 import { BASE_URL } from './src/utils/constants';
 
@@ -70,7 +71,7 @@ let _HomeScreen, _BoardScreen, _JobDetailScreen, _PostScreen, _PostJobScreen,
     _BuySellScreen, _BuySellDetailScreen, _PostItemScreen, _LoginScreen,
     _ReferralScreen, _MyApplicationsScreen, _SeekerProfileScreen,
     _AnalyticsScreen, _AlertsScreen, _PromoteBusinessScreen,
-    _HelpSupportScreen, _SellItemForm, _AboutScreen, _ChatScreen, _ChatListScreen;
+    _HelpSupportScreen, _SellItemForm, _AboutScreen, _ChatScreen, _ChatListScreen, _SavedJobsScreen;
 
 // ── Online / offline detection ────────────────────────────────────────────────
 // Uses the app's own /health endpoint rather than google.com/generate_204.
@@ -508,6 +509,7 @@ _SellItemForm          = withScreenErrorBoundary(SellItemForm,          'SellIte
 _AboutScreen           = withScreenErrorBoundary(AboutScreen,           'AboutScreen');
 _ChatScreen            = withScreenErrorBoundary(ChatScreen,            'ChatScreen');
 _ChatListScreen        = withScreenErrorBoundary(ChatListScreen,        'ChatListScreen');
+_SavedJobsScreen       = withScreenErrorBoundary(SavedJobsScreen,       'SavedJobsScreen');
 
 // ── Root Navigator ────────────────────────────────────────────────────────────
 function RootNavigator() {
@@ -601,6 +603,7 @@ function RootNavigator() {
       <Stack.Screen name="About"           component={_AboutScreen}           options={{ headerShown: true, headerTitle: 'About CityPlus',          ...HEADER }} />
       <Stack.Screen name="Chat"            component={_ChatScreen}            options={{ headerShown: true, ...HEADER }} />
       <Stack.Screen name="ChatList"        component={_ChatListScreen}        options={{ headerShown: true, headerTitle: 'Messages',                 ...HEADER }} />
+      <Stack.Screen name="SavedJobs"       component={_SavedJobsScreen}       options={{ headerShown: true, headerTitle: 'Saved Jobs',               ...HEADER }} />
     </Stack.Navigator>
   );
 }
