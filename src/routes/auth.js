@@ -125,24 +125,31 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const ADMIN_EMAIL    = process.env.ADMIN_EMAIL;
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-    const isBcryptHash = ADMIN_PASSWORD?.startsWith('$2');
+
+    // Reject server startup misconfiguration early: ADMIN_PASSWORD must be a
+    // bcrypt hash (starts with $2). Plain-text passwords are never accepted —
+    // a warning-and-fallback is not safe enough for an admin credential.
+    if (ADMIN_EMAIL && ADMIN_PASSWORD && !ADMIN_PASSWORD.startsWith('$2')) {
+      console.error(
+        'FATAL CONFIG: ADMIN_PASSWORD must be a bcrypt hash (starting with $2). ' +
+        'Generate one with: node -e "console.log(require('bcryptjs').hashSync('yourpassword', 12))" ' +
+        'and set it as the ADMIN_PASSWORD environment variable.'
+      );
+      // Fail closed: do not allow login until the config is fixed.
+      return res.json({ ok: false, error: 'Server configuration error. Contact the administrator.' });
+    }
+
     const adminPasswordMatch = ADMIN_EMAIL && ADMIN_PASSWORD &&
       email.toLowerCase() === ADMIN_EMAIL.toLowerCase() &&
-      (isBcryptHash
-        ? await bcrypt.compare(password, ADMIN_PASSWORD)
-        : (() => {
-            console.warn('⚠️  ADMIN_PASSWORD is stored as plain text. Hash it with bcrypt for production.');
-            return password === ADMIN_PASSWORD;
-          })());
+      await bcrypt.compare(password, ADMIN_PASSWORD);
 
     if (adminPasswordMatch) {
       const { rows: existing } = await pool.query('SELECT * FROM users WHERE email = $1', [ADMIN_EMAIL.toLowerCase()]);
       let admin = existing[0];
       if (!admin) {
-        const ahash = await bcrypt.hash(ADMIN_PASSWORD, 12);
         const { rows } = await pool.query(
           `INSERT INTO users (name, email, password, role) VALUES ('Admin', $1, $2, 'admin') RETURNING *`,
-          [ADMIN_EMAIL.toLowerCase(), ahash]
+          [ADMIN_EMAIL.toLowerCase(), ADMIN_PASSWORD]
         );
         admin = rows[0];
       } else if (admin.role !== 'admin') {
