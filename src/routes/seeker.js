@@ -6,18 +6,31 @@ const { pool } = require('../db');
 const { auth } = require('../middleware/auth');
 
 // ── Resume storage directory ──────────────────────────────────────────────────
-// FIX #4: Resumes are written to disk (or a mounted volume) instead of being
-// stored as multi-megabyte base64 strings inside the database. The DB only
-// stores a short relative path like "resumes/<uuid>.pdf".
+// Bug #8 fix: the original code silently fell back to an ephemeral local path
+// in production (Railway resets the filesystem on every deploy), meaning all
+// uploaded resumes were lost after each deployment.
 //
-// In production (Railway): set RESUME_STORAGE_DIR to a persistent volume path,
-// e.g. /data/resumes. Without it, files land in <project_root>/uploads/resumes
-// which is ephemeral on Railway — acceptable only for local dev. Use an object
-// store (S3, Cloudflare R2) for true production durability; this change at
-// minimum stops the DB from bloating.
+// Fix: in production (NODE_ENV === 'production'), RESUME_STORAGE_DIR is now
+// REQUIRED and the server refuses to start without it, forcing an explicit
+// volume mount.  In development it still falls back to uploads/resumes so
+// local runs need no extra config.
+//
+// To deploy on Railway:
+//   1. Add a Volume mount at e.g. /data
+//   2. Set RESUME_STORAGE_DIR=/data/resumes in Railway env vars
 const RESUME_DIR = process.env.RESUME_STORAGE_DIR
   ? path.resolve(process.env.RESUME_STORAGE_DIR)
   : path.resolve(__dirname, '../../uploads/resumes');
+
+// Bug #8 fix: block production startup when no persistent volume is configured
+if (process.env.NODE_ENV === 'production' && !process.env.RESUME_STORAGE_DIR) {
+  console.error(
+    '❌ FATAL: RESUME_STORAGE_DIR is not set in production. ' +
+    'Resumes stored in the default path will be lost on every Railway deploy. ' +
+    'Mount a persistent volume and set RESUME_STORAGE_DIR to its path.'
+  );
+  process.exit(1);
+}
 
 // Ensure the directory exists on startup (safe to call repeatedly)
 try { fs.mkdirSync(RESUME_DIR, { recursive: true }); } catch { /* ignore */ }
