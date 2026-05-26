@@ -32,3 +32,13 @@ async function removeItem(key) {
 }
 
 export default { setItem, getItem, removeItem };
+
+// ── Onboarding helpers ────────────────────────────────────────────────────────
+// Extracted here so any file can import them without depending on the
+// OnboardingScreen module. Avoids silent breakage if OnboardingScreen is
+// renamed or its exports change.
+const ONBOARDING_KEY = 'nr_onboarded_v1';
+export async function isOnboarded() {
+  try { const v = await getItem(ONBOARDING_KEY); return v === '1'; } catch { return false; }
+}
+export async function markOnboarded() { await setItem(ONBOARDING_KEY, '1'); }
