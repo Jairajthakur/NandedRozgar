@@ -35,16 +35,65 @@ export default function ChatScreen({ route, navigation }) {
 
   useEffect(() => {
     navigation.setOptions({ headerTitle: otherName || 'Chat' });
-    load();
-    const interval = setInterval(load, 8000); // Poll every 8s
-    return () => clearInterval(interval);
-  }, []);
 
-  async function load() {
-    const r = await http('GET', `/api/chat/${otherId}/${jobId || 'null'}`);
-    if (r?.ok) setMessages(r.messages || []);
-    setLoading(false);
-  }
+    // Bug fix: guard against calling setState on an unmounted component.
+    // The previous code had no mounted-flag or AbortController, so if the
+    // component unmounted while a fetch was in flight (e.g. user navigated
+    // back during the 8-second poll cycle), setMessages / setLoading would
+    // fire on the dead component, causing a React warning and a potential
+    // memory leak from the lingering interval + pending fetch.
+    //
+    // Fix: (1) a `mounted` ref that is set to false in the cleanup function
+    // so every state call is gated; (2) an AbortController whose signal is
+    // passed to every fetch so in-flight requests are cancelled on unmount.
+    let mounted = true;
+    // Keep the latest AbortController so the interval can cancel the
+    // previous request before starting a new one.
+    let currentController = null;
+
+    async function load() {
+      // Cancel any previous in-flight request before starting the next poll.
+      if (currentController) currentController.abort();
+      currentController = new AbortController();
+      const controller = currentController;
+
+      // http() from api.js does not accept a signal yet, so we call fetch
+      // directly here with the abort signal.  The rest of the app can keep
+      // using http() unchanged.
+      try {
+        const token = await import('../utils/api').then(m => m.getToken());
+        const { BASE_URL } = await import('../utils/constants');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(
+          `${BASE_URL}/api/chat/${otherId}/${jobId || 'null'}`,
+          { headers, signal: controller.signal }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // Only update state if the component is still mounted AND this
+        // response belongs to the most recent request (not a stale one).
+        if (mounted && !controller.signal.aborted) {
+          if (data?.ok) setMessages(data.messages || []);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return; // expected on unmount / re-poll — ignore
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    const interval = setInterval(load, 8000); // Poll every 8 s
+
+    return () => {
+      mounted = false;              // stop all pending setState calls
+      clearInterval(interval);      // stop future polls
+      if (currentController) currentController.abort(); // cancel in-flight fetch
+    };
+  }, []);
 
   async function send() {
     const text = input.trim();
