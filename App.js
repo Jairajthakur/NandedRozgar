@@ -8,7 +8,7 @@ import {
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -43,6 +43,8 @@ import AnalyticsScreen      from './src/screens/AnalyticsScreen';
 import AlertsScreen         from './src/screens/AlertsScreen';
 import PromoteBusinessScreen from './src/screens/PromoteBusinessScreen';
 import HelpSupportScreen    from './src/screens/HelpSupportScreen';
+// Bug fix #15: was SellItemForm.jsx — renamed to .js to match all other screens
+// and avoid potential Metro / Expo SDK build pipeline resolution issues.
 import SellItemForm         from './src/screens/SellItemForm';
 import AboutScreen          from './src/screens/AboutScreen';
 import ChatScreen           from './src/screens/ChatScreen';
@@ -92,15 +94,28 @@ function useOnlineStatus() {
       if (state === 'active') check();
     });
 
-    // Web — listen to native online/offline events
+    // Web — listen to native online/offline events.
+    // Bug fix #17: the previous code added anonymous arrow functions as
+    // listeners but never removed them in the cleanup return, causing a
+    // listener leak each time the component remounted. Fix: store the handler
+    // references so the exact same function objects can be passed to
+    // removeEventListener in the cleanup.
+    let onOnline, onOffline;
     if (Platform.OS === 'web') {
-      window.addEventListener('online',  () => setIsOnline(true));
-      window.addEventListener('offline', () => setIsOnline(false));
+      onOnline  = () => setIsOnline(true);
+      onOffline = () => setIsOnline(false);
+      window.addEventListener('online',  onOnline);
+      window.addEventListener('offline', onOffline);
     }
 
     return () => {
       clearInterval(timerRef.current);
       sub.remove();
+      // Remove web listeners only if they were registered
+      if (Platform.OS === 'web' && onOnline && onOffline) {
+        window.removeEventListener('online',  onOnline);
+        window.removeEventListener('offline', onOffline);
+      }
     };
   }, [check]);
 
@@ -108,7 +123,14 @@ function useOnlineStatus() {
 }
 
 // ── Offline banner ─────────────────────────────────────────────────────────────
+// Bug fix #16: the previous implementation used position:'absolute', top:0 inside
+// NavigationContainer. On Android this put the banner behind the status bar in
+// certain configurations because NavigationContainer does not automatically apply
+// safe area insets. Fix: use useSafeAreaInsets() to read the actual status bar
+// height and apply it as paddingTop, so the banner always sits below the status
+// bar regardless of device or Android API level.
 function OfflineBanner() {
+  const insets = useSafeAreaInsets();
   const slideAnim = React.useRef(new Animated.Value(-48)).current;
 
   React.useEffect(() => {
@@ -121,7 +143,13 @@ function OfflineBanner() {
   }, []);
 
   return (
-    <Animated.View style={[s.offlineBanner, { transform: [{ translateY: slideAnim }] }]}>
+    <Animated.View style={[
+      s.offlineBanner,
+      // Push banner content below the status bar on Android; iOS inset is 0
+      // here because NavigationContainer already handles the top safe area.
+      { paddingTop: insets.top > 0 ? insets.top : 0 },
+      { transform: [{ translateY: slideAnim }] },
+    ]}>
       <Ionicons name="cloud-offline-outline" size={16} color="#fff" />
       <Text style={s.offlineTxt}>No internet connection</Text>
     </Animated.View>
@@ -438,7 +466,28 @@ function RootNavigator() {
       <Stack.Screen name="PromoteBusiness" component={PromoteBusinessScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Profile"    component={ProfileScreen}    options={{ headerShown: true, headerTitle: t('myProfile'), ...HEADER }} />
       <Stack.Screen name="AIMatch"    component={AIScreen}         options={{ headerShown: true, headerTitle: t('aiJobMatch'), ...HEADER }} />
-      <Stack.Screen name="AdminPanel"  component={AdminScreen}      options={{ headerShown: true, headerTitle: t('admin'), ...HEADER }} />
+      {/* Bug fix #14: AdminPanel was a duplicate of the root "Admin" screen and
+          was reachable by any authenticated user via navigation.navigate('AdminPanel').
+          The route is now guarded: non-admin users who land here (e.g. via a stale
+          deep link) are immediately redirected to the Main tab instead of seeing the
+          admin UI. The admin-only root screen ("Admin") is unaffected. */}
+      <Stack.Screen
+        name="AdminPanel"
+        options={{ headerShown: true, headerTitle: t('admin'), ...HEADER }}
+      >
+        {(props) => {
+          const { user: currentUser } = useAuth();
+          if (!currentUser || currentUser.role !== 'admin') {
+            // Redirect non-admins away — use a layout-effect so it fires before
+            // the first paint and the admin UI is never flashed to the user.
+            React.useLayoutEffect(() => {
+              props.navigation.replace('Main');
+            }, []);
+            return null;
+          }
+          return <AdminScreen {...props} />;
+        }}
+      </Stack.Screen>
       <Stack.Screen name="Referral"        component={ReferralScreen}        options={{ headerShown: true, headerTitle: t('referralTitle'), ...HEADER }} />
       <Stack.Screen name="MyApplications"  component={MyApplicationsScreen}  options={{ headerShown: true, headerTitle: 'My Applications',      ...HEADER }} />
       <Stack.Screen name="SeekerProfile"   component={SeekerProfileScreen}   options={{ headerShown: true, headerTitle: 'My Seeker Profile',     ...HEADER }} />
