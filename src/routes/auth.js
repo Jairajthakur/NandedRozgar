@@ -147,7 +147,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (ADMIN_EMAIL && ADMIN_PASSWORD && !ADMIN_PASSWORD.startsWith('$2')) {
       console.error(
         'FATAL CONFIG: ADMIN_PASSWORD must be a bcrypt hash (starting with $2). ' +
-        'Generate one with: node -e "console.log(require('bcryptjs').hashSync('yourpassword', 12))" ' +
+        `Generate one with: node -e "console.log(require('bcryptjs').hashSync('yourpassword', 12))" ` +
         'and set it as the ADMIN_PASSWORD environment variable.'
       );
       // Fail closed: do not allow login until the config is fixed.
