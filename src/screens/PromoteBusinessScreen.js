@@ -30,7 +30,7 @@ const PLANS = [
   {
     id: 'basic',
     name: 'Basic',
-    price: 99,
+    price: 29,
     days: 7,
     color: '#2563eb',
     bg: '#eff6ff',
@@ -41,7 +41,7 @@ const PLANS = [
   {
     id: 'popular',
     name: 'Popular',
-    price: 249,
+    price: 59,
     days: 15,
     color: ORANGE,
     bg: '#fff7ed',
@@ -52,7 +52,7 @@ const PLANS = [
   {
     id: 'premium',
     name: 'Premium',
-    price: 499,
+    price: 99,
     days: 30,
     color: PURPLE,
     bg: '#faf5ff',
