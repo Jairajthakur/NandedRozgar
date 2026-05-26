@@ -119,6 +119,22 @@ function checkPayment(req, expectedAmountPaise) {
   return verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
 }
 
+// ── Helper: replay-attack guard ───────────────────────────────────────────────
+// Rejects any razorpay_payment_id already in the payments table.
+// The DB also enforces this via a UNIQUE partial index, but checking here gives
+// a clean error message instead of a raw constraint violation.
+async function rejectIfDuplicatePayment(paymentId) {
+  if (!paymentId) return null; // free-plan — no payment ID to check
+  const { rows } = await pool.query(
+    'SELECT id FROM payments WHERE razorpay_payment_id = $1 LIMIT 1',
+    [paymentId]
+  );
+  if (rows.length > 0) {
+    return { ok: false, error: 'This payment has already been used.' };
+  }
+  return null; // null means no duplicate — proceed
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // POST /api/payments/order — create Razorpay order (Step 1, shared by all screens)
 //
@@ -209,6 +225,11 @@ router.post('/verify', auth, async (req, res) => {
 
     const check = checkPayment(req, expectedAmount);
     if (!check.ok) return res.json({ ok: false, error: check.error });
+    // Replay-attack guard: reject if this payment ID was already used
+    if (!check.free) {
+      const dupErr = await rejectIfDuplicatePayment(req.body.razorpay_payment_id);
+      if (dupErr) return res.json(dupErr);
+    }
 
     // Save payment record
     const paymentId = await savePayment(req.user.id, {
@@ -295,6 +316,11 @@ router.post('/verify/room', auth, async (req, res) => {
 
     const check = checkPayment(req, expectedAmount);
     if (!check.ok) return res.json({ ok: false, error: check.error });
+    // Replay-attack guard: reject if this payment ID was already used
+    if (!check.free) {
+      const dupErr = await rejectIfDuplicatePayment(req.body.razorpay_payment_id);
+      if (dupErr) return res.json(dupErr);
+    }
 
     await savePayment(req.user.id, {
       amount, plan,
@@ -371,6 +397,11 @@ router.post('/verify/vehicle', auth, async (req, res) => {
 
     const check = checkPayment(req, expectedAmount);
     if (!check.ok) return res.json({ ok: false, error: check.error });
+    // Replay-attack guard: reject if this payment ID was already used
+    if (!check.free) {
+      const dupErr = await rejectIfDuplicatePayment(req.body.razorpay_payment_id);
+      if (dupErr) return res.json(dupErr);
+    }
 
     await savePayment(req.user.id, {
       amount, plan,
@@ -452,6 +483,11 @@ router.post('/verify/buysell', auth, async (req, res) => {
 
     const check = checkPayment(req, expectedAmount);
     if (!check.ok) return res.json({ ok: false, error: check.error });
+    // Replay-attack guard: reject if this payment ID was already used
+    if (!check.free) {
+      const dupErr = await rejectIfDuplicatePayment(req.body.razorpay_payment_id);
+      if (dupErr) return res.json(dupErr);
+    }
 
     await savePayment(req.user.id, {
       amount, plan,
@@ -531,6 +567,11 @@ router.post('/verify/promotion', auth, async (req, res) => {
     const expectedAmountPaise = planMeta.price * 100;
     const check = checkPayment(req, expectedAmountPaise);
     if (!check.ok) return res.json({ ok: false, error: check.error });
+    // Replay-attack guard: reject if this payment ID was already used
+    if (!check.free) {
+      const dupErr = await rejectIfDuplicatePayment(req.body.razorpay_payment_id);
+      if (dupErr) return res.json(dupErr);
+    }
 
     const { price, days } = planMeta;
     const accentColor     = BANNER_COLORS[promotion?.bannerStyle] || '#f97316';
