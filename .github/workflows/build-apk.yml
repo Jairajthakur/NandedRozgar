@@ -101,13 +101,6 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli@latest
 
-      - name: Inject EAS Project ID into app.json
-        run: |
-          jq --arg id "${{ secrets.EXPO_PROJECT_ID }}" \
-            '.expo.extra.eas.projectId = $id' \
-            app.json > app.json.tmp && mv app.json.tmp app.json
-          echo "✅ Project ID injected."
-
       - name: Write google-services.json
         run: |
           echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
@@ -117,6 +110,7 @@ jobs:
         run: eas build --platform android --profile preview --local --output ./CityPlus.apk --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
           NODE_ENV: production
           EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
