@@ -145,11 +145,12 @@ function LangModal({ visible, current, onSelect, onClose }) {
 }
 
 // ── Ticker ─────────────────────────────────────────────────────────────────────
-function getTickerItems(t) {
+function getTickerItems(t, districtLocalName) {
+  const d = districtLocalName || '';
   return [
-    { icon: 'checkmark-circle',   text: t('tickerHiring') },
+    { icon: 'checkmark-circle',   text: t('tickerHiring').replace('{DISTRICT}', d) },
     { icon: 'bicycle-outline',    text: t('tickerDelivery') },
-    { icon: 'home-outline',       text: t('tickerRooms') },
+    { icon: 'home-outline',       text: t('tickerRooms').replace('{DISTRICT}', d) },
     { icon: 'car-outline',        text: t('tickerCars') },
     { icon: 'cube-outline',       text: t('tickerBuySell') },
     { icon: 'call-outline',       text: 'TELECALLER JOBS — APPLY NOW' },
@@ -193,10 +194,10 @@ function WebScrollBanner() {
 // ── Ticker ─────────────────────────────────────────────────────────────────────
 const ITEM_H = 38; // must match s.ticker height
 
-function TickerBanner({ t }) {
+function TickerBanner({ t, districtLocalName }) {
   if (IS_WEB) return <WebScrollBanner />;
 
-  const TICKER_ITEMS = getTickerItems(t);
+  const TICKER_ITEMS = getTickerItems(t, districtLocalName);
   const DOUBLED = [...TICKER_ITEMS, ...TICKER_ITEMS]; // seamless loop
   const translateY = useRef(new Animated.Value(0)).current;
 
@@ -726,7 +727,7 @@ export default function HomeScreen() {
             </FadeSlide>
 
             {/* ── Ticker ── */}
-            <TickerBanner t={t} />
+            <TickerBanner t={t} districtLocalName={districtLocalName} />
 
             {/* ── Explore Grid ── */}
             <FadeSlide delay={100}>
@@ -809,7 +810,7 @@ export default function HomeScreen() {
             <FadeSlide delay={60}>
               <View style={ws.postCtaCard}>
                 <Text style={ws.postCtaTitle}>{t('postForFree')}</Text>
-                <Text style={ws.postCtaSub}>{t('postForFreeSub')}</Text>
+                <Text style={ws.postCtaSub}>{t('postForFreeSub').replace('{DISTRICT}', districtLocalName || '')}</Text>
                 <TouchableOpacity style={ws.postCtaBtn} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
                   <Ionicons name="add-circle-outline" size={16} color="#fff" />
                   <Text style={ws.postCtaBtnTxt}>{t('postAnAd')}</Text>
@@ -1037,7 +1038,7 @@ export default function HomeScreen() {
           </View>
         </FadeSlide>
 
-        <TickerBanner t={t} />
+        <TickerBanner t={t} districtLocalName={districtLocalName} />
 
         {/* Recent Jobs */}
         <FadeSlide delay={200}>
@@ -1084,7 +1085,7 @@ export default function HomeScreen() {
               <View style={s.aiIconWrap}><Ionicons name="sparkles" size={22} color={ORANGE} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={s.aiTitle}>{t('homeAiTitle')}</Text>
-                <Text style={s.aiPrompt}>{t('homeAiPrompt')}</Text>
+                <Text style={s.aiPrompt}>{t('homeAiPrompt').replace('{DISTRICT}', districtLocalName || '')}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={ORANGE} />
