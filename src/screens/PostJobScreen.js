@@ -47,19 +47,31 @@ const JOB_TYPES = [
 
 const OPENINGS_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '10+'];
 
-const LOCATIONS = [
-  // ── Nanded City localities ──
-  'Nanded City', 'Vazirabad', 'Shivajinagar', 'Vishnupuri', 'Taroda Naka',
-  'Cidco', 'Old Nanded', 'Naigaon', 'New Mondha', 'Novena Colony',
-  'Kasturba Nagar', 'Santnagar', 'Padampur', 'Shantinagar',
-  'Guru Nanak Colony', 'Aurangpura', 'Subhash Nagar',
-  // ── Nanded District Talukas ──
-  'Nanded (Taluka)', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Bhokar',
-  'Kinwat', 'Deglur', 'Biloli', 'Naigaon (Taluka)', 'Loha',
-  'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
-  'Mudkhed',
-  'Other',
-];
+const LOCATIONS_BY_DISTRICT = {
+  nanded: [
+    // ── Nanded City localities ──
+    'Nanded City', 'Vazirabad', 'Shivajinagar', 'Vishnupuri', 'Taroda Naka',
+    'Cidco', 'Old Nanded', 'Naigaon', 'New Mondha', 'Novena Colony',
+    'Kasturba Nagar', 'Santnagar', 'Padampur', 'Shantinagar',
+    'Guru Nanak Colony', 'Aurangpura', 'Subhash Nagar',
+    'SRTMU Area', 'Station Road',
+    // ── Nanded District Talukas ──
+    'Nanded (Taluka)', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Bhokar',
+    'Kinwat', 'Deglur', 'Biloli', 'Naigaon (Taluka)', 'Loha',
+    'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
+    'Mudkhed', 'Other',
+  ],
+  latur: [
+    // ── Latur City localities ──
+    'Latur City', 'Ausa Road', 'Udgir Road', 'Railway Station Area',
+    'Nit Nagar', 'Gandhi Nagar', 'Shivaji Nagar', 'Budhwar Peth',
+    'Sadar Bazar', 'Renuka Nagar',
+    // ── Latur District Talukas ──
+    'Latur (Taluka)', 'Ausa', 'Udgir', 'Nilanga', 'Deoni',
+    'Chakur', 'Renapur', 'Ahmedpur', 'Shirur Anantpal', 'Jalkot',
+    'Other',
+  ],
+};
 
 const EDUCATION_OPTIONS = [
   { id: 'none',     label: 'No Minimum',       sub: 'Any educational background' },
@@ -223,7 +235,8 @@ export default function PostJobScreen() {
   const nav = useNavigation();
   const insets = useSafeAreaInsets();
   const { user, loadJobs } = useAuth();
-  const { district } = useDistrict();
+  const { district, currentDistrict } = useDistrict();
+  const LOCATIONS = LOCATIONS_BY_DISTRICT[currentDistrict?.id] || LOCATIONS_BY_DISTRICT.nanded;
   const scrollRef = useRef(null);
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
 
@@ -262,7 +275,7 @@ export default function PostJobScreen() {
   };
 
   // Step 2
-  const [location,   setLocation]   = useState('Nanded City');
+  const [location,   setLocation]   = useState(() => (LOCATIONS_BY_DISTRICT[currentDistrict?.id] || LOCATIONS_BY_DISTRICT.nanded)[0]);
   const [salaryMin,  setSalaryMin]  = useState('');
   const [salaryMax,  setSalaryMax]  = useState('');
   const [education,  setEducation]  = useState('10th');
@@ -520,6 +533,24 @@ export default function PostJobScreen() {
           <StepBanner step={2} title="Location & Pay" subtitle="Set location, salary & requirements" onBack={goBack} />
           <View style={s.card}>
             <SectionLabel text="WORK LOCATION" required />
+            {currentDistrict && (
+              <TouchableOpacity
+                onPress={() => nav.navigate('Home')}
+                activeOpacity={0.75}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 6,
+                  backgroundColor: '#fff7ed', borderRadius: 10,
+                  paddingHorizontal: 12, paddingVertical: 8,
+                  borderWidth: 1, borderColor: '#fed7aa', marginBottom: 10,
+                }}
+              >
+                <Ionicons name="location" size={14} color={ORANGE} />
+                <Text style={{ fontSize: 13, color: '#92400e', fontWeight: '600', flex: 1 }}>
+                  Posting in <Text style={{ color: ORANGE }}>{currentDistrict.name}</Text> district
+                </Text>
+                <Text style={{ fontSize: 11, color: ORANGE }}>Change ›</Text>
+              </TouchableOpacity>
+            )}
             <Dropdown value={location} options={LOCATIONS} placeholder="Select location" onSelect={setLocation} />
 
             <View style={{ height: 18 }} />
