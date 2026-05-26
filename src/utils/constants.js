@@ -48,7 +48,7 @@ export const CAT_ICONS = {
 };
 
 export const PRICING = {
-  basic: 0,
+  free: 0,
   featured: 99,
   urgent: 49,
 };
@@ -70,6 +70,6 @@ export const ROOM_PLANS = [
 ];
 
 export const BUYSELL_PLANS = [
-  { id: 'free',     label: 'Free',     price: 0,   description: 'List your item for 30 days' },
+  { id: 'free',     label: 'Free',     price: 0,   description: 'List your item for 15 days' },
   { id: 'featured', label: 'Featured', price: 49,  description: 'Top placement in buy & sell' },
 ];
