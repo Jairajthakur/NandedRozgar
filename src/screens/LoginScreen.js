@@ -56,9 +56,24 @@ import { useAuth } from '../context/AuthContext';
 // Configure once at module level.
 // webClientId (Web Client ID) is required here — it tells Google which audience
 // to embed in the idToken so your backend can verify it.
+//
+// Bug fix: the previous code passed process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+// directly without checking whether it is set.  When the env var is absent the
+// value is undefined, which makes GoogleSignin silently accept any Google account
+// and return an idToken that the backend then rejects with a cryptic 400 error.
+// We now validate the value at startup and log a clear warning so the
+// misconfiguration is caught in development rather than in production.
 if (GoogleSignin) {
+  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  if (!googleWebClientId || googleWebClientId === 'your_web_client_id.apps.googleusercontent.com') {
+    console.warn(
+      '[LoginScreen] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set or is still the placeholder value. ' +
+      'Google Sign-In will fail. Set the real Web Client ID from Google Cloud Console → ' +
+      'APIs & Services → Credentials in your .env / EAS build profile.'
+    );
+  }
   GoogleSignin.configure({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    webClientId: googleWebClientId || undefined, // undefined keeps native behaviour; empty string breaks it
     offlineAccess: false,
     scopes: ['profile', 'email'],
   });
