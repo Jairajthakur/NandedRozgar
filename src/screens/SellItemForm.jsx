@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 const ORANGE = "#f97316";
 const ORANGE_LIGHT = "#fff7ed";
@@ -48,13 +48,56 @@ const STEP_META = [
 
 const TOTAL = 5;
 
-// ── Mock backend API ──────────────────────────────────────────────────────────
-async function mockPostItem(data) {
-  await new Promise(r => setTimeout(r, 1800));
-  if (Math.random() > 0.05) {
-    return { ok: true, id: "item_" + Date.now(), message: "Item listed successfully!" };
+// ── Real backend API call ─────────────────────────────────────────────────────
+// Photos are sent as plain file references (FormData multipart), NOT base64,
+// to avoid bloated JSON payloads and the 5 MB body limit. The server stores
+// the uploaded file URLs (e.g. from object storage) and returns them in the
+// listing response.
+async function postItemToServer(formData, photoFiles) {
+  try {
+    const token = localStorage.getItem("cityplus_token") || "";
+
+    // Build a multipart/form-data request so images are streamed as binary
+    // rather than inflated ~33% as base64 text stored in the database.
+    const body = new FormData();
+    body.append("title",       formData.title.trim());
+    body.append("category",    formData.category);
+    body.append("condition",   formData.condition);
+    body.append("age",         formData.age);
+    body.append("price",       String(parseInt(formData.price) || 0));
+    body.append("negotiable",  String(formData.negotiable));
+    body.append("area",        formData.area);
+    body.append("description", formData.description.trim());
+    body.append("whatsapp",    formData.whatsapp.trim());
+    body.append("plan_days",   String(formData.plan.days));
+    body.append("plan_label",  formData.plan.label);
+    body.append("plan_price",  String(formData.plan.price));
+
+    // Attach each photo as a binary file — not base64
+    photoFiles.forEach((file, i) => {
+      body.append(`photo_${i}`, file, file.name || `photo_${i}.jpg`);
+    });
+
+    const apiBase = (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_API_URL)
+      || "https://localloops-production.up.railway.app";
+
+    const res = await fetch(`${apiBase}/api/buysell`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      // Do NOT set Content-Type — the browser sets it automatically with the
+      // correct multipart boundary when the body is FormData.
+      body,
+    });
+
+    const text = await res.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch {
+      return { ok: false, error: "Server error. Please try again." };
+    }
+    return { ok: data.ok ?? res.ok, id: data.id, error: data.error };
+  } catch (e) {
+    return { ok: false, error: "Unable to connect. Check your internet connection." };
   }
-  return { ok: false, error: "Server error. Please try again." };
 }
 
 // ── Animated slide wrapper ────────────────────────────────────────────────────
@@ -239,7 +282,10 @@ export default function SellItemForm() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
-  const [uploadedPhotos, setUploadedPhotos] = useState([]);
+  // Store File objects (not blob URLs) so we can send them as multipart binary
+  const [photoFiles, setPhotoFiles] = useState([]);
+  // Blob URL previews only used for display — never stored in DB
+  const [photoPreviews, setPhotoPreviews] = useState([]);
   const [customCategory, setCustomCategory] = useState('');
   const fileInputRef = useRef(null);
 
@@ -283,16 +329,21 @@ export default function SellItemForm() {
   }
 
   async function submit() {
-    const e = validate(5);
     if (!form.title || !form.price || !form.whatsapp) {
       setErrors({ submit: "Title, price and WhatsApp are required" });
       return;
     }
+    if (form.category === "Other" && !customCategory.trim()) {
+      setErrors({ submit: "Please type your category name" });
+      return;
+    }
     setLoading(true);
-    const res = await mockPostItem({
-      ...form, photos: uploadedPhotos.length,
-      planDays: form.plan.days, planPrice: form.plan.price,
-    });
+    // Use the real backend — photos sent as binary multipart, not base64
+    const finalForm = {
+      ...form,
+      category: form.category === "Other" ? customCategory.trim() : form.category,
+    };
+    const res = await postItemToServer(finalForm, photoFiles);
     setLoading(false);
     if (res.ok) setSubmitted(true);
     else setErrors({ submit: res.error });
@@ -300,8 +351,33 @@ export default function SellItemForm() {
 
   function handlePhotoUpload(e) {
     const files = Array.from(e.target.files);
+    // Keep File objects for the real API call (binary multipart)
+    setPhotoFiles(prev => [...prev, ...files].slice(0, 6));
+    // Generate blob URL previews only for display in the UI
     const previews = files.map(f => URL.createObjectURL(f));
-    setUploadedPhotos(prev => [...prev, ...previews].slice(0, 6));
+    setPhotoPreviews(prev => [...prev, ...previews].slice(0, 6));
+  }
+
+  function removePhoto(index) {
+    // Revoke the blob URL to free memory
+    URL.revokeObjectURL(photoPreviews[index]);
+    setPhotoFiles(prev => prev.filter((_, i) => i !== index));
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function resetForm() {
+    // Revoke any remaining blob preview URLs
+    photoPreviews.forEach(url => URL.revokeObjectURL(url));
+    setSubmitted(false);
+    setStep(1);
+    setForm({
+      title: "", category: "Electronics", condition: "Good",
+      age: "1-2 Years", price: "", negotiable: true,
+      area: "Nanded City", description: "", whatsapp: "", plan: PLANS[1],
+    });
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
+    setCustomCategory('');
   }
 
   // ── Success screen ─────────────────────────────────────────────────────────
@@ -330,7 +406,7 @@ export default function SellItemForm() {
         }}>
           📅 Active for <strong>{form.plan.label}</strong> · Paid ₹{form.plan.price}
         </div>
-        <button onClick={() => { setSubmitted(false); setStep(1); setForm({ title: "", category: "Electronics", condition: "Good", age: "1-2 Years", price: "", negotiable: true, area: "Nanded City", description: "", whatsapp: "", plan: PLANS[1] }); setUploadedPhotos([]); }} style={{
+        <button onClick={resetForm} style={{
           background: ORANGE, color: "#fff", border: "none",
           borderRadius: 14, padding: "14px 32px",
           fontSize: 15, fontWeight: 800, cursor: "pointer",
@@ -435,13 +511,14 @@ export default function SellItemForm() {
           <div style={{ fontSize: 15, fontWeight: 700, color: "#333" }}>Upload item photos</div>
           <div style={{ fontSize: 12, color: "#aaa" }}>Include multiple angles and any damage</div>
         </div>
+        {/* accept only images; multiple allowed; captured as File objects, not base64 */}
         <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{ display: "none" }} />
-        {uploadedPhotos.length > 0 && (
+        {photoPreviews.length > 0 && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-            {uploadedPhotos.map((src, i) => (
+            {photoPreviews.map((src, i) => (
               <div key={i} style={{ position: "relative" }}>
                 <img src={src} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10, border: "1.5px solid #ebebeb" }} />
-                <button onClick={() => setUploadedPhotos(p => p.filter((_, j) => j !== i))} style={{
+                <button onClick={() => removePhoto(i)} style={{
                   position: "absolute", top: -6, right: -6, width: 20, height: 20,
                   borderRadius: "50%", background: "#ef4444", color: "#fff",
                   border: "none", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
