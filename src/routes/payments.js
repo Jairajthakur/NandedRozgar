@@ -613,9 +613,9 @@ router.post('/verify/buysell', auth, async (req, res) => {
       INSERT INTO buysell_items (
         posted_by, title, category, condition, age,
         price, negotiable, area, description, whatsapp,
-        photos, plan_days, plan_label, plan_price, expires_at
+        photos, plan_days, plan_label, plan_price, expires_at, district
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
       ) RETURNING *
     `, [
       req.user.id,
@@ -630,7 +630,7 @@ router.post('/verify/buysell', auth, async (req, res) => {
       item.whatsapp.trim(),
       JSON.stringify(item.photos || []),
       planDays, item.planLabel || plan || '15 Days', Math.round(expectedAmount / 100),
-      expiresAt,
+      expiresAt, item.district || 'nanded',
     ]);
 
     // FIX #6
