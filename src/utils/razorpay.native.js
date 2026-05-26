@@ -17,8 +17,43 @@ import { WebView } from 'react-native-webview';
 import { RAZORPAY_KEY_ID } from './constants';
 import { http } from './api';
 
+// ── Sanitise a value so it is safe to embed inside a JS string literal ─────────
+// Escapes backslashes, double-quotes, single-quotes, and HTML angle brackets.
+// This prevents user-supplied data (name, email, phone, description) from
+// breaking out of the JS string context inside the injected HTML page.
+function escapeForJS(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g,  '\\"')
+    .replace(/'/g,  "\\'")
+    .replace(/</g,  '\\u003C')
+    .replace(/>/g,  '\\u003E')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r');
+}
+
 // ── HTML page injected into the WebView ───────────────────────────────────────
+// All dynamic values are passed via a <script id="cfg"> JSON block and read by
+// the inline script, completely avoiding string-interpolation injection.
 function buildCheckoutHTML({ orderId, amount, currency, description, userName, userEmail, userPhone, keyId }) {
+  // Encode the options as JSON and embed in a <script type="application/json">
+  // element. The inline JS reads it with JSON.parse — no string interpolation of
+  // user data anywhere in the JS execution context.
+  const cfg = JSON.stringify({
+    key:         escapeForJS(keyId),
+    amount:      String(amount),
+    currency:    escapeForJS(currency || 'INR'),
+    name:        'CityPlus',
+    description: escapeForJS(description || 'Listing Payment'),
+    order_id:    escapeForJS(orderId),
+    prefill: {
+      name:    escapeForJS(userName),
+      email:   escapeForJS(userEmail),
+      contact: escapeForJS(userPhone),
+    },
+  });
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -32,20 +67,18 @@ function buildCheckoutHTML({ orderId, amount, currency, description, userName, u
 </head>
 <body>
   <div id="loader">Opening payment gateway…</div>
+  <script type="application/json" id="rzp-cfg">${cfg}</script>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script>
+    var opts = JSON.parse(document.getElementById('rzp-cfg').textContent);
     var options = {
-      key:         "${keyId}",
-      amount:      "${amount}",
-      currency:    "${currency || 'INR'}",
-      name:        "CityPlus",
-      description: "${description || 'Listing Payment'}",
-      order_id:    "${orderId}",
-      prefill: {
-        name:    "${userName  || ''}",
-        email:   "${userEmail || ''}",
-        contact: "${userPhone || ''}"
-      },
+      key:         opts.key,
+      amount:      opts.amount,
+      currency:    opts.currency,
+      name:        opts.name,
+      description: opts.description,
+      order_id:    opts.order_id,
+      prefill:     opts.prefill,
       theme: { color: "#f97316" },
       modal: {
         ondismiss: function() {
