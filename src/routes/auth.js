@@ -639,7 +639,12 @@ router.delete('/account', auth, async (req, res) => {
     await client.query(`UPDATE rooms        SET status='deleted' WHERE posted_by=$1`, [userId]);
     await client.query(`UPDATE vehicles     SET status='deleted' WHERE posted_by=$1`, [userId]);
     await client.query(`UPDATE buysell_items SET status='deleted' WHERE posted_by=$1`, [userId]);
-    await client.query(`DELETE FROM otp_sessions WHERE phone=$1`, [req.user.phone]).catch(() => {});
+    // Only delete OTP sessions if the user had a phone — avoids a silent no-op
+    // from `WHERE phone = NULL` (SQL = NULL never matches; needs IS NULL).
+    // Error is no longer swallowed so a DB failure still triggers ROLLBACK.
+    if (req.user.phone) {
+      await client.query(`DELETE FROM otp_sessions WHERE phone=$1`, [req.user.phone]);
+    }
     await client.query('COMMIT');
     return res.json({ ok: true, message: 'Your account has been deleted.' });
   } catch (err) {
