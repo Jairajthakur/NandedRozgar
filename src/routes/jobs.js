@@ -78,21 +78,34 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/jobs — create a job
+// POST /api/jobs — create a FREE job (no payment flow)
+//
+// FIX #2: featured and urgent are ALWAYS set to false here, regardless of what
+// the client sends. Paid features (featured/urgent) are only granted by the
+// payment-verified route POST /api/payments/verify, which derives those flags
+// from the server-authoritative plan, not from client input.
+//
+// FIX #7 (partial): planDays is capped at the server maximum for the free plan
+// (30 days). The client cannot extend a free listing by sending a large value.
+const FREE_PLAN_MAX_DAYS = 30;
+
 router.post('/', auth, async (req, res) => {
   try {
     const {
       title, company, category, type, location, salary,
       phone, whatsapp, description, skills, requirements,
       education, experience, hours, openings,
-      featured, urgent, fresherOk, planDays,
+      fresherOk, planDays,
     } = req.body;
+    // NOTE: `featured` and `urgent` from req.body are intentionally ignored —
+    // they are always false on the free direct-post route.
 
     if (!title || !category || !location) {
       return res.json({ ok: false, error: 'Title, category and location are required' });
     }
 
-    const days = parseInt(planDays) || 30;
+    // FIX #7: cap days at server maximum; ignore client-supplied value if too large
+    const days = Math.min(Math.max(1, parseInt(planDays) || FREE_PLAN_MAX_DAYS), FREE_PLAN_MAX_DAYS);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
@@ -126,7 +139,9 @@ router.post('/', auth, async (req, res) => {
       phone, whatsapp || phone, description,
       skillsArr, reqArr,
       education || '', experience || '', hours || '', openings || '1',
-      !!featured, !!urgent, isFresherOk, expiresAt,
+      // FIX #2: hardcoded false — free listings are never featured or urgent
+      false, false,
+      isFresherOk, expiresAt,
     ]);
 
     res.json({ ok: true, job: rows[0] });
