@@ -92,15 +92,26 @@ router.post('/register', registerLimiter, async (req, res) => {
       return res.json({ ok: false, error: 'Enter a valid email address' });
     if (!/[0-9]/.test(password) && !/[^A-Za-z0-9]/.test(password))
       return res.json({ ok: false, error: 'Password must contain at least one number or symbol' });
+    // Phone is optional, but if provided it must be a valid 10-digit Indian mobile number.
+    // Storing garbage breaks SMS/WhatsApp features and pollutes the DB.
+    if (phone !== undefined && phone !== null && phone !== '') {
+      const cleaned = String(phone).replace(/\s+/g, '');
+      if (!/^[6-9]\d{9}$/.test(cleaned))
+        return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
+    }
 
     const validDistricts = ['nanded', 'latur'];
     const userDistrict = validDistricts.includes(district) ? district : 'nanded';
+    // Use the cleaned (whitespace-stripped) phone so DB comparisons are reliable
+    const cleanedPhone = (phone !== undefined && phone !== null && phone !== '')
+      ? String(phone).replace(/\s+/g, '')
+      : null;
 
     const hash = await bcrypt.hash(password, 12);
     const { rows } = await pool.query(
       `INSERT INTO users (name, email, password, role, phone, company, district)
        VALUES ($1, $2, $3, 'user', $4, $5, $6) RETURNING *`,
-      [name.trim(), email.toLowerCase().trim(), hash, phone || null, company || null, userDistrict]
+      [name.trim(), email.toLowerCase().trim(), hash, cleanedPhone, company || null, userDistrict]
     );
     const user = rows[0];
 
