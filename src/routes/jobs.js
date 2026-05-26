@@ -190,7 +190,9 @@ router.post('/:id/apply', auth, async (req, res) => {
        ON CONFLICT DO NOTHING`,
       [req.params.id, req.user.id]
     );
-    await pool.query('UPDATE jobs SET applicant_count = applicant_count + 1 WHERE id = $1', [req.params.id]);
+    // applicant_count is computed live in GET /api/jobs via COUNT(*) on the
+    // applications table — updating the jobs column here would cause it to
+    // diverge from the real count on conflict, rejection, or withdrawal.
     res.json({ ok: true, message: 'Application submitted!' });
   } catch (err) {
     console.error(err);
