@@ -45,58 +45,36 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli@latest
 
-      # Write real google-services.json into the working directory.
-      # This file is also committed to the repo as a placeholder so EAS
-      # includes it in the project tarball — the workflow then overwrites
-      # the copy in the tarball using the inject step below.
-      - name: Write google-services.json to working directory
+      - name: Write google-services.json
         run: |
           echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
           node -e "JSON.parse(require('fs').readFileSync('google-services.json','utf8'))" \
             && echo "✅ google-services.json is valid JSON." \
             || { echo "❌ GOOGLE_SERVICES_JSON secret is not valid JSON."; exit 1; }
 
-      # EAS local build tarballs the project into /tmp/runner/eas-cli-nodejs/*.tar.gz
-      # BEFORE running prebuild. We watch for that tarball to appear, then inject
-      # our real google-services.json into it so prebuild finds it.
-      - name: Build APK (with google-services.json injection)
+      - name: Build APK
         run: |
-          # Start a background watcher that injects google-services.json
-          # into the EAS project tarball as soon as EAS creates it.
+          # Background watcher: copies google-services.json directly into the
+          # EAS build extraction directory as soon as it appears.
+          # This is simpler and safer than modifying the tarball.
           (
-            echo "🔍 Watcher: waiting for EAS project tarball..."
-            for i in $(seq 1 120); do
-              TAR=$(ls /tmp/runner/eas-cli-nodejs/*.tar.gz 2>/dev/null | head -1)
-              if [ -n "$TAR" ]; then
-                echo "📦 Watcher: found tarball at $TAR"
-                # Give EAS a moment to finish writing the tar
-                sleep 1
-                # Inject google-services.json into the tarball
-                tar --append --file="$TAR" \
-                  --transform='s|.*|google-services.json|' \
-                  google-services.json 2>/dev/null \
-                  && echo "✅ Watcher: injected google-services.json into tarball" \
-                  || echo "⚠️  Watcher: tar --append failed, trying repack..."
-
-                # Fallback: if --append didn't work, repack the tarball
-                if ! tar --append --file="$TAR" --transform='s|.*|google-services.json|' google-services.json 2>/dev/null; then
-                  TMPDIR=$(mktemp -d)
-                  tar -xzf "$TAR" -C "$TMPDIR"
-                  cp google-services.json "$TMPDIR/google-services.json"
-                  tar -czf "$TAR" -C "$TMPDIR" .
-                  rm -rf "$TMPDIR"
-                  echo "✅ Watcher: repacked tarball with google-services.json"
-                fi
-
-                # Also watch for the extracted build dir and copy there too
+            echo "🔍 Watcher: waiting for EAS build directory..."
+            for i in $(seq 1 180); do
+              BUILD_DIR=$(ls -d /tmp/runner/eas-build-local-nodejs/*/build 2>/dev/null | head -1)
+              if [ -n "$BUILD_DIR" ]; then
+                echo "📁 Watcher: found build dir at $BUILD_DIR"
+                cp "$GITHUB_WORKSPACE/google-services.json" "$BUILD_DIR/google-services.json"
+                echo "✅ Watcher: copied google-services.json to $BUILD_DIR"
+                # Keep watching in case the dir is recreated
+                LAST_DIR="$BUILD_DIR"
                 for j in $(seq 1 60); do
-                  BUILD_DIR=$(ls -d /tmp/runner/eas-build-local-nodejs/*/build 2>/dev/null | head -1)
-                  if [ -n "$BUILD_DIR" ]; then
-                    cp google-services.json "$BUILD_DIR/google-services.json"
-                    echo "✅ Watcher: copied google-services.json to $BUILD_DIR"
-                    break
-                  fi
                   sleep 2
+                  BUILD_DIR=$(ls -d /tmp/runner/eas-build-local-nodejs/*/build 2>/dev/null | head -1)
+                  if [ -n "$BUILD_DIR" ] && [ "$BUILD_DIR" != "$LAST_DIR" ]; then
+                    cp "$GITHUB_WORKSPACE/google-services.json" "$BUILD_DIR/google-services.json"
+                    echo "✅ Watcher: copied google-services.json to new dir $BUILD_DIR"
+                    LAST_DIR="$BUILD_DIR"
+                  fi
                 done
                 break
               fi
@@ -106,15 +84,12 @@ jobs:
           ) &
           WATCHER_PID=$!
 
-          # Run the actual EAS build
           eas build --platform android --profile preview --local \
             --output ./CityPlus.apk --non-interactive
           BUILD_EXIT=$?
 
-          # Clean up watcher
           kill $WATCHER_PID 2>/dev/null || true
           wait $WATCHER_PID 2>/dev/null || true
-
           exit $BUILD_EXIT
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
