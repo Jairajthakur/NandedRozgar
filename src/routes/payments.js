@@ -121,13 +121,40 @@ function checkPayment(req, expectedAmountPaise) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // POST /api/payments/order — create Razorpay order (Step 1, shared by all screens)
+//
+// Expects: { listingType, plan, couponId?, description? }
+//   listingType — one of: job | room | vehicle | buysell
+//   plan        — one of the keys in PLAN_PRICES for that listing type
+//   couponId    — optional; validated server-side before applying discount
+//
+// The client MUST NOT send an amount. The server derives the canonical price
+// from PLAN_PRICES so it cannot be manipulated by the caller.
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/order', auth, async (req, res) => {
   try {
-    const { amount, description } = req.body; // amount in paise
+    const { listingType, plan, couponId, description } = req.body;
 
-    if (amount === undefined || amount < 0) {
-      return res.json({ ok: false, error: 'Invalid amount.' });
+    // Validate listing type and plan against server-authoritative price table
+    if (!listingType || !plan) {
+      return res.json({ ok: false, error: 'listingType and plan are required.' });
+    }
+
+    // Resolve coupon server-side (same logic as /verify routes)
+    let couponRow = null;
+    if (couponId) {
+      const { rows: cr } = await pool.query(
+        `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
+           AND (valid_until IS NULL OR valid_until >= NOW())
+           AND (max_uses IS NULL OR uses_count < max_uses)`,
+        [couponId]
+      );
+      couponRow = cr[0] || null;
+    }
+
+    // Derive the canonical amount — returns null for unrecognised type/plan
+    const amount = resolveExpectedAmount(listingType, plan, couponRow);
+    if (amount === null) {
+      return res.json({ ok: false, error: 'Invalid listing type or plan.' });
     }
 
     // Free plan — no Razorpay order needed
@@ -144,12 +171,13 @@ router.post('/order', auth, async (req, res) => {
     }
 
     const order = await rzp.orders.create({
-      amount,           // paise
+      amount,           // paise — server-derived, never from client
       currency: 'INR',
       receipt: `rcpt_${req.user.id}_${Date.now()}`,
-      notes: { description, userId: req.user.id },
+      notes: { description, userId: req.user.id, listingType, plan },
     });
 
+    // Return the server-computed amount so the client UI can display it correctly
     res.json({ ok: true, orderId: order.id, amount, currency: 'INR' });
   } catch (err) {
     console.error('Razorpay order error:', err);
