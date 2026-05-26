@@ -387,6 +387,12 @@ export default function BuySellScreen({ route }) {
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
   const { currentDistrict } = useDistrict();
+  // Localised district name for Marathi/Hindi display
+  const districtLocalName = currentDistrict
+    ? (lang === 'mr' ? (currentDistrict.nameMarathi || currentDistrict.name)
+     : lang === 'hi' ? (currentDistrict.nameHindi   || currentDistrict.name)
+     : currentDistrict.name)
+    : 'Nanded';
 
   const [activeCat,   setActiveCat]   = useState('All');
   const [search,      setSearch]      = useState(route?.params?.searchQuery || '');
@@ -513,7 +519,7 @@ export default function BuySellScreen({ route }) {
           <View>
             <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
               <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
-                {t('buySellInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>{currentDistrict?.name || 'Nanded'}</Text>{t('buySellInNanded').split('Nanded')[1] || ''}
+                {t('buySellInNanded').split('{DISTRICT}')[0]}<Text style={{ color: ORANGE }}>{districtLocalName}</Text>{t('buySellInNanded').split('{DISTRICT}')[1] || ''}
               </Text>
             </TouchableOpacity>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
@@ -664,7 +670,7 @@ export default function BuySellScreen({ route }) {
       <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
         <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
           <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-            {t('buySellInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>Nanded</Text>{t('buySellInNanded').split('Nanded')[1] || ''}
+            {t('buySellInNanded').split('{DISTRICT}')[0]}<Text style={{ color: ORANGE }}>Nanded</Text>{t('buySellInNanded').split('{DISTRICT}')[1] || ''}
           </Text>
         </TouchableOpacity>
         <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
