@@ -77,6 +77,24 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
 
+      # Guard: confirm the EAS project ID in app.config.js matches the secret.
+      # A mismatch means `eas project:init` was not re-run after the slug was
+      # changed (app.config.js comment warns about this). Catching it here
+      # prevents a silent build that uploads to the wrong EAS project.
+      - name: Verify EAS project ID matches secret
+        run: |
+          CONFIG_ID=$(node -e "const c=require('./app.config.js'); console.log(c.expo?.extra?.eas?.projectId || c.default?.expo?.extra?.eas?.projectId || '')")
+          if [ -z "$CONFIG_ID" ]; then
+            echo "❌ Could not read EAS projectId from app.config.js"
+            exit 1
+          fi
+          if [ "$CONFIG_ID" != "${{ secrets.EXPO_PROJECT_ID }}" ]; then
+            echo "❌ app.config.js projectId ($CONFIG_ID) does not match EXPO_PROJECT_ID secret."
+            echo "   Run: eas project:init  — then update the EXPO_PROJECT_ID secret."
+            exit 1
+          fi
+          echo "✅ EAS project ID verified: $CONFIG_ID"
+
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
