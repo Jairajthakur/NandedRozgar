@@ -77,12 +77,17 @@ function resolveExpectedAmount(listingType, planKey, coupon) {
       amountPaise = Math.max(0, amountPaise - Math.round((amountPaise * coupon.value) / 100));
     } else if (coupon.type === 'flat') {
       amountPaise = Math.max(0, amountPaise - coupon.value * 100);
-    } else if (coupon.type === 'free_days') {
-      amountPaise = 0;
     }
+    // free_days: amount is unchanged — the coupon adds bonus days, not a price discount
   }
 
   return amountPaise;
+}
+
+// Return extra listing days granted by a free_days coupon (0 for all other types).
+function resolveExtraDays(coupon) {
+  if (coupon?.type === 'free_days') return parseInt(coupon.value) || 0;
+  return 0;
 }
 
 // ── Helper: save a payment record ─────────────────────────────────────────────
@@ -184,7 +189,7 @@ router.post('/verify', auth, async (req, res) => {
       orderId:   razorpay_order_id   || null,
     });
 
-    const planDays = parseInt(days) || 30;
+    const planDays = (parseInt(days) || 30) + resolveExtraDays(couponRow);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
 
@@ -269,7 +274,7 @@ router.post('/verify/room', auth, async (req, res) => {
       orderId:   razorpay_order_id   || null,
     });
 
-    const planDays = parseInt(days) || parseInt(room?.planDays) || 30;
+    const planDays = (parseInt(days) || parseInt(room?.planDays) || 30) + resolveExtraDays(couponRow);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
 
@@ -345,7 +350,7 @@ router.post('/verify/vehicle', auth, async (req, res) => {
       orderId:   razorpay_order_id   || null,
     });
 
-    const planDays = parseInt(days) || parseInt(vehicle?.planDays) || 30;
+    const planDays = (parseInt(days) || parseInt(vehicle?.planDays) || 30) + resolveExtraDays(couponRow);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
 
@@ -426,7 +431,7 @@ router.post('/verify/buysell', auth, async (req, res) => {
       orderId:   razorpay_order_id   || null,
     });
 
-    const planDays = parseInt(days) || parseInt(item?.planDays) || 15;
+    const planDays = (parseInt(days) || parseInt(item?.planDays) || 15) + resolveExtraDays(couponRow);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
 
