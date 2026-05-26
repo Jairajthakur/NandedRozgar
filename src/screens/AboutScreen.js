@@ -168,10 +168,42 @@ export default function AboutScreen() {
 
   const heroTranslate = heroAnim.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] });
 
-  function openLink(url) {
-    Linking.openURL(url).catch(() =>
-      Alert.alert('Could not open link', 'Please try again later.')
-    );
+  // Attempt to open a URL. If the OS can't handle it (e.g. no browser) or the
+  // fetch returns a 404 (page not yet published), show a fallback alert so the
+  // user is never left tapping a dead button silently.
+  // Note: Linking.canOpenURL only checks if *a handler* exists, not the HTTP
+  // status — so we do a lightweight HEAD request to catch 404s before opening.
+  async function openLink(url) {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        Alert.alert('Cannot open link', 'No browser found on this device.');
+        return;
+      }
+      // Quick reachability check — catches 404 pages (unpublished policy pages)
+      // before the user sees a browser error. 5 s timeout keeps it snappy.
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 5000);
+      try {
+        const res = await fetch(url, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(tid);
+        if (res.status === 404) {
+          Alert.alert(
+            'Page not available',
+            'This page hasn\'t been published yet. Please visit thecityplus.in for more information.',
+            [{ text: 'OK' }],
+          );
+          return;
+        }
+      } catch {
+        // Network error or timeout — fall through and try to open anyway;
+        // the browser will show its own error if the site is truly unreachable.
+        clearTimeout(tid);
+      }
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Could not open link', 'Please visit thecityplus.in directly.');
+    }
   }
 
   return (
