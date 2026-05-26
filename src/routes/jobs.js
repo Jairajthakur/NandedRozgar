@@ -78,6 +78,37 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/jobs/:id — fetch a single job by ID
+//
+// Bug #7 fix: this endpoint was entirely missing, making it impossible to
+// fetch a single job by ID — breaking deep links, push-notification tap-targets,
+// and direct URL sharing.  Increments the view counter on each call so
+// analytics stay accurate for individual job views.
+router.get('/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT j.*, u.name AS poster_name, u.verified AS poster_verified,
+        (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) AS applicant_count
+      FROM jobs j
+      LEFT JOIN users u ON u.id = j.posted_by
+      WHERE j.id = $1
+        AND j.status = 'active'
+        AND (j.expires_at IS NULL OR j.expires_at > NOW())
+    `, [req.params.id]);
+
+    if (!rows[0]) return res.json({ ok: false, error: 'Job not found' });
+
+    // Increment view counter (best-effort — don't fail the request on error)
+    pool.query('UPDATE jobs SET views = COALESCE(views, 0) + 1 WHERE id = $1', [req.params.id])
+      .catch(() => {});
+
+    res.json({ ok: true, job: rows[0] });
+  } catch (err) {
+    console.error('GET /jobs/:id error:', err);
+    res.json({ ok: false, error: 'Failed to load job' });
+  }
+});
+
 // POST /api/jobs — create a FREE job (no payment flow)
 //
 // FIX #2: featured and urgent are ALWAYS set to false here, regardless of what
