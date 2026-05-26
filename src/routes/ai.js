@@ -34,6 +34,11 @@ router.post('/chat', auth, aiLimiter, async (req, res) => {
     return res.json({ ok: false, error: 'Query is required.' });
   }
 
+  // Bug #5 fix: cap query length to prevent token-burn via oversized payloads
+  if (query.trim().length > 2000) {
+    return res.json({ ok: false, error: 'Query is too long (max 2000 characters).' });
+  }
+
   try {
     const { rows: jobs } = await pool.query(
       `SELECT title, company, location, salary, type, category
@@ -59,9 +64,23 @@ router.post('/chat', auth, aiLimiter, async (req, res) => {
       'Use ₹ for INR. Max 180 words. Be specific and friendly. Use bullet points for lists.',
     ].join('\n');
 
+    // Bug #2 fix: whitelist role to 'user'|'assistant' only — prevents injecting
+    // { role: 'system', content: '...' } messages that override the system prompt.
+    // Bug #5 fix: cap each history message to 1000 chars to prevent token-burn
+    //             via 8 × huge-message payloads that slip past the rate limiter.
+    const HISTORY_MSG_MAX = 1000;
+    const sanitisedHistory = history
+      .filter(h =>
+        (h.role === 'user' || h.role === 'assistant') &&
+        typeof h.content === 'string' &&
+        h.content.trim().length > 0
+      )
+      .slice(-8)
+      .map(h => ({ role: h.role, content: h.content.trim().slice(0, HISTORY_MSG_MAX) }));
+
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...history.filter(h => h.role && h.content).slice(-8),
+      ...sanitisedHistory,
       { role: 'user', content: query.trim() },
     ];
 
