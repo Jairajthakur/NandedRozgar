@@ -20,7 +20,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
@@ -54,12 +53,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Node cache must come AFTER checkout so package-lock.json is present
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -106,7 +103,7 @@ jobs:
 
           # Fetch the slug registered for this project ID on Expo's servers
           EAS_SLUG=$(eas project:info --id "$EXPO_PROJECT_ID" --json 2>/dev/null \
-            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);process.stdout.write(j.slug||j.name||'');}catch{}})")
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);process.stdout.write(j.slug||j.name||'');}catch{}})") 
 
           echo "EAS registered slug: $EAS_SLUG"
 
