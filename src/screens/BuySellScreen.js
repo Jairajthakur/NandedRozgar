@@ -301,7 +301,7 @@ function ItemCard({ item, index, onPress }) {
   /* Mobile card */
   return (
     <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
-      <TouchableOpacity activeOpacity={0.95} onPress={handlePress} style={s.card}>
+      <TouchableOpacity activeOpacity={0.97} onPress={handlePress} style={s.card}>
 
         {/* Photo area */}
         <View style={[s.cardPhoto, { backgroundColor: firstPhoto ? '#000' : cardBg }]}>
@@ -327,10 +327,8 @@ function ItemCard({ item, index, onPress }) {
           <AutoTranslate text={item.title} lang={lang} style={s.cardTitle} numberOfLines={1} />
           <AutoTranslate text={item.description} lang={lang} style={s.cardDesc} numberOfLines={1} />
 
+          {/* Location + time chips */}
           <View style={s.cardMetaRow}>
-            <View style={[s.condBadge, { backgroundColor: condColors.bg, borderColor: condColors.border }]}>
-              <Text style={[s.condTxt, { color: condColors.text }]}>{item.condition}</Text>
-            </View>
             <View style={s.cardMetaChip}>
               <Ionicons name="location-outline" size={11} color="#888" />
               <Text style={s.cardMetaTxt}>{item.loc}</Text>
@@ -339,6 +337,40 @@ function ItemCard({ item, index, onPress }) {
               <Ionicons name="time-outline" size={11} color="#888" />
               <Text style={s.cardMetaTxt}>{item.time}</Text>
             </View>
+          </View>
+
+          {/* Tags row: category + condition + verified */}
+          <View style={s.tagsRow}>
+            {item.cat && (
+              <View style={s.tag}>
+                <Ionicons name={iconName} size={10} color="#555" style={{ marginRight: 3 }} />
+                <Text style={s.tagTxt}>{item.cat}</Text>
+              </View>
+            )}
+            {item.condition && (
+              <View style={[s.tag, { borderColor: condColors.border, backgroundColor: condColors.bg }]}>
+                <Text style={[s.tagTxt, { color: condColors.text }]}>{item.condition}</Text>
+              </View>
+            )}
+            {item.seller?.verified && (
+              <View style={[s.tag, s.tagBlue]}>
+                <Ionicons name="shield-checkmark" size={10} color="#0891b2" style={{ marginRight: 3 }} />
+                <Text style={[s.tagTxt, { color: '#0891b2' }]}>Verified</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Footer: seller name + View Details button */}
+          <View style={s.cardFooter}>
+            <View style={s.ownerRow}>
+              <View style={s.ownerAvatar}>
+                <Text style={s.ownerInitial}>{(item.seller?.name || 'S')[0].toUpperCase()}</Text>
+              </View>
+              <Text style={s.ownerName} numberOfLines={1}>{item.seller?.name || 'Seller'}</Text>
+            </View>
+            <TouchableOpacity style={s.viewBtn} onPress={handlePress}>
+              <Text style={s.viewBtnTxt}>{t('viewDetailsBuySell')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -1005,6 +1037,26 @@ const s = StyleSheet.create({
     paddingVertical: 5, paddingHorizontal: 11, backgroundColor: '#fafafa',
   },
   cardMetaTxt: { fontSize: 12, color: '#444', fontWeight: '500' },
+
+  tagsRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 8, marginBottom: 10 },
+  tag: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 20,
+    paddingVertical: 4, paddingHorizontal: 10, backgroundColor: '#fafafa',
+  },
+  tagBlue: { borderColor: '#bae6fd', backgroundColor: '#f0f9ff' },
+  tagTxt: { fontSize: 11, color: '#555', fontWeight: '500' },
+
+  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  ownerRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
+  ownerAvatar: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: ORANGE + '22', alignItems: 'center', justifyContent: 'center',
+  },
+  ownerInitial: { fontSize: 12, fontWeight: '800', color: ORANGE },
+  ownerName: { fontSize: 13, fontWeight: '600', color: '#333', flex: 1 },
+  viewBtn: { borderWidth: 1.5, borderColor: ORANGE, borderRadius: 22, paddingVertical: 7, paddingHorizontal: 18 },
+  viewBtnTxt: { fontSize: 12, fontWeight: '700', color: ORANGE },
 
   emptyWrap:  { alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 },
   emptyTxt:   { color: '#9ca3af', fontSize: 15, fontWeight: '700', marginTop: 12 },
