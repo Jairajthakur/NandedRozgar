@@ -162,11 +162,12 @@ function getTickerItems(t, districtLocalName) {
 }
 
 // Scrolling text rows for ScrollVelocity (web)
-const SCROLL_ROW_1 = '✦ HIRING NOW — Nanded  ✦ DELIVERY JOBS AVAILABLE  ✦ ROOMS FOR RENT  ✦ CARS & VEHICLES FOR HIRE  ✦ BUY & SELL 580+ ITEMS  ✦ TELECALLER JOBS — APPLY NOW';
 const SCROLL_ROW_2 = '✦ SECURITY GUARD VACANCIES  ✦ CONSTRUCTION WORK  ✦ DATA ENTRY & OFFICE JOBS  ✦ LOCAL MARKETPLACE — NANDED  ✦ FRESHER JOBS AVAILABLE  ✦ POST FREE ADS TODAY';
 
 // Web ScrollVelocity banner
-function WebScrollBanner() {
+function WebScrollBanner({ itemCount = 0 }) {
+  const itemLabel = itemCount > 0 ? `${itemCount}+` : 'MANY';
+  const SCROLL_ROW_1 = `✦ HIRING NOW — Nanded  ✦ DELIVERY JOBS AVAILABLE  ✦ ROOMS FOR RENT  ✦ CARS & VEHICLES FOR HIRE  ✦ BUY & SELL ${itemLabel} ITEMS  ✦ TELECALLER JOBS — APPLY NOW`;
   if (!ScrollVelocity) return null;
   return (
     <div style={{
@@ -194,8 +195,8 @@ function WebScrollBanner() {
 // ── Ticker ─────────────────────────────────────────────────────────────────────
 const ITEM_H = 38; // must match s.ticker height
 
-function TickerBanner({ t, districtLocalName }) {
-  if (IS_WEB) return <WebScrollBanner />;
+function TickerBanner({ t, districtLocalName, itemCount = 0 }) {
+  if (IS_WEB) return <WebScrollBanner itemCount={itemCount} />;
 
   const TICKER_ITEMS = getTickerItems(t, districtLocalName);
   const DOUBLED = [...TICKER_ITEMS, ...TICKER_ITEMS]; // seamless loop
@@ -446,27 +447,29 @@ export default function HomeScreen() {
 
   const [rooms,    setRooms]    = useState([]);
   const [vehicles, setVehicles] = useState([]);
-  const [stats,    setStats]    = useState({ jobs: 7, rooms: 3, vehicles: 2, items: 580 });
+  const [stats,    setStats]    = useState({ jobs: 0, rooms: 0, vehicles: 0, items: 0 });
 
   const { loadJobs } = useAuth();
 
   const fetchHomeData = useCallback(async () => {
     try {
       const districtParam = currentDistrict?.id ? `?district=${currentDistrict.id}` : '';
-      const [roomRes, vehicleRes] = await Promise.all([
+      const [roomRes, vehicleRes, buysellCountRes] = await Promise.all([
         http('GET', `/api/rooms${districtParam}`),
         http('GET', `/api/vehicles${districtParam}`),
+        http('GET', `/api/buysell/count${districtParam}`),
       ]);
       if (roomRes?.ok && Array.isArray(roomRes.rooms))           setRooms(roomRes.rooms);
       if (vehicleRes?.ok && Array.isArray(vehicleRes.vehicles)) setVehicles(vehicleRes.vehicles);
       const liveJobs     = jobs?.filter(j => j.status === 'active').length || 0;
       const liveRooms    = roomRes?.rooms?.length    || 0;
       const liveVehicles = vehicleRes?.vehicles?.length || 0;
+      const liveItems    = buysellCountRes?.ok ? (buysellCountRes.count ?? 0) : 0;
       setStats(prev => ({
         jobs:     liveJobs     > 0 ? liveJobs     : prev.jobs,
         rooms:    liveRooms    > 0 ? liveRooms    : prev.rooms,
         vehicles: liveVehicles > 0 ? liveVehicles : prev.vehicles,
-        items:    prev.items,
+        items:    liveItems    >= 0 ? liveItems    : prev.items,
       }));
     } catch {}
   }, [jobs, currentDistrict]);
@@ -727,7 +730,7 @@ export default function HomeScreen() {
             </FadeSlide>
 
             {/* ── Ticker ── */}
-            <TickerBanner t={t} districtLocalName={districtLocalName} />
+            <TickerBanner t={t} districtLocalName={districtLocalName} itemCount={stats.items} />
 
             {/* ── Explore Grid ── */}
             <FadeSlide delay={100}>
@@ -1038,7 +1041,7 @@ export default function HomeScreen() {
           </View>
         </FadeSlide>
 
-        <TickerBanner t={t} districtLocalName={districtLocalName} />
+        <TickerBanner t={t} districtLocalName={districtLocalName} itemCount={stats.items} />
 
         {/* Recent Jobs */}
         <FadeSlide delay={200}>
