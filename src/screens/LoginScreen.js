@@ -22,9 +22,11 @@
  *   3.  eas build --platform android --profile preview
  *
  * ─── GOOGLE CONSOLE — NO CHANGES NEEDED ──────────────────────────────────────
- *   Your Android client is already configured:
- *     Package: com.cityplus.app
- *     SHA-1:   4E:81:9A:AB:EF:CA:28:8A:58:F0:51:42:1C:37:AE:34:6C:4F:3C:7F
+ *   Your Android client is already configured with your package name and
+ *   SHA-1 fingerprint in the Google Cloud Console.
+ *   Never commit SHA-1 fingerprints to source control — retrieve them with:
+ *     eas credentials   (for EAS-managed keystore)
+ *     keytool -list -v -keystore your.keystore  (for local keystore)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
