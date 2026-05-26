@@ -638,6 +638,8 @@ export default function HomeScreen() {
             <SideNavItem icon="add-circle-outline"  label={t('sideNavPostAd')}    onPress={() => nav.navigate('Post')} />
             <SideNavItem icon="person-outline"      label={t('sideNavMyProfile')} onPress={() => nav.navigate('Profile')} />
             <SideNavItem icon="sparkles-outline"    label={t('sideNavAI')}        onPress={() => nav.navigate('AIMatch')} />
+            {/* Bug fix #13: Messages was unreachable from the web sidebar */}
+            <SideNavItem icon="chatbubbles-outline" label={t('profileMenuMyMessages')} onPress={() => nav.navigate('ChatList')} />
 
             {/* Sidebar promo */}
             <View style={ws.sidePromo}>
