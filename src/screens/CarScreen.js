@@ -276,9 +276,15 @@ function VehicleCard({ item, index, onPress }) {
 /* ─── Main Screen ─── */
 export default function CarsScreen({ route }) {
   const nav    = useNavigation();
-  const { lang, t } = useLang();
+  const { lang, t, tDistrict } = useLang();
   const { currentDistrict } = useDistrict();
   const insets = useSafeAreaInsets();
+  // Localised district name for Marathi/Hindi display
+  const districtLocalName = currentDistrict
+    ? (lang === 'mr' ? (currentDistrict.nameMarathi || currentDistrict.name)
+     : lang === 'hi' ? (currentDistrict.nameHindi   || currentDistrict.name)
+     : currentDistrict.name)
+    : 'Nanded';
   const { width: winW } = useWindowDimensions();
 
   const [search,      setSearch]      = useState(route?.params?.searchQuery || '');
@@ -407,7 +413,7 @@ export default function CarsScreen({ route }) {
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
           <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
             <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>{t('vehiclesInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>{currentDistrict?.name || 'Nanded'}</Text>{t('vehiclesInNanded').split('Nanded')[1] || ''}</Text>
+              <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>{t('vehiclesInNanded').split('{DISTRICT}')[0]}<Text style={{ color: ORANGE }}>{districtLocalName}</Text>{t('vehiclesInNanded').split('{DISTRICT}')[1] || ''}</Text>
             </TouchableOpacity>
           </Text>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>{filtered.length} {t('listingsFound')}</Text>
@@ -530,7 +536,7 @@ export default function CarsScreen({ route }) {
       <View style={IS_WEB ? ws.stickyInner : s.stickyInner}>
         <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
           <Text style={IS_WEB ? ws.stickyTitle : s.stickyTitle}>
-            {t('carsInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>{currentDistrict?.name || 'Nanded'}</Text>{t('carsInNanded').split('Nanded')[1] || ''}
+            {t('carsInNanded').split('{DISTRICT}')[0]}<Text style={{ color: ORANGE }}>{districtLocalName}</Text>{t('carsInNanded').split('{DISTRICT}')[1] || ''}
           </Text>
         </TouchableOpacity>
         <View style={IS_WEB ? ws.stickySearch : s.stickySearch}>
