@@ -15,7 +15,7 @@ export default {
   expo: {
     name: 'CityPlus',
     slug: 'nanded',
-    version: '1.0.0',
+    version: '4.4.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
