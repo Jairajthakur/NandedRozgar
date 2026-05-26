@@ -209,7 +209,7 @@ router.get('/stats', async (req, res) => {
           COUNT(*) FILTER (WHERE featured = true)     AS featured_jobs,
           COUNT(*) FILTER (WHERE urgent = true)       AS urgent_jobs,
           SUM(views)                                  AS total_views,
-          SUM(applicant_count)                        AS total_applicants
+          (SELECT COUNT(*) FROM applications)         AS total_applicants
         FROM jobs WHERE status != 'deleted'
       `),
       pool.query(`
