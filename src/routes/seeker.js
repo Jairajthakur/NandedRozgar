@@ -42,31 +42,72 @@ router.put('/profile', auth, async (req, res) => {
   }
 });
 
-// POST /api/seeker/resume — upload resume (base64 PDF, max ~4MB)
+// POST /api/seeker/resume — upload resume (base64 PDF only, max 5 MB)
 router.post('/resume', auth, async (req, res) => {
   try {
     const { resumeBase64, fileName } = req.body;
     if (!resumeBase64) return res.json({ ok: false, error: 'No resume data provided' });
 
-    // Validate it's a base64 data URI for PDF or we accept raw base64
-    const dataUri = resumeBase64.startsWith('data:')
-      ? resumeBase64
-      : `data:application/pdf;base64,${resumeBase64}`;
-
-    // Rough size check — base64 is ~4/3 of original; 5MB limit
-    const sizeBytes = (resumeBase64.length * 3) / 4;
-    if (sizeBytes > 5 * 1024 * 1024) {
-      return res.json({ ok: false, error: 'Resume file too large (max 5 MB)' });
+    // ── Extract the raw base64 payload and declared MIME type ────────────────
+    let rawBase64, declaredMime;
+    if (resumeBase64.startsWith('data:')) {
+      // Data URI format: "data:<mime>;base64,<data>"
+      const matches = resumeBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+      if (!matches) {
+        return res.json({ ok: false, error: 'Invalid data URI format.' });
+      }
+      declaredMime = matches[1].toLowerCase();
+      rawBase64    = matches[2];
+    } else {
+      // Raw base64 with no data URI prefix — assume PDF
+      declaredMime = 'application/pdf';
+      rawBase64    = resumeBase64;
     }
 
-    // Upsert seeker profile with resume_url
+    // ── Validate declared MIME type ──────────────────────────────────────────
+    if (declaredMime !== 'application/pdf') {
+      return res.json({ ok: false, error: 'Only PDF files are accepted.' });
+    }
+
+    // ── Validate file magic bytes (first 4 bytes must be %PDF) ───────────────
+    // This catches files where the client lies about the MIME type.
+    let fileBuffer;
+    try {
+      fileBuffer = Buffer.from(rawBase64, 'base64');
+    } catch {
+      return res.json({ ok: false, error: 'Invalid base64 data.' });
+    }
+    const PDF_MAGIC = Buffer.from([0x25, 0x50, 0x44, 0x46]); // "%PDF"
+    if (fileBuffer.length < 4 || !fileBuffer.slice(0, 4).equals(PDF_MAGIC)) {
+      return res.json({ ok: false, error: 'File does not appear to be a valid PDF.' });
+    }
+
+    // ── Size check (5 MB limit on actual decoded bytes) ──────────────────────
+    if (fileBuffer.length > 5 * 1024 * 1024) {
+      return res.json({ ok: false, error: 'Resume file too large (max 5 MB).' });
+    }
+
+    // ── Sanitise fileName — strip path separators and enforce .pdf extension ─
+    const safeName = (fileName || 'resume.pdf')
+      .replace(/[/\]/g, '')   // no path traversal
+      .replace(/[^a-zA-Z0-9._\- ]/g, '') // only safe chars
+      .slice(0, 200)           // cap length
+      || 'resume.pdf';
+    const safeNameWithExt = safeName.toLowerCase().endsWith('.pdf')
+      ? safeName
+      : `${safeName}.pdf`;
+
+    // Reconstruct a clean, canonical data URI
+    const dataUri = `data:application/pdf;base64,${rawBase64}`;
+
+    // ── Upsert seeker profile with validated resume ──────────────────────────
     await pool.query(`
       INSERT INTO seeker_profiles (user_id, resume_url, updated_at)
       VALUES ($1, $2, NOW())
       ON CONFLICT (user_id) DO UPDATE SET resume_url=$2, updated_at=NOW()
     `, [req.user.id, dataUri]);
 
-    res.json({ ok: true, resumeUrl: dataUri, fileName: fileName || 'resume.pdf' });
+    res.json({ ok: true, resumeUrl: dataUri, fileName: safeNameWithExt });
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to upload resume' });
