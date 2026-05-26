@@ -410,9 +410,11 @@ router.get('/google/callback', (req, res) => {
     );
   }
 
-  // Validate access_token: Razorpay/Google tokens are alphanumeric + punctuation,
-  // never contain quotes or angle brackets. Reject anything that looks wrong.
-  if (!/^[\w.\-]+$/.test(access_token) || access_token.length > 2048) {
+  // Validate access_token: Google OAuth access tokens are opaque strings that
+  // can be base64-encoded (containing +, /, =) or base64url-encoded (containing
+  // - and _). Allow all safe printable characters; only reject quotes, angle
+  // brackets, and whitespace which could enable XSS injection.
+  if (!/^[^\s"'<>]+$/.test(access_token) || access_token.length > 2048) {
     return res.status(400).send('Invalid token format.');
   }
 
