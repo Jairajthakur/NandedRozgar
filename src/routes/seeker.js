@@ -22,14 +22,17 @@ const RESUME_DIR = process.env.RESUME_STORAGE_DIR
   ? path.resolve(process.env.RESUME_STORAGE_DIR)
   : path.resolve(__dirname, '../../uploads/resumes');
 
-// Bug #8 fix: block production startup when no persistent volume is configured
+// In production, warn loudly if no persistent volume is configured.
+// Resumes will survive the current deploy but will be wiped on the next one.
+// Fix: add a Railway Volume at /data and set RESUME_STORAGE_DIR=/data/resumes
 if (process.env.NODE_ENV === 'production' && !process.env.RESUME_STORAGE_DIR) {
   console.error(
-    '❌ FATAL: RESUME_STORAGE_DIR is not set in production. ' +
+    '⚠️  WARNING: RESUME_STORAGE_DIR is not set in production. ' +
     'Resumes stored in the default path will be lost on every Railway deploy. ' +
     'Mount a persistent volume and set RESUME_STORAGE_DIR to its path.'
   );
-  process.exit(1);
+  // Do NOT exit — let the server start so all other features keep working.
+  // Resume uploads will still function within a single deploy cycle.
 }
 
 // Ensure the directory exists on startup (safe to call repeatedly)
