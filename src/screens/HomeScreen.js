@@ -422,10 +422,18 @@ function QuickAction({ icon, label, color, onPress }) {
 export default function HomeScreen() {
   const nav = useNavigation();
   const { jobs, user } = useAuth();
-  const { lang, changeLang, t } = useLang();
+  const { lang, changeLang, t, tDistrict } = useLang();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
   const { currentDistrict, selectDistrict, DISTRICTS } = useDistrict();
+
+  // Localised district name — Marathi/Hindi script when those langs are active
+  const districtLocalName = currentDistrict
+    ? (lang === 'mr' ? (currentDistrict.nameMarathi || currentDistrict.name)
+     : lang === 'hi' ? (currentDistrict.nameHindi   || currentDistrict.name)
+     : currentDistrict.name)
+    : 'Nanded';
+
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showDistrictPicker, setShowDistrictPicker] = useState(false);
   const [searchText, setSearchText]         = useState('');
@@ -534,7 +542,7 @@ export default function HomeScreen() {
                   </Text>
                   <View style={ws.locRow}>
                     <Ionicons name="location-sharp" size={11} color={ORANGE} />
-                    <Text style={ws.locText}>{currentDistrict?.name || 'Select District'}, Maharashtra</Text>
+                    <Text style={ws.locText}>{districtLocalName || 'Select District'}, Maharashtra</Text>
                     <Ionicons name="chevron-down" size={10} color={ORANGE} style={{ marginLeft: 2 }} />
                   </View>
                 </TouchableOpacity>
@@ -568,7 +576,7 @@ export default function HomeScreen() {
                 </Text>
                 <View style={ws.locRow}>
                   <Ionicons name="location-sharp" size={12} color={ORANGE} />
-                  <Text style={ws.locText}>{currentDistrict?.name || 'Select District'}, Maharashtra</Text>
+                  <Text style={ws.locText}>{districtLocalName || 'Select District'}, Maharashtra</Text>
                   <Ionicons name="chevron-down" size={11} color={ORANGE} style={{ marginLeft: 2 }} />
                 </View>
               </TouchableOpacity>
@@ -653,7 +661,7 @@ export default function HomeScreen() {
                   <View style={ws.heroCircle1} />
                   <View style={ws.heroCircle2} />
                   <Text style={ws.heroBannerCompactTitle}>
-                    {t('heroTitleWeb').replace('Nanded', '')}<Text style={{ color: '#ffd580' }}>{currentDistrict?.name || 'Nanded'}</Text>
+                    {t('heroTitleWeb').split('{DISTRICT}')[0]}<Text style={{ color: '#ffd580' }}>{districtLocalName}</Text>{t('heroTitleWeb').split('{DISTRICT}')[1] || ''}
                   </Text>
                   <Text style={ws.heroBannerCompactSub}>{t('heroSubWeb')}</Text>
                   <View style={ws.heroBannerCompactSearch}>
@@ -685,7 +693,7 @@ export default function HomeScreen() {
                         <Text style={ws.heroTag}>{t('heroCityTag').replace(/^\p{Emoji_Presentation}\s*/u, '').replace(/^🏙️\s*/, '')}</Text>
                       </View>
                       <Text style={ws.heroTitle}>
-                        {t('heroTitleWeb').replace('Nanded', '')}<Text style={{ color: '#ffd580' }}>{currentDistrict?.name || 'Nanded'}</Text>
+                        {t('heroTitleWeb').split('{DISTRICT}')[0]}<Text style={{ color: '#ffd580' }}>{districtLocalName}</Text>{t('heroTitleWeb').split('{DISTRICT}')[1] || ''}
                       </Text>
                       <Text style={ws.heroSub}>{t('heroSubWeb')}</Text>
                       <View style={ws.heroBadges}>
@@ -916,7 +924,7 @@ export default function HomeScreen() {
             </Text>
             <View style={s.locRow}>
               <Ionicons name="location-sharp" size={12} color={ORANGE} />
-              <Text style={s.locText}>{currentDistrict?.name || 'Select District'}, Maharashtra</Text>
+              <Text style={s.locText}>{districtLocalName || 'Select District'}, Maharashtra</Text>
               <Ionicons name="chevron-down" size={11} color={ORANGE} style={{ marginLeft: 2 }} />
             </View>
           </TouchableOpacity>
@@ -982,7 +990,7 @@ export default function HomeScreen() {
             <View style={s.heroCircle1} />
             <View style={s.heroCircle2} />
             <Text style={s.heroTitle}>
-              {t('heroTitle').replace('Nanded', '')}<Text style={{ color: '#ffd580' }}>{currentDistrict?.name || 'Nanded'}</Text>
+              {t('heroTitle').split('{DISTRICT}')[0]}<Text style={{ color: '#ffd580' }}>{districtLocalName}</Text>{t('heroTitle').split('{DISTRICT}')[1] || ''}
             </Text>
             <Text style={s.heroSub}>{t('heroSub')}</Text>
             <View style={s.searchBar}>
