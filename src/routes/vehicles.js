@@ -48,9 +48,70 @@ router.get('/', async (req, res) => {
   }
 });
 
-// NOTE: Vehicle creation is handled exclusively by POST /api/payments/verify/vehicle
-// to ensure payment is always completed before a listing goes live.
-// The direct POST route has been removed to prevent payment bypass.
+// ── POST /api/vehicles — free (unpaid) vehicle listing ───────────────────────
+// planDays is capped at FREE_PLAN_MAX_DAYS so a client cannot send planDays:99999
+// to obtain a listing that never expires.  The payment-verified path
+// (POST /api/payments/verify/vehicle) handles paid plans independently and derives
+// its duration from the server-authoritative PLAN_DAYS table, not from this cap.
+const FREE_PLAN_MAX_DAYS = 30;
+
+router.post('/', auth, async (req, res) => {
+  try {
+    const {
+      vehicleType, name, year, color, fuelType, transmission,
+      acType, seats, dailyRate, hourlyRate, kmLimit, extraKmRate,
+      minBooking, advanceAmt, purpose, includes, availability,
+      area, address, ownerName, whatsapp, description, photos,
+      planDays, district,
+    } = req.body;
+
+    if (!dailyRate || !area || !whatsapp) {
+      return res.json({ ok: false, error: 'Daily rate, area, and WhatsApp are required' });
+    }
+
+    // Cap planDays: clamp to [1, FREE_PLAN_MAX_DAYS]; ignore oversized client values.
+    const days = Math.min(Math.max(1, parseInt(planDays) || FREE_PLAN_MAX_DAYS), FREE_PLAN_MAX_DAYS);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + days);
+
+    const { rows } = await pool.query(`
+      INSERT INTO vehicles (
+        posted_by, vehicle_type, name, year, color, fuel_type, transmission,
+        ac_type, seats, daily_rate, hourly_rate, km_limit, extra_km_rate,
+        min_booking, advance_amt, purpose, includes, availability,
+        area, address, owner_name, whatsapp, description, photos,
+        plan_days, plan_label, plan_price, expires_at, district
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
+        $14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
+        $25,$26,$27,$28,$29
+      ) RETURNING *
+    `, [
+      req.user.id,
+      vehicleType || 'Car',
+      name || vehicleType || 'Vehicle',
+      year || '', color || '',
+      fuelType || 'Petrol', transmission || 'Manual',
+      acType || 'AC', seats || '5',
+      dailyRate, hourlyRate || '',
+      kmLimit || '', extraKmRate || '',
+      minBooking || '1', advanceAmt || '',
+      JSON.stringify(Array.isArray(purpose)       ? purpose       : []),
+      JSON.stringify(Array.isArray(includes)      ? includes      : []),
+      JSON.stringify(Array.isArray(availability)  ? availability  : []),
+      area, address || '', ownerName || '', whatsapp,
+      description || '', JSON.stringify(Array.isArray(photos) ? photos : []),
+      // Free plan: price is always 0; label is 'Free'; duration is server-capped.
+      days, 'Free', 0,
+      expiresAt, district || 'nanded',
+    ]);
+
+    res.json({ ok: true, vehicle: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to create vehicle listing' });
+  }
+});
 
 // ── DELETE /api/vehicles/:id — owner can delete their own listing ─────────────
 router.delete('/:id', auth, async (req, res) => {
