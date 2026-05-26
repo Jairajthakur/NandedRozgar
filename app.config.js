@@ -14,7 +14,14 @@ const nativePlugins = IS_WEB ? [] : [
 export default {
   expo: {
     name: 'CityPlus',
-    slug: 'nanded',
+    // Bug fix #19: slug and scheme were still 'nanded' (the old project name)
+    // while every screen and the Play Store package are already branded 'CityPlus'.
+    // slug determines the EAS project URL and the Play Store listing URL slug;
+    // scheme determines the deep-link protocol (was nanded://, now cityplus://).
+    // NOTE: after changing the slug you must run `eas project:init` once to
+    // re-link the EAS project, and update the NATIVE_SCHEME constant in
+    // src/routes/auth.js from 'nanded://google-auth' to 'cityplus://google-auth'.
+    slug: 'cityplus',
     version: '4.4.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -104,7 +111,7 @@ export default {
       ],
       googleServicesFile: './google-services.json',
     },
-    scheme: 'nanded',
+    scheme: 'cityplus', // was 'nanded' — see slug comment above
     plugins: [
       ...nativePlugins,
       'expo-secure-store',
