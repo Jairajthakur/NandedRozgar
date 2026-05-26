@@ -12,6 +12,9 @@
  *   ─ Never trust the client saying "I paid". Always verify the HMAC signature.
  *   ─ Free plan (amount === 0) skips signature check but still records a ₹0 payment row.
  *   ─ All verify routes require auth middleware.
+ *   ─ The server-computed expectedAmount is ALWAYS what gets saved — never req.body.amount.
+ *   ─ planDays comes from server-authoritative PLAN_DAYS table, never from req.body.days.
+ *   ─ Coupon usage + listing insert + payment record are wrapped in a single DB transaction.
  */
 
 const router   = require('express').Router();
@@ -60,6 +63,16 @@ const PLAN_PRICES = {
   buysell: { free: 0, featured: 4900 },
 };
 
+// ── FIX #7: Server-authoritative plan durations (days). ──────────────────────
+// The client-supplied `days` field is ignored in all verify routes.
+// These values are the single source of truth for listing expiry.
+const PLAN_DAYS = {
+  job:     { free: 30, featured: 30, urgent: 30 },
+  room:    { free: 30, featured: 30 },
+  vehicle: { free: 30, featured: 30 },
+  buysell: { free: 15, featured: 15 },
+};
+
 // Look up the server-authoritative price (in paise) for a listing type + plan.
 // Returns null if the plan key is unrecognised (caller should reject the request).
 function resolveExpectedAmount(listingType, planKey, coupon) {
@@ -84,22 +97,18 @@ function resolveExpectedAmount(listingType, planKey, coupon) {
   return amountPaise;
 }
 
+// ── FIX #7: Resolve plan days from server table, never from client. ───────────
+function resolvePlanDays(listingType, planKey) {
+  const days = PLAN_DAYS[listingType];
+  if (!days) return 30;
+  const normalised = (planKey || 'free').toLowerCase();
+  return days[normalised] || 30;
+}
+
 // Return extra listing days granted by a free_days coupon (0 for all other types).
 function resolveExtraDays(coupon) {
   if (coupon?.type === 'free_days') return parseInt(coupon.value) || 0;
   return 0;
-}
-
-// ── Helper: save a payment record ─────────────────────────────────────────────
-async function savePayment(userId, { amount, plan, paymentId, orderId }) {
-  // Razorpay amounts are in paise (1 ₹ = 100 paise). Convert to rupees before storing.
-  const amountInRupees = Math.round((amount || 0) / 100);
-  const { rows } = await pool.query(
-    `INSERT INTO payments (user_id, amount, plan, razorpay_payment_id, razorpay_order_id, status)
-     VALUES ($1, $2, $3, $4, $5, 'paid') RETURNING id`,
-    [userId, amountInRupees, plan, paymentId || null, orderId || null]
-  );
-  return rows[0].id;
 }
 
 // ── Helper: common signature check + free-plan bypass ─────────────────────────
@@ -123,9 +132,11 @@ function checkPayment(req, expectedAmountPaise) {
 // Rejects any razorpay_payment_id already in the payments table.
 // The DB also enforces this via a UNIQUE partial index, but checking here gives
 // a clean error message instead of a raw constraint violation.
-async function rejectIfDuplicatePayment(paymentId) {
+// Must be called inside the same DB transaction (pass client) so the check and
+// insert are atomic.
+async function rejectIfDuplicatePayment(dbClient, paymentId) {
   if (!paymentId) return null; // free-plan — no payment ID to check
-  const { rows } = await pool.query(
+  const { rows } = await dbClient.query(
     'SELECT id FROM payments WHERE razorpay_payment_id = $1 LIMIT 1',
     [paymentId]
   );
@@ -133,6 +144,48 @@ async function rejectIfDuplicatePayment(paymentId) {
     return { ok: false, error: 'This payment has already been used.' };
   }
   return null; // null means no duplicate — proceed
+}
+
+// ── Helper: resolve coupon inside a transaction ───────────────────────────────
+async function resolveCoupon(dbClient, couponId, userId) {
+  if (!couponId) return null;
+  const { rows: cr } = await dbClient.query(
+    `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
+       AND (valid_until IS NULL OR valid_until >= NOW())
+       AND (max_uses IS NULL OR uses_count < max_uses)
+       AND NOT EXISTS (
+         SELECT 1 FROM coupon_usage
+         WHERE coupon_id = $1 AND user_id = $2
+       )`,
+    [couponId, userId]
+  );
+  return cr[0] || null;
+}
+
+// ── FIX #1 + #6: save payment record using server-computed amount inside txn ──
+// `serverAmountPaise` is the value from resolveExpectedAmount(), never req.body.amount.
+async function savePayment(dbClient, userId, { serverAmountPaise, plan, paymentId, orderId }) {
+  // Convert paise → rupees for storage
+  const amountInRupees = Math.round((serverAmountPaise || 0) / 100);
+  const { rows } = await dbClient.query(
+    `INSERT INTO payments (user_id, amount, plan, razorpay_payment_id, razorpay_order_id, status)
+     VALUES ($1, $2, $3, $4, $5, 'paid') RETURNING id`,
+    [userId, amountInRupees, plan, paymentId || null, orderId || null]
+  );
+  return rows[0].id;
+}
+
+// ── FIX #6: mark coupon used inside the same transaction ─────────────────────
+async function markCouponUsed(dbClient, couponId, userId) {
+  if (!couponId) return;
+  await dbClient.query(
+    `INSERT INTO coupon_usage (coupon_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+    [couponId, userId]
+  );
+  await dbClient.query(
+    `UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id = $1`,
+    [couponId]
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -207,48 +260,58 @@ router.post('/order', auth, async (req, res) => {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // POST /api/payments/verify — verify + create JOB listing (PostJobScreen)
+// FIX #1: saves expectedAmount (server-computed), not req.body.amount
+// FIX #6: all writes wrapped in a single DB transaction
+// FIX #7: planDays from server PLAN_DAYS table, not req.body.days
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify', auth, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, job, plan, amount, days, couponId } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, job, plan, couponId } = req.body;
+    // NOTE: `amount` and `days` from req.body are intentionally NOT used below.
 
-    // Resolve coupon server-side if provided
-    let couponRow = null;
-    if (couponId) {
-      const { rows: cr } = await pool.query(
-        `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
-           AND (valid_until IS NULL OR valid_until >= NOW())
-           AND (max_uses IS NULL OR uses_count < max_uses)
-           AND NOT EXISTS (
-             SELECT 1 FROM coupon_usage
-             WHERE coupon_id = $1 AND user_id = $2
-           )`,
-        [couponId, req.user.id]
-      );
-      couponRow = cr[0] || null;
-    }
+    await client.query('BEGIN');
+
+    // Resolve coupon inside the transaction (locks against concurrent use)
+    const couponRow = await resolveCoupon(client, couponId, req.user.id);
 
     const expectedAmount = resolveExpectedAmount('job', plan, couponRow);
-    if (expectedAmount === null) return res.json({ ok: false, error: 'Invalid plan.' });
-
-    const check = checkPayment(req, expectedAmount);
-    if (!check.ok) return res.json({ ok: false, error: check.error });
-    // Replay-attack guard: reject if this payment ID was already used
-    if (!check.free) {
-      const dupErr = await rejectIfDuplicatePayment(req.body.razorpay_payment_id);
-      if (dupErr) return res.json(dupErr);
+    if (expectedAmount === null) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: 'Invalid plan.' });
     }
 
-    // Save payment record
-    const paymentId = await savePayment(req.user.id, {
-      amount, plan,
+    const check = checkPayment(req, expectedAmount);
+    if (!check.ok) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: check.error });
+    }
+
+    // Replay-attack guard inside the transaction
+    if (!check.free) {
+      const dupErr = await rejectIfDuplicatePayment(client, razorpay_payment_id);
+      if (dupErr) {
+        await client.query('ROLLBACK');
+        return res.json(dupErr);
+      }
+    }
+
+    // FIX #1: use server-computed expectedAmount, never req.body.amount
+    const paymentId = await savePayment(client, req.user.id, {
+      serverAmountPaise: expectedAmount,
+      plan,
       paymentId: razorpay_payment_id || null,
       orderId:   razorpay_order_id   || null,
     });
 
-    const planDays = (parseInt(days) || 30) + resolveExtraDays(couponRow);
+    // FIX #7: planDays from server table, not client
+    const planDays = resolvePlanDays('job', plan) + resolveExtraDays(couponRow);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
+
+    // FIX #2 (jobs.js): featured/urgent derived from plan, not client flags
+    const isFeatured = plan === 'featured';
+    const isUrgent   = plan === 'urgent';
 
     const skillsArr = Array.isArray(job.skills)
       ? job.skills
@@ -262,7 +325,7 @@ router.post('/verify', auth, async (req, res) => {
         ? job.requirements.split('\n').map(r => r.trim()).filter(Boolean)
         : [];
 
-    const { rows } = await pool.query(`
+    const { rows } = await client.query(`
       INSERT INTO jobs (
         posted_by, title, company, category, type, location, salary,
         phone, whatsapp, description, skills, requirements,
@@ -278,77 +341,82 @@ router.post('/verify', auth, async (req, res) => {
       job.phone, job.whatsapp || job.phone, job.description,
       skillsArr, reqArr,
       job.education || '', job.experience || '', job.hours || '', job.openings || '1',
-      !!job.featured, !!job.urgent, expiresAt,
+      isFeatured, isUrgent, expiresAt,
       job.district || 'nanded',
     ]);
 
     // Link payment → job
-    await pool.query('UPDATE payments SET job_id = $1 WHERE id = $2', [rows[0].id, paymentId]);
+    await client.query('UPDATE payments SET job_id = $1 WHERE id = $2', [rows[0].id, paymentId]);
 
-    // Mark coupon as used if one was applied
-    if (couponId) {
-      await pool.query(
-        `INSERT INTO coupon_usage (coupon_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-        [couponId, req.user.id]
-      );
-      await pool.query(`UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id=$1`, [couponId]);
-    }
+    // FIX #6: coupon marked used atomically inside the same transaction
+    await markCouponUsed(client, couponId, req.user.id);
 
+    await client.query('COMMIT');
     res.json({ ok: true, job: rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('verify/job error:', err);
     res.json({ ok: false, error: 'Failed to create job after payment.' });
+  } finally {
+    client.release();
   }
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
 // POST /api/payments/verify/room — verify + create ROOM listing (PostRoomScreen)
+// FIX #1: saves expectedAmount (server-computed), not req.body.amount
+// FIX #6: all writes wrapped in a single DB transaction
+// FIX #7: planDays from server PLAN_DAYS table, not req.body.days
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/room', auth, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, room, plan, amount, days, couponId } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, room, plan, couponId } = req.body;
+    // NOTE: `amount` and `days` from req.body are intentionally NOT used below.
 
-    let couponRow = null;
-    if (couponId) {
-      const { rows: cr } = await pool.query(
-        `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
-           AND (valid_until IS NULL OR valid_until >= NOW())
-           AND (max_uses IS NULL OR uses_count < max_uses)
-           AND NOT EXISTS (
-             SELECT 1 FROM coupon_usage
-             WHERE coupon_id = $1 AND user_id = $2
-           )`,
-        [couponId, req.user.id]
-      );
-      couponRow = cr[0] || null;
-    }
+    await client.query('BEGIN');
+
+    const couponRow = await resolveCoupon(client, couponId, req.user.id);
 
     const expectedAmount = resolveExpectedAmount('room', plan, couponRow);
-    if (expectedAmount === null) return res.json({ ok: false, error: 'Invalid plan.' });
-
-    const check = checkPayment(req, expectedAmount);
-    if (!check.ok) return res.json({ ok: false, error: check.error });
-    // Replay-attack guard: reject if this payment ID was already used
-    if (!check.free) {
-      const dupErr = await rejectIfDuplicatePayment(req.body.razorpay_payment_id);
-      if (dupErr) return res.json(dupErr);
+    if (expectedAmount === null) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: 'Invalid plan.' });
     }
 
-    await savePayment(req.user.id, {
-      amount, plan,
+    const check = checkPayment(req, expectedAmount);
+    if (!check.ok) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: check.error });
+    }
+
+    if (!check.free) {
+      const dupErr = await rejectIfDuplicatePayment(client, razorpay_payment_id);
+      if (dupErr) {
+        await client.query('ROLLBACK');
+        return res.json(dupErr);
+      }
+    }
+
+    // FIX #1
+    await savePayment(client, req.user.id, {
+      serverAmountPaise: expectedAmount,
+      plan,
       paymentId: razorpay_payment_id || null,
       orderId:   razorpay_order_id   || null,
     });
 
-    const planDays = (parseInt(days) || parseInt(room?.planDays) || 30) + resolveExtraDays(couponRow);
+    // FIX #7
+    const planDays = resolvePlanDays('room', plan) + resolveExtraDays(couponRow);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
 
     if (!room?.rent || !room?.area || !room?.whatsapp) {
+      await client.query('ROLLBACK');
       return res.json({ ok: false, error: 'Rent, area, and WhatsApp are required.' });
     }
 
-    const { rows } = await pool.query(`
+    const { rows } = await client.query(`
       INSERT INTO rooms (
         posted_by, room_type, for_gender, furnished, floor, total_floors,
         bhk_size, facing, vacancies, rent, deposit, maintenance, broker_free,
@@ -370,70 +438,79 @@ router.post('/verify/room', auth, async (req, res) => {
       room.availableFrom || 'Immediately', room.tenantPref || 'Any',
       room.area, room.address || '', room.landmark || '', room.ownerName || '', room.whatsapp,
       room.description || '', JSON.stringify(room.photos || []),
-      planDays, room.planLabel || plan || '1 Month', parseInt(room.planPrice) || 0,
+      planDays, room.planLabel || plan || '1 Month', Math.round(expectedAmount / 100),
       expiresAt, room.district || 'nanded',
     ]);
 
-    if (couponId) {
-      await pool.query(`INSERT INTO coupon_usage (coupon_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [couponId, req.user.id]);
-      await pool.query(`UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id=$1`, [couponId]);
-    }
+    // FIX #6
+    await markCouponUsed(client, couponId, req.user.id);
 
+    await client.query('COMMIT');
     res.json({ ok: true, room: rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('verify/room error:', err);
     res.json({ ok: false, error: 'Failed to create room listing after payment.' });
+  } finally {
+    client.release();
   }
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
 // POST /api/payments/verify/vehicle — verify + create VEHICLE listing (PostCarScreen)
+// FIX #1: saves expectedAmount (server-computed), not req.body.amount
+// FIX #6: all writes wrapped in a single DB transaction
+// FIX #7: planDays from server PLAN_DAYS table, not req.body.days
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/vehicle', auth, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, vehicle, plan, amount, days, couponId } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, vehicle, plan, couponId } = req.body;
+    // NOTE: `amount` and `days` from req.body are intentionally NOT used below.
 
-    let couponRow = null;
-    if (couponId) {
-      const { rows: cr } = await pool.query(
-        `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
-           AND (valid_until IS NULL OR valid_until >= NOW())
-           AND (max_uses IS NULL OR uses_count < max_uses)
-           AND NOT EXISTS (
-             SELECT 1 FROM coupon_usage
-             WHERE coupon_id = $1 AND user_id = $2
-           )`,
-        [couponId, req.user.id]
-      );
-      couponRow = cr[0] || null;
-    }
+    await client.query('BEGIN');
+
+    const couponRow = await resolveCoupon(client, couponId, req.user.id);
 
     const expectedAmount = resolveExpectedAmount('vehicle', plan, couponRow);
-    if (expectedAmount === null) return res.json({ ok: false, error: 'Invalid plan.' });
-
-    const check = checkPayment(req, expectedAmount);
-    if (!check.ok) return res.json({ ok: false, error: check.error });
-    // Replay-attack guard: reject if this payment ID was already used
-    if (!check.free) {
-      const dupErr = await rejectIfDuplicatePayment(req.body.razorpay_payment_id);
-      if (dupErr) return res.json(dupErr);
+    if (expectedAmount === null) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: 'Invalid plan.' });
     }
 
-    await savePayment(req.user.id, {
-      amount, plan,
+    const check = checkPayment(req, expectedAmount);
+    if (!check.ok) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: check.error });
+    }
+
+    if (!check.free) {
+      const dupErr = await rejectIfDuplicatePayment(client, razorpay_payment_id);
+      if (dupErr) {
+        await client.query('ROLLBACK');
+        return res.json(dupErr);
+      }
+    }
+
+    // FIX #1
+    await savePayment(client, req.user.id, {
+      serverAmountPaise: expectedAmount,
+      plan,
       paymentId: razorpay_payment_id || null,
       orderId:   razorpay_order_id   || null,
     });
 
-    const planDays = (parseInt(days) || parseInt(vehicle?.planDays) || 30) + resolveExtraDays(couponRow);
+    // FIX #7
+    const planDays = resolvePlanDays('vehicle', plan) + resolveExtraDays(couponRow);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
 
     if (!vehicle?.dailyRate || !vehicle?.area || !vehicle?.whatsapp) {
+      await client.query('ROLLBACK');
       return res.json({ ok: false, error: 'Daily rate, area, and WhatsApp are required.' });
     }
 
-    const { rows } = await pool.query(`
+    const { rows } = await client.query(`
       INSERT INTO vehicles (
         posted_by, vehicle_type, name, year, color, fuel_type, transmission,
         ac_type, seats, daily_rate, hourly_rate, km_limit, extra_km_rate,
@@ -460,70 +537,79 @@ router.post('/verify/vehicle', auth, async (req, res) => {
       vehicle.area, vehicle.address || '', vehicle.ownerName || '',
       vehicle.whatsapp, vehicle.description || '',
       JSON.stringify(vehicle.photos || []),
-      planDays, vehicle.planLabel || plan || '1 Month', parseInt(vehicle.planPrice) || 0,
+      planDays, vehicle.planLabel || plan || '1 Month', Math.round(expectedAmount / 100),
       expiresAt, vehicle.district || 'nanded',
     ]);
 
-    if (couponId) {
-      await pool.query(`INSERT INTO coupon_usage (coupon_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [couponId, req.user.id]);
-      await pool.query(`UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id=$1`, [couponId]);
-    }
+    // FIX #6
+    await markCouponUsed(client, couponId, req.user.id);
 
+    await client.query('COMMIT');
     res.json({ ok: true, vehicle: rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('verify/vehicle error:', err);
     res.json({ ok: false, error: 'Failed to create vehicle listing after payment.' });
+  } finally {
+    client.release();
   }
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
 // POST /api/payments/verify/buysell — verify + create BUY-SELL listing (PostItemScreen)
+// FIX #1: saves expectedAmount (server-computed), not req.body.amount
+// FIX #6: all writes wrapped in a single DB transaction
+// FIX #7: planDays from server PLAN_DAYS table, not req.body.days
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/buysell', auth, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, item, plan, amount, days, couponId } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, item, plan, couponId } = req.body;
+    // NOTE: `amount` and `days` from req.body are intentionally NOT used below.
 
-    let couponRow = null;
-    if (couponId) {
-      const { rows: cr } = await pool.query(
-        `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
-           AND (valid_until IS NULL OR valid_until >= NOW())
-           AND (max_uses IS NULL OR uses_count < max_uses)
-           AND NOT EXISTS (
-             SELECT 1 FROM coupon_usage
-             WHERE coupon_id = $1 AND user_id = $2
-           )`,
-        [couponId, req.user.id]
-      );
-      couponRow = cr[0] || null;
-    }
+    await client.query('BEGIN');
+
+    const couponRow = await resolveCoupon(client, couponId, req.user.id);
 
     const expectedAmount = resolveExpectedAmount('buysell', plan, couponRow);
-    if (expectedAmount === null) return res.json({ ok: false, error: 'Invalid plan.' });
-
-    const check = checkPayment(req, expectedAmount);
-    if (!check.ok) return res.json({ ok: false, error: check.error });
-    // Replay-attack guard: reject if this payment ID was already used
-    if (!check.free) {
-      const dupErr = await rejectIfDuplicatePayment(req.body.razorpay_payment_id);
-      if (dupErr) return res.json(dupErr);
+    if (expectedAmount === null) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: 'Invalid plan.' });
     }
 
-    await savePayment(req.user.id, {
-      amount, plan,
+    const check = checkPayment(req, expectedAmount);
+    if (!check.ok) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: check.error });
+    }
+
+    if (!check.free) {
+      const dupErr = await rejectIfDuplicatePayment(client, razorpay_payment_id);
+      if (dupErr) {
+        await client.query('ROLLBACK');
+        return res.json(dupErr);
+      }
+    }
+
+    // FIX #1
+    await savePayment(client, req.user.id, {
+      serverAmountPaise: expectedAmount,
+      plan,
       paymentId: razorpay_payment_id || null,
       orderId:   razorpay_order_id   || null,
     });
 
-    const planDays = (parseInt(days) || parseInt(item?.planDays) || 15) + resolveExtraDays(couponRow);
+    // FIX #7
+    const planDays = resolvePlanDays('buysell', plan) + resolveExtraDays(couponRow);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
 
     if (!item?.title || !item?.price || !item?.whatsapp) {
+      await client.query('ROLLBACK');
       return res.json({ ok: false, error: 'Title, price, and WhatsApp are required.' });
     }
 
-    const { rows } = await pool.query(`
+    const { rows } = await client.query(`
       INSERT INTO buysell_items (
         posted_by, title, category, condition, age,
         price, negotiable, area, description, whatsapp,
@@ -543,24 +629,29 @@ router.post('/verify/buysell', auth, async (req, res) => {
       item.description || '',
       item.whatsapp.trim(),
       JSON.stringify(item.photos || []),
-      planDays, item.planLabel || plan || '15 Days', parseInt(item.planPrice) || 0,
+      planDays, item.planLabel || plan || '15 Days', Math.round(expectedAmount / 100),
       expiresAt,
     ]);
 
-    if (couponId) {
-      await pool.query(`INSERT INTO coupon_usage (coupon_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [couponId, req.user.id]);
-      await pool.query(`UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id=$1`, [couponId]);
-    }
+    // FIX #6
+    await markCouponUsed(client, couponId, req.user.id);
 
+    await client.query('COMMIT');
     res.json({ ok: true, item: rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('verify/buysell error:', err);
     res.json({ ok: false, error: 'Failed to create listing after payment.' });
+  } finally {
+    client.release();
   }
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
 // POST /api/payments/verify/promotion — verify + create PROMOTION (PromoteBusinessScreen)
+// FIX #1: saves server-computed price, not req.body.amount
+// FIX #6: all writes wrapped in a single DB transaction
+// FIX #7: days come from server PROMOTION_PLANS table, not client
 // ══════════════════════════════════════════════════════════════════════════════
 
 const PROMOTION_PLANS = {
@@ -576,42 +667,57 @@ const BANNER_COLORS = {
 };
 
 router.post('/verify/promotion', auth, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, promotion, amount } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, promotion } = req.body;
+    // NOTE: `amount` from req.body is intentionally NOT used below.
+
+    await client.query('BEGIN');
 
     const planKey  = promotion?.plan || 'basic';
     const planMeta = PROMOTION_PLANS[planKey];
-    if (!planMeta) return res.json({ ok: false, error: 'Invalid promotion plan.' });
+    if (!planMeta) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: 'Invalid promotion plan.' });
+    }
 
     // Promotions are always paid — price comes from server table, never the client
     const expectedAmountPaise = planMeta.price * 100;
     const check = checkPayment(req, expectedAmountPaise);
-    if (!check.ok) return res.json({ ok: false, error: check.error });
-    // Replay-attack guard: reject if this payment ID was already used
+    if (!check.ok) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: check.error });
+    }
+
     if (!check.free) {
-      const dupErr = await rejectIfDuplicatePayment(req.body.razorpay_payment_id);
-      if (dupErr) return res.json(dupErr);
+      const dupErr = await rejectIfDuplicatePayment(client, razorpay_payment_id);
+      if (dupErr) {
+        await client.query('ROLLBACK');
+        return res.json(dupErr);
+      }
     }
 
     const { price, days } = planMeta;
-    const accentColor     = BANNER_COLORS[promotion?.bannerStyle] || '#f97316';
+    const accentColor = BANNER_COLORS[promotion?.bannerStyle] || '#f97316';
 
-    await savePayment(req.user.id, {
-      amount: amount || price * 100,
+    // FIX #1: use server-computed price
+    await savePayment(client, req.user.id, {
+      serverAmountPaise: expectedAmountPaise,
       plan:   planKey,
       paymentId: razorpay_payment_id || null,
       orderId:   razorpay_order_id   || null,
     });
 
-    if (!promotion?.bizName?.trim())  return res.json({ ok: false, error: 'Business name is required.' });
-    if (!promotion?.phone?.trim())    return res.json({ ok: false, error: 'Contact number is required.' });
-    if (!promotion?.category?.trim()) return res.json({ ok: false, error: 'Category is required.' });
-    if (!promotion?.location?.trim()) return res.json({ ok: false, error: 'Location is required.' });
+    if (!promotion?.bizName?.trim())  { await client.query('ROLLBACK'); return res.json({ ok: false, error: 'Business name is required.' }); }
+    if (!promotion?.phone?.trim())    { await client.query('ROLLBACK'); return res.json({ ok: false, error: 'Contact number is required.' }); }
+    if (!promotion?.category?.trim()) { await client.query('ROLLBACK'); return res.json({ ok: false, error: 'Category is required.' }); }
+    if (!promotion?.location?.trim()) { await client.query('ROLLBACK'); return res.json({ ok: false, error: 'Location is required.' }); }
 
+    // FIX #7: days from server table
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
-    const { rows } = await pool.query(
+    const { rows } = await client.query(
       `INSERT INTO business_promotions
          (user_id, biz_name, tagline, phone, category, location, address,
           website, description, plan, plan_price, plan_days,
@@ -634,10 +740,14 @@ router.post('/verify/promotion', auth, async (req, res) => {
       ]
     );
 
+    await client.query('COMMIT');
     res.json({ ok: true, promotion: rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('verify/promotion error:', err);
     res.json({ ok: false, error: 'Failed to create promotion after payment.' });
+  } finally {
+    client.release();
   }
 });
 
