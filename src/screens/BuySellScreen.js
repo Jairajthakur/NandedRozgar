@@ -11,6 +11,7 @@ import { http } from '../utils/api';
 import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../components/PromoBanner';
 import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
+import { useDistrict } from '../context/DistrictContext';
 
 const ORANGE  = '#f97316';
 const IS_WEB  = Platform.OS === 'web';
@@ -353,6 +354,7 @@ export default function BuySellScreen({ route }) {
   const { lang, t } = useLang();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
+  const { currentDistrict } = useDistrict();
 
   const [activeCat,   setActiveCat]   = useState('All');
   const [search,      setSearch]      = useState(route?.params?.searchQuery || '');
@@ -396,7 +398,8 @@ export default function BuySellScreen({ route }) {
   const fetchItems = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
-      const res = await http('GET', '/api/buysell');
+      const districtParam = currentDistrict?.id ? `?district=${currentDistrict.id}` : '';
+      const res = await http('GET', `/api/buysell${districtParam}`);
       if (res.ok && res.items?.length > 0) {
         const mapped = res.items.map(v => ({
           id:          String(v.id),
@@ -428,6 +431,11 @@ export default function BuySellScreen({ route }) {
   }, []);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  // Re-fetch when district changes
+  useEffect(() => {
+    if (currentDistrict?.id) fetchItems();
+  }, [currentDistrict?.id]);
 
   useEffect(() => {
     http('GET', '/api/promotions/all').then(res => {
@@ -473,12 +481,32 @@ export default function BuySellScreen({ route }) {
           <View>
             <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
               <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
-                {t('buySellInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>Nanded</Text>{t('buySellInNanded').split('Nanded')[1] || ''}
+                {t('buySellInNanded').split('Nanded')[0]}<Text style={{ color: ORANGE }}>{currentDistrict?.name || 'Nanded'}</Text>{t('buySellInNanded').split('Nanded')[1] || ''}
               </Text>
             </TouchableOpacity>
-            <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
-              {filtered.length} item{filtered.length !== 1 ? 's' : ''} listed
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
+                {filtered.length} item{filtered.length !== 1 ? 's' : ''} listed
+              </Text>
+              {currentDistrict && (
+                <TouchableOpacity
+                  onPress={() => nav.navigate('Home')}
+                  activeOpacity={0.75}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 3,
+                    backgroundColor: (currentDistrict.color || ORANGE) + '18',
+                    borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2,
+                    borderWidth: 1, borderColor: (currentDistrict.color || ORANGE) + '55',
+                  }}
+                >
+                  <Ionicons name="location-outline" size={10} color={currentDistrict.color || ORANGE} />
+                  <Text style={{ fontSize: 10, color: currentDistrict.color || ORANGE, fontWeight: '700' }}>
+                    {currentDistrict.name}
+                  </Text>
+                  <Ionicons name="chevron-down" size={9} color={currentDistrict.color || ORANGE} />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             {/* Filter button on mobile */}
