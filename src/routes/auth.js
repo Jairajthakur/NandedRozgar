@@ -481,6 +481,17 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
     const appUrl   = process.env.APP_URL || 'https://localloops-production.up.railway.app';
     const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
 
+    // Escape HTML special characters to prevent XSS — a user who registered
+    // with a name like <script>alert(1)</script> would otherwise inject into
+    // the email HTML. Email clients vary; some render scripts.
+    const escapeHtml = (str) => String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;');
+    const safeName = escapeHtml(user.name || 'there');
+
     if (process.env.RESEND_API_KEY) {
       const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
       await fetch('https://api.resend.com/emails', {
@@ -497,7 +508,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
             <!DOCTYPE html><html><body style="font-family:sans-serif;background:#f9f9f9;padding:24px">
               <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
                 <h2 style="color:#f97316;margin-top:0">Reset your password</h2>
-                <p>Hi ${user.name || 'there'},</p>
+                <p>Hi ${safeName},</p>
                 <p>Click the button below to reset your password. This link expires in <strong>1 hour</strong>.</p>
                 <a href="${resetUrl}" style="display:inline-block;background:#f97316;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0">Reset Password</a>
                 <p style="color:#666;font-size:14px">If you didn't request this, you can safely ignore this email.</p>
