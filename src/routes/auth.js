@@ -171,7 +171,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
 // ── POST /api/auth/google ──────────────────────────────────────────────────────
 // Accepts either:
-//   { idToken }     — from native @react-native-google-signin (preferred, verified via tokeninfo)
+//   { idToken }     — from native @react-native-google-signin (preferred, verified locally via JWKS)
 //   { accessToken } — from web GSI / legacy flow (verified via userinfo)
 router.post('/google', loginLimiter, async (req, res) => {
   try {
@@ -181,28 +181,63 @@ router.post('/google', loginLimiter, async (req, res) => {
     let googleId, email, name, picture, email_verified;
 
     if (idToken) {
-      // Verify idToken via Google's tokeninfo endpoint — works for native SDK tokens
-      const tokenRes = await fetch(
-        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
-      );
-      const tokenData = await tokenRes.json();
-      if (!tokenRes.ok || tokenData.error) {
-        console.error('Google tokeninfo error:', tokenData);
+      // Verify idToken locally using Google's public keys (JWKS).
+      // This is Google's recommended approach — avoids a network round-trip to
+      // tokeninfo and is not vulnerable to tokeninfo endpoint outages or deprecation.
+      // Reference: https://developers.google.com/identity/openid-connect/openid-connect#validatinganidtoken
+      let tokenData;
+      try {
+        // Fetch Google's public JWKS to verify the JWT signature
+        const jwksRes  = await fetch('https://www.googleapis.com/oauth2/v3/certs');
+        if (!jwksRes.ok) throw new Error('Failed to fetch Google public keys');
+        const { keys } = await jwksRes.json();
+
+        // Decode the JWT header to find which key was used
+        const [headerB64, payloadB64, sigB64] = idToken.split('.');
+        if (!headerB64 || !payloadB64 || !sigB64) throw new Error('Malformed JWT');
+
+        const header  = JSON.parse(Buffer.from(headerB64,  'base64url').toString());
+        const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
+
+        // Find the matching public key by key ID
+        const jwk = keys.find(k => k.kid === header.kid && k.alg === 'RS256');
+        if (!jwk) throw new Error('No matching Google public key found');
+
+        // Import the JWK and verify the signature using Node's built-in crypto
+        const { createVerify } = require('crypto');
+        const pubKey = require('crypto').createPublicKey({ key: jwk, format: 'jwk' });
+        const verify = createVerify('SHA256');
+        verify.update(`${headerB64}.${payloadB64}`);
+        const valid = verify.verify(pubKey, sigB64, 'base64url');
+        if (!valid) throw new Error('JWT signature verification failed');
+
+        // Validate standard claims
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp < now)  throw new Error('ID token has expired');
+        if (payload.iat > now + 60) throw new Error('ID token issued in the future');
+
+        const validAudiences = [
+          process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+          process.env.GOOGLE_ANDROID_CLIENT_ID,
+        ].filter(Boolean);
+        if (validAudiences.length > 0 && !validAudiences.includes(payload.aud)) {
+          throw new Error('ID token audience mismatch');
+        }
+        if (payload.iss !== 'https://accounts.google.com' && payload.iss !== 'accounts.google.com') {
+          throw new Error('ID token issuer mismatch');
+        }
+
+        tokenData = payload;
+      } catch (e) {
+        console.error('Google ID token verification failed:', e.message);
         return res.json({ ok: false, error: 'Invalid Google ID token' });
       }
-      // Verify the token was issued for our app
-      const validAudiences = [
-        process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-        process.env.GOOGLE_ANDROID_CLIENT_ID,
-      ].filter(Boolean);
-      if (validAudiences.length > 0 && !validAudiences.includes(tokenData.aud)) {
-        return res.json({ ok: false, error: 'Google token audience mismatch' });
-      }
-      googleId      = tokenData.sub;
-      email         = tokenData.email;
-      name          = tokenData.name;
-      picture       = tokenData.picture;
-      email_verified = tokenData.email_verified === 'true' || tokenData.email_verified === true;
+
+      googleId       = tokenData.sub;
+      email          = tokenData.email;
+      name           = tokenData.name;
+      picture        = tokenData.picture;
+      email_verified = tokenData.email_verified === true;
     } else {
       // Verify accessToken via userinfo endpoint — for web GSI flow
       const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
