@@ -604,107 +604,6 @@ router.post('/logout', auth, async (req, res) => {
   }
 });
 
-// ── POST /api/auth/send-otp ────────────────────────────────────────────────────
-router.post('/send-otp', otpLimiter, async (req, res) => {
-  try {
-    const { phone } = req.body;
-    if (!phone || !/^\d{10}$/.test(phone.trim())) {
-      return res.json({ ok: false, error: 'Enter a valid 10-digit mobile number.' });
-    }
-
-    const otp       = String(Math.floor(100000 + Math.random() * 900000));
-    const otpHash   = await bcrypt.hash(otp, 8);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await pool.query(
-      `INSERT INTO otp_sessions (phone, otp_hash, expires_at, attempts)
-       VALUES ($1, $2, $3, 0)
-       ON CONFLICT (phone)
-       DO UPDATE SET otp_hash = $2, expires_at = $3, attempts = 0`,
-      [phone.trim(), otpHash, expiresAt]
-    );
-
-    const apiKey     = process.env.FAST2SMS_API_KEY;
-    const route      = process.env.FAST2SMS_ROUTE || 'otp';
-    const senderId   = process.env.FAST2SMS_SENDER_ID || '';
-    const templateId = process.env.FAST2SMS_TEMPLATE_ID || '';
-
-    if (!apiKey) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[DEV] OTP for ${phone}: ${otp}`);
-      }
-      return res.json({ ok: true, dev: true, message: 'OTP logged to console (no FAST2SMS_API_KEY set).' });
-    }
-
-    let smsUrl;
-    if (route === 'dlt') {
-      smsUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&route=dlt&sender_id=${senderId}&message=${encodeURIComponent(process.env.FAST2SMS_MESSAGE || 'Your CityPlus OTP is {#var#}. Valid for 10 minutes.')}&variables_values=${otp}&flash=0&numbers=${phone.trim()}`
-        + (templateId ? `&template_id=${templateId}` : '');
-    } else {
-      smsUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&variables_values=${otp}&route=otp&numbers=${phone.trim()}`;
-    }
-
-    const smsRes  = await fetch(smsUrl, { method: 'GET', headers: { 'cache-control': 'no-cache' } });
-    const smsData = await smsRes.json();
-    if (!smsData.return) throw new Error((Array.isArray(smsData.message) ? smsData.message[0] : smsData.message) || 'SMS delivery failed');
-
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error('send-otp error:', err.message);
-    return res.json({ ok: false, error: 'Failed to send OTP. Please try again.' });
-  }
-});
-
-// ── POST /api/auth/verify-otp ──────────────────────────────────────────────────
-router.post('/verify-otp', otpLimiter, async (req, res) => {
-  try {
-    const { phone, otp } = req.body;
-    if (!phone || !otp) return res.json({ ok: false, error: 'Phone and OTP are required.' });
-
-    const { rows } = await pool.query(
-      `SELECT * FROM otp_sessions WHERE phone = $1 AND expires_at > NOW() AND attempts < 5`,
-      [phone.trim()]
-    );
-
-    if (!rows.length) {
-      return res.json({ ok: false, error: 'OTP expired or not found. Please request a new one.' });
-    }
-
-    const session = rows[0];
-    const valid   = await bcrypt.compare(String(otp).trim(), session.otp_hash);
-
-    if (!valid) {
-      await pool.query('UPDATE otp_sessions SET attempts = attempts + 1 WHERE phone = $1', [phone]);
-      const left = 5 - (session.attempts + 1);
-      return res.json({ ok: false, error: `Incorrect OTP. ${left > 0 ? `${left} attempt(s) remaining.` : 'Please request a new OTP.'}` });
-    }
-
-    await pool.query('DELETE FROM otp_sessions WHERE phone = $1', [phone]);
-
-    let { rows: userRows } = await pool.query('SELECT * FROM users WHERE phone = $1', [phone.trim()]);
-    let user;
-    if (!userRows.length) {
-      const { rows: newRows } = await pool.query(
-        `INSERT INTO users (name, phone, role, active) VALUES ($1, $2, 'user', true) RETURNING *`,
-        [`User${phone.slice(-4)}`, phone.trim()]
-      );
-      user = newRows[0];
-    } else {
-      user = userRows[0];
-      await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(() => {});
-    }
-
-    const token = makeToken(user);
-    return res.json({
-      ok: true, token,
-      user: { id: user.id, name: user.name, phone: user.phone, role: user.role, email: user.email },
-    });
-  } catch (err) {
-    console.error('verify-otp error:', err.message);
-    return res.json({ ok: false, error: 'OTP verification failed. Please try again.' });
-  }
-});
-
 // ── POST /api/auth/save-push-token ────────────────────────────────────────────
 router.post('/save-push-token', auth, async (req, res) => {
   try {
@@ -740,12 +639,6 @@ router.delete('/account', auth, async (req, res) => {
     await client.query(`UPDATE rooms        SET status='deleted' WHERE posted_by=$1`, [userId]);
     await client.query(`UPDATE vehicles     SET status='deleted' WHERE posted_by=$1`, [userId]);
     await client.query(`UPDATE buysell_items SET status='deleted' WHERE posted_by=$1`, [userId]);
-    // Only delete OTP sessions if the user had a phone — avoids a silent no-op
-    // from `WHERE phone = NULL` (SQL = NULL never matches; needs IS NULL).
-    // Error is no longer swallowed so a DB failure still triggers ROLLBACK.
-    if (req.user.phone) {
-      await client.query(`DELETE FROM otp_sessions WHERE phone=$1`, [req.user.phone]);
-    }
     await client.query('COMMIT');
     return res.json({ ok: true, message: 'Your account has been deleted.' });
   } catch (err) {
