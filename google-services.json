@@ -1,37 +1,26 @@
 {
-  "_SECURITY_NOTICE": "This is a TEMPLATE. Real credentials were removed because google-services.json was committed to the repository with a live Firebase API key. Replace every placeholder below with your actual values from the Firebase Console (Project Settings → Your apps → google-services.json). Add google-services.json to .gitignore so it is never committed again.",
   "project_info": {
-    "project_number": "YOUR_PROJECT_NUMBER",
-    "project_id": "YOUR_PROJECT_ID",
-    "storage_bucket": "YOUR_PROJECT_ID.firebasestorage.app"
+    "project_number": "000000000000",
+    "project_id": "placeholder",
+    "storage_bucket": "placeholder.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "YOUR_MOBILESDK_APP_ID",
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
         "android_client_info": {
           "package_name": "com.cityplus.app"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "YOUR_ANDROID_OAUTH_CLIENT_ID.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "YOUR_FIREBASE_API_KEY"
+          "current_key": "placeholder"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "YOUR_WEB_OAUTH_CLIENT_ID.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
