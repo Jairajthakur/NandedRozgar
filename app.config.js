@@ -53,6 +53,7 @@ export default {
         backgroundColor: '#111111',
       },
       package: 'com.cityplus.app',
+      versionCode: 1,
       permissions: [
         'android.permission.INTERNET',
         'android.permission.ACCESS_NETWORK_STATE',
