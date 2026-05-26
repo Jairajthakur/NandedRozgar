@@ -87,12 +87,6 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli@latest
 
-      # ── KEY FIX ──────────────────────────────────────────────────────────────
-      # app.config.js reads projectId from EXPO_PROJECT_ID at runtime, so we
-      # cannot verify the ID before the build (it will always be empty in a
-      # static check). Instead we verify the EAS *slug* registered for the
-      # secret project ID matches the slug in app.config.js. A mismatch here
-      # is exactly what caused the "slug … does not match" build failure.
       - name: Verify EAS slug matches app.config.js
         run: |
           CONFIG_SLUG=$(node --input-type=module << 'EOF'
@@ -104,9 +98,8 @@ jobs:
           )
           echo "app.config.js slug: $CONFIG_SLUG"
 
-          # Fetch the slug registered for this project ID on Expo's servers
           EAS_SLUG=$(eas project:info --id "$EXPO_PROJECT_ID" --json 2>/dev/null \
-            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);process.stdout.write(j.slug||j.name||'');}catch{}})") 
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);process.stdout.write(j.slug||j.name||'');}catch{}})")
 
           echo "EAS registered slug: $EAS_SLUG"
 
@@ -125,10 +118,28 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
 
+      # ── CRITICAL FIX ─────────────────────────────────────────────────────────
+      # EAS local builds create a project tarball immediately when `eas build`
+      # starts. Any files written AFTER that point are NOT included in the
+      # build directory that expo prebuild runs in.
+      #
+      # Solution: write google-services.json NOW (before `eas build`), AND
+      # patch the EAS local build to copy it into the temp build dir by using
+      # a custom --pre-build hook. The simplest approach that actually works is
+      # to commit a real (or placeholder) google-services.json to the repo so
+      # it is always present in the tarball, then overwrite it here with the
+      # real secret before `eas build` archives the project.
+      #
+      # The file is written here so it exists in the working directory that EAS
+      # tarballs up. DO NOT move this step after `eas build`.
       - name: Write google-services.json
         run: |
           echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
-          echo "✅ google-services.json written."
+          echo "✅ google-services.json written to project root."
+          # Verify it is valid JSON so the build doesn't fail silently
+          node -e "JSON.parse(require('fs').readFileSync('google-services.json','utf8'))" \
+            && echo "✅ google-services.json is valid JSON." \
+            || { echo "❌ google-services.json is NOT valid JSON — check the GOOGLE_SERVICES_JSON secret."; exit 1; }
 
       - name: Build APK
         run: eas build --platform android --profile preview --local --output ./CityPlus.apk --non-interactive
