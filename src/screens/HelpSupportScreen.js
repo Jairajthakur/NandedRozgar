@@ -29,9 +29,9 @@ const GREEN   = '#16a34a';
 
 // ── Support contact details — update before publishing ──────────────────────
 const SUPPORT_PHONE    = '919834308805';   // e.g. '919823001234'  (91 + 10-digit number, no +)
-const SUPPORT_EMAIL    = 'support@cityplus.in';
-const LEGAL_EMAIL      = 'legal@cityplus.in';
-const PRIVACY_EMAIL    = 'support@cityplus.in';
+const SUPPORT_EMAIL    = 'support@thecityplus.in';
+const LEGAL_EMAIL      = 'support@thecityplus.in';
+const PRIVACY_EMAIL    = 'support@thecityplus.in';
 
 // ── Legal content ──────────────────────────────────────────────────────────────
 const LEGAL_CONTENT = {
