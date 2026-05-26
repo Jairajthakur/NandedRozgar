@@ -487,11 +487,11 @@ export default function CarsScreen({ route }) {
 
   const defaultPromo = {
     name:        'Advertise Your Vehicle Business',
-    tagline:     'Reach thousands of customers in Nanded!',
+    tagline:     `Reach thousands of customers in ${districtLocalName}!`,
     description: 'Rent cars, bikes & autos to people who need them. List your vehicle or promote your transport business here.',
     category:    'transport',
     phone:       '',
-    location:    'Nanded, Maharashtra',
+    location:    `${districtLocalName}, Maharashtra`,
     plan:        'popular',
   };
 
