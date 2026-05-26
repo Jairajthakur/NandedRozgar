@@ -39,9 +39,13 @@ const SLIDES = [
   },
 ];
 
+// Re-export from storage.js so these helpers are decoupled from this screen file.
+// Importing from storage.js directly is preferred; these re-exports exist for
+// backward-compatibility so existing imports of { isOnboarded } from this file
+// continue to work even if the screen is renamed or refactored.
+export { isOnboarded, markOnboarded } from '../utils/storage';
+/** @deprecated Import from '../utils/storage' instead */
 export const ONBOARDING_KEY = 'nr_onboarded_v1';
-export async function markOnboarded() { await storage.setItem(ONBOARDING_KEY, '1'); }
-export async function isOnboarded() { try { const v = await storage.getItem(ONBOARDING_KEY); return v === '1'; } catch { return false; } }
 
 // ── Animated slide content ────────────────────────────────────────────────────
 function SlideContent({ slide, lang, active }) {
