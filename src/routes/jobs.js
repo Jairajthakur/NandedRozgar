@@ -84,6 +84,43 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/jobs/my-applications — current user's applications with statuses
+// MUST be registered before /:id routes or Express will match 'my-applications' as an id
+router.get('/my-applications', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT a.id, a.status, a.created_at,
+        j.id AS job_id, j.title, j.company, j.category, j.location, j.salary
+      FROM applications a
+      JOIN jobs j ON j.id = a.job_id
+      WHERE a.user_id = $1
+      ORDER BY a.created_at DESC
+    `, [req.user.id]);
+    res.json({ ok: true, applications: rows });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to load applications' });
+  }
+});
+
+// GET /api/jobs/saved — list user's saved jobs
+// MUST be registered before /:id routes or Express will match 'saved' as an id
+router.get('/saved', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT j.*, s.created_at AS saved_at
+      FROM saved_jobs s
+      JOIN jobs j ON j.id = s.job_id
+      WHERE s.user_id = $1 AND j.status = 'active'
+      ORDER BY s.created_at DESC
+    `, [req.user.id]);
+    res.json({ ok: true, jobs: rows });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to load saved jobs' });
+  }
+});
+
 // GET /api/jobs/:id — fetch a single job by ID
 //
 // Bug #7 fix: this endpoint was entirely missing, making it impossible to
@@ -185,43 +222,6 @@ router.post('/', auth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to post job' });
-  }
-});
-
-// GET /api/jobs/my-applications — current user's applications with statuses
-// MUST be registered before /:id routes or Express will match 'my-applications' as an id
-router.get('/my-applications', auth, async (req, res) => {
-  try {
-    const { rows } = await pool.query(`
-      SELECT a.id, a.status, a.created_at,
-        j.id AS job_id, j.title, j.company, j.category, j.location, j.salary
-      FROM applications a
-      JOIN jobs j ON j.id = a.job_id
-      WHERE a.user_id = $1
-      ORDER BY a.created_at DESC
-    `, [req.user.id]);
-    res.json({ ok: true, applications: rows });
-  } catch (err) {
-    console.error(err);
-    res.json({ ok: false, error: 'Failed to load applications' });
-  }
-});
-
-// GET /api/jobs/saved — list user's saved jobs
-// MUST be registered before /:id routes or Express will match 'saved' as an id
-router.get('/saved', auth, async (req, res) => {
-  try {
-    const { rows } = await pool.query(`
-      SELECT j.*, s.created_at AS saved_at
-      FROM saved_jobs s
-      JOIN jobs j ON j.id = s.job_id
-      WHERE s.user_id = $1 AND j.status = 'active'
-      ORDER BY s.created_at DESC
-    `, [req.user.id]);
-    res.json({ ok: true, jobs: rows });
-  } catch (err) {
-    console.error(err);
-    res.json({ ok: false, error: 'Failed to load saved jobs' });
   }
 });
 
