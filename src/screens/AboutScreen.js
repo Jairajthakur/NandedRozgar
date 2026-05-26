@@ -11,12 +11,13 @@
  * - Consistent design tokens
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Easing, Linking, Alert,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BASE_URL } from '../utils/constants';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const ORANGE   = '#f97316';
@@ -146,6 +147,15 @@ export default function AboutScreen() {
   const logoScale = useRef(new Animated.Value(0.6)).current;
   const logoPulse = useRef(new Animated.Value(1)).current;
 
+  const [stats, setStats] = useState({ users: 0, jobs: 0, rooms: 0, rating: null });
+
+  useEffect(() => {
+    fetch(`${BASE_URL}/api/analytics/stats`)
+      .then(r => r.json())
+      .then(d => { if (d.ok) setStats(d); })
+      .catch(() => {}); // silently keep zeros on network error
+  }, []);
+
   useEffect(() => {
     // Entrance
     Animated.parallel([
@@ -168,37 +178,12 @@ export default function AboutScreen() {
 
   const heroTranslate = heroAnim.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] });
 
-  // Attempt to open a URL. If the OS can't handle it (e.g. no browser) or the
-  // fetch returns a 404 (page not yet published), show a fallback alert so the
-  // user is never left tapping a dead button silently.
-  // Note: Linking.canOpenURL only checks if *a handler* exists, not the HTTP
-  // status — so we do a lightweight HEAD request to catch 404s before opening.
   async function openLink(url) {
     try {
       const canOpen = await Linking.canOpenURL(url);
       if (!canOpen) {
         Alert.alert('Cannot open link', 'No browser found on this device.');
         return;
-      }
-      // Quick reachability check — catches 404 pages (unpublished policy pages)
-      // before the user sees a browser error. 5 s timeout keeps it snappy.
-      const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 5000);
-      try {
-        const res = await fetch(url, { method: 'HEAD', signal: controller.signal });
-        clearTimeout(tid);
-        if (res.status === 404) {
-          Alert.alert(
-            'Page not available',
-            'This page hasn\'t been published yet. Please visit thecityplus.in for more information.',
-            [{ text: 'OK' }],
-          );
-          return;
-        }
-      } catch {
-        // Network error or timeout — fall through and try to open anyway;
-        // the browser will show its own error if the site is truly unreachable.
-        clearTimeout(tid);
       }
       await Linking.openURL(url);
     } catch {
@@ -247,10 +232,10 @@ export default function AboutScreen() {
       {/* ── Stats bar ─── */}
       <View style={styles.statsBar}>
         {[
-          { value: 12000, suffix: '+', label: 'Registered Users' },
-          { value: 3500,  suffix: '+', label: 'Jobs Posted' },
-          { value: 850,   suffix: '+', label: 'Rooms Listed' },
-          { value: 4,     suffix: '.8★', label: 'App Rating' },
+          { value: stats.users,  suffix: '+', label: 'Registered Users' },
+          { value: stats.jobs,   suffix: '+', label: 'Jobs Posted' },
+          { value: stats.rooms,  suffix: '+', label: 'Rooms Listed' },
+          { value: stats.rating ?? 0, suffix: stats.rating ? '★' : '', label: 'App Rating' },
         ].map((s, i) => (
           <View key={i} style={[styles.statItem, i < 3 && { borderRightWidth: 1, borderRightColor: BORDER }]}>
             <StatNumber value={s.value} suffix={s.suffix} />
@@ -314,16 +299,13 @@ export default function AboutScreen() {
             CityPlus was born from a simple frustration — job seekers in Nanded were scrolling through national portals and finding zero local listings. Meanwhile, local employers had no affordable, trusted way to reach nearby talent.
           </Text>
           <Text style={styles.storyIntro}>
-            We built CityPlus to solve that mismatch. Starting as a simple job board, we've grown into Nanded's most comprehensive local marketplace — covering jobs, rooms, vehicles, and classified ads.
+            We built CityPlus to solve that mismatch — a single trusted platform for jobs, rooms, vehicles, and classified ads, built specifically for Nanded.
           </Text>
 
           <View style={styles.timeline}>
             {[
-              { year: '2023', label: 'Founded as NandedRozgar — a simple WhatsApp-based job-sharing group' },
-              { year: 'Early 2024', label: 'Launched as a web app with 50 employers and 500 job seekers in the first month' },
-              { year: 'Mid 2024', label: 'Added Rooms, Vehicles, and Buy & Sell sections. Crossed 5,000 users' },
-              { year: 'Late 2024', label: 'Launched AI Job Match assistant. Crossed ₹1 lakh in promoted listings revenue' },
-              { year: '2025', label: 'Rebranded to CityPlus. Native Android app launched. 12,000+ registered users' },
+              { year: '2026', label: 'CityPlus founded — built for Nanded, by Nanded locals' },
+              { year: 'Now 🚀', label: "Officially launched! Join us as we grow Nanded's local marketplace together" },
             ].map((t, i, arr) => (
               <TimelineItem key={i} year={t.year} label={t.label} isLast={i === arr.length - 1} />
             ))}
@@ -384,18 +366,10 @@ export default function AboutScreen() {
           <LinkRow
             icon="logo-instagram"
             label="Instagram"
-            sub="@cityplus.nanded"
+            sub="@thecityplus.in"
             color="#e1306c"
             bg="rgba(225,48,108,0.1)"
-            onPress={() => openLink('https://instagram.com/cityplus.nanded')}
-          />
-          <LinkRow
-            icon="logo-whatsapp"
-            label="WhatsApp Community"
-            sub="Join 2,000+ locals"
-            color="#25d366"
-            bg="rgba(37,211,102,0.1)"
-            onPress={() => Linking.openURL(`https://wa.me/${SUPPORT_PHONE}`)}
+            onPress={() => openLink('https://instagram.com/thecityplus.in')}
           />
           <LinkRow
             icon="globe-outline"
@@ -415,7 +389,7 @@ export default function AboutScreen() {
           <Text style={[styles.logoText, { fontSize: 14 }]}>C+</Text>
         </View>
         <Text style={styles.footerAppName}>CityPlus v4.4.0</Text>
-        <Text style={styles.footerSub}>© 2025 CityPlus Technologies. All rights reserved.</Text>
+        <Text style={styles.footerSub}>© 2026 CityPlus Technologies. All rights reserved.</Text>
         <Text style={styles.footerSub}>Nanded, Maharashtra, India 🇮🇳</Text>
       </View>
     </ScrollView>
