@@ -61,7 +61,7 @@ export function AuthProvider({ children }) {
   }
 
   async function loadJobs(page = 1, category = null, search = null, district = null) {
-    if (fetchingRef.current && page === 1) return;
+    if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
       let path = `/api/jobs?page=${page}&limit=20`;
