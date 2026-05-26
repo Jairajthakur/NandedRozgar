@@ -9,7 +9,7 @@ import { http } from '../utils/api';
 const ORANGE = '#f97316';
 
 export default function ReferralScreen() {
-  const { user, setUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const credits = user?.referral_credits ?? 0;
 
@@ -19,7 +19,7 @@ export default function ReferralScreen() {
   useEffect(() => {
     // Refresh user to get latest credit balance
     http('GET', '/api/auth/me').then(r => {
-      if (r?.ok && r.user) setUser(r.user);
+      if (r?.ok && r.user) updateUser(r.user);
       setLoading(false);
     });
   }, []);
