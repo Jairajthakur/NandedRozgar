@@ -374,6 +374,13 @@ router.post('/verify/room', auth, async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, room, plan, couponId } = req.body;
     // NOTE: `amount` and `days` from req.body are intentionally NOT used below.
 
+    // Validate required fields FIRST — before touching the payment or DB transaction.
+    // If we validate after checkPayment(), the Razorpay charge has already been
+    // captured and a DB ROLLBACK won't reverse the money taken from the user.
+    if (!room?.rent || !room?.area || !room?.whatsapp) {
+      return res.json({ ok: false, error: 'Rent, area, and WhatsApp are required.' });
+    }
+
     await client.query('BEGIN');
 
     const couponRow = await resolveCoupon(client, couponId, req.user.id);
@@ -410,11 +417,6 @@ router.post('/verify/room', auth, async (req, res) => {
     const planDays = resolvePlanDays('room', plan) + resolveExtraDays(couponRow);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
-
-    if (!room?.rent || !room?.area || !room?.whatsapp) {
-      await client.query('ROLLBACK');
-      return res.json({ ok: false, error: 'Rent, area, and WhatsApp are required.' });
-    }
 
     const { rows } = await client.query(`
       INSERT INTO rooms (
@@ -468,6 +470,11 @@ router.post('/verify/vehicle', auth, async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, vehicle, plan, couponId } = req.body;
     // NOTE: `amount` and `days` from req.body are intentionally NOT used below.
 
+    // Validate required fields FIRST — before touching the payment or DB transaction.
+    if (!vehicle?.dailyRate || !vehicle?.area || !vehicle?.whatsapp) {
+      return res.json({ ok: false, error: 'Daily rate, area, and WhatsApp are required.' });
+    }
+
     await client.query('BEGIN');
 
     const couponRow = await resolveCoupon(client, couponId, req.user.id);
@@ -504,11 +511,6 @@ router.post('/verify/vehicle', auth, async (req, res) => {
     const planDays = resolvePlanDays('vehicle', plan) + resolveExtraDays(couponRow);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
-
-    if (!vehicle?.dailyRate || !vehicle?.area || !vehicle?.whatsapp) {
-      await client.query('ROLLBACK');
-      return res.json({ ok: false, error: 'Daily rate, area, and WhatsApp are required.' });
-    }
 
     const { rows } = await client.query(`
       INSERT INTO vehicles (
@@ -567,6 +569,11 @@ router.post('/verify/buysell', auth, async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, item, plan, couponId } = req.body;
     // NOTE: `amount` and `days` from req.body are intentionally NOT used below.
 
+    // Validate required fields FIRST — before touching the payment or DB transaction.
+    if (!item?.title || !item?.price || !item?.whatsapp) {
+      return res.json({ ok: false, error: 'Title, price, and WhatsApp are required.' });
+    }
+
     await client.query('BEGIN');
 
     const couponRow = await resolveCoupon(client, couponId, req.user.id);
@@ -603,11 +610,6 @@ router.post('/verify/buysell', auth, async (req, res) => {
     const planDays = resolvePlanDays('buysell', plan) + resolveExtraDays(couponRow);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + planDays);
-
-    if (!item?.title || !item?.price || !item?.whatsapp) {
-      await client.query('ROLLBACK');
-      return res.json({ ok: false, error: 'Title, price, and WhatsApp are required.' });
-    }
 
     const { rows } = await client.query(`
       INSERT INTO buysell_items (
@@ -672,6 +674,12 @@ router.post('/verify/promotion', auth, async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, promotion } = req.body;
     // NOTE: `amount` from req.body is intentionally NOT used below.
 
+    // Validate required fields FIRST — before touching the payment or DB transaction.
+    if (!promotion?.bizName?.trim())  return res.json({ ok: false, error: 'Business name is required.' });
+    if (!promotion?.phone?.trim())    return res.json({ ok: false, error: 'Contact number is required.' });
+    if (!promotion?.category?.trim()) return res.json({ ok: false, error: 'Category is required.' });
+    if (!promotion?.location?.trim()) return res.json({ ok: false, error: 'Location is required.' });
+
     await client.query('BEGIN');
 
     const planKey  = promotion?.plan || 'basic';
@@ -707,11 +715,6 @@ router.post('/verify/promotion', auth, async (req, res) => {
       paymentId: razorpay_payment_id || null,
       orderId:   razorpay_order_id   || null,
     });
-
-    if (!promotion?.bizName?.trim())  { await client.query('ROLLBACK'); return res.json({ ok: false, error: 'Business name is required.' }); }
-    if (!promotion?.phone?.trim())    { await client.query('ROLLBACK'); return res.json({ ok: false, error: 'Contact number is required.' }); }
-    if (!promotion?.category?.trim()) { await client.query('ROLLBACK'); return res.json({ ok: false, error: 'Category is required.' }); }
-    if (!promotion?.location?.trim()) { await client.query('ROLLBACK'); return res.json({ ok: false, error: 'Location is required.' }); }
 
     // FIX #7: days from server table
     const expiresAt = new Date();
