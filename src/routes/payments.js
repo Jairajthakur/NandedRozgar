@@ -161,8 +161,12 @@ router.post('/order', auth, async (req, res) => {
       const { rows: cr } = await pool.query(
         `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
            AND (valid_until IS NULL OR valid_until >= NOW())
-           AND (max_uses IS NULL OR uses_count < max_uses)`,
-        [couponId]
+           AND (max_uses IS NULL OR uses_count < max_uses)
+           AND NOT EXISTS (
+             SELECT 1 FROM coupon_usage
+             WHERE coupon_id = $1 AND user_id = $2
+           )`,
+        [couponId, req.user.id]
       );
       couponRow = cr[0] || null;
     }
@@ -214,8 +218,12 @@ router.post('/verify', auth, async (req, res) => {
       const { rows: cr } = await pool.query(
         `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
            AND (valid_until IS NULL OR valid_until >= NOW())
-           AND (max_uses IS NULL OR uses_count < max_uses)`,
-        [couponId]
+           AND (max_uses IS NULL OR uses_count < max_uses)
+           AND NOT EXISTS (
+             SELECT 1 FROM coupon_usage
+             WHERE coupon_id = $1 AND user_id = $2
+           )`,
+        [couponId, req.user.id]
       );
       couponRow = cr[0] || null;
     }
@@ -305,8 +313,12 @@ router.post('/verify/room', auth, async (req, res) => {
       const { rows: cr } = await pool.query(
         `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
            AND (valid_until IS NULL OR valid_until >= NOW())
-           AND (max_uses IS NULL OR uses_count < max_uses)`,
-        [couponId]
+           AND (max_uses IS NULL OR uses_count < max_uses)
+           AND NOT EXISTS (
+             SELECT 1 FROM coupon_usage
+             WHERE coupon_id = $1 AND user_id = $2
+           )`,
+        [couponId, req.user.id]
       );
       couponRow = cr[0] || null;
     }
@@ -386,8 +398,12 @@ router.post('/verify/vehicle', auth, async (req, res) => {
       const { rows: cr } = await pool.query(
         `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
            AND (valid_until IS NULL OR valid_until >= NOW())
-           AND (max_uses IS NULL OR uses_count < max_uses)`,
-        [couponId]
+           AND (max_uses IS NULL OR uses_count < max_uses)
+           AND NOT EXISTS (
+             SELECT 1 FROM coupon_usage
+             WHERE coupon_id = $1 AND user_id = $2
+           )`,
+        [couponId, req.user.id]
       );
       couponRow = cr[0] || null;
     }
@@ -472,8 +488,12 @@ router.post('/verify/buysell', auth, async (req, res) => {
       const { rows: cr } = await pool.query(
         `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
            AND (valid_until IS NULL OR valid_until >= NOW())
-           AND (max_uses IS NULL OR uses_count < max_uses)`,
-        [couponId]
+           AND (max_uses IS NULL OR uses_count < max_uses)
+           AND NOT EXISTS (
+             SELECT 1 FROM coupon_usage
+             WHERE coupon_id = $1 AND user_id = $2
+           )`,
+        [couponId, req.user.id]
       );
       couponRow = cr[0] || null;
     }
