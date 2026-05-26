@@ -680,7 +680,10 @@ export default function HomeScreen() {
                   <View style={ws.heroCircle3} />
                   <View style={ws.heroContent}>
                     <View style={{ flex: 1 }}>
-                      <Text style={ws.heroTag}>{t('heroCityTag')}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                        <Ionicons name="shield-checkmark-outline" size={13} color="rgba(255,255,255,0.85)" />
+                        <Text style={ws.heroTag}>{t('heroCityTag').replace(/^\p{Emoji_Presentation}\s*/u, '').replace(/^🏙️\s*/, '')}</Text>
+                      </View>
                       <Text style={ws.heroTitle}>
                         {t('heroTitleWeb').replace('Nanded', '')}<Text style={{ color: '#ffd580' }}>{currentDistrict?.name || 'Nanded'}</Text>
                       </Text>
@@ -883,7 +886,7 @@ export default function HomeScreen() {
                     onPress={async () => { await selectDistrict(d.id); setShowDistrictPicker(false); }}
                     activeOpacity={0.85}
                   >
-                    <Text style={s.districtModalEmoji}>{d.emoji}</Text>
+                    <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: d.color + '22', alignItems: 'center', justifyContent: 'center', marginRight: 4 }}><Ionicons name="location-sharp" size={22} color={d.color} /></View>
                     <View style={{ flex: 1 }}>
                       <Text style={[s.districtModalName, isActive && { color: d.color }]}>{d.name}</Text>
                       <Text style={s.districtModalMarathi}>{d.nameMarathi}</Text>
@@ -957,7 +960,7 @@ export default function HomeScreen() {
                     onPress={async () => { await selectDistrict(d.id); setShowDistrictPicker(false); }}
                     activeOpacity={0.85}
                   >
-                    <Text style={s.districtModalEmoji}>{d.emoji}</Text>
+                    <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: d.color + '22', alignItems: 'center', justifyContent: 'center', marginRight: 4 }}><Ionicons name="location-sharp" size={22} color={d.color} /></View>
                     <View style={{ flex: 1 }}>
                       <Text style={[s.districtModalName, isActive && { color: d.color }]}>{d.name}</Text>
                       <Text style={s.districtModalMarathi}>{d.nameMarathi}</Text>
@@ -1522,7 +1525,7 @@ const s = StyleSheet.create({
     borderRadius: 14, padding: 14,
     backgroundColor: '#fafafa',
   },
-  districtModalEmoji: { fontSize: 28 },
+  districtModalEmoji: { display: 'none' },
   districtModalName:  { fontSize: 17, fontWeight: '700', color: '#111' },
   districtModalMarathi: { fontSize: 13, color: '#888', marginTop: 1 },
 });
