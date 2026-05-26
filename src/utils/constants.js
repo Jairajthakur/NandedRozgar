@@ -49,8 +49,8 @@ export const CAT_ICONS = {
 
 export const PRICING = {
   basic: 0,
-  featured: 49,
-  urgent: 99,
+  featured: 99,
+  urgent: 49,
 };
 
 export const JOB_PLANS = [
