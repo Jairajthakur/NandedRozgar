@@ -649,11 +649,11 @@ export default function RoomScreen({ route }) {
 
   const defaultPromo = {
     name:        'Advertise Your Rental Property',
-    tagline:     'Reach thousands of tenants in Nanded!',
+    tagline:     `Reach thousands of tenants in ${districtLocalName}!`,
     description: 'List your rooms, PGs & flats to people who need them. Promote your rental business here.',
     category:    'real estate',
     phone:       '',
-    location:    'Nanded, Maharashtra',
+    location:    `${districtLocalName}, Maharashtra`,
     plan:        'popular',
   };
 
