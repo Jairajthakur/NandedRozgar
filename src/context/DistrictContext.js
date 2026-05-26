@@ -1,9 +1,12 @@
 /**
  * DistrictContext.js
  * Manages the currently selected district (Nanded / Latur).
+ * On first launch → auto-detects from GPS; falls back to 'nanded'.
  * Persisted via expo-secure-store (native) or localStorage (web).
+ * User can change district only from HomeScreen.
  */
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import * as Location from 'expo-location';
 import storage from '../utils/storage';
 
 const STORAGE_KEY = 'cityplus_selected_district';
@@ -29,6 +32,38 @@ export const DISTRICTS = [
   },
 ];
 
+/**
+ * Rough bounding boxes for each district (lat/lng ranges).
+ * Good enough for auto-detection without a reverse-geocoding API call.
+ */
+const DISTRICT_BOUNDS = {
+  nanded: { latMin: 17.8, latMax: 19.4, lngMin: 76.8, lngMax: 78.0 },
+  latur:  { latMin: 17.4, latMax: 18.5, lngMin: 76.1, lngMax: 77.4 },
+};
+
+function detectDistrictFromCoords(lat, lng) {
+  for (const [id, b] of Object.entries(DISTRICT_BOUNDS)) {
+    if (lat >= b.latMin && lat <= b.latMax && lng >= b.lngMin && lng <= b.lngMax) {
+      return id;
+    }
+  }
+  return 'nanded'; // default fallback
+}
+
+async function autoDetectDistrict() {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return 'nanded';
+    const loc = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+      timeInterval: 5000,
+    });
+    return detectDistrictFromCoords(loc.coords.latitude, loc.coords.longitude);
+  } catch {
+    return 'nanded';
+  }
+}
+
 const DistrictContext = createContext(null);
 
 export function DistrictProvider({ children }) {
@@ -36,14 +71,24 @@ export function DistrictProvider({ children }) {
   const [districtLoading, setDistrictLoading] = useState(true);
 
   useEffect(() => {
-    storage.getItem(STORAGE_KEY)
-      .then(saved => {
+    (async () => {
+      try {
+        const saved = await storage.getItem(STORAGE_KEY);
         if (saved && DISTRICTS.find(d => d.id === saved)) {
+          // User previously chose a district — honour it
           setDistrictState(saved);
+        } else {
+          // First launch: try GPS, fall back to nanded silently
+          const detected = await autoDetectDistrict();
+          setDistrictState(detected);
+          await storage.setItem(STORAGE_KEY, detected);
         }
-      })
-      .catch(() => {})
-      .finally(() => setDistrictLoading(false));
+      } catch {
+        setDistrictState('nanded');
+      } finally {
+        setDistrictLoading(false);
+      }
+    })();
   }, []);
 
   async function selectDistrict(id) {
