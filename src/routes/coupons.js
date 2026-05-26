@@ -96,29 +96,99 @@ router.post('/validate', auth, async (req, res) => {
 });
 
 // ── POST /api/coupons/mark-used ───────────────────────────────────────────────
-// Called after payment is verified to record usage
-// Body: { couponId }
+// SECURITY FIX (Bug #1 + #6):
+//   Original: any authenticated user could POST { couponId: X } to mark any
+//   coupon as used without having completed a payment — exhausting max_uses and
+//   inflating uses_count for free.  Also never re-validated the coupon's
+//   active/date/max_uses state before recording usage.
+//
+//   Fix: the caller MUST supply the razorpay_payment_id (or the sentinel
+//   "free" for ₹0 orders) from the payment that used this coupon.  We verify
+//   inside a single transaction that:
+//     1. The coupon is still active and within its valid window.
+//     2. A payments row owned by this user references that payment ID.
+//     3. The user has not already used this coupon (idempotent re-call is ok).
+//   Only then is usage recorded.
+//
+// Body: { couponId, paymentId }   paymentId = razorpay_payment_id | "free"
 router.post('/mark-used', auth, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { couponId } = req.body;
-    if (!couponId) return res.json({ ok: false, error: 'couponId required.' });
+    const { couponId, paymentId } = req.body;
+    if (!couponId)  return res.json({ ok: false, error: 'couponId required.' });
+    if (!paymentId) return res.json({ ok: false, error: 'paymentId required.' });
 
-    // Insert usage (ignore if duplicate)
-    await pool.query(
-      `INSERT INTO coupon_usage (coupon_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+    await client.query('BEGIN');
+
+    // 1. Re-validate the coupon is still live (Bug #6 fix)
+    const { rows: cr } = await client.query(
+      `SELECT id FROM coupon_codes
+       WHERE id = $1
+         AND is_active = TRUE
+         AND (valid_from  IS NULL OR valid_from  <= NOW())
+         AND (valid_until IS NULL OR valid_until >= NOW())
+         AND (max_uses    IS NULL OR uses_count   < max_uses)`,
+      [couponId]
+    );
+    if (!cr.length) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: 'Coupon is no longer valid.' });
+    }
+
+    // 2. Verify the payment belongs to this user (Bug #1 fix)
+    if (paymentId !== 'free') {
+      const { rows: pr } = await client.query(
+        `SELECT id FROM payments
+         WHERE user_id = $1
+           AND razorpay_payment_id = $2
+         LIMIT 1`,
+        [req.user.id, paymentId]
+      );
+      if (!pr.length) {
+        await client.query('ROLLBACK');
+        return res.json({ ok: false, error: 'No matching payment found for this coupon.' });
+      }
+    } else {
+      // Free-plan: confirm user has at least one ₹0 payment row
+      const { rows: fp } = await client.query(
+        `SELECT id FROM payments
+         WHERE user_id = $1
+           AND razorpay_payment_id IS NULL
+           AND amount = 0
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [req.user.id]
+      );
+      if (!fp.length) {
+        await client.query('ROLLBACK');
+        return res.json({ ok: false, error: 'No matching free-plan payment found.' });
+      }
+    }
+
+    // 3. Record usage (idempotent — ignore if already inserted)
+    const { rowCount } = await client.query(
+      `INSERT INTO coupon_usage (coupon_id, user_id)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
       [couponId, req.user.id]
     );
 
-    // Increment counter
-    await pool.query(
-      `UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id = $1`,
-      [couponId]
-    );
+    // Only increment counter when we actually inserted a new row
+    if (rowCount > 0) {
+      await client.query(
+        `UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id = $1`,
+        [couponId]
+      );
+    }
 
+    await client.query('COMMIT');
     res.json({ ok: true });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('coupon mark-used error:', err);
     res.json({ ok: false, error: 'Failed to record coupon usage.' });
+  } finally {
+    client.release();
   }
 });
 
