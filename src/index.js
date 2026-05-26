@@ -96,6 +96,7 @@ app.use('/api/payments',   require('./routes/payments'));
 app.use('/api/admin',      require('./routes/admin'));
 app.use('/api/ai',         require('./routes/ai'));
 app.use('/api/vehicles',   require('./routes/vehicles'));
+app.use('/api/buysell',    require('./routes/buysell'));
 app.use('/api/rooms',      require('./routes/rooms'));
 app.use('/api/chat',       require('./routes/chat'));
 app.use('/api/ratings',    require('./routes/ratings'));
