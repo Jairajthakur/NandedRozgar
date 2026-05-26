@@ -191,6 +191,18 @@ router.get('/saved', auth, async (req, res) => {
 // POST /api/jobs/:id/apply
 router.post('/:id/apply', auth, async (req, res) => {
   try {
+    // Check the job exists and the user didn't post it themselves
+    const jobRow = await pool.query(
+      "SELECT posted_by FROM jobs WHERE id = $1 AND status = 'active'",
+      [req.params.id]
+    );
+    if (!jobRow.rows.length) {
+      return res.json({ ok: false, error: 'Job not found' });
+    }
+    if (jobRow.rows[0].posted_by === req.user.id) {
+      return res.json({ ok: false, error: 'You cannot apply to your own job' });
+    }
+
     // Check user hasn't already applied
     const existing = await pool.query(
       'SELECT id FROM applications WHERE job_id = $1 AND user_id = $2',
