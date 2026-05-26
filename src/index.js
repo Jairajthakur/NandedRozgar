@@ -28,7 +28,6 @@ const explicitOrigins = (process.env.CORS_ORIGINS || '')
   .filter(Boolean);
 
 const staticOrigins = [
-  'https://localloops-production.up.railway.app',
   'https://thecityplus.in',
   'https://www.thecityplus.in',
   ...(process.env.APP_URL ? [process.env.APP_URL] : []),
