@@ -1,13 +1,26 @@
-const router = require('express').Router();
+const router    = require('express').Router();
+const rateLimit = require('express-rate-limit');
 const { auth } = require('../middleware/auth');
 const { pool } = require('../db');
 
+// Rate limiter: 20 AI requests per user per 10 minutes.
+// Keyed on authenticated user ID (not IP) so VPNs / shared IPs don't interfere.
+// auth middleware runs first, so req.user is always populated here.
+const aiLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 20,
+  keyGenerator: (req) => `ai_user_${req.user?.id || req.ip}`,
+  message: { ok: false, error: 'Too many AI requests. Please wait a few minutes and try again.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Groq model — update here if deprecated. See: https://console.groq.com/docs/deprecations
 // Active models: llama-3.1-8b-instant | llama-3.3-70b-versatile | gemma2-9b-it
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
+
 // POST /api/ai/chat — powered by Groq (free, fast, no restrictions)
-router.post('/chat', auth, async (req, res) => {
+router.post('/chat', auth, aiLimiter, async (req, res) => {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return res.json({
