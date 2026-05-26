@@ -374,7 +374,7 @@ router.get('/google/callback', (req, res) => {
   }
 
   // nativeUrl is a hardcoded constant — it never comes from user input or env.
-  const NATIVE_SCHEME = 'nanded://google-auth'; // matches scheme in app.config.js
+  const NATIVE_SCHEME = 'cityplus://google-auth'; // Bug fix #19: was 'nanded://' — matches scheme in app.config.js
 
   if (error || !access_token) {
     // Sanitise: only keep printable ASCII, cap length, re-encode for URL use.
