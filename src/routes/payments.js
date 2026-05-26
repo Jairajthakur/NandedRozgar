@@ -51,6 +51,40 @@ function verifySignature(orderId, paymentId, signature) {
   return { ok: true };
 }
 
+// ── Server-side plan pricing (paise). Never trust the client for these. ────────
+// These must stay in sync with constants.js on the client side.
+const PLAN_PRICES = {
+  job:     { free: 0, featured: 9900, urgent: 4900 },
+  room:    { free: 0, featured: 7900 },
+  vehicle: { free: 0, featured: 7900 },
+  buysell: { free: 0, featured: 4900 },
+};
+
+// Look up the server-authoritative price (in paise) for a listing type + plan.
+// Returns null if the plan key is unrecognised (caller should reject the request).
+function resolveExpectedAmount(listingType, planKey, coupon) {
+  const prices = PLAN_PRICES[listingType];
+  if (!prices) return null;
+
+  const normalised = (planKey || 'free').toLowerCase();
+  if (!(normalised in prices)) return null;
+
+  let amountPaise = prices[normalised];
+
+  // Apply server-validated coupon discount
+  if (coupon && amountPaise > 0) {
+    if (coupon.type === 'percent') {
+      amountPaise = Math.max(0, amountPaise - Math.round((amountPaise * coupon.value) / 100));
+    } else if (coupon.type === 'flat') {
+      amountPaise = Math.max(0, amountPaise - coupon.value * 100);
+    } else if (coupon.type === 'free_days') {
+      amountPaise = 0;
+    }
+  }
+
+  return amountPaise;
+}
+
 // ── Helper: save a payment record ─────────────────────────────────────────────
 async function savePayment(userId, { amount, plan, paymentId, orderId }) {
   // Razorpay amounts are in paise (1 ₹ = 100 paise). Convert to rupees before storing.
@@ -64,11 +98,12 @@ async function savePayment(userId, { amount, plan, paymentId, orderId }) {
 }
 
 // ── Helper: common signature check + free-plan bypass ─────────────────────────
-function checkPayment(req) {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
+// expectedAmountPaise must come from resolveExpectedAmount() — never from req.body.
+function checkPayment(req, expectedAmountPaise) {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-  // Free plan — skip signature
-  if (!razorpay_order_id && (amount === 0 || amount === '0')) {
+  // Free plan — determined by server pricing, not client-supplied amount
+  if (expectedAmountPaise === 0) {
     return { ok: true, free: true };
   }
 
@@ -124,7 +159,22 @@ router.post('/verify', auth, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, job, plan, amount, days, couponId } = req.body;
 
-    const check = checkPayment(req);
+    // Resolve coupon server-side if provided
+    let couponRow = null;
+    if (couponId) {
+      const { rows: cr } = await pool.query(
+        `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
+           AND (valid_until IS NULL OR valid_until >= NOW())
+           AND (max_uses IS NULL OR uses_count < max_uses)`,
+        [couponId]
+      );
+      couponRow = cr[0] || null;
+    }
+
+    const expectedAmount = resolveExpectedAmount('job', plan, couponRow);
+    if (expectedAmount === null) return res.json({ ok: false, error: 'Invalid plan.' });
+
+    const check = checkPayment(req, expectedAmount);
     if (!check.ok) return res.json({ ok: false, error: check.error });
 
     // Save payment record
@@ -196,7 +246,21 @@ router.post('/verify/room', auth, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, room, plan, amount, days, couponId } = req.body;
 
-    const check = checkPayment(req);
+    let couponRow = null;
+    if (couponId) {
+      const { rows: cr } = await pool.query(
+        `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
+           AND (valid_until IS NULL OR valid_until >= NOW())
+           AND (max_uses IS NULL OR uses_count < max_uses)`,
+        [couponId]
+      );
+      couponRow = cr[0] || null;
+    }
+
+    const expectedAmount = resolveExpectedAmount('room', plan, couponRow);
+    if (expectedAmount === null) return res.json({ ok: false, error: 'Invalid plan.' });
+
+    const check = checkPayment(req, expectedAmount);
     if (!check.ok) return res.json({ ok: false, error: check.error });
 
     await savePayment(req.user.id, {
@@ -258,7 +322,21 @@ router.post('/verify/vehicle', auth, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, vehicle, plan, amount, days, couponId } = req.body;
 
-    const check = checkPayment(req);
+    let couponRow = null;
+    if (couponId) {
+      const { rows: cr } = await pool.query(
+        `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
+           AND (valid_until IS NULL OR valid_until >= NOW())
+           AND (max_uses IS NULL OR uses_count < max_uses)`,
+        [couponId]
+      );
+      couponRow = cr[0] || null;
+    }
+
+    const expectedAmount = resolveExpectedAmount('vehicle', plan, couponRow);
+    if (expectedAmount === null) return res.json({ ok: false, error: 'Invalid plan.' });
+
+    const check = checkPayment(req, expectedAmount);
     if (!check.ok) return res.json({ ok: false, error: check.error });
 
     await savePayment(req.user.id, {
@@ -325,7 +403,21 @@ router.post('/verify/buysell', auth, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, item, plan, amount, days, couponId } = req.body;
 
-    const check = checkPayment(req);
+    let couponRow = null;
+    if (couponId) {
+      const { rows: cr } = await pool.query(
+        `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
+           AND (valid_until IS NULL OR valid_until >= NOW())
+           AND (max_uses IS NULL OR uses_count < max_uses)`,
+        [couponId]
+      );
+      couponRow = cr[0] || null;
+    }
+
+    const expectedAmount = resolveExpectedAmount('buysell', plan, couponRow);
+    if (expectedAmount === null) return res.json({ ok: false, error: 'Invalid plan.' });
+
+    const check = checkPayment(req, expectedAmount);
     if (!check.ok) return res.json({ ok: false, error: check.error });
 
     await savePayment(req.user.id, {
@@ -398,12 +490,14 @@ router.post('/verify/promotion', auth, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, promotion, amount } = req.body;
 
-    const check = checkPayment(req);
-    if (!check.ok) return res.json({ ok: false, error: check.error });
-
-    const planKey   = promotion?.plan || 'basic';
-    const planMeta  = PROMOTION_PLANS[planKey];
+    const planKey  = promotion?.plan || 'basic';
+    const planMeta = PROMOTION_PLANS[planKey];
     if (!planMeta) return res.json({ ok: false, error: 'Invalid promotion plan.' });
+
+    // Promotions are always paid — price comes from server table, never the client
+    const expectedAmountPaise = planMeta.price * 100;
+    const check = checkPayment(req, expectedAmountPaise);
+    if (!check.ok) return res.json({ ok: false, error: check.error });
 
     const { price, days } = planMeta;
     const accentColor     = BANNER_COLORS[promotion?.bannerStyle] || '#f97316';
