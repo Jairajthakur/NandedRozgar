@@ -312,6 +312,9 @@ export default function PostRoomScreen() {
       const payResult = await initiatePayment({
         amount:      amountPaise,
         description: `Room Listing – ${form.plan?.label || '1 Month'}`,
+        listingType: 'room',
+        plan:        form.plan?.label || '1 Month',
+        couponId:    appliedCoupon?.id || null,
       });
 
       if (!payResult.success) {
