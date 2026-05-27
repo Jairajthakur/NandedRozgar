@@ -631,12 +631,13 @@ function RootNavigator() {
   }
 
   // ── Authenticated stack: all app screens ──────────────────────────────────
+  // FIX: Always start on Main (the normal app) regardless of role.
+  // Previously, admins were routed to Admin as the *first* screen in the stack,
+  // which meant every page load / app restart landed on the Admin panel.
+  // Admins can still reach AdminPanel via the ProfileScreen menu (AdminPanelGuard).
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {user.role === 'admin'
-        ? <Stack.Screen name="Admin" component={_AdminScreen} options={{ headerShown: true, headerTitle: 'Admin Panel', ...HEADER }} />
-        : <Stack.Screen name="Main"  component={MainTabs} />
-      }
+      <Stack.Screen name="Main" component={MainTabs} />
       <Stack.Screen name="JobDetail"  component={_JobDetailScreen}  options={{ headerShown: true, headerTitle: t('jobDetails'), ...HEADER }} />
       <Stack.Screen name="CarDetail"  component={_CarDetailScreen}  options={{ headerShown: false }} />
       <Stack.Screen name="RoomDetail" component={_RoomDetailScreen} options={{ headerShown: false }} />
@@ -679,7 +680,7 @@ const linking = {
   config: {
     screens: {
       Login: 'login',
-      Admin: 'admin',
+      AdminPanel: 'admin',  // /admin URL opens AdminPanel (guarded by AdminPanelGuard)
       Main: {
         screens: {
           Home:  '',
@@ -714,7 +715,7 @@ const linking = {
       Chat:            'chat/:chatId',
       ChatList:        'chat-list',
       SellItemForm:    'sell-item',
-      AdminPanel:      'admin-panel',
+      AdminPanel2:     'admin-panel',  // legacy — keep for backwards compat
       // NOTE: "Board" was removed from here — BoardScreen is only registered as
       // a Tab screen inside MainTabs (name "Jobs"), NOT as a named Stack screen.
       // The correct deep-link path for the board is already covered by
