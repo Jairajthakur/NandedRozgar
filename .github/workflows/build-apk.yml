@@ -15,6 +15,11 @@ jobs:
     name: Build Android APK
     runs-on: ubuntu-latest
 
+    env:
+      # FIX: opt into Node.js 24 now to silence the deprecation warning
+      # (actions/checkout and actions/setup-node require this from June 2026)
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,7 +28,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'                        # FIX: cache npm deps → faster builds
+          # FIX: removed `cache: npm` — it requires a package-lock.json which
+          # is not committed to this repo. Using npm install instead of npm ci
+          # for the same reason. If you commit package-lock.json in future,
+          # re-add `cache: npm` and switch back to `npm ci`.
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -34,8 +42,8 @@ jobs:
       - name: Validate required secrets
         run: |
           MISSING=""
-          [ -z "$EXPO_TOKEN" ]      && MISSING="$MISSING EXPO_TOKEN"
-          [ -z "$EXPO_PROJECT_ID" ] && MISSING="$MISSING EXPO_PROJECT_ID"
+          [ -z "$EXPO_TOKEN" ]           && MISSING="$MISSING EXPO_TOKEN"
+          [ -z "$EXPO_PROJECT_ID" ]      && MISSING="$MISSING EXPO_PROJECT_ID"
           [ -z "$GOOGLE_SERVICES_JSON" ] && MISSING="$MISSING GOOGLE_SERVICES_JSON"
           if [ -n "$MISSING" ]; then
             echo "❌ Missing required secrets:$MISSING"
@@ -48,7 +56,10 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps         # FIX: npm ci is faster + reproducible vs npm install
+        # FIX: back to npm install (not npm ci) because there is no package-lock.json.
+        # To speed up future builds and use npm ci, run `npm install` locally and
+        # commit the generated package-lock.json to the repo.
+        run: npm install --legacy-peer-deps
 
       - name: Install EAS CLI
         run: npm install -g eas-cli@latest
@@ -59,12 +70,6 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('google-services.json','utf8'))" \
             && echo "✅ google-services.json is valid JSON." \
             || { echo "❌ GOOGLE_SERVICES_JSON secret is not valid JSON."; exit 1; }
-
-      # FIX: Removed the fragile background watcher that polled /tmp/runner/eas-build-local-nodejs
-      # That approach was racy — it could copy google-services.json before Gradle needed it,
-      # or miss it entirely if the directory name changed between EAS CLI versions.
-      # Instead: pass google-services.json via the EAS_LOCAL_BUILD_WORKINGDIR env var so
-      # EAS CLI picks it up from the workspace directly. The file is already written above.
 
       - name: Build APK
         run: |
@@ -78,8 +83,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
           NODE_ENV: production
-          # FIX: versionCode — prefer manual workflow_dispatch input, then repo secret,
-          # then auto-increment based on run number as a safe fallback.
+          # FIX: versionCode priority: manual input → repo secret → auto run_number fallback
           ANDROID_VERSION_CODE: ${{ inputs.version_code || secrets.ANDROID_VERSION_CODE || github.run_number }}
           EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
@@ -101,6 +105,6 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CityPlus-APK-${{ github.run_number }}   # FIX: unique name per run, no overwrite
+          name: CityPlus-APK-${{ github.run_number }}
           path: ./CityPlus.apk
           retention-days: 30
