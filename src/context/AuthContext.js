@@ -33,36 +33,46 @@ export function AuthProvider({ children }) {
   const loadJobsRef  = useRef(null);
 
   useEffect(() => {
+    // Fallback: if init() takes more than 12s (Railway cold start), stop the
+    // splash. We do NOT clear the token — a slow server != an invalid session.
     const fallback = setTimeout(() => {
       setLoading(false);
       setSessionPending(false);
-    }, 10000);
+    }, 12000);
     init().finally(() => { clearTimeout(fallback); setLoading(false); });
   }, []);
 
   async function init() {
     try {
       const token = await loadToken();
-      if (!token) return;
+      if (!token) return; // No token → definitely logged out
 
       setSessionPending(true);
 
       const r = await http('GET', '/api/auth/me');
 
       if (r?.ok && r.user) {
+        // ✅ Valid session — restore user
         setUser(r.user);
         setSessionPending(false);
         await loadJobs(1);
         if (r.user.role === 'admin') await loadUsers();
       } else if (r?.status === 401 || r?.status === 403) {
+        // ✅ Server explicitly rejected token — clear and go to Login
         await clearToken();
         setSessionPending(false);
         setUser(null);
       } else {
+        // ⚠️  Network error, cold-start 502/503, or non-JSON response.
+        // Do NOT clear the token — the token may still be valid.
+        // Keep user as null for now; next app open (when server is up) will
+        // automatically restore the session via this same init() call.
+        console.warn('[AuthContext] init: server unreachable, keeping token for next open:', r?.error);
         setSessionPending(false);
       }
     } catch (e) {
-      console.warn('init error:', e.message);
+      // Unexpected JS error — don't log out, just stop the spinner.
+      console.warn('[AuthContext] init error:', e.message);
       setSessionPending(false);
     }
   }
