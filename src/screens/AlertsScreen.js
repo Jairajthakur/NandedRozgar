@@ -20,8 +20,8 @@ function TypingDots() {
   useEffect(() => {
     const anim = (d, delay) => Animated.loop(Animated.sequence([
       Animated.delay(delay),
-      Animated.timing(d, { toValue: 1, duration: 280, useNativeDriver: true }),
-      Animated.timing(d, { toValue: 0, duration: 280, useNativeDriver: true }),
+      Animated.timing(d, { toValue: 1, duration: 280, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(d, { toValue: 0, duration: 280, useNativeDriver: Platform.OS !== 'web' }),
       Animated.delay(400),
     ]));
     const a0 = anim(d0, 0); const a1 = anim(d1, 160); const a2 = anim(d2, 320);
