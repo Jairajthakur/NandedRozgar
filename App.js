@@ -455,8 +455,42 @@ function MainTabs() {
         })}
       />
       <Tab.Screen name="Post"  component={_PostScreen}  options={{ headerShown: false, tabBarLabel: t('post') }} />
-      <Tab.Screen name="Rooms" component={_RoomScreen}  options={{ headerTitle: 'Rooms', tabBarLabel: t('rooms') }} />
-      <Tab.Screen name="Cars"  component={_CarScreen}   options={{ headerTitle: 'Cars', tabBarLabel: t('cars') }} />
+      <Tab.Screen
+        name="Rooms"
+        component={_RoomScreen}
+        options={({ navigation }) => ({
+          headerTitle: 'Rooms',
+          tabBarLabel: t('rooms'),
+          headerShown: Platform.OS !== 'web',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ paddingHorizontal: 12 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="arrow-back" size={22} color="#111111" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
+      <Tab.Screen
+        name="Cars"
+        component={_CarScreen}
+        options={({ navigation }) => ({
+          headerTitle: 'Cars',
+          tabBarLabel: t('cars'),
+          headerShown: Platform.OS !== 'web',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ paddingHorizontal: 12 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="arrow-back" size={22} color="#111111" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
     </Tab.Navigator>
   );
 }
