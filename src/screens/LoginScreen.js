@@ -57,23 +57,30 @@ import { useAuth } from '../context/AuthContext';
 // webClientId (Web Client ID) is required here — it tells Google which audience
 // to embed in the idToken so your backend can verify it.
 //
-// Bug fix: the previous code passed process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
-// directly without checking whether it is set.  When the env var is absent the
-// value is undefined, which makes GoogleSignin silently accept any Google account
-// and return an idToken that the backend then rejects with a cryptic 400 error.
-// We now validate the value at startup and log a clear warning so the
-// misconfiguration is caught in development rather than in production.
+// Validates that the Google Web Client ID is real (not a placeholder or empty).
+// A placeholder string is truthy, so the old `|| undefined` check didn't catch it,
+// causing GoogleSignin.configure() to receive a fake ID → DEVELOPER_ERROR on signIn().
+function _isValidClientId(id) {
+  return (
+    typeof id === 'string' &&
+    id.length > 20 &&
+    id.endsWith('.apps.googleusercontent.com') &&
+    !id.startsWith('your_')
+  );
+}
+
 if (GoogleSignin) {
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-  if (!googleWebClientId || googleWebClientId === 'your_web_client_id.apps.googleusercontent.com') {
+  if (!_isValidClientId(googleWebClientId)) {
     console.warn(
       '[LoginScreen] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set or is still the placeholder value. ' +
-      'Google Sign-In will fail. Set the real Web Client ID from Google Cloud Console → ' +
-      'APIs & Services → Credentials in your .env / EAS build profile.'
+      'Google Sign-In will fail. Add the real Web Client ID to your eas.json env block ' +
+      'or EAS Secrets (EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=xxxx.apps.googleusercontent.com).'
     );
   }
   GoogleSignin.configure({
-    webClientId: googleWebClientId || undefined, // undefined keeps native behaviour; empty string breaks it
+    // Pass undefined when ID is missing/placeholder — a fake string causes DEVELOPER_ERROR.
+    webClientId: _isValidClientId(googleWebClientId) ? googleWebClientId : undefined,
     offlineAccess: false,
     scopes: ['profile', 'email'],
   });
@@ -437,6 +444,12 @@ export default function LoginScreen() {
         setError('Sign-in already in progress.');
       } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         setError('Google Play Services not available on this device.');
+        triggerShake();
+      } else if (err.code === 10 || (err.message || '').toLowerCase().includes('developer_error')) {
+        // DEVELOPER_ERROR (code 10): SHA-1 fingerprint or package name mismatch in Google Console,
+        // or EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is wrong/not set in eas.json env block.
+        console.error('GoogleSignin DEVELOPER_ERROR:', err);
+        setError('Google Sign-In is not configured correctly. Contact support.');
         triggerShake();
       } else {
         console.error('GoogleSignin error:', err);
