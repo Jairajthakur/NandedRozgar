@@ -26,11 +26,13 @@ const PURPLE  = '#7c3aed';
 const IS_WEB  = Platform.OS === 'web';
 
 // ─── Plans ────────────────────────────────────────────────────────────────────
+// NOTE: Prices here MUST match the server-authoritative PROMOTION_PLANS table
+// in src/routes/payments.js (basic=₹99, popular=₹249, premium=₹499).
 const PLANS = [
   {
     id: 'basic',
     name: 'Basic',
-    price: 29,
+    price: 99,
     days: 7,
     color: '#2563eb',
     bg: '#eff6ff',
@@ -41,7 +43,7 @@ const PLANS = [
   {
     id: 'popular',
     name: 'Popular',
-    price: 59,
+    price: 249,
     days: 15,
     color: ORANGE,
     bg: '#fff7ed',
@@ -52,7 +54,7 @@ const PLANS = [
   {
     id: 'premium',
     name: 'Premium',
-    price: 99,
+    price: 499,
     days: 30,
     color: PURPLE,
     bg: '#faf5ff',
@@ -238,9 +240,15 @@ export default function PromoteBusinessScreen() {
     setSubmitting(true);
     try {
       // ── Step 1: Razorpay payment ───────────────────────────────────────────
+      // FIX: pass listingType + plan so the backend /api/payments/order can
+      // look up the server-authoritative price. Without these the server
+      // returns { ok: false, error: 'listingType and plan are required.' }
+      // which caused the Razorpay WebView to crash with "Payment Failed".
       const payResult = await initiatePayment({
         amount:      amountPaise,
         description: `Business Promotion – ${planObj?.name || selectedPlan} Plan`,
+        listingType: 'promotion',
+        plan:        selectedPlan,
       });
 
       if (!payResult.success) {
@@ -460,11 +468,11 @@ export default function PromoteBusinessScreen() {
               </View>
             </View>
 
-            {/* ── Payment note ── */}
+            {/* ── Payment info note ── */}
             <View style={s.paymentNote}>
               <Ionicons name="information-circle-outline" size={16} color="#6b7280" />
               <Text style={s.paymentNoteTxt}>
-                Payment is collected via UPI / cash after our team verifies your listing. No advance needed now.
+                Secure payment via Razorpay (UPI, Card, Net Banking). Your promotion goes live within 24 hours of payment.
               </Text>
             </View>
 
