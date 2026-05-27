@@ -33,7 +33,8 @@
     "web": {
       "distribution": "internal",
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_PLATFORM": "web"
       }
     }
   },
