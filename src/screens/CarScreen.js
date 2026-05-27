@@ -416,11 +416,7 @@ export default function CarsScreen({ route }) {
     <View style={IS_WEB ? ws.header : s.header}>
       {/* Title row */}
       <View style={s.titleRow}>
-        {!IS_WEB && (
-          <TouchableOpacity onPress={() => nav.goBack()} style={s.backBtn} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={20} color="#111" />
-          </TouchableOpacity>
-        )}
+
         <Animated.View style={{ flex: 1, opacity: titleOpacity }}>
           <Text style={IS_WEB ? ws.pageTitle : s.pageTitle} numberOfLines={IS_WEB ? undefined : 1} adjustsFontSizeToFit={!IS_WEB} minimumFontScale={0.7}>
             <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
