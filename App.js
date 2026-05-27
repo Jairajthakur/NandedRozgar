@@ -512,15 +512,10 @@ _ChatListScreen        = withScreenErrorBoundary(ChatListScreen,        'ChatLis
 _SavedJobsScreen       = withScreenErrorBoundary(SavedJobsScreen,       'SavedJobsScreen');
 
 // ── Root Navigator ────────────────────────────────────────────────────────────
-function RootNavigator() {
+function RootNavigator({ showOnboarding, setShowOnboarding }) {
   const { user, loading, sessionPending } = useAuth();
   const { districtLoading } = useDistrict();
   const { t } = useLang();
-  const [showOnboarding, setShowOnboarding] = React.useState(null);
-
-  React.useEffect(() => {
-    isOnboarded().then(done => setShowOnboarding(!done));
-  }, []);
 
   React.useEffect(() => {
     if (user) registerForPushNotifications().catch(() => {});
@@ -678,6 +673,17 @@ const linking = {
 
 export default function App() {
   const isOnline = useOnlineStatus();
+  // Bug fix: lift showOnboarding here so we can suppress the offline banner
+  // while the user is on the onboarding screen. Onboarding is fully local —
+  // it needs no network — so showing "No internet connection" there is
+  // misleading and blocks the user from proceeding.
+  const [showOnboarding, setShowOnboarding] = React.useState(null);
+  React.useEffect(() => {
+    isOnboarded().then(done => setShowOnboarding(!done));
+  }, []);
+
+  const duringOnboarding = showOnboarding === true;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
@@ -687,8 +693,12 @@ export default function App() {
             <LangProvider>
             <NavigationContainer linking={linking} ref={navigationRef}>
               <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-              {!isOnline && <OfflineBanner />}
-              <RootNavigator />
+              {/* Hide offline banner during onboarding — it needs no network */}
+              {!isOnline && !duringOnboarding && <OfflineBanner />}
+              <RootNavigator
+                showOnboarding={showOnboarding}
+                setShowOnboarding={setShowOnboarding}
+              />
             </NavigationContainer>
             <Toast />
           </LangProvider>
