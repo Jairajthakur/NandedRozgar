@@ -526,11 +526,6 @@ export default function LoginScreen() {
 
   const pwStrength = getPasswordStrength(form.password);
   const tabW = `${100 / tabCount}%`;
-  // Only show Google button when a real client ID is configured.
-  // Hides the button (and the divider) instead of showing a confusing error.
-  const googleEnabled = IS_WEB
-    ? !!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
-    : !!GoogleSignin && _isValidClientId(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
   const isGoogleBusy = googleLoading || loading;
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -598,33 +593,29 @@ export default function LoginScreen() {
               ))}
             </View>
 
-            {/* GOOGLE — only shown when client ID is properly configured */}
-            {googleEnabled && (
-              <>
-                <TouchableOpacity
-                  style={[S.googleBtn, isGoogleBusy && { opacity: 0.55 }]}
-                  onPress={handleGooglePress}
-                  disabled={isGoogleBusy}
-                  activeOpacity={0.82}
-                >
-                  {googleLoading
-                    ? <ActivityIndicator size="small" color="#EA4335" />
-                    : <MaterialCommunityIcons name="google" size={18} color="#EA4335" />
-                  }
-                  <Text style={S.googleTxt}>
-                    {googleLoading
-                      ? 'Connecting…'
-                      : tab === 'login' ? 'Continue with Google' : 'Sign up with Google'
-                    }
-                  </Text>
-                </TouchableOpacity>
+            {/* GOOGLE */}
+            <TouchableOpacity
+              style={[S.googleBtn, isGoogleBusy && { opacity: 0.55 }]}
+              onPress={handleGooglePress}
+              disabled={isGoogleBusy}
+              activeOpacity={0.82}
+            >
+              {googleLoading
+                ? <ActivityIndicator size="small" color="#EA4335" />
+                : <MaterialCommunityIcons name="google" size={18} color="#EA4335" />
+              }
+              <Text style={S.googleTxt}>
+                {googleLoading
+                  ? 'Connecting…'
+                  : tab === 'login' ? 'Continue with Google' : 'Sign up with Google'
+                }
+              </Text>
+            </TouchableOpacity>
 
-                {/* DIVIDER */}
-                <View style={S.divRow}>
-                  <View style={S.divLine} /><Text style={S.divTxt}>or with email</Text><View style={S.divLine} />
-                </View>
-              </>
-            )}
+            {/* DIVIDER */}
+            <View style={S.divRow}>
+              <View style={S.divLine} /><Text style={S.divTxt}>or with email</Text><View style={S.divLine} />
+            </View>
 
             {/* Register name */}
             {tab === 'register' && (
