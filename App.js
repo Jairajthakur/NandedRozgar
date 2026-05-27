@@ -3,7 +3,7 @@ import React from 'react';
 import {
   View, Text, ActivityIndicator, StatusBar,
   TouchableOpacity, StyleSheet, Platform, useWindowDimensions,
-  Animated, Easing, AppState,
+  Animated, Easing, AppState, Image,
 } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -578,9 +578,11 @@ function RootNavigator() {
 
   if (loading || showOnboarding === null || sessionPending || districtLoading) return (
     <View style={s.splash}>
-      <View style={s.splashIcon}>
-        <MaterialIcons name="location-city" size={36} color={ORANGE} />
-      </View>
+      <Image
+        source={require('./assets/icon.png')}
+        style={s.splashLogo}
+        resizeMode="contain"
+      />
       <Text style={s.splashTitle}>
         <Text style={{ color: '#fff' }}>City</Text>
         <Text style={{ color: ORANGE }}>Plus</Text>
@@ -784,6 +786,7 @@ const s = StyleSheet.create({
   errBtnTxt:{ color:'#fff', fontWeight:'700', fontSize:14 },
 
   splash:     { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#111' },
+  splashLogo: { width:100, height:100, borderRadius:20, marginBottom:16 },
   splashIcon: { width:80, height:80, backgroundColor:'#222', borderRadius:20, alignItems:'center', justifyContent:'center', marginBottom:16 },
   splashTitle:{ fontSize:28, fontWeight:'900', letterSpacing:0.5 },
   splashSub:  { color:'#888', fontSize:13, marginTop:4 },
