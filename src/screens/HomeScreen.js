@@ -45,8 +45,8 @@ function AnimatedPress({ style, onPress, children }) {
   const scale = useRef(new Animated.Value(1)).current;
   const press = () => {
     Animated.sequence([
-      Animated.timing(scale, { toValue: 0.97, duration: 80, useNativeDriver: true }),
-      Animated.timing(scale, { toValue: 1,    duration: 120, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 0.97, duration: 80, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(scale, { toValue: 1,    duration: 120, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
     onPress?.();
   };
@@ -63,8 +63,8 @@ function FadeSlide({ children, delay = 0, fromY = 24, style }) {
   const translateY = useRef(new Animated.Value(fromY)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity,    { toValue: 1, duration: 480, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 480, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(opacity,    { toValue: 1, duration: 480, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(translateY, { toValue: 0, duration: 480, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
   return (
@@ -78,8 +78,8 @@ function PulseDot({ color = ORANGE }) {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(scale, { toValue: 1.7, duration: 700, useNativeDriver: true }),
-        Animated.timing(scale, { toValue: 1,   duration: 700, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 1.7, duration: 700, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(scale, { toValue: 1,   duration: 700, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, []);
@@ -122,7 +122,7 @@ function LangModal({ visible, current, onSelect, onClose }) {
   useEffect(() => {
     Animated.timing(slideY, {
       toValue: visible ? 0 : 300, duration: 320,
-      easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web',
     }).start();
   }, [visible]);
   return (
@@ -211,12 +211,12 @@ function TickerBanner({ t, districtLocalName, itemCount = 0 }) {
           toValue: -totalHeight,
           duration: TICKER_ITEMS.length * 1800, // 1.8s per item
           easing: Easing.linear,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(translateY, {
           toValue: 0,
           duration: 0, // instant reset — invisible because we use doubled array
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ])
     );
