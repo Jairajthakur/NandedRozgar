@@ -43,8 +43,6 @@ import AnalyticsScreen      from './src/screens/AnalyticsScreen';
 import AlertsScreen         from './src/screens/AlertsScreen';
 import PromoteBusinessScreen from './src/screens/PromoteBusinessScreen';
 import HelpSupportScreen    from './src/screens/HelpSupportScreen';
-// Bug fix #15: was SellItemForm.jsx — renamed to .js to match all other screens
-// and avoid potential Metro / Expo SDK build pipeline resolution issues.
 import SellItemForm         from './src/screens/SellItemForm';
 import AboutScreen          from './src/screens/AboutScreen';
 import ChatScreen           from './src/screens/ChatScreen';
@@ -59,12 +57,6 @@ const ORANGE = '#f97316';
 
 export const navigationRef = createNavigationContainerRef();
 
-// ── Per-screen error boundary HOC (defined later, used here via forward ref) ──
-// Screens are wrapped below after the HOC class is declared. The wrappers are
-// defined at module level so React Navigation never sees a new component
-// identity between renders (which would cause unnecessary unmount/remount).
-// These are filled in after the HOC definition — see the assignment block
-// just before RootNavigator.
 let _HomeScreen, _BoardScreen, _JobDetailScreen, _PostScreen, _PostJobScreen,
     _ProfileScreen, _AIScreen, _AdminScreen, _CarScreen, _CarDetailScreen,
     _RoomScreen, _RoomDetailScreen, _PostCarScreen, _PostRoomScreen,
@@ -74,12 +66,6 @@ let _HomeScreen, _BoardScreen, _JobDetailScreen, _PostScreen, _PostJobScreen,
     _HelpSupportScreen, _SellItemForm, _AboutScreen, _ChatScreen, _ChatListScreen, _SavedJobsScreen;
 
 // ── Online / offline detection ────────────────────────────────────────────────
-// Uses the app's own /health endpoint rather than google.com/generate_204.
-// Pinging Google fails in regions where Google is blocked (e.g. some corporate
-// networks, certain ISPs) and gives a false "offline" even when the user can
-// reach our server just fine. Our /health endpoint is a tiny JSON response so
-// it adds negligible load and is a true indicator of whether the app's backend
-// is reachable.
 const PING_URL = `${BASE_URL}/health`;
 const PING_TIMEOUT_MS = 4000;
 
@@ -105,20 +91,10 @@ function useOnlineStatus() {
 
   React.useEffect(() => {
     check();
-    // Re-check every 8 s while the app is active
     timerRef.current = setInterval(check, 8000);
-
-    // Re-check immediately when app returns to foreground
     const sub = AppState.addEventListener('change', state => {
       if (state === 'active') check();
     });
-
-    // Web — listen to native online/offline events.
-    // Bug fix #17: the previous code added anonymous arrow functions as
-    // listeners but never removed them in the cleanup return, causing a
-    // listener leak each time the component remounted. Fix: store the handler
-    // references so the exact same function objects can be passed to
-    // removeEventListener in the cleanup.
     let onOnline, onOffline;
     if (Platform.OS === 'web') {
       onOnline  = () => setIsOnline(true);
@@ -126,11 +102,9 @@ function useOnlineStatus() {
       window.addEventListener('online',  onOnline);
       window.addEventListener('offline', onOffline);
     }
-
     return () => {
       clearInterval(timerRef.current);
       sub.remove();
-      // Remove web listeners only if they were registered
       if (Platform.OS === 'web' && onOnline && onOffline) {
         window.removeEventListener('online',  onOnline);
         window.removeEventListener('offline', onOffline);
@@ -141,13 +115,7 @@ function useOnlineStatus() {
   return isOnline;
 }
 
-// ── Offline banner ─────────────────────────────────────────────────────────────
-// Bug fix #16: the previous implementation used position:'absolute', top:0 inside
-// NavigationContainer. On Android this put the banner behind the status bar in
-// certain configurations because NavigationContainer does not automatically apply
-// safe area insets. Fix: use useSafeAreaInsets() to read the actual status bar
-// height and apply it as paddingTop, so the banner always sits below the status
-// bar regardless of device or Android API level.
+// ── Offline banner ────────────────────────────────────────────────────────────
 function OfflineBanner() {
   const insets = useSafeAreaInsets();
   const slideAnim = React.useRef(new Animated.Value(-48)).current;
@@ -164,8 +132,6 @@ function OfflineBanner() {
   return (
     <Animated.View style={[
       s.offlineBanner,
-      // Push banner content below the status bar on Android; iOS inset is 0
-      // here because NavigationContainer already handles the top safe area.
       { paddingTop: insets.top > 0 ? insets.top : 0 },
       { transform: [{ translateY: slideAnim }] },
     ]}>
@@ -181,8 +147,6 @@ class ErrorBoundary extends React.Component {
   static getDerivedStateFromError(e) { return { hasError: true, error: e }; }
   componentDidCatch(e, i) { console.error('ErrorBoundary:', e, i); }
   handleRetry = () => {
-    // Increment retryKey so the child tree fully remounts on retry,
-    // rather than re-rendering into the same broken state.
     this.setState(prev => ({ hasError: false, error: null, retryKey: prev.retryKey + 1 }));
   };
   render() {
@@ -200,11 +164,6 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// ── Debounced window width ────────────────────────────────────────────────────
-// useWindowDimensions fires on every resize event, including when the software
-// keyboard opens/closes on Android. This causes CustomTabBar to flicker because
-// it re-renders and conditionally returns null on web (width >= 600). A short
-// debounce prevents rapid toggling while the keyboard is animating in/out.
 function useStableWidth(delayMs = 150) {
   const { width } = useWindowDimensions();
   const [stableWidth, setStableWidth] = React.useState(width);
@@ -217,10 +176,6 @@ function useStableWidth(delayMs = 150) {
   return stableWidth;
 }
 
-// ── Per-screen Error Boundary HOC ─────────────────────────────────────────────
-// Wraps an individual screen so a crash in one screen shows a contained
-// "Go back" card rather than the full-app error boundary. The full-app
-// ErrorBoundary above is kept as the last-resort catch-all.
 function withScreenErrorBoundary(WrappedScreen, displayName) {
   class ScreenErrorBoundary extends React.Component {
     state = { hasError: false, error: null };
@@ -237,7 +192,6 @@ function withScreenErrorBoundary(WrappedScreen, displayName) {
               style={s.screenErrBtn}
               onPress={() => {
                 this.setState({ hasError: false, error: null });
-                // Navigate back if possible, otherwise reset to Main
                 try { this.props.navigation.goBack(); } catch { /* no-op */ }
               }}
             >
@@ -253,7 +207,6 @@ function withScreenErrorBoundary(WrappedScreen, displayName) {
   return ScreenErrorBoundary;
 }
 
-// ── Custom Tab Bar ────────────────────────────────────────────────────────────
 function TabIcon({ name, focused, library = 'ion' }) {
   const color = focused ? ORANGE : '#aaa';
   const size = 22;
@@ -262,30 +215,24 @@ function TabIcon({ name, focused, library = 'ion' }) {
   return <Ionicons name={name} size={size} color={color} />;
 }
 
-// ── Animated Post Button ──────────────────────────────────────────────────────
 function AnimatedPostButton({ onPress }) {
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
   const ringAnim  = React.useRef(new Animated.Value(0)).current;
   const rotateAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
-    // Pulse: gentle scale breathe
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
         Animated.timing(pulseAnim, { toValue: 1,    duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       ])
     ).start();
-
-    // Ring: expanding ripple
     Animated.loop(
       Animated.sequence([
         Animated.timing(ringAnim, { toValue: 1, duration: 1400, easing: Easing.out(Easing.ease), useNativeDriver: true }),
         Animated.delay(300),
       ])
     ).start();
-
-    // Icon: slow spin on mount then idle
     Animated.sequence([
       Animated.timing(rotateAnim, { toValue: 1, duration: 500, easing: Easing.out(Easing.back(2)), useNativeDriver: true }),
     ]).start();
@@ -295,7 +242,6 @@ function AnimatedPostButton({ onPress }) {
   const ringOpacity = ringAnim.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.55, 0.2, 0] });
   const rotate      = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
-  // Web gets CSS-based animation via inline styles
   if (Platform.OS === 'web') {
     return (
       <button
@@ -353,16 +299,13 @@ function AnimatedPostButton({ onPress }) {
     );
   }
 
-  // Native (iOS / Android)
   return (
     <TouchableOpacity onPress={onPress} style={s.postSlot} activeOpacity={0.85}>
       <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
-        {/* Ripple ring */}
         <Animated.View style={[
           s.postRing,
           { transform: [{ scale: ringScale }], opacity: ringOpacity }
         ]} />
-        {/* Main button */}
         <Animated.View style={[s.postBtn, { transform: [{ scale: pulseAnim }] }]}>
           <Animated.View style={{ transform: [{ rotate }] }}>
             <Ionicons name="add" size={28} color="#fff" />
@@ -377,29 +320,21 @@ function AnimatedPostButton({ onPress }) {
 function CustomTabBar({ state, descriptors, navigation }) {
   const { t } = useLang();
   const width = useStableWidth();
-
-  // On web, only show the bottom tab bar when the viewport is mobile-sized (< 600px)
-  // On desktop web, the HomeScreen renders its own sidebar navigation
   if (Platform.OS === 'web' && width >= 600) return null;
-
   return (
     <View style={s.tabBar}>
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
         const isPost    = route.name === 'Post';
-
         const onPress = () => {
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
         };
-
         if (isPost) return (
           <AnimatedPostButton key={route.key} onPress={onPress} />
         );
-
         const routeKey = route.name.toLowerCase();
         const label = t(routeKey) || descriptors[route.key].options.tabBarLabel || route.name;
-
         const iconMap = {
           Home:  { name: 'home',    library: 'ion' },
           Jobs:  { name: 'briefcase', library: 'ion' },
@@ -407,7 +342,6 @@ function CustomTabBar({ state, descriptors, navigation }) {
           Cars:  { name: 'car-sport', library: 'ion' },
         };
         const icon = iconMap[route.name] || { name: 'ellipse', library: 'ion' };
-
         return (
           <TouchableOpacity key={route.key} onPress={onPress} style={s.tabItem} activeOpacity={0.8}>
             <TabIcon name={icon.name} focused={isFocused} library={icon.library} />
@@ -427,7 +361,6 @@ const HEADER = {
   headerBackTitleVisible: false,
 };
 
-// ── Tab Navigator ─────────────────────────────────────────────────────────────
 function MainTabs() {
   const { t } = useLang();
   return (
@@ -461,11 +394,6 @@ function MainTabs() {
   );
 }
 
-// ── Admin Panel Guard ─────────────────────────────────────────────────────────
-// Extracted into a real component so React hooks (useLayoutEffect) are called
-// at the top level of a component, not inside a render prop / inline function.
-// The previous pattern violated the Rules of Hooks and threw a warning in dev
-// and could silently misbehave in production.
 function AdminPanelGuard(props) {
   const { user: currentUser } = useAuth();
   React.useLayoutEffect(() => {
@@ -477,9 +405,6 @@ function AdminPanelGuard(props) {
   return <AdminScreen {...props} />;
 }
 
-// ── Assign per-screen error boundary wrappers ─────────────────────────────────
-// Defined at module scope (not inside a render function) so React Navigation
-// always receives the same component reference and never needlessly remounts.
 _HomeScreen            = withScreenErrorBoundary(HomeScreen,            'HomeScreen');
 _BoardScreen           = withScreenErrorBoundary(BoardScreen,           'BoardScreen');
 _JobDetailScreen       = withScreenErrorBoundary(JobDetailScreen,       'JobDetailScreen');
@@ -512,6 +437,13 @@ _ChatListScreen        = withScreenErrorBoundary(ChatListScreen,        'ChatLis
 _SavedJobsScreen       = withScreenErrorBoundary(SavedJobsScreen,       'SavedJobsScreen');
 
 // ── Root Navigator ────────────────────────────────────────────────────────────
+// FIX: showOnboarding is now received as a prop from App (lifted state).
+// Previously it lived here, causing OnboardingScreen to be returned as a bare
+// React element outside any Stack.Navigator. When onDone() fired, React tore
+// down OnboardingScreen and mounted a brand-new Stack.Navigator with no prior
+// navigation state → blank screen. Now the unauthenticated stack is always a
+// single mounted Stack.Navigator; onDone just removes the Onboarding screen
+// from it, and React Navigation transitions cleanly to Login.
 function RootNavigator({ showOnboarding, setShowOnboarding }) {
   const { user, loading, sessionPending } = useAuth();
   const { districtLoading } = useDistrict();
@@ -537,6 +469,7 @@ function RootNavigator({ showOnboarding, setShowOnboarding }) {
     return unsub;
   }, []);
 
+  // Wait until onboarding state is resolved (null = not yet read from storage)
   if (loading || showOnboarding === null || sessionPending || districtLoading) return (
     <View style={s.splash}>
       <View style={s.splashIcon}>
@@ -551,16 +484,7 @@ function RootNavigator({ showOnboarding, setShowOnboarding }) {
     </View>
   );
 
-  // ── Unauthenticated stack: Onboarding (if needed) → Login ────────────────
-  // Bug fix: previously OnboardingScreen was returned as a bare element outside
-  // any Navigator. When the user tapped "Get Started" / "Skip", setShowOnboarding(false)
-  // caused a switch from a bare <OnboardingScreen /> to a fresh <Stack.Navigator>.
-  // React Navigation had no prior navigation state for that Navigator, which left
-  // the screen blank / frozen. Fix: always render a single Stack.Navigator and
-  // use initialRouteName to land on Onboarding or Login as appropriate. The
-  // Onboarding screen calls onDone → setShowOnboarding(false); the navigator then
-  // re-renders with Login as the only remaining screen, which React Navigation
-  // transitions to correctly because the Navigator was already mounted.
+  // ── Unauthenticated stack ─────────────────────────────────────────────────
   if (!user) {
     return (
       <Stack.Navigator
@@ -569,7 +493,11 @@ function RootNavigator({ showOnboarding, setShowOnboarding }) {
       >
         {showOnboarding && (
           <Stack.Screen name="Onboarding">
-            {() => <OnboardingScreen onDone={() => setShowOnboarding(false)} />}
+            {() => (
+              <OnboardingScreen
+                onDone={() => setShowOnboarding(false)}
+              />
+            )}
           </Stack.Screen>
         )}
         <Stack.Screen name="Login" component={_LoginScreen} />
@@ -577,7 +505,7 @@ function RootNavigator({ showOnboarding, setShowOnboarding }) {
     );
   }
 
-  // ── Authenticated stack: all app screens ──────────────────────────────────
+  // ── Authenticated stack ───────────────────────────────────────────────────
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user.role === 'admin'
@@ -616,11 +544,6 @@ function RootNavigator({ showOnboarding, setShowOnboarding }) {
   );
 }
 
-
-// ── Web deep-link / refresh routing ──────────────────────────────────────────
-// Without this, refreshing any non-root URL on web resets to Home.
-// Each screen name maps to a URL path so React Navigation can restore
-// the exact screen from the browser's current URL on reload.
 const linking = {
   prefixes: [],
   config: {
@@ -653,36 +576,36 @@ const linking = {
       SeekerProfile:   'seeker-profile',
       Analytics:       'analytics',
       Alerts:          'alerts',
-      // Bug fix: screens that were registered in the Stack Navigator but missing
-      // from the linking config — deep links and push notification tap-targets
-      // for these screens now resolve correctly instead of crashing or redirecting.
       HelpSupport:     'help-support',
       About:           'about',
       Chat:            'chat/:chatId',
       ChatList:        'chat-list',
       SellItemForm:    'sell-item',
       AdminPanel:      'admin-panel',
-      // NOTE: "Board" was removed from here — BoardScreen is only registered as
-      // a Tab screen inside MainTabs (name "Jobs"), NOT as a named Stack screen.
-      // The correct deep-link path for the board is already covered by
-      // Main > Jobs: 'jobs' above. Having a phantom "Board: 'board'" entry here
-      // caused any /board deep link to fail to resolve.
     },
   },
 };
 
+// ── App ───────────────────────────────────────────────────────────────────────
+// FIX 1: showOnboarding state lifted here from RootNavigator so we can
+//         suppress the offline banner while the user is on onboarding.
+//         Onboarding is 100% local — it needs no network — so flashing
+//         "No internet connection" there was misleading and blocked users.
+// FIX 2: RootNavigator now receives showOnboarding + setShowOnboarding as props
+//         so it can conditionally include the Onboarding screen inside its
+//         Stack.Navigator, fixing the blank-screen-after-Get-Started bug.
 export default function App() {
   const isOnline = useOnlineStatus();
-  // Bug fix: lift showOnboarding here so we can suppress the offline banner
-  // while the user is on the onboarding screen. Onboarding is fully local —
-  // it needs no network — so showing "No internet connection" there is
-  // misleading and blocks the user from proceeding.
+
   const [showOnboarding, setShowOnboarding] = React.useState(null);
   React.useEffect(() => {
     isOnboarded().then(done => setShowOnboarding(!done));
   }, []);
 
-  const duringOnboarding = showOnboarding === true;
+  // Hide the offline banner while the user is viewing onboarding screens.
+  // Once they tap Skip / Get Started, showOnboarding becomes false and the
+  // banner will appear normally on any subsequent screen that needs network.
+  const isOnOnboarding = showOnboarding === true;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -693,8 +616,7 @@ export default function App() {
             <LangProvider>
             <NavigationContainer linking={linking} ref={navigationRef}>
               <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-              {/* Hide offline banner during onboarding — it needs no network */}
-              {!isOnline && !duringOnboarding && <OfflineBanner />}
+              {!isOnline && !isOnOnboarding && <OfflineBanner />}
               <RootNavigator
                 showOnboarding={showOnboarding}
                 setShowOnboarding={setShowOnboarding}
