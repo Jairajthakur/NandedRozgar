@@ -165,8 +165,8 @@ function CTAButton({ label, onPress, color, icon, delay, outline }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(slideAnim, { toValue: 0, duration: 380, delay, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }),
-      Animated.timing(fadeAnim,  { toValue: 1, duration: 320, delay, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 380, delay, easing: Easing.out(Easing.back(1.2)), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 320, delay, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
 
@@ -174,8 +174,8 @@ function CTAButton({ label, onPress, color, icon, delay, outline }) {
     <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }, { scale: scaleAnim }] }}>
       <TouchableOpacity
         activeOpacity={0.85}
-        onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start()}
-        onPressOut={() => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 30 }).start()}
+        onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start()}
+        onPressOut={() => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start()}
         onPress={onPress}
         style={[s.ctaBtn, outline
           ? { backgroundColor: '#fff', borderWidth: 1.5, borderColor: color }
@@ -195,8 +195,8 @@ function AmenityChip({ label, delay }) {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim,  { toValue: 1, duration: 320, delay, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, delay, useNativeDriver: true, speed: 14 }),
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 320, delay, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.spring(scaleAnim, { toValue: 1, delay, useNativeDriver: Platform.OS !== 'web', speed: 14 }),
     ]).start();
   }, []);
 
@@ -248,16 +248,16 @@ export default function RoomDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(contentFade,  { toValue: 1, duration: 450, delay: 100, useNativeDriver: true }),
-      Animated.timing(contentSlide, { toValue: 0, duration: 400, delay: 100, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(contentFade,  { toValue: 1, duration: 450, delay: 100, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(contentSlide, { toValue: 0, duration: 400, delay: 100, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
 
   function toggleSaved() {
     setSaved(v => !v);
     Animated.sequence([
-      Animated.spring(savedScale, { toValue: 1.45, useNativeDriver: true, speed: 25 }),
-      Animated.spring(savedScale, { toValue: 1,    useNativeDriver: true, speed: 25 }),
+      Animated.spring(savedScale, { toValue: 1.45, useNativeDriver: Platform.OS !== 'web', speed: 25 }),
+      Animated.spring(savedScale, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 25 }),
     ]).start();
   }
 
