@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
+import {
+  Platform, View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CAT_ICONS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
@@ -13,8 +14,8 @@ function AnimCard({ children, delay = 0 }) {
   const translateY = useRef(new Animated.Value(18)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity,    { toValue: 1, duration: 380, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 380, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(opacity,    { toValue: 1, duration: 380, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(translateY, { toValue: 0, duration: 380, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
   return <Animated.View style={{ opacity, transform: [{ translateY }] }}>{children}</Animated.View>;
@@ -33,8 +34,8 @@ export default function JobCard({ job, onPress, index = 0 }) {
   const scale = useRef(new Animated.Value(1)).current;
   const handlePress = () => {
     Animated.sequence([
-      Animated.timing(scale, { toValue: 0.97, duration: 70, useNativeDriver: true }),
-      Animated.spring(scale,  { toValue: 1, useNativeDriver: true, damping: 10, stiffness: 200 }),
+      Animated.timing(scale, { toValue: 0.97, duration: 70, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.spring(scale,  { toValue: 1, useNativeDriver: Platform.OS !== 'web', damping: 10, stiffness: 200 }),
     ]).start();
     onPress?.();
   };
