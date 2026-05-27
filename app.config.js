@@ -28,29 +28,16 @@ export default {
     userInterfaceStyle: 'light',
     newArchEnabled: true,
     // Play Store metadata — required for submission
-    // Content rating is completed in Play Console, but category must be set here.
     category: 'BUSINESS',
-    // Languages supported by the i18n system (en, mr, hi).
-    // The Play Store uses this to surface the app to users in those locales.
-    locales: {
-      en: {
-        name: 'CityPlus — Jobs, Rooms & More',
-        description: 'Find local jobs, rent rooms, buy/sell items, and hire vehicles in Nanded. Free for job seekers.',
-      },
-      mr: {
-        name: 'CityPlus — नोकऱ्या, खोल्या आणि बरेच काही',
-        description: 'नांदेडमध्ये स्थानिक नोकऱ्या, खोल्या, वस्तू खरेदी-विक्री आणि वाहने — पूर्णपणे मोफत.',
-      },
-      hi: {
-        name: 'CityPlus — नौकरियाँ, कमरे और बहुत कुछ',
-        description: 'नांदेड में स्थानीय नौकरियाँ, कमरे, सामान खरीदें-बेचें और वाहन किराए पर लें। बिल्कुल मुफ्त।',
-      },
-    },
+    // NOTE: The `locales` block was removed because Expo/Android generates
+    // translated strings.xml files (values-b+en, values-b+mr, values-b+hi)
+    // without a corresponding default strings.xml, causing Android lint to fail
+    // with ExtraTranslation errors during release builds. App name and
+    // description are set via the Play Console directly for each language.
     splash: {
       image: './assets/splash.png',
       // 'cover' fills the screen edge-to-edge so the dark background never
       // bleeds around the icon on Android 12+ with the new splash-screen API.
-      // 'contain' left visible dark bars around the icon on light-mode devices.
       resizeMode: 'cover',
       backgroundColor: '#111111',
     },
@@ -118,6 +105,7 @@ export default {
         'android.permission.READ_MEDIA_IMAGES',
         'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
+        'android.permission.RECORD_AUDIO',
       ],
       googleServicesFile: './google-services.json',
     },
