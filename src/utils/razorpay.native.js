@@ -177,11 +177,11 @@ export function useRazorpayCheckout({ http: httpFn, user }) {
     }
   }
 
-  async function initiatePayment({ amount, description }) {
+  async function initiatePayment({ amount, description, listingType, plan, couponId }) {
     return new Promise(async (resolve) => {
       resolverRef.current = resolve;
       try {
-        const orderRes = await httpFn('POST', '/api/payments/order', { amount, description });
+        const orderRes = await httpFn('POST', '/api/payments/order', { amount, description, listingType, plan, couponId });
         if (!orderRes?.ok) {
           resolve({ success: false, error: orderRes?.error || 'Could not create payment order.' });
           resolverRef.current = null;
