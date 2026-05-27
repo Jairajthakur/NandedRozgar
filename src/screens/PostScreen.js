@@ -98,11 +98,11 @@ function LiveDot({ color = '#22c55e' }) {
       Animated.sequence([
         Animated.timing(scale, {
           toValue: 1.9, duration: 650,
-          easing: Easing.out(Easing.ease), useNativeDriver: true,
+          easing: Easing.out(Easing.ease), useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(scale, {
           toValue: 1, duration: 650,
-          easing: Easing.in(Easing.ease), useNativeDriver: true,
+          easing: Easing.in(Easing.ease), useNativeDriver: Platform.OS !== 'web',
         }),
       ])
     ).start();
@@ -128,20 +128,20 @@ function ActionCard({ card, index, onPress, isWeb }) {
       Animated.timing(animY, {
         toValue: 0, duration: 460,
         delay: 220 + index * 75,
-        easing: Easing.out(Easing.back(1.3)), useNativeDriver: true,
+        easing: Easing.out(Easing.back(1.3)), useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(animO, {
         toValue: 1, duration: 380,
         delay: 220 + index * 75,
-        easing: Easing.out(Easing.quad), useNativeDriver: true,
+        easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
   }, []);
 
   const onPressIn  = () =>
-    Animated.spring(pressS, { toValue: 0.96, useNativeDriver: true, speed: 35, bounciness: 0 }).start();
+    Animated.spring(pressS, { toValue: 0.96, useNativeDriver: Platform.OS !== 'web', speed: 35, bounciness: 0 }).start();
   const onPressOut = () =>
-    Animated.spring(pressS, { toValue: 1, useNativeDriver: true, speed: 22, bounciness: 8 }).start();
+    Animated.spring(pressS, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 22, bounciness: 8 }).start();
 
   return (
     <Animated.View style={[
@@ -209,11 +209,11 @@ export default function PostScreen() {
     Animated.parallel([
       Animated.timing(headerO, {
         toValue: 1, duration: 420, delay: 60,
-        easing: Easing.out(Easing.quad), useNativeDriver: true,
+        easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(headerY, {
         toValue: 0, duration: 420, delay: 60,
-        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+        easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
   }, []);
