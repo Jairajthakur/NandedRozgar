@@ -51,7 +51,6 @@ import ChatScreen           from './src/screens/ChatScreen';
 import ChatListScreen       from './src/screens/ChatListScreen';
 import SavedJobsScreen      from './src/screens/SavedJobsScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
-import { BASE_URL } from './src/utils/constants';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -74,54 +73,63 @@ let _HomeScreen, _BoardScreen, _JobDetailScreen, _PostScreen, _PostJobScreen,
     _HelpSupportScreen, _SellItemForm, _AboutScreen, _ChatScreen, _ChatListScreen, _SavedJobsScreen;
 
 // ── Online / offline detection ────────────────────────────────────────────────
-// Uses the app's own /health endpoint rather than google.com/generate_204.
-// Pinging Google fails in regions where Google is blocked (e.g. some corporate
-// networks, certain ISPs) and gives a false "offline" even when the user can
-// reach our server just fine. Our /health endpoint is a tiny JSON response so
-// it adds negligible load and is a true indicator of whether the app's backend
-// is reachable.
-const PING_URL = `${BASE_URL}/health`;
-const PING_TIMEOUT_MS = 4000;
+// FIX: The previous version pinged our own backend server (/health) to decide
+// if the device is "online". This caused a false "No internet connection" banner
+// whenever the server was slow to respond (Railway cold start, high load, etc.)
+// even though the user's WiFi / mobile data was perfectly fine.
+//
+// New approach:
+//   • Web    — use navigator.onLine (browser's native network flag) + online/offline events.
+//   • Native — ping https://1.1.1.1 (Cloudflare's anycast resolver). It is globally
+//              fast, works on all Indian ISPs, and has nothing to do with our server.
+//              We require 2 consecutive failures before showing the banner so a single
+//              brief blip does not cause a false-positive flash.
+const CONNECTIVITY_PING_URL = 'https://1.1.1.1';
+const PING_TIMEOUT_MS = 5000; // 5 s — generous for slow mobile connections
 
 function useOnlineStatus() {
   const [isOnline, setIsOnline] = React.useState(true);
-  const timerRef = React.useRef(null);
+  const timerRef       = React.useRef(null);
+  const failCountRef   = React.useRef(0);
+  const FAIL_THRESHOLD = 2; // require 2 failures in a row before showing banner
 
   const check = React.useCallback(async () => {
+    // Web: trust the browser's built-in network flag — no fetch needed
     if (Platform.OS === 'web') {
-      setIsOnline(navigator.onLine);
+      const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      setIsOnline(online);
       return;
     }
+    // Native: ping Cloudflare (not our server) to detect true network absence
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), PING_TIMEOUT_MS);
-      await fetch(PING_URL, { method: 'HEAD', signal: controller.signal });
-      clearTimeout(timeout);
+      const tid = setTimeout(() => controller.abort(), PING_TIMEOUT_MS);
+      await fetch(CONNECTIVITY_PING_URL, { method: 'HEAD', signal: controller.signal, cache: 'no-store' });
+      clearTimeout(tid);
+      failCountRef.current = 0;
       setIsOnline(true);
     } catch {
-      setIsOnline(false);
+      failCountRef.current += 1;
+      if (failCountRef.current >= FAIL_THRESHOLD) {
+        setIsOnline(false);
+      }
     }
   }, []);
 
   React.useEffect(() => {
     check();
-    // Re-check every 8 s while the app is active
-    timerRef.current = setInterval(check, 8000);
+    timerRef.current = setInterval(check, 10000);
 
-    // Re-check immediately when app returns to foreground
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') check();
+      if (state === 'active') {
+        failCountRef.current = 0; // assume online on resume; let check() prove otherwise
+        check();
+      }
     });
 
-    // Web — listen to native online/offline events.
-    // Bug fix #17: the previous code added anonymous arrow functions as
-    // listeners but never removed them in the cleanup return, causing a
-    // listener leak each time the component remounted. Fix: store the handler
-    // references so the exact same function objects can be passed to
-    // removeEventListener in the cleanup.
     let onOnline, onOffline;
     if (Platform.OS === 'web') {
-      onOnline  = () => setIsOnline(true);
+      onOnline  = () => { failCountRef.current = 0; setIsOnline(true); };
       onOffline = () => setIsOnline(false);
       window.addEventListener('online',  onOnline);
       window.addEventListener('offline', onOffline);
@@ -130,7 +138,6 @@ function useOnlineStatus() {
     return () => {
       clearInterval(timerRef.current);
       sub.remove();
-      // Remove web listeners only if they were registered
       if (Platform.OS === 'web' && onOnline && onOffline) {
         window.removeEventListener('online',  onOnline);
         window.removeEventListener('offline', onOffline);
