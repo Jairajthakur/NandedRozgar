@@ -128,7 +128,7 @@ export default function OnboardingScreen({ onDone }) {
     else finish();
   }
 
-  async function finish() { await markOnboarded(); onDone?.(); }
+  async function finish() { try { await markOnboarded(); } catch {} onDone?.(); }
 
   // Button pulse on last slide
   const btnScale = useRef(new Animated.Value(1)).current;
