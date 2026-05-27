@@ -8,7 +8,9 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "development",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "$EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID"
       }
     },
     "preview": {
@@ -19,7 +21,9 @@
       },
       "env": {
         "NODE_ENV": "production",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com"
+        "EXPO_PUBLIC_API_URL": "$EXPO_PUBLIC_API_URL",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "$EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID"
       }
     },
     "production": {
@@ -29,7 +33,9 @@
       "env": {
         "NODE_ENV": "production",
         "ANDROID_VERSION_CODE": "2",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com"
+        "EXPO_PUBLIC_API_URL": "localloops-production.up.railway.app",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "947711727855-ucqjm9eoh41khqj3hc5ppn0r5tb4k60c.apps.googleusercontent.com"
       }
     },
     "web": {
