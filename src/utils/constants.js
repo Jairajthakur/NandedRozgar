@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+
 export const C = {
   orange: '#f97316',
   black:  '#111111',
@@ -15,14 +17,21 @@ export const C = {
 // Ensure BASE_URL always has a scheme — guards against eas.json env values
 // accidentally missing 'https://' (e.g. "localloops-production.up.railway.app"
 // instead of "https://localloops-production.up.railway.app").
-const _rawApiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app';
+const _rawApiUrl =
+  process.env.EXPO_PUBLIC_API_URL ||
+  Constants.expoConfig?.extra?.apiUrl ||
+  'https://localloops-production.up.railway.app';
 export const BASE_URL = _rawApiUrl.startsWith('http') ? _rawApiUrl : `https://${_rawApiUrl}`;
 
 // ── Razorpay ──────────────────────────────────────────────────────────────────
-// Set EXPO_PUBLIC_RAZORPAY_KEY_ID in your EAS Secrets / .env file.
-// Use rzp_test_… during development, rzp_live_… in production.
-// NEVER commit a live key to source control.
-export const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || '';
+// Read from process.env first (available when running via `expo start` with a
+// local .env file), then fall back to Constants.expoConfig.extra which is
+// reliably embedded into the APK/IPA bundle at EAS build time via app.config.js.
+// This dual-read ensures the key is available in BOTH local dev and built APKs.
+export const RAZORPAY_KEY_ID =
+  process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ||
+  Constants.expoConfig?.extra?.razorpayKeyId ||
+  '';
 
 export const CATS = [
   'All',
