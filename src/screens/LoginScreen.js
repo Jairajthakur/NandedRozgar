@@ -70,7 +70,8 @@ function _isValidClientId(id) {
 }
 
 if (GoogleSignin) {
-  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const googleWebClientId     = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
   if (!_isValidClientId(googleWebClientId)) {
     console.warn(
       '[LoginScreen] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set or is still the placeholder value. ' +
@@ -79,8 +80,14 @@ if (GoogleSignin) {
     );
   }
   GoogleSignin.configure({
+    // webClientId — required so Google embeds the correct audience in the idToken.
     // Pass undefined when ID is missing/placeholder — a fake string causes DEVELOPER_ERROR.
     webClientId: _isValidClientId(googleWebClientId) ? googleWebClientId : undefined,
+    // androidClientId — on native Android APK builds, passing the Android OAuth client ID
+    // prevents DEVELOPER_ERROR (code 10) caused by SHA-1 / package mismatch with web client.
+    ...(Platform.OS === 'android' && _isValidClientId(googleAndroidClientId)
+      ? { androidClientId: googleAndroidClientId }
+      : {}),
     offlineAccess: false,
     scopes: ['profile', 'email'],
   });
