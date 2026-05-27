@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
+  Platform,
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Dimensions, StatusBar, Animated, Easing,
 } from 'react-native';
@@ -63,12 +64,12 @@ function SlideContent({ slide, lang, active }) {
       // Animate in
       Animated.sequence([
         Animated.parallel([
-          Animated.spring(iconScale,   { toValue: 1,    useNativeDriver: true, damping: 12, stiffness: 120 }),
-          Animated.timing(iconOpacity, { toValue: 1,    duration: 280, useNativeDriver: true }),
+          Animated.spring(iconScale,   { toValue: 1,    useNativeDriver: Platform.OS !== 'web', damping: 12, stiffness: 120 }),
+          Animated.timing(iconOpacity, { toValue: 1,    duration: 280, useNativeDriver: Platform.OS !== 'web' }),
         ]),
         Animated.parallel([
-          Animated.timing(textOpacity, { toValue: 1, duration: 320, useNativeDriver: true }),
-          Animated.timing(textY,       { toValue: 0, duration: 320, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(textOpacity, { toValue: 1, duration: 320, useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(textY,       { toValue: 0, duration: 320, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
         ]),
       ]).start();
     }
@@ -80,8 +81,8 @@ function SlideContent({ slide, lang, active }) {
     if (active) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(floatY, { toValue: -8,  duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(floatY, { toValue:  0,  duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(floatY, { toValue: -8,  duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(floatY, { toValue:  0,  duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
         ])
       ).start();
     } else {
@@ -135,8 +136,8 @@ export default function OnboardingScreen({ onDone }) {
     if (page === SLIDES.length - 1) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(btnScale, { toValue: 1.04, duration: 600, useNativeDriver: true }),
-          Animated.timing(btnScale, { toValue: 1,    duration: 600, useNativeDriver: true }),
+          Animated.timing(btnScale, { toValue: 1.04, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(btnScale, { toValue: 1,    duration: 600, useNativeDriver: Platform.OS !== 'web' }),
         ])
       ).start();
     } else {
