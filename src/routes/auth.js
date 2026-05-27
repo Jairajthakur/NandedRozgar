@@ -254,11 +254,22 @@ router.post('/google', loginLimiter, async (req, res) => {
         if (payload.exp < now)  throw new Error('ID token has expired');
         if (payload.iat > now + 60) throw new Error('ID token issued in the future');
 
+        // Accept tokens whose audience is any of our registered OAuth clients.
+        // Backend env var is GOOGLE_ANDROID_CLIENT_ID (no EXPO_PUBLIC_ prefix).
+        // Frontend env var is EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID — also checked
+        // here so it works even if the Railway env uses the EXPO_PUBLIC_ name.
         const validAudiences = [
           process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+          process.env.GOOGLE_WEB_CLIENT_ID,
           process.env.GOOGLE_ANDROID_CLIENT_ID,
+          process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
         ].filter(Boolean);
         if (validAudiences.length > 0 && !validAudiences.includes(payload.aud)) {
+          // Log the mismatch so it can be diagnosed in Railway logs
+          console.error(
+            `[Google auth] aud mismatch — token aud: ${payload.aud} | ` +
+            `accepted: ${validAudiences.join(', ')}`
+          );
           throw new Error('ID token audience mismatch');
         }
         if (payload.iss !== 'https://accounts.google.com' && payload.iss !== 'accounts.google.com') {
