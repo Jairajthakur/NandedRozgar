@@ -283,6 +283,9 @@ export default function PostCarScreen() {
       const payResult = await initiatePayment({
         amount:      amountPaise,
         description: `Vehicle Listing – ${form.plan?.label || '1 Month'}`,
+        listingType: 'vehicle',
+        plan:        form.plan?.label || '1 Month',
+        couponId:    appliedCoupon?.id || null,
       });
 
       if (!payResult.success) {
