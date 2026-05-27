@@ -1,26 +1,44 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "placeholder",
-    "storage_bucket": "placeholder.appspot.com"
+    "project_number": "947711727855",
+    "project_id": "cityplus-17411",
+    "storage_bucket": "cityplus-17411.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:947711727855:android:1d8662c4f72bda091ba31a",
         "android_client_info": {
           "package_name": "com.cityplus.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "947711727855-ucqjm9eoh41khqj3hc5ppn0r5tb4k60c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cityplus.app",
+            "certificate_hash": "4e819aabefca288a58f051421c37ae346c4f3c7f"
+          }
+        },
+        {
+          "client_id": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "placeholder"
+          "current_key": "AIzaSyChJ9UWixyeRjCGDfGJtS_LBZTRcFcD5R4"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
