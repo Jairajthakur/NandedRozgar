@@ -44,8 +44,8 @@ function FadeIn({ children, delay = 0 }) {
   const ty      = useRef(new Animated.Value(12)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(ty,      { toValue: 0, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(ty,      { toValue: 0, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
   return <Animated.View style={{ opacity, transform: [{ translateY: ty }] }}>{children}</Animated.View>;
@@ -57,8 +57,8 @@ function PulseDot() {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(scale, { toValue: 1.7, duration: 700, useNativeDriver: true }),
-        Animated.timing(scale, { toValue: 1,   duration: 700, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 1.7, duration: 700, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(scale, { toValue: 1,   duration: 700, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, []);
@@ -77,8 +77,8 @@ function TrendingBanner() {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.1, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1,   duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1.1, duration: 900, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(pulse, { toValue: 1,   duration: 900, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, []);
@@ -127,15 +127,15 @@ function RoomCard({ item, index, onPress }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fade,  { toValue: 1, duration: 360, delay: index * 70, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(slide, { toValue: 0, duration: 360, delay: index * 70, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(fade,  { toValue: 1, duration: 360, delay: index * 70, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(slide, { toValue: 0, duration: 360, delay: index * 70, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
 
   const handlePress = () => {
     Animated.sequence([
-      Animated.timing(scale, { toValue: 0.97, duration: 70, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 10, stiffness: 200 }),
+      Animated.timing(scale, { toValue: 0.97, duration: 70, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: Platform.OS !== 'web', damping: 10, stiffness: 200 }),
     ]).start();
     onPress?.();
   };
@@ -456,9 +456,9 @@ export default function RoomScreen({ route }) {
   const sheetY = useRef(new Animated.Value(400)).current;
   useEffect(() => {
     if (showFilter) {
-      Animated.spring(sheetY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 180 }).start();
+      Animated.spring(sheetY, { toValue: 0, useNativeDriver: Platform.OS !== 'web', damping: 18, stiffness: 180 }).start();
     } else {
-      Animated.timing(sheetY, { toValue: 400, duration: 220, useNativeDriver: true }).start();
+      Animated.timing(sheetY, { toValue: 400, duration: 220, useNativeDriver: Platform.OS !== 'web' }).start();
     }
   }, [showFilter]);
 
