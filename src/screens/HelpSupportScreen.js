@@ -176,11 +176,11 @@ function LegalModal({ visible, contentKey, onClose }) {
   useEffect(() => {
     if (visible) {
       Animated.spring(slideAnim, {
-        toValue: 0, tension: 65, friction: 12, useNativeDriver: true,
+        toValue: 0, tension: 65, friction: 12, useNativeDriver: Platform.OS !== 'web',
       }).start();
     } else {
       Animated.timing(slideAnim, {
-        toValue: 600, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: true,
+        toValue: 600, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: Platform.OS !== 'web',
       }).start();
     }
   }, [visible]);
@@ -376,7 +376,7 @@ function FAQItem({ q, a, index }) {
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
-      toValue: 1, duration: 300, delay: index * 60, useNativeDriver: true,
+      toValue: 1, duration: 300, delay: index * 60, useNativeDriver: Platform.OS !== 'web',
     }).start();
   }, []);
 
@@ -423,8 +423,8 @@ function ContactCard({ icon, label, sub, onPress, bg, iconColor }) {
   const scale = useRef(new Animated.Value(1)).current;
   const press = () => {
     Animated.sequence([
-      Animated.spring(scale, { toValue: 0.93, useNativeDriver: true, speed: 30 }),
-      Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 20 }),
+      Animated.spring(scale, { toValue: 0.93, useNativeDriver: Platform.OS !== 'web', speed: 30 }),
+      Animated.spring(scale, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 20 }),
     ]).start();
     onPress();
   };
@@ -450,7 +450,7 @@ function ReportModal({ visible, onClose }) {
   useEffect(() => {
     Animated.spring(translateY, {
       toValue: visible ? 0 : 400,
-      useNativeDriver: true, tension: 60, friction: 12,
+      useNativeDriver: Platform.OS !== 'web', tension: 60, friction: 12,
     }).start();
   }, [visible]);
 
@@ -507,7 +507,7 @@ export default function HelpSupportScreen() {
 
   useEffect(() => {
     Animated.timing(headerAnim, {
-      toValue: 1, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      toValue: 1, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web',
     }).start();
   }, []);
 
