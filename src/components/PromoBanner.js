@@ -6,6 +6,7 @@
 
 import React, { useRef, useState } from 'react';
 import {
+  Platform,
   Animated, Linking, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
@@ -295,8 +296,8 @@ export function BannerStylePicker({ form, selected, onSelect }) {
 
 function BannerSelectCard({ layout, biz, offer, loc, phone, category, selected, onSelect }) {
   const scale = useRef(new Animated.Value(1)).current;
-  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
-  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 22, bounciness: 6 }).start();
+  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: Platform.OS !== 'web', speed: 40, bounciness: 0 }).start();
+  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 22, bounciness: 6 }).start();
 
   return (
     <Animated.View style={{ transform: [{ scale }], marginBottom: 14 }}>
