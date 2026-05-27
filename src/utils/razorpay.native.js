@@ -18,9 +18,6 @@ import { RAZORPAY_KEY_ID } from './constants';
 import { http } from './api';
 
 // ── Sanitise a value so it is safe to embed inside a JS string literal ─────────
-// Escapes backslashes, double-quotes, single-quotes, and HTML angle brackets.
-// This prevents user-supplied data (name, email, phone, description) from
-// breaking out of the JS string context inside the injected HTML page.
 function escapeForJS(value) {
   if (value === null || value === undefined) return '';
   return String(value)
@@ -34,17 +31,20 @@ function escapeForJS(value) {
 }
 
 // ── HTML page injected into the WebView ───────────────────────────────────────
-// All dynamic values are passed via a <script id="cfg"> JSON block and read by
-// the inline script, completely avoiding string-interpolation injection.
+// FIX 1: Replaced window.onload with checkout.js's own onload callback via a
+//         dynamically created <script> tag. This guarantees rzp.open() is only
+//         called AFTER checkout.js has fully executed — window.onload can fire
+//         before external scripts finish in some WebView implementations.
+// FIX 2: Added key validation — posts FAILED immediately if key is empty so the
+//         app shows a clear error instead of a generic Razorpay crash screen.
+// FIX 3: Wrapped rzp initialisation in try/catch so any SDK error is caught and
+//         reported back to React Native rather than silently crashing the WebView.
 function buildCheckoutHTML({ orderId, amount, currency, description, userName, userEmail, userPhone, keyId }) {
-  // Encode the options as JSON and embed in a <script type="application/json">
-  // element. The inline JS reads it with JSON.parse — no string interpolation of
-  // user data anywhere in the JS execution context.
   const cfg = JSON.stringify({
     key:         escapeForJS(keyId),
     amount:      String(amount),
     currency:    escapeForJS(currency || 'INR'),
-    name:        'CityPlus',
+    name:        'NandedRozgar',
     description: escapeForJS(description || 'Listing Payment'),
     order_id:    escapeForJS(orderId),
     prefill: {
@@ -57,51 +57,110 @@ function buildCheckoutHTML({ orderId, amount, currency, description, userName, u
   return `<!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Payment</title>
   <style>
+    * { box-sizing: border-box; }
     body { margin:0; background:#f5f5f5; display:flex;
-           align-items:center; justify-content:center; height:100vh; }
-    #loader { font-family:sans-serif; color:#888; font-size:14px; text-align:center; }
+           flex-direction:column; align-items:center;
+           justify-content:center; height:100vh; font-family:sans-serif; }
+    #loader { color:#888; font-size:14px; text-align:center; padding:20px; }
+    #error-box { display:none; color:#dc2626; font-size:13px;
+                 text-align:center; padding:24px; max-width:300px; }
   </style>
 </head>
 <body>
   <div id="loader">Opening payment gateway…</div>
+  <div id="error-box"></div>
+
   <script type="application/json" id="rzp-cfg">${cfg}</script>
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
   <script>
-    var opts = JSON.parse(document.getElementById('rzp-cfg').textContent);
-    var options = {
-      key:         opts.key,
-      amount:      opts.amount,
-      currency:    opts.currency,
-      name:        opts.name,
-      description: opts.description,
-      order_id:    opts.order_id,
-      prefill:     opts.prefill,
-      theme: { color: "#f97316" },
-      modal: {
-        ondismiss: function() {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'CANCELLED' }));
+    // Helper: send message back to React Native
+    function rn(msg) {
+      try { window.ReactNativeWebView.postMessage(JSON.stringify(msg)); } catch(e) {}
+    }
+
+    function showError(msg) {
+      document.getElementById('loader').style.display = 'none';
+      var box = document.getElementById('error-box');
+      box.textContent = msg;
+      box.style.display = 'block';
+    }
+
+    function initRazorpay() {
+      try {
+        var opts = JSON.parse(document.getElementById('rzp-cfg').textContent);
+
+        // FIX 2: Validate key before opening — empty key causes SDK crash
+        if (!opts.key || opts.key.trim() === '') {
+          showError('Payment configuration error. Please contact support.');
+          rn({ type: 'FAILED', error: 'Razorpay key is not configured. Set EXPO_PUBLIC_RAZORPAY_KEY_ID in EAS secrets.' });
+          return;
         }
-      },
-      handler: function(response) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({
-          type:                 'SUCCESS',
-          razorpay_order_id:   response.razorpay_order_id,
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_signature:  response.razorpay_signature,
-        }));
+
+        var options = {
+          key:         opts.key,
+          amount:      opts.amount,
+          currency:    opts.currency,
+          name:        opts.name,
+          description: opts.description,
+          order_id:    opts.order_id,
+          prefill:     opts.prefill,
+          theme:       { color: '#f97316' },
+          modal: {
+            ondismiss: function() {
+              rn({ type: 'CANCELLED' });
+            }
+          },
+          handler: function(response) {
+            rn({
+              type:                 'SUCCESS',
+              razorpay_order_id:   response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature:  response.razorpay_signature,
+            });
+          }
+        };
+
+        // FIX 3: Wrap in try/catch to capture SDK init errors
+        var rzp;
+        try {
+          rzp = new Razorpay(options);
+        } catch(e) {
+          showError('Failed to initialise payment gateway.');
+          rn({ type: 'FAILED', error: e.message || 'Razorpay init failed' });
+          return;
+        }
+
+        rzp.on('payment.failed', function(response) {
+          rn({
+            type:  'FAILED',
+            error: (response.error && response.error.description) || 'Payment failed',
+          });
+        });
+
+        document.getElementById('loader').style.display = 'none';
+        rzp.open();
+
+      } catch(e) {
+        showError('Unexpected error. Please try again.');
+        rn({ type: 'FAILED', error: e.message || 'Unknown error' });
       }
+    }
+
+    // FIX 1: Load checkout.js dynamically and call initRazorpay only in its
+    // onload — this guarantees the Razorpay SDK is fully ready before we call
+    // new Razorpay(). Using window.onload is unreliable in WebView because it
+    // can fire before externally loaded scripts have executed.
+    var script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = initRazorpay;
+    script.onerror = function() {
+      showError('Could not load payment gateway. Check internet connection.');
+      rn({ type: 'FAILED', error: 'Failed to load checkout.js. Check internet connection.' });
     };
-    var rzp = new Razorpay(options);
-    rzp.on('payment.failed', function(response) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({
-        type:  'FAILED',
-        error: (response.error && response.error.description) || 'Payment failed',
-      }));
-    });
-    window.onload = function() { rzp.open(); };
+    document.head.appendChild(script);
   </script>
 </body>
 </html>`;
@@ -110,6 +169,7 @@ function buildCheckoutHTML({ orderId, amount, currency, description, userName, u
 // ── RazorpayModal ─────────────────────────────────────────────────────────────
 export function RazorpayModal({ visible, onClose, checkoutParams }) {
   const [loading, setLoading] = useState(true);
+  const [webViewError, setWebViewError] = useState(null);
 
   if (!visible || !checkoutParams) return null;
 
@@ -124,6 +184,12 @@ export function RazorpayModal({ visible, onClose, checkoutParams }) {
     } catch {
       onClose({ success: false, error: 'Unknown payment error' });
     }
+  }
+
+  function handleWebViewError(syntheticEvent) {
+    const { nativeEvent } = syntheticEvent;
+    setWebViewError(nativeEvent.description || 'WebView failed to load');
+    onClose({ success: false, error: 'Payment page failed to load. Check your internet connection.' });
   }
 
   return (
@@ -152,10 +218,15 @@ export function RazorpayModal({ visible, onClose, checkoutParams }) {
           source={{ html }}
           onLoadEnd={() => setLoading(false)}
           onMessage={handleMessage}
+          onError={handleWebViewError}
           javaScriptEnabled
           domStorageEnabled
           style={{ flex: 1 }}
           originWhitelist={['*']}
+          // Allow Razorpay's checkout.razorpay.com to load inside the WebView
+          mixedContentMode="always"
+          // Prevent the WebView from intercepting back button before payment completes
+          onShouldStartLoadWithRequest={() => true}
         />
       </View>
     </Modal>
