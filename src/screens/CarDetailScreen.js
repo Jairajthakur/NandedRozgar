@@ -52,8 +52,8 @@ function SlideIn({ children, delay = 0, from = 20 }) {
   const fade  = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(slide, { toValue: 0, duration: 420, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(fade,  { toValue: 1, duration: 380, delay, useNativeDriver: true }),
+      Animated.timing(slide, { toValue: 0, duration: 420, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(fade,  { toValue: 1, duration: 380, delay, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
   return <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>{children}</Animated.View>;
@@ -65,8 +65,8 @@ function FeatureChip({ label, icon, delay }) {
   const scale = useRef(new Animated.Value(0.82)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fade,  { toValue: 1, duration: 350, delay, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, delay, useNativeDriver: true, speed: 14, bounciness: 8 }),
+      Animated.timing(fade,  { toValue: 1, duration: 350, delay, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.spring(scale, { toValue: 1, delay, useNativeDriver: Platform.OS !== 'web', speed: 14, bounciness: 8 }),
     ]).start();
   }, []);
   return (
@@ -83,8 +83,8 @@ function StatBox({ icon, label, value, delay }) {
   const fade  = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(scale, { toValue: 1, delay, useNativeDriver: true, speed: 12, bounciness: 10 }),
-      Animated.timing(fade,  { toValue: 1, duration: 300, delay, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, delay, useNativeDriver: Platform.OS !== 'web', speed: 12, bounciness: 10 }),
+      Animated.timing(fade,  { toValue: 1, duration: 300, delay, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
   return (
@@ -106,13 +106,13 @@ function CTAButton({ label, onPress, color, icon, delay, outline }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(slide, { toValue: 0, duration: 400, delay, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }),
-      Animated.timing(fade,  { toValue: 1, duration: 350, delay, useNativeDriver: true }),
+      Animated.timing(slide, { toValue: 0, duration: 400, delay, easing: Easing.out(Easing.back(1.2)), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(fade,  { toValue: 1, duration: 350, delay, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
 
-  const pressIn  = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 30 }).start();
-  const pressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+  const pressIn  = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
+  const pressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 30 }).start();
 
   return (
     <Animated.View style={{ flex: 1, opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
@@ -147,7 +147,7 @@ function ImageGallery({ photos, vehicleType }) {
       photos.forEach((_, i) => {
         Animated.spring(dotScale[i], {
           toValue: i === idx ? 1.4 : 1,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
           speed: 20,
         }).start();
       });
@@ -160,8 +160,8 @@ function ImageGallery({ photos, vehicleType }) {
     useEffect(() => {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulse, { toValue: 1.08, duration: 1200, useNativeDriver: true }),
-          Animated.timing(pulse, { toValue: 1,    duration: 1200, useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1.08, duration: 1200, useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(pulse, { toValue: 1,    duration: 1200, useNativeDriver: Platform.OS !== 'web' }),
         ])
       ).start();
     }, []);
@@ -245,8 +245,8 @@ export default function CarDetailScreen() {
   function toggleSaved() {
     setSaved(v => !v);
     Animated.sequence([
-      Animated.spring(savedScale, { toValue: 1.4, useNativeDriver: true, speed: 25, bounciness: 12 }),
-      Animated.spring(savedScale, { toValue: 1,   useNativeDriver: true, speed: 25 }),
+      Animated.spring(savedScale, { toValue: 1.4, useNativeDriver: Platform.OS !== 'web', speed: 25, bounciness: 12 }),
+      Animated.spring(savedScale, { toValue: 1,   useNativeDriver: Platform.OS !== 'web', speed: 25 }),
     ]).start();
   }
 
