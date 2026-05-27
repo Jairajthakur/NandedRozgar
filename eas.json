@@ -18,7 +18,8 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID"
       }
     },
     "production": {
@@ -27,7 +28,8 @@
       },
       "env": {
         "NODE_ENV": "production",
-        "ANDROID_VERSION_CODE": "2"
+        "ANDROID_VERSION_CODE": "2",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID"
       }
     },
     "web": {
