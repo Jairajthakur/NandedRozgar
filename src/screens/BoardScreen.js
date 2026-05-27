@@ -47,8 +47,8 @@ function FadeIn({ children, delay = 0 }) {
   const ty      = useRef(new Animated.Value(12)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(ty,      { toValue: 0, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(ty,      { toValue: 0, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
   return <Animated.View style={{ opacity, transform: [{ translateY: ty }] }}>{children}</Animated.View>;
@@ -60,8 +60,8 @@ function PulseDot() {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(scale, { toValue: 1.7, duration: 700, useNativeDriver: true }),
-        Animated.timing(scale, { toValue: 1,   duration: 700, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 1.7, duration: 700, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(scale, { toValue: 1,   duration: 700, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, []);
@@ -81,8 +81,8 @@ function HiringBanner({ onPress }) {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.1, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1,   duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1.1, duration: 900, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(pulse, { toValue: 1,   duration: 900, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, []);
@@ -290,7 +290,7 @@ export default function BoardScreen({ route }) {
   useEffect(() => {
     Animated.timing(sheetY, {
       toValue: showFilters ? 0 : 600,
-      duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web',
     }).start();
   }, [showFilters]);
 
