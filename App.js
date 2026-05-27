@@ -556,14 +556,27 @@ function RootNavigator() {
     </View>
   );
 
-  if (showOnboarding && !user) {
-    return <OnboardingScreen onDone={() => setShowOnboarding(false)} />;
-  }
-
-  // ── Unauthenticated stack: only Login is accessible ─────────────────────
+  // ── Unauthenticated stack: Onboarding (if needed) → Login ────────────────
+  // Bug fix: previously OnboardingScreen was returned as a bare element outside
+  // any Navigator. When the user tapped "Get Started" / "Skip", setShowOnboarding(false)
+  // caused a switch from a bare <OnboardingScreen /> to a fresh <Stack.Navigator>.
+  // React Navigation had no prior navigation state for that Navigator, which left
+  // the screen blank / frozen. Fix: always render a single Stack.Navigator and
+  // use initialRouteName to land on Onboarding or Login as appropriate. The
+  // Onboarding screen calls onDone → setShowOnboarding(false); the navigator then
+  // re-renders with Login as the only remaining screen, which React Navigation
+  // transitions to correctly because the Navigator was already mounted.
   if (!user) {
     return (
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator
+        screenOptions={{ headerShown: false }}
+        initialRouteName={showOnboarding ? 'Onboarding' : 'Login'}
+      >
+        {showOnboarding && (
+          <Stack.Screen name="Onboarding">
+            {() => <OnboardingScreen onDone={() => setShowOnboarding(false)} />}
+          </Stack.Screen>
+        )}
         <Stack.Screen name="Login" component={_LoginScreen} />
       </Stack.Navigator>
     );
