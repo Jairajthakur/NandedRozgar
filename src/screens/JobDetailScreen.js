@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
+  Platform,
   View, Text, ScrollView, StyleSheet, Linking, Alert,
   TouchableOpacity, Share, Animated, Easing, StatusBar,
   TextInput, Dimensions,
@@ -26,15 +27,15 @@ function Particle({ delay, x, size, color }) {
       Animated.sequence([
         Animated.delay(delay),
         Animated.parallel([
-          Animated.timing(y,  { toValue: -60, duration: 2200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(y,  { toValue: -60, duration: 2200, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
           Animated.sequence([
-            Animated.timing(op, { toValue: 0.55, duration: 600, useNativeDriver: true }),
-            Animated.timing(op, { toValue: 0,    duration: 1600, useNativeDriver: true }),
+            Animated.timing(op, { toValue: 0.55, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
+            Animated.timing(op, { toValue: 0,    duration: 1600, useNativeDriver: Platform.OS !== 'web' }),
           ]),
         ]),
         Animated.parallel([
-          Animated.timing(y,  { toValue: 0,   duration: 0, useNativeDriver: true }),
-          Animated.timing(op, { toValue: 0,   duration: 0, useNativeDriver: true }),
+          Animated.timing(y,  { toValue: 0,   duration: 0, useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(op, { toValue: 0,   duration: 0, useNativeDriver: Platform.OS !== 'web' }),
         ]),
       ])
     ).start();
@@ -57,8 +58,8 @@ function StatPill({ icon, value, label, delay }) {
   const op    = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(scale, { toValue: 1, delay, useNativeDriver: true, damping: 11, stiffness: 130 }),
-      Animated.timing(op,    { toValue: 1, duration: 320, delay, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, delay, useNativeDriver: Platform.OS !== 'web', damping: 11, stiffness: 130 }),
+      Animated.timing(op,    { toValue: 1, duration: 320, delay, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
   return (
@@ -76,8 +77,8 @@ function FadeSection({ children, delay = 0 }) {
   const ty = useRef(new Animated.Value(18)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(op, { toValue: 1, duration: 400, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(ty, { toValue: 0, duration: 380, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(op, { toValue: 1, duration: 400, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(ty, { toValue: 0, duration: 380, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
   return <Animated.View style={{ opacity: op, transform: [{ translateY: ty }] }}>{children}</Animated.View>;
@@ -91,15 +92,15 @@ function ActionBtn({ label, icon, color, onPress, outline = false, delay = 0, di
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(op,     { toValue: 1, duration: 360, delay, useNativeDriver: true }),
-      Animated.timing(slideY, { toValue: 0, duration: 360, delay, easing: Easing.out(Easing.back(1.1)), useNativeDriver: true }),
+      Animated.timing(op,     { toValue: 1, duration: 360, delay, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(slideY, { toValue: 0, duration: 360, delay, easing: Easing.out(Easing.back(1.1)), useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
 
   const press = () => {
     Animated.sequence([
-      Animated.timing(scale, { toValue: 0.96, duration: 65, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 8, stiffness: 200 }),
+      Animated.timing(scale, { toValue: 0.96, duration: 65, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: Platform.OS !== 'web', damping: 8, stiffness: 200 }),
     ]).start();
     onPress?.();
   };
@@ -130,8 +131,8 @@ function SkillChip({ label, index }) {
   const scale = useRef(new Animated.Value(0.75)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(op,    { toValue: 1, duration: 300, delay: index * 60, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, delay: index * 60, useNativeDriver: true, damping: 12 }),
+      Animated.timing(op,    { toValue: 1, duration: 300, delay: index * 60, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.spring(scale, { toValue: 1, delay: index * 60, useNativeDriver: Platform.OS !== 'web', damping: 12 }),
     ]).start();
   }, []);
   return (
@@ -178,8 +179,8 @@ export default function JobDetailScreen({ route, navigation }) {
     const next = !saved;
     setSaved(next);
     Animated.sequence([
-      Animated.spring(savedScale, { toValue: 1.4, useNativeDriver: true, speed: 25, bounciness: 12 }),
-      Animated.spring(savedScale, { toValue: 1,   useNativeDriver: true, speed: 25 }),
+      Animated.spring(savedScale, { toValue: 1.4, useNativeDriver: Platform.OS !== 'web', speed: 25, bounciness: 12 }),
+      Animated.spring(savedScale, { toValue: 1,   useNativeDriver: Platform.OS !== 'web', speed: 25 }),
     ]).start();
     try {
       await http('POST', `/api/jobs/${job.id}/save`);
@@ -198,19 +199,19 @@ export default function JobDetailScreen({ route, navigation }) {
   useEffect(() => {
     // Staggered hero entrance
     Animated.parallel([
-      Animated.timing(heroOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.spring(iconScale, { toValue: 1, delay: 120, damping: 10, stiffness: 110, useNativeDriver: true }),
+      Animated.timing(heroOpacity, { toValue: 1, duration: 500, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.spring(iconScale, { toValue: 1, delay: 120, damping: 10, stiffness: 110, useNativeDriver: Platform.OS !== 'web' }),
       Animated.parallel([
-        Animated.timing(ringOpacity, { toValue: 1, duration: 400, delay: 200, useNativeDriver: true }),
-        Animated.spring(ringScale,   { toValue: 1, delay: 200, damping: 12, stiffness: 90, useNativeDriver: true }),
+        Animated.timing(ringOpacity, { toValue: 1, duration: 400, delay: 200, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.spring(ringScale,   { toValue: 1, delay: 200, damping: 12, stiffness: 90, useNativeDriver: Platform.OS !== 'web' }),
       ]),
     ]).start();
 
     // Continuous pulse on icon
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.06, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,    duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.06, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(pulseAnim, { toValue: 1,    duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, []);
