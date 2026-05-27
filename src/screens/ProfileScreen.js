@@ -55,8 +55,8 @@ function FloatingOrb({ size, color, x, y, delay, duration }) {
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true, delay }),
-        Animated.timing(anim, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web', delay }),
+        Animated.timing(anim, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
       ])
     );
     loop.start();
@@ -91,19 +91,19 @@ function MenuRow({ item, isLast, index }) {
         toValue: 1, duration: 320,
         delay: 600 + index * 55,
         easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(translateY, {
         toValue: 0, duration: 320,
         delay: 600 + index * 55,
         easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
   }, []);
 
-  const onPressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }).start();
-  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 20 }).start();
+  const onPressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: Platform.OS !== 'web', speed: 50 }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 20 }).start();
 
   // Icon bg colors per category
   const iconColors = {
@@ -180,16 +180,16 @@ export default function ProfileScreen() {
   useEffect(() => {
     // Hero fade in
     Animated.parallel([
-      Animated.timing(heroOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(heroScale,   { toValue: 1, damping: 18, stiffness: 120, useNativeDriver: true }),
+      Animated.timing(heroOpacity, { toValue: 1, duration: 400, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.spring(heroScale,   { toValue: 1, damping: 18, stiffness: 120, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
 
     // Avatar pop in
     Animated.sequence([
       Animated.delay(150),
       Animated.parallel([
-        Animated.spring(avatarScale,   { toValue: 1, damping: 12, stiffness: 180, useNativeDriver: true }),
-        Animated.timing(avatarOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+        Animated.spring(avatarScale,   { toValue: 1, damping: 12, stiffness: 180, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(avatarOpacity, { toValue: 1, duration: 280, useNativeDriver: Platform.OS !== 'web' }),
       ]),
     ]).start();
 
@@ -197,8 +197,8 @@ export default function ProfileScreen() {
     Animated.sequence([
       Animated.delay(300),
       Animated.parallel([
-        Animated.spring(ringScale,   { toValue: 1, damping: 10, stiffness: 100, useNativeDriver: true }),
-        Animated.timing(ringOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.spring(ringScale,   { toValue: 1, damping: 10, stiffness: 100, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(ringOpacity, { toValue: 1, duration: 400, useNativeDriver: Platform.OS !== 'web' }),
       ]),
     ]).start();
 
@@ -206,22 +206,22 @@ export default function ProfileScreen() {
     Animated.sequence([
       Animated.delay(400),
       Animated.parallel([
-        Animated.timing(statsOpacity, { toValue: 1, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(statsY,       { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(statsOpacity, { toValue: 1, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(statsY,       { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
       ]),
     ]).start();
 
     // Pulse ring
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.08, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,    duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.08, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(pulseAnim, { toValue: 1,    duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
 
     // Slow ring rotation
     Animated.loop(
-      Animated.timing(ringRotate, { toValue: 1, duration: 8000, easing: Easing.linear, useNativeDriver: true })
+      Animated.timing(ringRotate, { toValue: 1, duration: 8000, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' })
     ).start();
   }, []);
 
@@ -486,13 +486,13 @@ function SignOutButton({ onPress }) {
 
   const onIn  = () => {
     Animated.parallel([
-      Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }),
+      Animated.spring(scale, { toValue: 0.97, useNativeDriver: Platform.OS !== 'web', speed: 50 }),
       Animated.timing(glow,  { toValue: 1, duration: 200, useNativeDriver: false }),
     ]).start();
   };
   const onOut = () => {
     Animated.parallel([
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20 }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 20 }),
       Animated.timing(glow,  { toValue: 0, duration: 300, useNativeDriver: false }),
     ]).start();
   };
@@ -523,8 +523,8 @@ function LogoutModalCard({ onCancel, onConfirm }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(scale,   { toValue: 1, damping: 16, stiffness: 200, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.spring(scale,   { toValue: 1, damping: 16, stiffness: 200, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
 
@@ -554,8 +554,8 @@ function LogoutModalCard({ onCancel, onConfirm }) {
 // ── Delete account button ─────────────────────────────────────────────────────
 function DeleteAccountButton({ onPress }) {
   const scale = useRef(new Animated.Value(1)).current;
-  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }).start();
-  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 20 }).start();
+  const onIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: Platform.OS !== 'web', speed: 50 }).start();
+  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 20 }).start();
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
@@ -579,8 +579,8 @@ function DeleteAccountModalCard({ deleting, onCancel, onConfirm }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(scale,   { toValue: 1, damping: 16, stiffness: 200, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.spring(scale,   { toValue: 1, damping: 16, stiffness: 200, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
 
