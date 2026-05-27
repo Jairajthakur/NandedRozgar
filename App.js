@@ -572,11 +572,16 @@ function RootNavigator() {
         screenOptions={{ headerShown: false }}
         initialRouteName={showOnboarding ? 'Onboarding' : 'Login'}
       >
-        {showOnboarding && (
-          <Stack.Screen name="Onboarding">
-            {() => <OnboardingScreen onDone={() => setShowOnboarding(false)} />}
-          </Stack.Screen>
-        )}
+        <Stack.Screen name="Onboarding">
+          {({ navigation }) => (
+            <OnboardingScreen
+              onDone={() => {
+                setShowOnboarding(false);
+                navigation.replace('Login');
+              }}
+            />
+          )}
+        </Stack.Screen>
         <Stack.Screen name="Login" component={_LoginScreen} />
       </Stack.Navigator>
     );
