@@ -28,8 +28,8 @@ function Orb({ size, color, top, left, right, bottom, dur = 4000 }) {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(y, { toValue: -14, duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(y, { toValue: 0,   duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(y, { toValue: -14, duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(y, { toValue: 0,   duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, []);
@@ -48,15 +48,15 @@ function DistrictCard({ district, onSelect, delay = 0 }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 420, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(scale,   { toValue: 1, duration: 420, delay, easing: Easing.out(Easing.back(1.3)), useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 420, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(scale,   { toValue: 1, duration: 420, delay, easing: Easing.out(Easing.back(1.3)), useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
 
   const handlePress = () => {
     Animated.sequence([
-      Animated.timing(pressScale, { toValue: 0.96, duration: 80, useNativeDriver: true }),
-      Animated.timing(pressScale, { toValue: 1,    duration: 120, useNativeDriver: true }),
+      Animated.timing(pressScale, { toValue: 0.96, duration: 80, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(pressScale, { toValue: 1,    duration: 120, useNativeDriver: Platform.OS !== 'web' }),
     ]).start(() => onSelect(district.id));
   };
 
@@ -101,8 +101,8 @@ export default function DistrictPickerScreen({ onDone, isSwitch = false }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(titleOp, { toValue: 1, duration: 600, delay: 100, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(titleY,  { toValue: 0, duration: 600, delay: 100, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(titleOp, { toValue: 1, duration: 600, delay: 100, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(titleY,  { toValue: 0, duration: 600, delay: 100, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
 
