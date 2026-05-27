@@ -12,7 +12,11 @@ export const C = {
   },
 };
 
-export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://thecityplus.in';
+// Ensure BASE_URL always has a scheme — guards against eas.json env values
+// accidentally missing 'https://' (e.g. "localloops-production.up.railway.app"
+// instead of "https://localloops-production.up.railway.app").
+const _rawApiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://localloops-production.up.railway.app';
+export const BASE_URL = _rawApiUrl.startsWith('http') ? _rawApiUrl : `https://${_rawApiUrl}`;
 
 // ── Razorpay ──────────────────────────────────────────────────────────────────
 // Set EXPO_PUBLIC_RAZORPAY_KEY_ID in your EAS Secrets / .env file.
