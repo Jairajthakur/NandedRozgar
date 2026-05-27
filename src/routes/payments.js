@@ -55,11 +55,11 @@ function verifySignature(orderId, paymentId, signature) {
 }
 
 // ── Server-side plan pricing (paise). Never trust the client for these. ────────
-// Keys are the exact label strings sent by each PostScreen (planLabel / form.plan.label).
-// job:     PostJobScreen  PLANS → '7 Days' ₹49, '15 Days' ₹79, '30 Days' ₹119
+// Keys are the exact label strings sent by each PostScreen (planLabel / form.plan.label).\n// job:     PostJobScreen  PLANS → '7 Days' ₹49, '15 Days' ₹79, '30 Days' ₹119
 // room:    PostRoomScreen PLANS → '15 Days' ₹69, '1 Month' ₹99, '2 Months' ₹169, '3 Months' ₹229
 // vehicle: PostCarScreen  PLANS → '15 Days' ₹69, '1 Month' ₹99, '2 Months' ₹169, '3 Months' ₹229
 // buysell: PostItemScreen PLANS → '7 Days' ₹39, '15 Days' ₹59, '30 Days' ₹89
+// promotion: PromoteBusinessScreen → basic ₹99, popular ₹249, premium ₹499
 const PLAN_PRICES = {
   job: {
     free:      0,
@@ -91,6 +91,12 @@ const PLAN_PRICES = {
     '7 days':  3900,   // ₹39
     '15 days': 5900,   // ₹59
     '30 days': 8900,   // ₹89
+  },
+  // Promotion plans — must match PROMOTION_PLANS table below
+  promotion: {
+    basic:   9900,   // ₹99
+    popular: 24900,  // ₹249
+    premium: 49900,  // ₹499
   },
 };
 
