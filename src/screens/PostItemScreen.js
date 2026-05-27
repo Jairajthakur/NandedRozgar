@@ -643,14 +643,14 @@ export default function PostItemScreen() {
   // ── Slide animation between steps ──────────────────────────────────────────
   function animateStep(dir, cb) {
     Animated.parallel([
-      Animated.timing(slideAnim, { toValue: dir === 'next' ? -SW : SW, duration: 220, useNativeDriver: true }),
-      Animated.timing(fadeAnim,  { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: dir === 'next' ? -SW : SW, duration: 220, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(fadeAnim,  { toValue: 0, duration: 150, useNativeDriver: Platform.OS !== 'web' }),
     ]).start(() => {
       slideAnim.setValue(dir === 'next' ? SW : -SW);
       cb();
       Animated.parallel([
-        Animated.spring(slideAnim, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
-        Animated.timing(fadeAnim,  { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, tension: 60, friction: 10, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 200, useNativeDriver: Platform.OS !== 'web' }),
       ]).start();
     });
   }
