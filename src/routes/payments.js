@@ -55,22 +55,65 @@ function verifySignature(orderId, paymentId, signature) {
 }
 
 // ── Server-side plan pricing (paise). Never trust the client for these. ────────
-// These must stay in sync with constants.js on the client side.
+// Keys are the exact label strings sent by each PostScreen (planLabel / form.plan.label).
+// job:     PostJobScreen  PLANS → '7 Days' ₹49, '15 Days' ₹79, '30 Days' ₹119
+// room:    PostRoomScreen PLANS → '15 Days' ₹69, '1 Month' ₹99, '2 Months' ₹169, '3 Months' ₹229
+// vehicle: PostCarScreen  PLANS → '15 Days' ₹69, '1 Month' ₹99, '2 Months' ₹169, '3 Months' ₹229
+// buysell: PostItemScreen PLANS → '7 Days' ₹39, '15 Days' ₹59, '30 Days' ₹89
 const PLAN_PRICES = {
-  job:     { free: 0, featured: 9900, urgent: 4900 },
-  room:    { free: 0, featured: 7900 },
-  vehicle: { free: 0, featured: 7900 },
-  buysell: { free: 0, featured: 4900 },
+  job: {
+    free:      0,
+    featured:  9900,
+    urgent:    4900,
+    '7 days':  4900,   // ₹49
+    '15 days': 7900,   // ₹79
+    '30 days': 11900,  // ₹119
+  },
+  room: {
+    free:       0,
+    featured:   7900,
+    '15 days':  6900,   // ₹69
+    '1 month':  9900,   // ₹99
+    '2 months': 16900,  // ₹169
+    '3 months': 22900,  // ₹229
+  },
+  vehicle: {
+    free:       0,
+    featured:   7900,
+    '15 days':  6900,   // ₹69
+    '1 month':  9900,   // ₹99
+    '2 months': 16900,  // ₹169
+    '3 months': 22900,  // ₹229
+  },
+  buysell: {
+    free:      0,
+    featured:  4900,
+    '7 days':  3900,   // ₹39
+    '15 days': 5900,   // ₹59
+    '30 days': 8900,   // ₹89
+  },
 };
 
-// ── FIX #7: Server-authoritative plan durations (days). ──────────────────────
+// ── Server-authoritative plan durations (days). ──────────────────────────────
 // The client-supplied `days` field is ignored in all verify routes.
 // These values are the single source of truth for listing expiry.
 const PLAN_DAYS = {
-  job:     { free: 30, featured: 30, urgent: 30 },
-  room:    { free: 30, featured: 30 },
-  vehicle: { free: 30, featured: 30 },
-  buysell: { free: 15, featured: 15 },
+  job: {
+    free: 30, featured: 30, urgent: 30,
+    '7 days': 7, '15 days': 15, '30 days': 30,
+  },
+  room: {
+    free: 30, featured: 30,
+    '15 days': 15, '1 month': 30, '2 months': 60, '3 months': 90,
+  },
+  vehicle: {
+    free: 30, featured: 30,
+    '15 days': 15, '1 month': 30, '2 months': 60, '3 months': 90,
+  },
+  buysell: {
+    free: 15, featured: 15,
+    '7 days': 7, '15 days': 15, '30 days': 30,
+  },
 };
 
 // Look up the server-authoritative price (in paise) for a listing type + plan.
@@ -79,7 +122,7 @@ function resolveExpectedAmount(listingType, planKey, coupon) {
   const prices = PLAN_PRICES[listingType];
   if (!prices) return null;
 
-  const normalised = (planKey || 'free').toLowerCase();
+  const normalised = (planKey || 'free').toLowerCase().trim();
   if (!(normalised in prices)) return null;
 
   let amountPaise = prices[normalised];
@@ -101,7 +144,7 @@ function resolveExpectedAmount(listingType, planKey, coupon) {
 function resolvePlanDays(listingType, planKey) {
   const days = PLAN_DAYS[listingType];
   if (!days) return 30;
-  const normalised = (planKey || 'free').toLowerCase();
+  const normalised = (planKey || 'free').toLowerCase().trim();
   return days[normalised] || 30;
 }
 
