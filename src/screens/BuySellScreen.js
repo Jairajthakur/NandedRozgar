@@ -399,7 +399,7 @@ export default function BuySellScreen({ route }) {
   const [condition,   setCondition]   = useState('Any');
   const [priceRange,  setPriceRange]  = useState(PRICE_RANGES[0]);
   const [showFilters, setShowFilters] = useState(false);
-  const [items,       setItems]       = useState(SAMPLE_ITEMS);
+  const [items,       setItems]       = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
   const [promos,      setPromos]      = useState([]);
