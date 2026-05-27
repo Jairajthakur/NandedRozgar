@@ -725,7 +725,10 @@ const linking = {
 };
 
 export default function App() {
-  const isOnline = useOnlineStatus();
+  // useOnlineStatus is only meaningful on web (navigator.onLine + events).
+  // On native (APK) we never show the banner — the OS itself shows a
+  // system-level indicator when there is no connectivity.
+  const isOnline = Platform.OS === 'web' ? useOnlineStatus() : true;
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
@@ -735,7 +738,7 @@ export default function App() {
             <LangProvider>
             <NavigationContainer linking={linking} ref={navigationRef}>
               <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-              {!isOnline && <OfflineBanner />}
+              {Platform.OS === 'web' && !isOnline && <OfflineBanner />}
               <RootNavigator />
             </NavigationContainer>
             <Toast />
