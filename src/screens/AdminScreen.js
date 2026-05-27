@@ -16,6 +16,8 @@ import {
   Dimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../context/AuthContext';
+import { loadToken, clearToken, saveToken } from '../utils/api';
 import { useNavigation } from '@react-navigation/native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -599,7 +601,7 @@ export default function AdminScreen() {
   useEffect(() => {
     async function restoreSession() {
       try {
-        const savedToken = await AsyncStorage.getItem('nr_token');
+        const savedToken = await loadToken();
         if (savedToken) {
           _token = savedToken;
           try {
@@ -618,7 +620,7 @@ export default function AdminScreen() {
             }
           } catch (_) {}
           // Token invalid or expired — clear it
-          await AsyncStorage.multiRemove(['nr_token', 'nr_user']);
+          await clearToken();
           _token = '';
         }
       } catch (_) {}
@@ -630,7 +632,7 @@ export default function AdminScreen() {
 
   async function handleLogin(user, token) {
     _token = token;
-    await AsyncStorage.setItem('nr_token', token);
+    await saveToken(token);
     await AsyncStorage.setItem('nr_user', JSON.stringify(user));
     setCurrentUser(user);
     setIsLoggedIn(true);
@@ -639,7 +641,8 @@ export default function AdminScreen() {
 
   async function handleLogout() {
     _token = '';
-    await AsyncStorage.multiRemove(['nr_token', 'nr_user']);
+    await clearToken();
+    await AsyncStorage.removeItem('nr_user');
     setIsLoggedIn(false);
     setCurrentUser(null);
   }
