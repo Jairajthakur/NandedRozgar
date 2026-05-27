@@ -3,11 +3,11 @@
 .env.production
 .env.*.local
 
-# ── Firebase / Google — contains sensitive API keys ───────────────────────────
-# Use EAS secrets or environment variables instead.
-# The checked-in google-services.json is a placeholder template only.
-# Your REAL google-services.json must never be committed.
-google-services.json
+# ── Firebase / Google ─────────────────────────────────────────────────────────
+# google-services.json is intentionally tracked as a placeholder.
+# The CI workflow (build-apk.yml) overwrites it with the real secret at build
+# time so that EAS local builds can include it in the project archive.
+# GoogleService-Info.plist (iOS) is not used and stays ignored.
 GoogleService-Info.plist
 
 # ── Node ──────────────────────────────────────────────────────────────────────
