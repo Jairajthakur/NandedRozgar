@@ -78,9 +78,13 @@ if (GoogleSignin) {
       'or EAS Secrets (EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=xxxx.apps.googleusercontent.com).'
     );
   }
+  
   GoogleSignin.configure({
-    // Pass undefined when ID is missing/placeholder — a fake string causes DEVELOPER_ERROR.
+    // webClientId is REQUIRED — tells Google which audience to embed in the idToken JWT.
+    // If missing/placeholder, signIn() succeeds but idToken is null → "no token returned" error.
     webClientId: _isValidClientId(googleWebClientId) ? googleWebClientId : undefined,
+    // androidClientId lets the SDK know the Android OAuth client, improving token reliability.
+    androidClientId: _isValidClientId(googleAndroidClientId) ? googleAndroidClientId : undefined,
     offlineAccess: false,
     scopes: ['profile', 'email'],
   });
