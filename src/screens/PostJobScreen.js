@@ -369,6 +369,9 @@ export default function PostJobScreen() {
       const payResult = await initiatePayment({
         amount:      amountPaise,
         description: `Job Listing – ${planLabel}`,
+        listingType: 'job',
+        plan:        planLabel,
+        couponId:    appliedCoupon?.id || null,
       });
 
       if (!payResult.success) {
