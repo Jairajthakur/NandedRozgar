@@ -49,8 +49,10 @@ export async function http(method, path, body) {
     return { ...data, ok: data.ok ?? res.ok, status: res.status };
   } catch (e) {
     console.warn('http error:', e.message);
-    // Network-level failure (no internet, server unreachable)
-    return { ok: false, error: 'Unable to connect. Check your internet connection.' };
+    // Network-level failure (no internet, server unreachable, timeout).
+    // status: 0 signals a network error — lets callers like init() distinguish
+    // "server rejected token" (401/403) from "couldn't reach server" (0).
+    return { ok: false, status: 0, error: 'Unable to connect. Check your internet connection.' };
   }
 }
 
