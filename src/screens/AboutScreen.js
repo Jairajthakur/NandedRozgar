@@ -13,6 +13,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import {
+  Platform,
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Easing, Linking, Alert,
 } from 'react-native';
@@ -38,8 +39,8 @@ function Orb({ size, color, x, y, delay, duration }) {
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true, delay }),
-        Animated.timing(anim, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web', delay }),
+        Animated.timing(anim, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
       ])
     );
     loop.start();
@@ -88,8 +89,8 @@ function FeatureTile({ icon, color, bg, title, desc, delay }) {
   const slide = useRef(new Animated.Value(16)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fade,  { toValue: 1, duration: 400, delay, useNativeDriver: true }),
-      Animated.timing(slide, { toValue: 0, duration: 400, delay, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+      Animated.timing(fade,  { toValue: 1, duration: 400, delay, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(slide, { toValue: 0, duration: 400, delay, useNativeDriver: Platform.OS !== 'web', easing: Easing.out(Easing.cubic) }),
     ]).start();
   }, []);
   return (
@@ -160,17 +161,17 @@ export default function AboutScreen() {
     // Entrance
     Animated.parallel([
       Animated.timing(heroAnim, {
-        toValue: 1, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+        toValue: 1, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.spring(logoScale, {
-        toValue: 1, tension: 70, friction: 10, useNativeDriver: true,
+        toValue: 1, tension: 70, friction: 10, useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start(() => {
       // Subtle pulse on logo
       Animated.loop(
         Animated.sequence([
-          Animated.timing(logoPulse, { toValue: 1.05, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(logoPulse, { toValue: 1,    duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(logoPulse, { toValue: 1.05, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(logoPulse, { toValue: 1,    duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
         ])
       ).start();
     });
