@@ -130,16 +130,16 @@ function Orb({ size, color, top, left, right, bottom, duration = 4500 }) {
     Animated.loop(
       Animated.parallel([
         Animated.sequence([
-          Animated.timing(y,  { toValue: -18,  duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(y,  { toValue: 0,    duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(y,  { toValue: -18,  duration, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(y,  { toValue: 0,    duration, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
         ]),
         Animated.sequence([
-          Animated.timing(x,  { toValue: 10,   duration: duration * 1.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(x,  { toValue: 0,    duration: duration * 1.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(x,  { toValue: 10,   duration: duration * 1.3, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(x,  { toValue: 0,    duration: duration * 1.3, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
         ]),
         Animated.sequence([
-          Animated.timing(sc, { toValue: 1.08, duration: duration * 0.9, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(sc, { toValue: 1,    duration: duration * 0.9, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(sc, { toValue: 1.08, duration: duration * 0.9, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(sc, { toValue: 1,    duration: duration * 0.9, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
         ]),
       ])
     ).start();
@@ -250,25 +250,25 @@ export default function LoginScreen() {
   useEffect(() => {
     Animated.sequence([
       Animated.parallel([
-        Animated.spring(logoScale,   { toValue: 1, damping: 13, stiffness: 130, useNativeDriver: true }),
-        Animated.timing(logoOpacity, { toValue: 1, duration: 380, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(logoY,       { toValue: 0, duration: 380, easing: Easing.out(Easing.back(1.1)), useNativeDriver: true }),
+        Animated.spring(logoScale,   { toValue: 1, damping: 13, stiffness: 130, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(logoOpacity, { toValue: 1, duration: 380, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(logoY,       { toValue: 0, duration: 380, easing: Easing.out(Easing.back(1.1)), useNativeDriver: Platform.OS !== 'web' }),
       ]),
       Animated.parallel([
-        Animated.timing(cardOpacity, { toValue: 1, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(cardY,       { toValue: 0, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(cardOpacity, { toValue: 1, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(cardY,       { toValue: 0, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
       ]),
     ]).start();
 
     Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(pulse,   { toValue: 1.7, duration: 1500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-          Animated.timing(pulseOp, { toValue: 0,   duration: 1500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(pulse,   { toValue: 1.7, duration: 1500, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(pulseOp, { toValue: 0,   duration: 1500, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
         ]),
         Animated.parallel([
-          Animated.timing(pulse,   { toValue: 1, duration: 0, useNativeDriver: true }),
-          Animated.timing(pulseOp, { toValue: 0.6, duration: 0, useNativeDriver: true }),
+          Animated.timing(pulse,   { toValue: 1, duration: 0, useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(pulseOp, { toValue: 0.6, duration: 0, useNativeDriver: Platform.OS !== 'web' }),
         ]),
         Animated.delay(800),
       ])
@@ -290,7 +290,7 @@ export default function LoginScreen() {
     shake.setValue(0);
     Animated.sequence(
       [-10, 10, -7, 7, -4, 4, 0].map(v =>
-        Animated.timing(shake, { toValue: v, duration: 48, useNativeDriver: true })
+        Animated.timing(shake, { toValue: v, duration: 48, useNativeDriver: Platform.OS !== 'web' })
       )
     ).start();
   }
