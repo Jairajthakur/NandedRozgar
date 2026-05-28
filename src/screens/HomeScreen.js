@@ -424,6 +424,7 @@ function QuickAction({ icon, label, color, onPress }) {
 export default function HomeScreen() {
   const nav = useNavigation();
   const { jobs, user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const { lang, changeLang, t, tDistrict } = useLang();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
@@ -640,6 +641,7 @@ export default function HomeScreen() {
             <SideNavItem icon="sparkles-outline"    label={t('sideNavAI')}        onPress={() => nav.navigate('AIMatch')} />
             {/* Bug fix #13: Messages was unreachable from the web sidebar */}
             <SideNavItem icon="chatbubbles-outline" label={t('profileMenuMyMessages')} onPress={() => nav.navigate('ChatList')} />
+            {isAdmin && <SideNavItem icon="shield-checkmark-outline" label="Admin Dashboard" onPress={() => nav.navigate('AdminPanel')} />}
 
             {/* Sidebar promo */}
             <View style={ws.sidePromo}>
