@@ -3,7 +3,7 @@ import React from 'react';
 import {
   View, Text, ActivityIndicator, StatusBar,
   TouchableOpacity, StyleSheet, Platform, useWindowDimensions,
-  Animated, Easing, AppState, Image,
+  Animated, Easing, AppState, Image, Linking,
 } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -581,6 +581,53 @@ function RootNavigator() {
         navigationRef.navigate('CarDetail', { id: data.id });
     });
     return unsub;
+  }, []);
+
+  // ── Deep-link listener: cityplus://payment/callback ────────────────────────
+  // Fires when the system browser redirects back to the app after Cashfree
+  // completes (or cancels) a payment. Parses the query params that
+  // payment-callback.html forwarded, then calls emitPaymentResult() to resolve
+  // the Promise that is awaiting inside cashfree.native.js → initiatePayment().
+  React.useEffect(() => {
+    function handlePaymentDeepLink(event) {
+      try {
+        const url = event.url || '';
+        if (!url.startsWith('cityplus://payment/callback')) return;
+
+        const query = url.includes('?') ? url.split('?')[1] : '';
+        const params = {};
+        query.split('&').forEach(pair => {
+          const [k, v] = pair.split('=');
+          if (k) params[decodeURIComponent(k)] = decodeURIComponent(v || '');
+        });
+
+        const status  = (params.payment_status || '').toUpperCase();
+        const orderId = params.order_id || '';
+
+        if (status === 'SUCCESS' && orderId) {
+          emitPaymentResult({ success: true, cashfree_order_id: orderId });
+        } else if (status === 'CANCELLED') {
+          emitPaymentResult({ success: false, cancelled: true });
+        } else {
+          emitPaymentResult({
+            success: false,
+            error: status ? `Payment ${status.toLowerCase()}.` : 'Payment was not completed.',
+          });
+        }
+      } catch {
+        emitPaymentResult({ success: false, error: 'Could not read payment result.' });
+      }
+    }
+
+    // Handle deep links that arrive while the app is already open
+    const sub = Linking.addEventListener('url', handlePaymentDeepLink);
+
+    // Handle the initial URL if the app was cold-launched by the deep link
+    Linking.getInitialURL().then(url => {
+      if (url) handlePaymentDeepLink({ url });
+    }).catch(() => {});
+
+    return () => sub.remove();
   }, []);
 
   if (loading || showOnboarding === null || sessionPending || districtLoading) return (
