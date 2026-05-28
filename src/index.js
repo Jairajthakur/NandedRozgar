@@ -16,12 +16,6 @@ if (!process.env.JWT_SECRET) {
 }
 
 // ── CORS ───────────────────────────────────────────────────────────────────────
-// Allow:
-//   1. The Railway production URL (always)
-//   2. Any origins listed in CORS_ORIGINS env var (comma-separated)
-//   3. localhost / 127.0.0.1 on any port (dev / Expo web)
-//   4. Expo Go's bundler origin
-//   5. No-origin requests (native APK, curl, server-to-server)
 const explicitOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map(o => o.trim())
@@ -35,11 +29,9 @@ const staticOrigins = [
 ];
 
 function isAllowedOrigin(origin) {
-  if (!origin) return true;                                  // native / server calls have no origin
-  if (staticOrigins.includes(origin)) return true;          // explicit whitelist
-  // Allow any localhost / 127.0.0.1 origin (Expo web dev, web bundler)
+  if (!origin) return true;
+  if (staticOrigins.includes(origin)) return true;
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
-  // Allow Expo Go's LAN address (e.g. http://192.168.x.x:8081)
   if (/^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
   if (/^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
   if (/^https?:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
@@ -107,6 +99,33 @@ app.use('/api/coupons',    require('./routes/coupons'));
 
 // Health check
 app.get('/health', (_req, res) => res.json({ ok: true, status: 'CityPlus API running 🚀' }));
+
+// ── Instamojo payment callback ─────────────────────────────────────────────────
+// Instamojo redirects here after payment with ?payment_id=&payment_request_id=&payment_status=
+// This file MUST be at: public/payment-callback.html  (next to the src/ folder)
+const CALLBACK_HTML = path.join(__dirname, '..', 'public', 'payment-callback.html');
+app.get('/payment/callback', (_req, res) => {
+  if (fs.existsSync(CALLBACK_HTML)) {
+    res.sendFile(CALLBACK_HTML);
+  } else {
+    // Fallback inline page if file is missing
+    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>Payment Complete</title>
+      <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fff8f5}
+      .box{text-align:center;padding:32px}.icon{font-size:64px;margin-bottom:16px}h2{color:#333}p{color:#666}</style></head>
+      <body><div class="box"><div class="icon" id="icon">⏳</div><h2 id="title">Processing…</h2><p id="msg">Please wait.</p></div>
+      <script>
+        const p=new URLSearchParams(location.search),status=p.get('payment_status'),pid=p.get('payment_id'),prid=p.get('payment_request_id');
+        const payload={type:'instamojo_payment',payment_status:status,payment_id:pid,payment_request_id:prid};
+        if(window.parent&&window.parent!==window)window.parent.postMessage(JSON.stringify(payload),'*');
+        if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+        if(status==='Credit'){document.getElementById('icon').textContent='✅';document.getElementById('title').textContent='Payment Successful!';document.getElementById('msg').textContent='Redirecting back to app…';}
+        else{document.getElementById('icon').textContent='❌';document.getElementById('title').textContent='Payment Failed';document.getElementById('msg').textContent='Please go back and try again.';}
+        setTimeout(()=>{try{window.close();}catch{}},2000);
+      </script></body></html>`);
+  }
+});
 
 // ── Serve Expo web build ───────────────────────────────────────────────────────
 const WEB_BUILD = path.join(__dirname, '..', 'dist');
