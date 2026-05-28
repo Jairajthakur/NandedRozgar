@@ -21,51 +21,72 @@
       color: #f97316; font-size: 12px; font-weight: 600;
       padding: 4px 12px; border-radius: 20px;
     }
+    .open-btn {
+      display: inline-block; margin-top: 20px;
+      background: #f97316; color: #fff;
+      font-size: 15px; font-weight: 700;
+      padding: 12px 28px; border-radius: 10px;
+      text-decoration: none; border: none; cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <div class="box">
     <div class="icon" id="icon">⏳</div>
     <h2 id="title">Processing payment…</h2>
-    <p id="msg">Please wait, do not close this window.</p>
+    <p id="msg">Returning you to the app…</p>
     <span class="badge">Secured by Cashfree Payments</span>
+    <br>
+    <!-- Shown as fallback if auto-redirect doesn't work -->
+    <a id="open-app" class="open-btn" style="display:none">Open CityPlus App</a>
   </div>
+
   <script>
-    // Cashfree returns: ?order_id=NR_xxx&payment_status=SUCCESS  (or FAILED)
-    const params  = new URLSearchParams(window.location.search);
-    const status  = (params.get('payment_status') || '').toUpperCase();
-    const orderId = params.get('order_id') || '';
+    // Cashfree returns: ?order_id=NR_xxx&payment_status=SUCCESS (or FAILED / CANCELLED)
+    var params  = new URLSearchParams(window.location.search);
+    var status  = (params.get('payment_status') || '').toUpperCase();
+    var orderId = params.get('order_id') || '';
 
-    // Notify parent WebView / iframe
-    const payload = {
-      type:           'cashfree_callback',
-      payment_status: status,
-      order_id:       orderId,
-    };
-    if (window.ReactNativeWebView) {
-      window.ReactNativeWebView.postMessage(JSON.stringify(payload));
-    }
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage(JSON.stringify(payload), '*');
-    }
+    // Build the deep link that App.js will intercept
+    var deepLink =
+      'cityplus://payment/callback' +
+      '?order_id='        + encodeURIComponent(orderId) +
+      '&payment_status='  + encodeURIComponent(status);
 
-    // Update UI
+    // Update visible UI
     if (status === 'SUCCESS') {
       document.getElementById('icon').textContent  = '✅';
       document.getElementById('title').textContent = 'Payment Successful!';
-      document.getElementById('msg').textContent   = 'Your listing will go live shortly. You can close this window.';
-    } else if (status === 'FAILED' || status === 'CANCELLED') {
+      document.getElementById('msg').textContent   = 'Returning you to the app…';
+    } else if (status === 'FAILED') {
       document.getElementById('icon').textContent  = '❌';
-      document.getElementById('title').textContent = status === 'CANCELLED' ? 'Payment Cancelled' : 'Payment Failed';
+      document.getElementById('title').textContent = 'Payment Failed';
       document.getElementById('msg').textContent   = 'Please go back to the app and try again.';
+    } else if (status === 'CANCELLED') {
+      document.getElementById('icon').textContent  = '↩️';
+      document.getElementById('title').textContent = 'Payment Cancelled';
+      document.getElementById('msg').textContent   = 'Your payment was cancelled. Go back to the app to retry.';
     } else {
       document.getElementById('icon').textContent  = '⏳';
       document.getElementById('title').textContent = 'Payment Pending';
-      document.getElementById('msg').textContent   = 'Your payment is being verified. Please wait a moment.';
+      document.getElementById('msg').textContent   = 'Your payment is being verified. Returning to the app…';
     }
 
-    // Auto-close after 3 s if opened in a standalone browser tab
-    setTimeout(() => { try { window.close(); } catch (_) {} }, 3000);
+    // Wire up the manual fallback button
+    var btn = document.getElementById('open-app');
+    btn.href = deepLink;
+
+    // Auto-redirect to the deep link immediately
+    function redirect() {
+      window.location.href = deepLink;
+      // Show the manual button after 2 s in case the OS didn't handle the scheme
+      setTimeout(function () {
+        btn.style.display = 'inline-block';
+      }, 2000);
+    }
+
+    // Tiny delay so the user sees the status message before the app takes over
+    setTimeout(redirect, 400);
   </script>
 </body>
 </html>
