@@ -401,11 +401,44 @@ export default function BoardScreen({ route }) {
   );
 
   // ── Hiring banner (as list header) ─────────────────────────────────────────
+  // Default sponsor banner shown when no live promotions exist
+  const defaultJobPromo = {
+    bizName:     'Advertise Your Business Here',
+    tagline:     `Reach thousands of job seekers in ${districtLocalName}!`,
+    description: 'Promote your business, shop or service to thousands of active users. Get more customers today.',
+    category:    'business',
+    phone:       '',
+    location:    `${districtLocalName}, Maharashtra`,
+    plan:        'popular',
+  };
+
+  const SponsoredLabel = () => (
+    <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
+      <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>{t('sponsored')}</Text>
+    </View>
+  );
+
   const ListHeader = (
     <>
       <FadeIn delay={180}>
         <HiringBanner onPress={() => {}} />
       </FadeIn>
+      <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+        {livePromos.length > 0
+          ? livePromos.map(p => (
+              <View key={p.id} style={{ marginBottom: 10 }}>
+                <SponsoredLabel />
+                <BannerCard promo={p} />
+              </View>
+            ))
+          : (
+              <>
+                <SponsoredLabel />
+                <PromoBanner data={defaultJobPromo} />
+              </>
+            )}
+      </View>
     </>
   );
 
