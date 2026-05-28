@@ -264,6 +264,8 @@ export function useRazorpayCheckout({ http: httpFn, user }) {
           resolverRef.current = null;
           return;
         }
+        // Prefer keyId from server response so APK does not need it baked in at build time
+        const resolvedKeyId = orderRes.keyId || RAZORPAY_KEY_ID;
         setModalParams({
           orderId:     orderRes.orderId,
           amount:      orderRes.amount,
@@ -272,7 +274,7 @@ export function useRazorpayCheckout({ http: httpFn, user }) {
           userName:    user?.name  || '',
           userEmail:   user?.email || '',
           userPhone:   user?.phone || '',
-          keyId:       RAZORPAY_KEY_ID,
+          keyId:       resolvedKeyId,
         });
         setModalVisible(true);
         // resolve() is called by handleModalClose when user pays / cancels
