@@ -375,10 +375,10 @@ router.post('/verify', auth, (req, res) =>
       : typeof job.requirements === 'string' && job.requirements.trim()
         ? job.requirements.split('\n').map(r => r.trim()).filter(Boolean) : [];
     const { rows } = await client.query(`
-      INSERT INTO jobs (posted_by,title,company,category,type,location,salary,phone,whatsapp,description,
+      INSERT INTO jobs (posted_by,title,company,address,category,type,location,salary,phone,whatsapp,description,
         skills,requirements,education,experience,hours,openings,featured,urgent,expires_at,district)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,
-      [req.user.id, job.title, job.company, job.category, job.type || 'Full-time', job.location, job.salary || '',
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING *`,
+      [req.user.id, job.title, job.company, job.address || '', job.category, job.type || 'Full-time', job.location, job.salary || '',
        job.phone, job.whatsapp || job.phone, job.description, skillsArr, reqArr,
        job.education || '', job.experience || '', job.hours || '', job.openings || '1',
        isFeatured, isUrgent, expiresAt, job.district || 'nanded']);
