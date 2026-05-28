@@ -187,42 +187,41 @@ app.get('/payment/start', (req, res) => {
 });
 
 // ── Cashfree payment callback ──────────────────────────────────────────────────
-// Cashfree redirects here after payment with ?order_id=XXX&status=SUCCESS|FAILED
-// Native WebView intercepts this URL directly in cashfree.native.js.
-// Web Drop-in handles success/failure via its own callbacks — this page is a
-// safe landing fallback shown briefly before the modal closes itself.
-// Optional: place a custom page at public/payment-callback.html to override.
+// Cashfree redirects here after payment with ?order_id=XXX&payment_status=SUCCESS|FAILED
+//
+// Native (APK) flow — browser-redirect + deep link:
+//   This page (public/payment-callback.html) immediately redirects the system
+//   browser to  cityplus://payment/callback?order_id=...&payment_status=...
+//   App.js picks that up via its Linking listener → emitPaymentResult().
+//
+// Web (browser) flow:
+//   The Cashfree Drop-in handles success/failure via its own JS callbacks.
+//   This endpoint is never reached for web users; it is only a safety net.
 const CALLBACK_HTML = path.join(__dirname, '..', 'public', 'payment-callback.html');
 app.get('/payment/callback', (req, res) => {
   if (fs.existsSync(CALLBACK_HTML)) {
+    // Serve the custom HTML that fires the cityplus:// deep link
     res.sendFile(CALLBACK_HTML);
   } else {
-    // Inline fallback page — reads Cashfree query params, posts message to parent/WebView
-    const { order_id = '', status = '' } = req.query;
-    const isSuccess = status.toUpperCase() === 'SUCCESS';
+    // Inline fallback — redirects to the deep link directly from the server response
+    const { order_id = '', payment_status = '' } = req.query;
+    const deepLink =
+      `cityplus://payment/callback` +
+      `?order_id=${encodeURIComponent(order_id)}` +
+      `&payment_status=${encodeURIComponent(payment_status)}`;
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
-      <title>Payment ${isSuccess ? 'Successful' : 'Failed'}</title>
-      <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fff8f5}
-      .box{text-align:center;padding:32px}.icon{font-size:64px;margin-bottom:16px}h2{color:#333}p{color:#666;font-size:14px}</style></head>
-      <body><div class="box">
-        <div class="icon">${isSuccess ? '✅' : '❌'}</div>
-        <h2>${isSuccess ? 'Payment Successful!' : 'Payment Failed'}</h2>
-        <p>${isSuccess ? 'Redirecting back to app…' : 'Please go back and try again.'}</p>
-        <p style="color:#aaa;font-size:12px">Order: ${order_id}</p>
-      </div>
+      <title>Returning to app…</title>
+      <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;
+      min-height:100vh;margin:0;background:#fff8f5;flex-direction:column;gap:12px;padding:24px}
+      p{color:#f97316;font-weight:600;font-size:15px;text-align:center}
+      a{color:#f97316;font-size:14px}</style></head>
+      <body>
+        <p>${payment_status.toUpperCase() === 'SUCCESS' ? '✅ Payment Successful!' : payment_status.toUpperCase() === 'FAILED' ? '❌ Payment Failed' : '⏳ Processing…'}</p>
+        <p>Returning to the app…</p>
+        <a href="${deepLink}">Tap here if the app does not open</a>
       <script>
-        var payload = JSON.stringify({
-          type: 'cashfree_payment',
-          order_id: '${order_id}',
-          status: '${status}'
-        });
-        // Notify web parent iframe (Drop-in modal)
-        if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
-        // Notify React Native WebView (native app)
-        if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(payload);
-        // Auto-close after 2 s
-        setTimeout(function(){ try { window.close(); } catch(e){} }, 2000);
+        setTimeout(function(){ window.location.href = ${JSON.stringify(deepLink)}; }, 400);
       </script></body></html>`);
   }
 });
