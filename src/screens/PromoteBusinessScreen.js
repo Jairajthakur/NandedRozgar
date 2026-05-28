@@ -27,12 +27,12 @@ const IS_WEB  = Platform.OS === 'web';
 
 // ─── Plans ────────────────────────────────────────────────────────────────────
 // NOTE: Prices here MUST match the server-authoritative PROMOTION_PLANS table
-// in src/routes/payments.js (basic=₹99, popular=₹249, premium=₹499).
+// in src/routes/payments.js (basic=₹49, popular=₹79, premium=₹99).
 const PLANS = [
   {
     id: 'basic',
     name: 'Basic',
-    price: 99,
+    price: 49,
     days: 7,
     color: '#2563eb',
     bg: '#eff6ff',
@@ -43,7 +43,7 @@ const PLANS = [
   {
     id: 'popular',
     name: 'Popular',
-    price: 249,
+    price: 79,
     days: 15,
     color: ORANGE,
     bg: '#fff7ed',
@@ -54,7 +54,7 @@ const PLANS = [
   {
     id: 'premium',
     name: 'Premium',
-    price: 499,
+    price: 99,
     days: 30,
     color: PURPLE,
     bg: '#faf5ff',
