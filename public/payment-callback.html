@@ -5,12 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Payment Complete</title>
   <style>
-    body { font-family: sans-serif; display: flex; align-items: center;
-           justify-content: center; min-height: 100vh; margin: 0; background: #fff8f5; }
-    .box { text-align: center; padding: 32px; }
-    .icon { font-size: 64px; margin-bottom: 16px; }
-    h2 { color: #333; margin-bottom: 8px; }
-    p  { color: #666; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; background: #fff8f5; padding: 24px;
+    }
+    .box   { text-align: center; max-width: 340px; }
+    .icon  { font-size: 72px; margin-bottom: 20px; }
+    h2     { color: #111; font-size: 22px; margin-bottom: 8px; }
+    p      { color: #666; font-size: 15px; line-height: 1.5; }
+    .badge {
+      display: inline-block; margin-top: 16px;
+      background: #fff; border: 1px solid #fed7aa;
+      color: #f97316; font-size: 12px; font-weight: 600;
+      padding: 4px 12px; border-radius: 20px;
+    }
   </style>
 </head>
 <body>
@@ -18,31 +28,44 @@
     <div class="icon" id="icon">⏳</div>
     <h2 id="title">Processing payment…</h2>
     <p id="msg">Please wait, do not close this window.</p>
+    <span class="badge">Secured by Cashfree Payments</span>
   </div>
   <script>
+    // Cashfree returns: ?order_id=NR_xxx&payment_status=SUCCESS  (or FAILED)
     const params  = new URLSearchParams(window.location.search);
-    const status  = params.get('payment_status');
-    const pid     = params.get('payment_id');
-    const prid    = params.get('payment_request_id');
+    const status  = (params.get('payment_status') || '').toUpperCase();
+    const orderId = params.get('order_id') || '';
 
-    // Send result to parent (WebView or iframe)
-    const payload = { type: 'instamojo_payment', payment_status: status, payment_id: pid, payment_request_id: prid };
-    if (window.parent && window.parent !== window) window.parent.postMessage(JSON.stringify(payload), '*');
-    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(payload));
-
-    // Update UI
-    if (status === 'Credit') {
-      document.getElementById('icon').textContent  = '✅';
-      document.getElementById('title').textContent = 'Payment Successful!';
-      document.getElementById('msg').textContent   = 'Redirecting back to the app…';
-    } else {
-      document.getElementById('icon').textContent  = '❌';
-      document.getElementById('title').textContent = 'Payment Failed';
-      document.getElementById('msg').textContent   = 'Please go back and try again.';
+    // Notify parent WebView / iframe
+    const payload = {
+      type:           'cashfree_callback',
+      payment_status: status,
+      order_id:       orderId,
+    };
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+    }
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage(JSON.stringify(payload), '*');
     }
 
-    // Auto-close after 2s if in standalone tab
-    setTimeout(() => { try { window.close(); } catch {} }, 2000);
+    // Update UI
+    if (status === 'SUCCESS') {
+      document.getElementById('icon').textContent  = '✅';
+      document.getElementById('title').textContent = 'Payment Successful!';
+      document.getElementById('msg').textContent   = 'Your listing will go live shortly. You can close this window.';
+    } else if (status === 'FAILED' || status === 'CANCELLED') {
+      document.getElementById('icon').textContent  = '❌';
+      document.getElementById('title').textContent = status === 'CANCELLED' ? 'Payment Cancelled' : 'Payment Failed';
+      document.getElementById('msg').textContent   = 'Please go back to the app and try again.';
+    } else {
+      document.getElementById('icon').textContent  = '⏳';
+      document.getElementById('title').textContent = 'Payment Pending';
+      document.getElementById('msg').textContent   = 'Your payment is being verified. Please wait a moment.';
+    }
+
+    // Auto-close after 3 s if opened in a standalone browser tab
+    setTimeout(() => { try { window.close(); } catch (_) {} }, 3000);
   </script>
 </body>
 </html>
