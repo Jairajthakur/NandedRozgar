@@ -155,15 +155,10 @@ export default {
       firebaseProjectId:    process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID    || '',
       firebaseAppId:        process.env.EXPO_PUBLIC_FIREBASE_APP_ID        || '',
       apiUrl:               process.env.EXPO_PUBLIC_API_URL                || 'https://localloops-production.up.railway.app',
-      razorpayKeyId:        process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID        || (() => {
-        if (!IS_WEB) {
-          console.warn(
-            '[app.config.js] WARNING: EXPO_PUBLIC_RAZORPAY_KEY_ID is not set. ' +
-            'Payments will fail in the built APK. Add this key in EAS → Secrets or your .env file.'
-          );
-        }
-        return '';
-      })(),
+      // 'production' or 'sandbox' — controls which Cashfree endpoint the
+      // WebView checkout uses. Set EXPO_PUBLIC_CASHFREE_MODE in eas.json
+      // (already done: preview + production both set it to 'production').
+      cashfreeMode:         process.env.EXPO_PUBLIC_CASHFREE_MODE           || 'production',
     },
   },
 };
