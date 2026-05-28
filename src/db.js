@@ -1,15 +1,63 @@
 const { Pool } = require('pg');
 
-// Enable SSL whenever the DATABASE_URL points to Railway's internal network
-// OR when NODE_ENV is explicitly set to production.
-// This ensures the DB connection works even if NODE_ENV is not set.
-const dbUrl = process.env.DATABASE_URL || '';
-const requireSsl = process.env.NODE_ENV === 'production' || dbUrl.includes('railway.internal') || dbUrl.includes('railway.app');
+const dbUrl      = process.env.DATABASE_URL || '';
+const requireSsl = process.env.NODE_ENV === 'production'
+  || dbUrl.includes('railway.internal')
+  || dbUrl.includes('railway.app');
 
+// ── Connection pool — tuned for Railway's free tier (max 20 PG connections) ───
+// max:20       — never exhaust Railway's connection limit
+// idleTimeout  — release idle connections after 30 s to avoid "too many clients"
+// connectionTimeout — fail fast if pool is saturated; caller gets a 503 quickly
 const pool = new Pool({
-  connectionString: dbUrl,
-  ssl: requireSsl ? { rejectUnauthorized: false } : false,
+  connectionString:  dbUrl,
+  ssl:               requireSsl ? { rejectUnauthorized: false } : false,
+  max:               20,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 5_000,
+  // Keep connections alive through Railway's 60s idle TCP cut-off
+  keepAlive:         true,
+  keepAliveInitialDelayMillis: 10_000,
 });
+
+pool.on('error', (err) => {
+  console.error('Unexpected pool client error:', err.message);
+});
+
+// ── In-memory cache for hot read-only endpoints ───────────────────────────────
+// Stores { data, expiresAt } keyed by a string.  Zero external dependencies.
+const _cache = new Map();
+
+/**
+ * cache.get(key) → value | undefined
+ * cache.set(key, value, ttlMs)
+ * cache.del(key) — or cache.delPrefix(prefix) to bust a whole namespace
+ */
+const cache = {
+  get(key) {
+    const entry = _cache.get(key);
+    if (!entry) return undefined;
+    if (Date.now() > entry.expiresAt) { _cache.delete(key); return undefined; }
+    return entry.data;
+  },
+  set(key, data, ttlMs = 10_000) {
+    _cache.set(key, { data, expiresAt: Date.now() + ttlMs });
+  },
+  del(key) { _cache.delete(key); },
+  delPrefix(prefix) {
+    for (const k of _cache.keys()) {
+      if (k.startsWith(prefix)) _cache.delete(k);
+    }
+  },
+};
+
+// Purge stale entries every 2 minutes so the Map doesn't grow unboundedly
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of _cache) {
+    if (now > v.expiresAt) _cache.delete(k);
+  }
+}, 120_000).unref();
 
 async function runMigrations() {
   const client = await pool.connect();
@@ -39,31 +87,75 @@ async function runMigrations() {
       );
     `);
 
-    // Migration: add district column if it doesn't exist yet (for existing DBs)
-    await client.query(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS district VARCHAR(50) DEFAULT 'nanded';
-    `);
+    // Safe column additions for existing DBs
+    const safeAlters = [
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS district        VARCHAR(50)  DEFAULT 'nanded'`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium         BOOLEAN      DEFAULT FALSE`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS verified        BOOLEAN      DEFAULT FALSE`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_credits INTEGER     DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id       VARCHAR(200)`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url      TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token     VARCHAR(200)`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_expires   TIMESTAMPTZ`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen       TIMESTAMPTZ`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token      TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at      TIMESTAMPTZ`,
+      `ALTER TABLE users ALTER COLUMN email    DROP NOT NULL`,
+      `ALTER TABLE users ALTER COLUMN password DROP NOT NULL`,
 
-    // Migration: add district column to jobs table for filtering
-    await client.query(`
-      ALTER TABLE jobs ADD COLUMN IF NOT EXISTS district VARCHAR(50) DEFAULT 'nanded';
-    `);
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS district        VARCHAR(50)  DEFAULT 'nanded'`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS whatsapp        VARCHAR(15)`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS skills          TEXT[]`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS requirements    TEXT[]`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS education       VARCHAR(100)`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS experience      VARCHAR(50)`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS hours           VARCHAR(50)`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS openings        VARCHAR(10)  DEFAULT '1'`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS status          VARCHAR(20)  DEFAULT 'active'`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS fresher_ok      BOOLEAN      DEFAULT FALSE`,
 
-    // Migration: add district column to vehicles table
-    await client.query(`
-      ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS district VARCHAR(50) DEFAULT 'nanded';
-    `);
+      `ALTER TABLE applications ADD COLUMN IF NOT EXISTS status   VARCHAR(20)  DEFAULT 'applied'`,
 
-    // Migration: add district column to rooms table
-    await client.query(`
-      ALTER TABLE rooms ADD COLUMN IF NOT EXISTS district VARCHAR(50) DEFAULT 'nanded';
-    `);
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(100)`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_order_id   VARCHAR(100)`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS status              VARCHAR(20) DEFAULT 'paid'`,
 
-    // Migration: add district column to buysell_items table
-    await client.query(`
-      ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS district VARCHAR(50) DEFAULT 'nanded';
-    `);
+      `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS district     VARCHAR(50)  DEFAULT 'nanded'`,
+      `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS status       VARCHAR(20)  DEFAULT 'active'`,
+      `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS expires_at   TIMESTAMPTZ`,
+      `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS plan_days    INTEGER      DEFAULT 30`,
+      `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS plan_label   VARCHAR(30)`,
+      `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS plan_price   INTEGER`,
 
+      `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS district        VARCHAR(50)  DEFAULT 'nanded'`,
+      `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS status          VARCHAR(20)  DEFAULT 'active'`,
+      `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS expires_at      TIMESTAMPTZ`,
+      `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS plan_days       INTEGER      DEFAULT 30`,
+      `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS plan_label      VARCHAR(30)`,
+      `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS plan_price      INTEGER`,
+
+      `ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS district VARCHAR(50) DEFAULT 'nanded'`,
+
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS banner_style VARCHAR(20) DEFAULT 'bold'`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS accent_color VARCHAR(20)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS plan_price   INTEGER`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS plan_days    INTEGER`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS website      VARCHAR(200)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS description  TEXT`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS address      TEXT`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS tagline      VARCHAR(100)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS expires_at   TIMESTAMPTZ`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS timing       VARCHAR(100)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS template_id  INTEGER`,
+
+      `ALTER TABLE seeker_profiles ADD COLUMN IF NOT EXISTS resume_url TEXT`,
+    ];
+
+    for (const sql of safeAlters) {
+      try { await client.query(sql); } catch (e) { console.warn('Alter warn (non-fatal):', e.message); }
+    }
+
+    // Core tables
     await client.query(`
       CREATE TABLE IF NOT EXISTS jobs (
         id               SERIAL PRIMARY KEY,
@@ -94,14 +186,12 @@ async function runMigrations() {
       );
     `);
 
-    // Applications table with status tracking
     await client.query(`
       CREATE TABLE IF NOT EXISTS applications (
         id         SERIAL PRIMARY KEY,
         job_id     INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
         user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        status     VARCHAR(20) DEFAULT 'applied'
-                   CHECK (status IN ('applied', 'reviewed', 'shortlisted', 'rejected', 'hired')),
+        status     VARCHAR(20) DEFAULT 'applied',
         created_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(job_id, user_id)
       );
@@ -117,106 +207,17 @@ async function runMigrations() {
       );
     `);
 
-    // Payments table now stores Razorpay IDs for audit trail
     await client.query(`
       CREATE TABLE IF NOT EXISTS payments (
-        id                    SERIAL PRIMARY KEY,
-        user_id               INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        job_id                INTEGER REFERENCES jobs(id)  ON DELETE SET NULL,
-        amount                INTEGER NOT NULL,
-        plan                  VARCHAR(50),
-        razorpay_payment_id   VARCHAR(100),
-        razorpay_order_id     VARCHAR(100),
-        status                VARCHAR(20) DEFAULT 'paid',
-        created_at            TIMESTAMPTZ DEFAULT NOW()
+        id              SERIAL PRIMARY KEY,
+        user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        job_id          INTEGER,
+        amount          NUMERIC(10,2),
+        status          VARCHAR(20) DEFAULT 'paid',
+        created_at      TIMESTAMPTZ DEFAULT NOW()
       );
     `);
 
-    // Job reports table (was missing before — caused silent failures)
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS job_reports (
-        id         SERIAL PRIMARY KEY,
-        job_id     INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
-        user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        reason     VARCHAR(200),
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(job_id, user_id)
-      );
-    `);
-
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS vehicles (
-        id            SERIAL PRIMARY KEY,
-        posted_by     INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        vehicle_type  VARCHAR(50),
-        name          VARCHAR(200) NOT NULL,
-        year          VARCHAR(10),
-        color         VARCHAR(50),
-        fuel_type     VARCHAR(30),
-        transmission  VARCHAR(30),
-        ac_type       VARCHAR(20),
-        seats         VARCHAR(10),
-        daily_rate    VARCHAR(20),
-        hourly_rate   VARCHAR(20),
-        km_limit      VARCHAR(20),
-        extra_km_rate VARCHAR(20),
-        min_booking   VARCHAR(20),
-        advance_amt   VARCHAR(20),
-        purpose       JSONB    DEFAULT '[]',
-        includes      JSONB    DEFAULT '[]',
-        availability  VARCHAR(50),
-        area          VARCHAR(100),
-        address       VARCHAR(200),
-        owner_name    VARCHAR(100),
-        whatsapp      VARCHAR(15),
-        description   TEXT,
-        photos        JSONB    DEFAULT '[]',
-        plan_days     INTEGER  DEFAULT 30,
-        plan_label    VARCHAR(30),
-        plan_price    INTEGER,
-        status        VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','inactive','deleted')),
-        expires_at    TIMESTAMPTZ,
-        created_at    TIMESTAMPTZ DEFAULT NOW()
-      );
-    `);
-
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS rooms (
-        id            SERIAL PRIMARY KEY,
-        posted_by     INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        room_type     VARCHAR(50),
-        for_gender    VARCHAR(20),
-        furnished     VARCHAR(30),
-        floor         VARCHAR(20),
-        total_floors  VARCHAR(10),
-        bhk_size      VARCHAR(20),
-        facing        VARCHAR(30),
-        vacancies     INTEGER DEFAULT 1,
-        rent          VARCHAR(20),
-        deposit       VARCHAR(20),
-        maintenance   VARCHAR(20),
-        broker_free   BOOLEAN DEFAULT TRUE,
-        amenities     JSONB   DEFAULT '[]',
-        rules         JSONB   DEFAULT '[]',
-        available_from VARCHAR(50),
-        tenant_pref   VARCHAR(30),
-        area          VARCHAR(100),
-        address       VARCHAR(200),
-        landmark      VARCHAR(200),
-        owner_name    VARCHAR(100),
-        whatsapp      VARCHAR(15),
-        description   TEXT,
-        photos        JSONB   DEFAULT '[]',
-        plan_days     INTEGER DEFAULT 30,
-        plan_label    VARCHAR(30),
-        plan_price    INTEGER,
-        status        VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','inactive','deleted')),
-        expires_at    TIMESTAMPTZ,
-        created_at    TIMESTAMPTZ DEFAULT NOW()
-      );
-    `);
-
-    // ── MESSAGES (in-app chat) ────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS messages (
         id          SERIAL PRIMARY KEY,
@@ -229,21 +230,19 @@ async function runMigrations() {
       );
     `);
 
-    // ── RATINGS ───────────────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS ratings (
         id         SERIAL PRIMARY KEY,
-        job_id     INTEGER REFERENCES jobs(id)  ON DELETE CASCADE,
         rater_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
         rated_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        stars      INTEGER CHECK (stars BETWEEN 1 AND 5),
+        job_id     INTEGER REFERENCES jobs(id)  ON DELETE SET NULL,
+        score      INTEGER CHECK (score BETWEEN 1 AND 5),
         comment    TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(job_id, rater_id)
+        UNIQUE(rater_id, rated_id, job_id)
       );
     `);
 
-    // ── JOB ALERTS ────────────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS job_alerts (
         id         SERIAL PRIMARY KEY,
@@ -251,53 +250,100 @@ async function runMigrations() {
         category   VARCHAR(50),
         keywords   TEXT,
         push_token TEXT,
-        active     BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(user_id, category)
+        created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
 
-    // ── BUSINESS PROMOTIONS ───────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS job_reports (
+        id         SERIAL PRIMARY KEY,
+        job_id     INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
+        user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        reason     TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(job_id, user_id)
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS vehicles (
+        id            SERIAL PRIMARY KEY,
+        posted_by     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        title         VARCHAR(200) NOT NULL,
+        type          VARCHAR(50),
+        brand         VARCHAR(100),
+        model         VARCHAR(100),
+        year          INTEGER,
+        km_driven     INTEGER,
+        fuel          VARCHAR(30),
+        transmission  VARCHAR(30),
+        price         INTEGER NOT NULL,
+        area          VARCHAR(100),
+        address       TEXT,
+        owner_name    VARCHAR(100),
+        whatsapp      VARCHAR(15),
+        description   TEXT,
+        photos        JSONB   DEFAULT '[]',
+        plan          VARCHAR(20) DEFAULT 'free',
+        status        VARCHAR(20) DEFAULT 'active',
+        views         INTEGER DEFAULT 0,
+        expires_at    TIMESTAMPTZ,
+        created_at    TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS rooms (
+        id            SERIAL PRIMARY KEY,
+        posted_by     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        title         VARCHAR(200) NOT NULL,
+        type          VARCHAR(50),
+        bhk           VARCHAR(10),
+        rent          INTEGER NOT NULL,
+        furnished     VARCHAR(30),
+        area          VARCHAR(100),
+        address       TEXT,
+        landmark      TEXT,
+        owner_name    VARCHAR(100),
+        whatsapp      VARCHAR(15),
+        description   TEXT,
+        photos        JSONB    DEFAULT '[]',
+        plan          VARCHAR(20) DEFAULT 'free',
+        status        VARCHAR(20) DEFAULT 'active',
+        views         INTEGER DEFAULT 0,
+        expires_at    TIMESTAMPTZ,
+        created_at    TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS seeker_profiles (
+        id          SERIAL PRIMARY KEY,
+        user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+        bio         TEXT,
+        skills      TEXT[],
+        experience  TEXT,
+        education   TEXT,
+        location    VARCHAR(100),
+        phone       VARCHAR(15),
+        available   BOOLEAN DEFAULT TRUE,
+        resume_url  TEXT,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS business_promotions (
         id           SERIAL PRIMARY KEY,
-        user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        biz_name     VARCHAR(100) NOT NULL,
-        tagline      VARCHAR(100),
-        phone        VARCHAR(15) NOT NULL,
-        category     VARCHAR(60),
-        location     VARCHAR(60),
-        address      TEXT,
-        website      VARCHAR(200),
-        description  TEXT,
-        plan         VARCHAR(20) NOT NULL,
-        plan_price   INTEGER NOT NULL,
-        plan_days    INTEGER NOT NULL,
-        banner_style VARCHAR(20) DEFAULT 'bold',
-        accent_color VARCHAR(20),
-        timing       VARCHAR(100),
-        template_id  INTEGER,
-        status       VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','active','rejected','expired')),
-        expires_at   TIMESTAMPTZ,
+        posted_by    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        business_name VARCHAR(200) NOT NULL,
+        category     VARCHAR(100),
+        phone        VARCHAR(15),
+        whatsapp     VARCHAR(15),
+        logo_url     TEXT,
+        status       VARCHAR(20) DEFAULT 'active',
+        views        INTEGER DEFAULT 0,
         created_at   TIMESTAMPTZ DEFAULT NOW()
-      );
-    `);
-
-    // ── SEEKER PROFILES ───────────────────────────────────────────────────────
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS seeker_profiles (
-        id              SERIAL PRIMARY KEY,
-        user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
-        headline        VARCHAR(200),
-        bio             TEXT,
-        skills          TEXT[],
-        experience      VARCHAR(50),
-        education       VARCHAR(100),
-        location        VARCHAR(100),
-        expected_salary VARCHAR(50),
-        open_to_work    BOOLEAN DEFAULT TRUE,
-        resume_url      TEXT,
-        updated_at      TIMESTAMPTZ DEFAULT NOW()
       );
     `);
 
@@ -333,18 +379,17 @@ async function runMigrations() {
       );
     `);
 
-    // ── Coupon codes ──────────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS coupon_codes (
         id            SERIAL PRIMARY KEY,
         code          VARCHAR(30)  UNIQUE NOT NULL,
         type          VARCHAR(20)  NOT NULL CHECK (type IN ('percent','flat','free_days')),
-        value         INTEGER      NOT NULL,        -- % off | ₹ off | free days
-        max_uses      INTEGER      DEFAULT NULL,    -- NULL = unlimited
+        value         INTEGER      NOT NULL,
+        max_uses      INTEGER      DEFAULT NULL,
         uses_count    INTEGER      DEFAULT 0,
         valid_from    TIMESTAMPTZ  DEFAULT NOW(),
-        valid_until   TIMESTAMPTZ  DEFAULT NULL,    -- NULL = no expiry
-        applies_to    TEXT[]       DEFAULT '{}',    -- [] = all listing types
+        valid_until   TIMESTAMPTZ  DEFAULT NULL,
+        applies_to    TEXT[]       DEFAULT '{}',
         is_active     BOOLEAN      DEFAULT TRUE,
         created_at    TIMESTAMPTZ  DEFAULT NOW()
       );
@@ -360,125 +405,71 @@ async function runMigrations() {
       );
     `);
 
-    // ── Safe ALTER for existing deployments (must run BEFORE indexes) ────────
-    const safeAlters = [
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium          BOOLEAN DEFAULT FALSE`,
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS verified         BOOLEAN DEFAULT FALSE`,
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_credits INTEGER DEFAULT 0`,
-      // Auth feature columns — safe for existing deployments
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id     VARCHAR(200)`,
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url    TEXT`,
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token   VARCHAR(200)`,
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_expires TIMESTAMPTZ`,
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen     TIMESTAMPTZ`,
-      // Allow NULL email/password for Google & Phone OTP sign-ups
-      `ALTER TABLE users ALTER COLUMN email    DROP NOT NULL`,
-      `ALTER TABLE users ALTER COLUMN password DROP NOT NULL`,
-      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS whatsapp         VARCHAR(15)`,
-      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS skills           TEXT[]`,
-      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS requirements     TEXT[]`,
-      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS education        VARCHAR(100)`,
-      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS experience       VARCHAR(50)`,
-      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS hours            VARCHAR(50)`,
-      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS openings         VARCHAR(10) DEFAULT '1'`,
-      `ALTER TABLE jobs      ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
-      `ALTER TABLE applications ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'applied'`,
-      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(100)`,
-      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_order_id  VARCHAR(100)`,
-      `ALTER TABLE payments  ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'paid'`,
-      `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
-      `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`,
-      `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS plan_days  INTEGER DEFAULT 30`,
-      `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30)`,
-      `ALTER TABLE vehicles  ADD COLUMN IF NOT EXISTS plan_price INTEGER`,
-      `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
-      `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`,
-      `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS plan_days  INTEGER DEFAULT 30`,
-      `ALTER TABLE rooms     ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30)`,
-      `ALTER TABLE seeker_profiles ADD COLUMN IF NOT EXISTS resume_url TEXT`,
-      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS fresher_ok BOOLEAN DEFAULT FALSE`,
+    // ── Indexes — covering indexes for every hot query path ───────────────────
+    const indexes = [
+      // users
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id    ON users(google_id) WHERE google_id IS NOT NULL`,
+      `CREATE INDEX        IF NOT EXISTS idx_users_reset_token  ON users(reset_token) WHERE reset_token IS NOT NULL`,
+      `CREATE INDEX        IF NOT EXISTS idx_users_email        ON users(email)`,
+      `CREATE INDEX        IF NOT EXISTS idx_users_push_token   ON users(push_token) WHERE push_token IS NOT NULL`,
 
-      // ── business_promotions columns added in later versions ──────────────────
-      // These are NO-OPs if the column already exists, but critical for databases
-      // that were created before banner_style / accent_color were introduced.
-      // Without them the INSERT in POST /api/promotions crashes silently.
-      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS banner_style  VARCHAR(20) DEFAULT 'bold'`,
-      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS accent_color  VARCHAR(20)`,
-      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS plan_price    INTEGER`,
-      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS plan_days     INTEGER`,
-      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS website       VARCHAR(200)`,
-      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS description   TEXT`,
-      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS address       TEXT`,
-      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS tagline       VARCHAR(100)`,
-      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS expires_at    TIMESTAMPTZ`,
-      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS timing        VARCHAR(100)`,
-      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS template_id   INTEGER`,
-      `ALTER TABLE rooms               ADD COLUMN IF NOT EXISTS plan_price    INTEGER`,
+      // jobs — covering index for the main list query (status + district + ordering)
+      `CREATE INDEX IF NOT EXISTS idx_jobs_status       ON jobs(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_jobs_category     ON jobs(category)`,
+      `CREATE INDEX IF NOT EXISTS idx_jobs_posted_by    ON jobs(posted_by)`,
+      `CREATE INDEX IF NOT EXISTS idx_jobs_district     ON jobs(district)`,
+      `CREATE INDEX IF NOT EXISTS idx_jobs_expires      ON jobs(expires_at) WHERE expires_at IS NOT NULL`,
+      `CREATE INDEX IF NOT EXISTS idx_jobs_featured_hot ON jobs(featured DESC, urgent DESC, created_at DESC) WHERE status='active'`,
+      // Full-text search on title+company (much faster than ILIKE)
+      `CREATE INDEX IF NOT EXISTS idx_jobs_fts ON jobs USING gin(to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(company,'')))`,
 
-      // ── users columns added in later versions ────────────────────────────────
-      // push_token: required for Expo push notifications & /api/auth/me query
-      // deleted_at: required for GDPR account deletion route
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token  TEXT`,
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at  TIMESTAMPTZ`,
+      // applications
+      `CREATE INDEX IF NOT EXISTS idx_apps_job_id    ON applications(job_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_apps_user_id   ON applications(user_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_apps_status    ON applications(status)`,
+
+      // vehicles / rooms / buysell
+      `CREATE INDEX IF NOT EXISTS idx_vehicles_status   ON vehicles(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_vehicles_district ON vehicles(district)`,
+      `CREATE INDEX IF NOT EXISTS idx_rooms_status      ON rooms(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_rooms_district    ON rooms(district)`,
+      `CREATE INDEX IF NOT EXISTS idx_buysell_status    ON buysell_items(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_buysell_district  ON buysell_items(district)`,
+
+      // messages
+      `CREATE INDEX IF NOT EXISTS idx_messages_sender    ON messages(sender_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_messages_receiver  ON messages(receiver_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_messages_thread    ON messages(sender_id, receiver_id, job_id)`,
+
+      // misc
+      `CREATE INDEX IF NOT EXISTS idx_ratings_rated  ON ratings(rated_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_alerts_user    ON job_alerts(user_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_seeker_user    ON seeker_profiles(user_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_promos_status  ON business_promotions(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_reports_job    ON job_reports(job_id)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_razorpay ON payments(razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL`,
     ];
-    for (const sql of safeAlters) {
-      try { await client.query(sql); } catch (e) { console.warn('Alter warn (non-fatal):', e.message); }
+
+    for (const sql of indexes) {
+      try { await client.query(sql); } catch (e) { console.warn('Index warn (non-fatal):', e.message); }
     }
 
-    // ── Indexes (run AFTER alters so all columns exist) ───────────────────────
-    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token) WHERE reset_token IS NOT NULL`);
-
-    // (OTP storage removed — Firebase Auth handles OTP sending and verification client-side.
-    //  Our backend only verifies the Firebase ID token via firebase-admin.)
-
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_status      ON jobs(status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_category    ON jobs(category);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_posted_by   ON jobs(posted_by);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_job_id      ON applications(job_id);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_user_id     ON applications(user_id);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_apps_status      ON applications(status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_vehicles_status  ON vehicles(status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_rooms_status     ON rooms(status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_reports_job      ON job_reports(job_id);`);
-
-    // Prevent replay attacks: a Razorpay payment ID must never be accepted twice
-    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_razorpay_payment_id ON payments(razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL`);
-
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_sender   ON messages(sender_id);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_ratings_rated     ON ratings(rated_id);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_alerts_user       ON job_alerts(user_id);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_seeker_user       ON seeker_profiles(user_id);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_promos_status     ON business_promotions(status);`);
-
-    // ── Fix payments stored in paise instead of rupees ────────────────────────
-    // Razorpay amounts are in paise; older code saved them raw (e.g. ₹249 → 24900).
-    // All current plans are ≤ ₹499, so any amount > 500 is still in paise → divide by 100.
-    // This guard (amount > 500) makes the migration safe to run on every startup.
+    // ── Data fixes ────────────────────────────────────────────────────────────
     try {
-      const fixResult = await client.query(`
-        UPDATE payments
-        SET amount = ROUND(amount / 100.0)
+      await client.query(`
+        UPDATE payments SET amount = ROUND(amount / 100.0)
         WHERE status = 'paid' AND amount > 500
       `);
-      if (fixResult.rowCount > 0) {
-        console.log(`💰 Fixed ${fixResult.rowCount} payment record(s): converted paise → rupees.`);
-      }
-    } catch (e) {
-      console.warn('⚠️  Payment paise-fix warning (non-fatal):', e.message);
-    }
+    } catch (e) { console.warn('Payment paise-fix warning:', e.message); }
 
-    // Fix any legacy invalid role values
-    await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');`);
-    await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`);
-    await client.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'));`);
+    await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin')`);
+    await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
+    await client.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'))`);
 
-    // ── Seed admin user from environment variables ─────────────────────────────
-    // Set ADMIN_EMAIL and ADMIN_PASSWORD in Railway — never hardcode these.
+    // Seed admin
     try {
       const bcrypt     = require('bcryptjs');
-      const adminEmail = process.env.ADMIN_EMAIL || 'admin@cityplus.app';
+      const adminEmail = process.env.ADMIN_EMAIL    || 'admin@cityplus.app';
       const adminPass  = process.env.ADMIN_PASSWORD || 'ChangeMe@2025!';
       const adminHash  = await bcrypt.hash(adminPass, 10);
       await client.query(`
@@ -486,9 +477,7 @@ async function runMigrations() {
         VALUES ('Admin', $1, $2, 'admin')
         ON CONFLICT (email) DO UPDATE SET role = 'admin';
       `, [adminEmail, adminHash]);
-    } catch (e) {
-      console.warn('⚠️  Admin seed warning (non-fatal):', e.message);
-    }
+    } catch (e) { console.warn('Admin seed warning:', e.message); }
 
     console.log('✅ Database migrations complete.');
   } catch (err) {
@@ -499,4 +488,4 @@ async function runMigrations() {
   }
 }
 
-module.exports = { pool, runMigrations };
+module.exports = { pool, cache, runMigrations };
