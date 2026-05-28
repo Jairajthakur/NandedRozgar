@@ -113,6 +113,7 @@ async function runMigrations() {
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS openings        VARCHAR(10)  DEFAULT '1'`,
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS status          VARCHAR(20)  DEFAULT 'active'`,
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS fresher_ok      BOOLEAN      DEFAULT FALSE`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS address         TEXT`,
 
       `ALTER TABLE applications ADD COLUMN IF NOT EXISTS status   VARCHAR(20)  DEFAULT 'applied'`,
 
