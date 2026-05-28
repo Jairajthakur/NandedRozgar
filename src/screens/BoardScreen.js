@@ -261,20 +261,10 @@ export default function BoardScreen({ route }) {
     })();
   }, []);
 
-  // ── Interleaved feed: merge jobs + promos by created_at timing ────────────
-  // Each promotion is inserted at the position matching its post time in the feed.
-  // Result items: { type: 'job', data: job } | { type: 'promo', data: promo }
+  // ── Jobs-only feed (promos shown in ListHeader, not interleaved) ────────────
   const interleavedFeed = useMemo(() => {
-    if (livePromos.length === 0) {
-      return filtered.map(j => ({ type: 'job', data: j, id: 'job_' + j.id }));
-    }
-
-    // Build a merged timeline sorted by created_at/timestamp DESC
-    const jobItems   = filtered.map(j => ({ type: 'job',   data: j, id: 'job_'   + j.id,   ts: j.timestamp || 0 }));
-    const promoItems = livePromos.map(p => ({ type: 'promo', data: p, id: 'promo_' + p.id, ts: new Date(p.createdAt).getTime() }));
-
-    return [...jobItems, ...promoItems].sort((a, b) => b.ts - a.ts);
-  }, [filtered, livePromos]);
+    return filtered.map(j => ({ type: 'job', data: j, id: 'job_' + j.id }));
+  }, [filtered]);
 
   async function onRefresh() {
     setRefreshing(true);
