@@ -68,35 +68,59 @@ function cfHeaders() {
 
 // ── Helper: verify payment with Cashfree ──────────────────────────────────────
 // Returns { ok, amount, paymentId } or { ok: false, error }
-async function verifyCashfreePayment(orderId) {
-  try {
-    // Fetch all payments for this order
-    const res = await axios.get(
-      `${CF_BASE}/orders/${orderId}/payments`,
-      { headers: cfHeaders() }
-    );
+// Retries up to 5 times (every 3 s) to handle UPI PENDING → SUCCESS delay.
+async function verifyCashfreePayment(orderId, { retries = 5, delayMs = 3000 } = {}) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await axios.get(
+        `${CF_BASE}/orders/${orderId}/payments`,
+        { headers: cfHeaders() }
+      );
 
-    const payments = res.data;        // array of payment objects
-    if (!Array.isArray(payments) || payments.length === 0) {
-      return { ok: false, error: 'No payments found for this order.' };
-    }
+      const payments = res.data;
+      if (!Array.isArray(payments) || payments.length === 0) {
+        // No payments recorded yet — wait and retry
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, delayMs));
+          continue;
+        }
+        return { ok: false, error: 'No payments found for this order.' };
+      }
 
-    // Find a successful payment
-    const success = payments.find(p => p.payment_status === 'SUCCESS');
-    if (!success) {
+      // Check for a successful payment
+      const success = payments.find(p => p.payment_status === 'SUCCESS');
+      if (success) {
+        return {
+          ok:        true,
+          amount:    parseFloat(success.payment_amount || 0),
+          paymentId: success.cf_payment_id || success.payment_id || '',
+        };
+      }
+
       const latest = payments[payments.length - 1];
-      return { ok: false, error: `Payment not successful. Status: ${latest?.payment_status || 'Unknown'}` };
-    }
+      const latestStatus = latest?.payment_status || 'UNKNOWN';
 
-    return {
-      ok:        true,
-      amount:    parseFloat(success.payment_amount || 0),
-      paymentId: success.cf_payment_id || success.payment_id || '',
-    };
-  } catch (err) {
-    console.error('Cashfree verify error:', err?.response?.data || err.message);
-    return { ok: false, error: 'Could not verify payment with Cashfree.' };
+      // UPI payments can stay PENDING for several seconds after redirect.
+      // Keep retrying while status is PENDING.
+      if (latestStatus === 'PENDING' && attempt < retries) {
+        console.log(`[payments] Order ${orderId} still PENDING — retry ${attempt}/${retries}`);
+        await new Promise(r => setTimeout(r, delayMs));
+        continue;
+      }
+
+      // Genuinely failed/cancelled or retries exhausted
+      return { ok: false, error: `Payment not successful. Status: ${latestStatus}` };
+
+    } catch (err) {
+      console.error(`Cashfree verify error (attempt ${attempt}):`, err?.response?.data || err.message);
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, delayMs));
+        continue;
+      }
+      return { ok: false, error: 'Could not verify payment with Cashfree.' };
+    }
   }
+  return { ok: false, error: 'Payment verification timed out. Please contact support.' };
 }
 
 // ── Server-side plan pricing (₹). Never trust the client for these. ─────────
