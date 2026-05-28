@@ -131,6 +131,61 @@ app.use('/api/coupons',    require('./routes/coupons'));
 // Health check
 app.get('/health', (_req, res) => res.json({ ok: true, status: 'CityPlus API running 🚀' }));
 
+// ── Cashfree payment start — native APK opens this in the system browser ──────
+// The browser visits this page via GET with ?session_id=...&order_id=...
+// The page auto-submits a POST form to Cashfree's hosted checkout endpoint,
+// which is the only way to initiate a Cashfree hosted session from a browser
+// (Cashfree requires a POST, not a GET redirect).
+const CF_CHECKOUT_ENDPOINT = (process.env.CASHFREE_ENV || process.env.NODE_ENV) === 'production'
+  ? 'https://api.cashfree.com/pg/view/sessions/checkout'
+  : 'https://sandbox.cashfree.com/pg/view/sessions/checkout';
+
+app.get('/payment/start', (req, res) => {
+  const { session_id, order_id } = req.query;
+  if (!session_id) {
+    return res.status(400).send('Missing session_id');
+  }
+  // Escape values for safe inline HTML injection
+  const safeSession = String(session_id).replace(/[<>"'&]/g, c =>
+    ({ '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":"&#39;", '&':'&amp;' }[c]));
+  const safeOrder = String(order_id || '').replace(/[<>"'&]/g, c =>
+    ({ '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":"&#39;", '&':'&amp;' }[c]));
+
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Opening payment…</title>
+  <style>
+    body { font-family: sans-serif; display: flex; align-items: center;
+           justify-content: center; min-height: 100vh; margin: 0;
+           background: #fff8f5; flex-direction: column; gap: 16px; }
+    .spinner { width: 44px; height: 44px; border: 4px solid #fed7aa;
+               border-top-color: #f97316; border-radius: 50%;
+               animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    p { color: #f97316; font-weight: 600; font-size: 15px; }
+    small { color: #aaa; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="spinner"></div>
+  <p>Opening payment page…</p>
+  <small>Secured by Cashfree Payments</small>
+  <form id="cf" method="POST" action="${CF_CHECKOUT_ENDPOINT}" style="display:none">
+    <input type="hidden" name="payment_session_id" value="${safeSession}">
+  </form>
+  <script>
+    // Auto-submit on load; tiny delay so the loading spinner is visible
+    window.addEventListener('load', function () {
+      setTimeout(function () { document.getElementById('cf').submit(); }, 300);
+    });
+  </script>
+</body>
+</html>`);
+});
+
 // ── Cashfree payment callback ──────────────────────────────────────────────────
 // Cashfree redirects here after payment with ?order_id=XXX&status=SUCCESS|FAILED
 // Native WebView intercepts this URL directly in cashfree.native.js.
