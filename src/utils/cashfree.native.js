@@ -12,7 +12,7 @@
  *
  * Flow:
  *   1. POST /api/payments/order → { payment_session_id, order_id, amount }
- *   2. Load  https://payments.cashfree.com/forms/checkout?session_id=XXX  in WebView
+ *   2. Inject HTML that auto-POSTs payment_session_id to api.cashfree.com/pg/view/sessions/checkout
  *   3. Cashfree redirects to APP_URL/payment/callback?order_id=...&status=...
  *   4. We intercept that URL and resolve success / failure
  *   5. POST /api/payments/verify/* with { cashfree_order_id }
@@ -35,9 +35,23 @@ try {
 const CALLBACK_HOST = 'thecityplus.in';   // <-- update if your domain differs
 const CALLBACK_PATH = '/payment/callback';
 
-// Cashfree hosted checkout URL (production)
-// For sandbox: https://sandbox.cashfree.com/pg/view/sessions/
-const CF_CHECKOUT_BASE = 'https://payments.cashfree.com/order-pay';
+// Cashfree hosted checkout — must be loaded via HTML POST form (not a GET URL)
+// Production:  https://api.cashfree.com/pg/view/sessions/checkout
+// Sandbox:     https://sandbox.cashfree.com/pg/view/sessions/checkout
+const CF_CHECKOUT_ENDPOINT = 'https://api.cashfree.com/pg/view/sessions/checkout';
+
+// Build an HTML page that auto-submits a POST form with the payment_session_id
+function buildCheckoutHtml(paymentSessionId) {
+  return `
+    <html>
+      <body onload="document.getElementById('cf').submit()">
+        <form id="cf" method="POST" action="${CF_CHECKOUT_ENDPOINT}">
+          <input type="hidden" name="payment_session_id" value="${paymentSessionId}" />
+        </form>
+      </body>
+    </html>
+  `;
+}
 
 // ── Payment WebView Modal ─────────────────────────────────────────────────────
 export function RazorpayModal({ visible, onClose, checkoutParams }) {
@@ -64,7 +78,7 @@ export function RazorpayModal({ visible, onClose, checkoutParams }) {
     );
   }
 
-  const checkoutUrl = `${CF_CHECKOUT_BASE}/${checkoutParams?.payment_session_id}`;
+  const checkoutHtml = buildCheckoutHtml(checkoutParams?.payment_session_id);
 
   function handleNavigationChange(navState) {
     const url = navState.url || '';
@@ -115,7 +129,7 @@ export function RazorpayModal({ visible, onClose, checkoutParams }) {
         )}
 
         <WebView
-          source={{ uri: checkoutUrl }}
+          source={{ html: checkoutHtml, baseUrl: CF_CHECKOUT_ENDPOINT }}
           onLoadStart={() => setLoading(true)}
           onLoadEnd={() => setLoading(false)}
           onNavigationStateChange={handleNavigationChange}
