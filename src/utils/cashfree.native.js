@@ -37,7 +37,7 @@ const CALLBACK_PATH = '/payment/callback';
 
 // Cashfree hosted checkout URL (production)
 // For sandbox: https://sandbox.cashfree.com/pg/view/sessions/
-const CF_CHECKOUT_BASE = 'https://payments.cashfree.com/forms/checkout';
+const CF_CHECKOUT_BASE = 'https://payments.cashfree.com/order-pay';
 
 // ── Payment WebView Modal ─────────────────────────────────────────────────────
 export function RazorpayModal({ visible, onClose, checkoutParams }) {
@@ -64,7 +64,7 @@ export function RazorpayModal({ visible, onClose, checkoutParams }) {
     );
   }
 
-  const checkoutUrl = `${CF_CHECKOUT_BASE}?session_id=${checkoutParams?.payment_session_id}`;
+  const checkoutUrl = `${CF_CHECKOUT_BASE}/${checkoutParams?.payment_session_id}`;
 
   function handleNavigationChange(navState) {
     const url = navState.url || '';
