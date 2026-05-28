@@ -11,7 +11,7 @@ import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
 import { http } from '../utils/api';
-import { useRazorpayCheckout } from '../utils/razorpay';
+import { useRazorpayCheckout } from '../utils/cashfree';
 import CouponInput from '../components/CouponInput';
 
 const ORANGE = '#f97316';
@@ -390,9 +390,7 @@ export default function PostJobScreen() {
       for (const job of jobs) {
         const res = await http('POST', '/api/payments/verify', {
           // Razorpay verification fields (null for free plan)
-          razorpay_order_id:   payResult.free ? undefined : payResult.razorpay_order_id,
-          razorpay_payment_id: payResult.free ? undefined : payResult.razorpay_payment_id,
-          razorpay_signature:  payResult.free ? undefined : payResult.razorpay_signature,
+          cashfree_order_id: payResult.free ? undefined : payResult.cashfree_order_id,
           // Job data
           job:    { ...basePayload, title: job.title, openings: job.openings },
           plan:   planLabel,
