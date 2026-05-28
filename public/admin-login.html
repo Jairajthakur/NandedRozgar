@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CityPlus Admin Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      background: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .logo-text {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+    }
+    .logo-city { color: #fff; }
+    .logo-plus { color: #f97316; }
+    .logo-sub {
+      color: #64748b;
+      font-size: 13px;
+      margin-top: 4px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .shield {
+      font-size: 40px;
+      display: block;
+      margin-bottom: 8px;
+    }
+    label {
+      display: block;
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #f1f5f9;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 20px;
+    }
+    input:focus { border-color: #f97316; }
+    input::placeholder { color: #475569; }
+    button {
+      width: 100%;
+      background: #f97316;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 4px;
+    }
+    button:hover { background: #ea6c0a; }
+    button:active { transform: scale(0.98); }
+    button:disabled { background: #475569; cursor: not-allowed; }
+    .error {
+      background: #450a0a;
+      border: 1px solid #7f1d1d;
+      color: #fca5a5;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <span class="shield">🛡️</span>
+      <div class="logo-text">
+        <span class="logo-city">City</span><span class="logo-plus">Plus</span>
+      </div>
+      <div class="logo-sub">Admin Portal</div>
+    </div>
+
+    <div class="error" id="errorBox"></div>
+
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="admin@example.com" autocomplete="username" />
+
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+
+    <button id="loginBtn" onclick="doLogin()">Sign In</button>
+  </div>
+
+  <script>
+    // Allow pressing Enter to submit
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    async function doLogin() {
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const btn      = document.getElementById('loginBtn');
+      const errBox   = document.getElementById('errorBox');
+
+      errBox.style.display = 'none';
+
+      if (!email || !password) {
+        showError('Please enter email and password.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Signing in…';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+
+        if (!data.ok) {
+          showError(data.error || 'Login failed.');
+          return;
+        }
+
+        if (data.user?.role !== 'admin') {
+          showError('Access denied. This portal is for admins only.');
+          return;
+        }
+
+        // Store token same way the app does (AsyncStorage uses localStorage on web)
+        const TOKEN_KEY = 'cityplus_token';
+        localStorage.setItem(TOKEN_KEY, data.token);
+
+        // Redirect to admin panel in the app
+        window.location.href = '/admin';
+
+      } catch (err) {
+        showError('Network error. Please try again.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Sign In';
+      }
+    }
+
+    function showError(msg) {
+      const box = document.getElementById('errorBox');
+      box.textContent = msg;
+      box.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
