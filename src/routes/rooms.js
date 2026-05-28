@@ -1,130 +1,134 @@
 const router = require('express').Router();
-const { pool } = require('../db');
+const { pool, cache } = require('../db');
 const { auth } = require('../middleware/auth');
 
-// ── GET /api/rooms — list all active, non-expired rooms ───────────────────────
+const LIST_TTL   = 15_000;
+const DETAIL_TTL = 30_000;
+const FREE_PLAN_MAX_DAYS = 30;
+
+// GET /api/rooms
 router.get('/', async (req, res) => {
   try {
-    const page  = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit = Math.min(50, parseInt(req.query.limit) || 20);
-    const offset = (page - 1) * limit;
+    const page     = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit    = Math.min(50, parseInt(req.query.limit) || 20);
+    const offset   = (page - 1) * limit;
     const district = req.query.district || null;
 
-    const conditions = ["r.status = 'active'", "(r.expires_at IS NULL OR r.expires_at > NOW())"];
-    const params = [];
+    const cacheKey = `rooms:${page}:${limit}:${district}`;
+    const hit = cache.get(cacheKey);
+    if (hit) return res.json(hit);
 
+    const conditions = ["r.status='active'", "(r.expires_at IS NULL OR r.expires_at > NOW())"];
+    const params = [];
     if (district) {
       params.push(district);
-      conditions.push(`(r.district = $${params.length} OR r.district IS NULL)`);
+      conditions.push(`(r.district=$${params.length} OR r.district IS NULL)`);
     }
-
     const where = conditions.join(' AND ');
+    const countParams = [...params];
     params.push(limit, offset);
 
-    const { rows } = await pool.query(`
-      SELECT r.*, u.name AS poster_name
-      FROM rooms r
-      LEFT JOIN users u ON u.id = r.posted_by
-      WHERE ${where}
-      ORDER BY r.created_at DESC
-      LIMIT $${params.length - 1} OFFSET $${params.length}
-    `, params);
+    const [countRes, dataRes] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM rooms r WHERE ${where}`, countParams),
+      pool.query(`
+        SELECT r.id, r.title, r.rent, r.type, r.bhk, r.furnished, r.area, r.address,
+               r.landmark, r.owner_name, r.whatsapp, r.district, r.plan, r.status,
+               r.created_at, r.expires_at, r.views,
+               u.name AS poster_name
+        FROM rooms r
+        LEFT JOIN users u ON u.id = r.posted_by
+        WHERE ${where}
+        ORDER BY r.created_at DESC
+        LIMIT $${params.length - 1} OFFSET $${params.length}
+      `, params),
+    ]);
 
-    const countParams = district ? [district] : [];
-    const countWhere = district
-      ? "status = 'active' AND (expires_at IS NULL OR expires_at > NOW()) AND (district = $1 OR district IS NULL)"
-      : "status = 'active' AND (expires_at IS NULL OR expires_at > NOW())";
-    const { rows: countRows } = await pool.query(`SELECT COUNT(*) FROM rooms WHERE ${countWhere}`, countParams);
-    const total = parseInt(countRows[0].count);
-
-    res.json({
-      ok: true,
-      rooms: rows,
-      pagination: { page, limit, total, hasNext: offset + rows.length < total },
-    });
+    const total = parseInt(countRes.rows[0].count);
+    const payload = {
+      ok: true, rooms: dataRes.rows,
+      pagination: { page, limit, total, hasNext: offset + dataRes.rows.length < total },
+    };
+    cache.set(cacheKey, payload, LIST_TTL);
+    res.json(payload);
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to load rooms' });
   }
 });
 
-// ── POST /api/rooms — free (unpaid) room listing ─────────────────────────────
-// planDays is capped at FREE_PLAN_MAX_DAYS so a client cannot send planDays:99999
-// to obtain a listing that never expires.  The payment-verified path
-// (POST /api/payments/verify/room) handles paid plans independently and derives
-// its duration from the server-authoritative PLAN_DAYS table, not from this cap.
-const FREE_PLAN_MAX_DAYS = 30;
+// GET /api/rooms/:id — full detail including photos
+router.get('/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const cacheKey = `room:${id}`;
+    const hit = cache.get(cacheKey);
+    if (hit) {
+      pool.query('UPDATE rooms SET views=COALESCE(views,0)+1 WHERE id=$1', [id]).catch(() => {});
+      return res.json(hit);
+    }
+    const { rows } = await pool.query(
+      `SELECT r.*, u.name AS poster_name FROM rooms r LEFT JOIN users u ON u.id=r.posted_by WHERE r.id=$1`,
+      [id]
+    );
+    if (!rows[0]) return res.json({ ok: false, error: 'Room not found' });
+    pool.query('UPDATE rooms SET views=COALESCE(views,0)+1 WHERE id=$1', [id]).catch(() => {});
+    const payload = { ok: true, room: rows[0] };
+    cache.set(cacheKey, payload, DETAIL_TTL);
+    res.json(payload);
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to load room' });
+  }
+});
 
+// POST /api/rooms
 router.post('/', auth, async (req, res) => {
   try {
     const {
-      roomType, forGender, furnished, floor, totalFloors,
-      bhkSize, facing, vacancies, rent, deposit, maintenance, brokerFree,
-      amenities, rules, availableFrom, tenantPref,
-      area, address, landmark, ownerName, whatsapp, description, photos,
+      title, type, bhk, rent, furnished, area, address,
+      landmark, ownerName, whatsapp, description, photos,
       planDays, district,
     } = req.body;
+    if (!title || !rent || !whatsapp)
+      return res.json({ ok: false, error: 'Title, rent and WhatsApp are required' });
 
-    if (!rent || !area || !whatsapp) {
-      return res.json({ ok: false, error: 'Rent, area, and WhatsApp are required' });
-    }
-
-    // Cap planDays: clamp to [1, FREE_PLAN_MAX_DAYS]; ignore oversized client values.
     const days = Math.min(Math.max(1, parseInt(planDays) || FREE_PLAN_MAX_DAYS), FREE_PLAN_MAX_DAYS);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
     const { rows } = await pool.query(`
-      INSERT INTO rooms (
-        posted_by, room_type, for_gender, furnished, floor, total_floors,
-        bhk_size, facing, vacancies, rent, deposit, maintenance, broker_free,
-        amenities, rules, available_from, tenant_pref,
-        area, address, landmark, owner_name, whatsapp, description, photos,
-        plan_days, plan_label, plan_price, expires_at, district
-      ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
-        $14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
-        $25,$26,$27,$28,$29
-      ) RETURNING *
+      INSERT INTO rooms (posted_by,title,type,bhk,rent,furnished,area,address,landmark,
+                         owner_name,whatsapp,description,photos,plan,expires_at,district)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'free',$14,$15) RETURNING *
     `, [
-      req.user.id,
-      roomType || 'PG', forGender || 'Any', furnished || 'Semi-furnished',
-      floor || '', totalFloors || '', bhkSize || '', facing || '',
-      parseInt(vacancies) || 1,
-      rent, deposit || '', maintenance || '', brokerFree !== false,
-      JSON.stringify(Array.isArray(amenities) ? amenities : []),
-      JSON.stringify(Array.isArray(rules)     ? rules     : []),
-      availableFrom || 'Immediately', tenantPref || 'Any',
-      area, address || '', landmark || '', ownerName || '', whatsapp,
-      description || '', JSON.stringify(Array.isArray(photos) ? photos : []),
-      // Free plan: price is always 0; label is 'Free'; duration is server-capped.
-      days, 'Free', 0,
-      expiresAt, district || 'nanded',
+      req.user.id, title, type||'', bhk||'', rent, furnished||'',
+      area||'', address||'', landmark||'', ownerName||'', whatsapp,
+      description||'', JSON.stringify(Array.isArray(photos)?photos:[]),
+      expiresAt, district||'nanded',
     ]);
 
+    cache.delPrefix('rooms:');
     res.json({ ok: true, room: rows[0] });
   } catch (err) {
     console.error(err);
-    res.json({ ok: false, error: 'Failed to create room listing' });
+    res.json({ ok: false, error: 'Failed to post room' });
   }
 });
 
-// ── DELETE /api/rooms/:id — owner can delete their own listing ────────────────
+// DELETE /api/rooms/:id
 router.delete('/:id', auth, async (req, res) => {
   try {
-    // Bug #4 fix: check rowCount so the client knows if the delete actually
-    // matched (wrong owner or nonexistent ID previously returned ok: true).
-    const result = await pool.query(
-      `UPDATE rooms SET status = 'deleted' WHERE id = $1 AND (posted_by = $2 OR $3 = 'admin')`,
-      [req.params.id, req.user.id, req.user.role]
-    );
-    if (result.rowCount === 0) {
-      return res.json({ ok: false, error: 'Room not found or you do not have permission to delete it.' });
-    }
+    const { rows } = await pool.query('SELECT posted_by FROM rooms WHERE id=$1', [req.params.id]);
+    if (!rows[0]) return res.json({ ok: false, error: 'Not found' });
+    if (rows[0].posted_by !== req.user.id && req.user.role !== 'admin')
+      return res.json({ ok: false, error: 'Not allowed' });
+    await pool.query("UPDATE rooms SET status='deleted' WHERE id=$1", [req.params.id]);
+    cache.del(`room:${req.params.id}`);
+    cache.delPrefix('rooms:');
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
-    res.json({ ok: false, error: 'Failed to delete room' });
+    res.json({ ok: false, error: 'Failed to delete' });
   }
 });
 
