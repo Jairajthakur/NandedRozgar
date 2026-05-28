@@ -346,7 +346,8 @@ router.post('/order', auth, async (req, res) => {
     });
 
     // Return server-computed amounts so UI can display correctly
-    res.json({ ok: true, orderId: order.id, amount: remainingPaise, currency: 'INR', creditsToUse, creditsApplied: creditsToUse * 100 });
+    // keyId returned so web client doesn't need it baked in at build time
+    res.json({ ok: true, orderId: order.id, amount: remainingPaise, currency: 'INR', creditsToUse, creditsApplied: creditsToUse * 100, keyId: process.env.RAZORPAY_KEY_ID });
   } catch (err) {
     console.error('Razorpay order error:', err);
     res.json({ ok: false, error: 'Failed to create payment order.' });
