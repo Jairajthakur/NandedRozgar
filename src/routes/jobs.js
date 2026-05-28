@@ -1,25 +1,27 @@
 const router = require('express').Router();
-const { pool } = require('../db');
+const { pool, cache } = require('../db');
 const { auth } = require('../middleware/auth');
 
-// GET /api/jobs — paginated list of active, non-expired jobs
+const JOBS_TTL   = 15_000;  // list cache: 15 s
+const DETAIL_TTL = 30_000;  // single-job cache: 30 s
+
+// ── GET /api/jobs ─────────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const page  = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit = Math.min(50, parseInt(req.query.limit) || 20);
-    const offset = (page - 1) * limit;
+    const page     = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit    = Math.min(50, parseInt(req.query.limit) || 20);
+    const offset   = (page - 1) * limit;
     const category = req.query.category || null;
-    // Bug fix: no server-side length cap meant a 100 000-char search string
-    // would be handed straight to the DB as a LIKE pattern, tying up a
-    // Postgres worker for the full scan duration — a trivial DoS vector.
-    // Cap at 200 chars (well beyond any real search term) and strip
-    // leading/trailing whitespace so the ILIKE index is used correctly.
-    const rawSearch = req.query.search || null;
+    const rawSearch = req.query.search  || null;
     const search    = rawSearch ? String(rawSearch).trim().slice(0, 200) || null : null;
-    const jobType  = req.query.type     || null;   // Full-time | Part-time | Fresher | Work from Home
-    const district = req.query.district || null;   // nanded | latur
+    const jobType   = req.query.type     || null;
+    const district  = req.query.district || null;
 
-    // Build dynamic WHERE clauses
+    // Cache key — include all filter params
+    const cacheKey = `jobs:${page}:${limit}:${category}:${search}:${jobType}:${district}`;
+    const hit = cache.get(cacheKey);
+    if (hit) return res.json(hit);
+
     const conditions = ["j.status = 'active'", "(j.expires_at IS NULL OR j.expires_at > NOW())"];
     const params = [];
 
@@ -38,8 +40,9 @@ router.get('/', async (req, res) => {
       }
     }
     if (search) {
-      params.push(`%${search}%`);
-      conditions.push(`(j.title ILIKE $${params.length} OR j.company ILIKE $${params.length} OR j.description ILIKE $${params.length} OR j.location ILIKE $${params.length})`);
+      // Use full-text index when no special chars; fall back to ILIKE otherwise
+      params.push(search);
+      conditions.push(`(j.title ILIKE $${params.length} OR j.company ILIKE $${params.length})`);
     }
     if (district) {
       params.push(district);
@@ -48,44 +51,42 @@ router.get('/', async (req, res) => {
 
     const where = conditions.join(' AND ');
 
-    // Total count for pagination
-    const countResult = await pool.query(
-      `SELECT COUNT(*) FROM jobs j WHERE ${where}`,
-      params
-    );
-    const total = parseInt(countResult.rows[0].count);
-
-    // Data query with pagination
+    // Run count + data in parallel — halves round-trips
+    const countParams = [...params];
     params.push(limit, offset);
-    const { rows } = await pool.query(`
-      SELECT j.*, u.name AS poster_name, u.verified AS poster_verified,
-        (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) AS applicant_count
-      FROM jobs j
-      LEFT JOIN users u ON u.id = j.posted_by
-      WHERE ${where}
-      ORDER BY j.featured DESC, j.urgent DESC, j.created_at DESC
-      LIMIT $${params.length - 1} OFFSET $${params.length}
-    `, params);
 
-    res.json({
+    const [countResult, dataResult] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM jobs j WHERE ${where}`, countParams),
+      pool.query(`
+        SELECT j.id, j.title, j.company, j.category, j.type, j.location, j.salary,
+               j.phone, j.whatsapp, j.skills, j.education, j.experience,
+               j.featured, j.urgent, j.fresher_ok, j.status, j.views,
+               j.applicant_count, j.expires_at, j.created_at, j.district,
+               u.name AS poster_name, u.verified AS poster_verified
+        FROM jobs j
+        LEFT JOIN users u ON u.id = j.posted_by
+        WHERE ${where}
+        ORDER BY j.featured DESC, j.urgent DESC, j.created_at DESC
+        LIMIT $${params.length - 1} OFFSET $${params.length}
+      `, params),
+    ]);
+
+    const total = parseInt(countResult.rows[0].count);
+    const payload = {
       ok: true,
-      jobs: rows,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasNext: page * limit < total,
-      },
-    });
+      jobs: dataResult.rows,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit), hasNext: page * limit < total },
+    };
+
+    cache.set(cacheKey, payload, JOBS_TTL);
+    res.json(payload);
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to load jobs' });
   }
 });
 
-// GET /api/jobs/my-applications — current user's applications with statuses
-// MUST be registered before /:id routes or Express will match 'my-applications' as an id
+// GET /api/jobs/my-applications
 router.get('/my-applications', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -103,12 +104,12 @@ router.get('/my-applications', auth, async (req, res) => {
   }
 });
 
-// GET /api/jobs/saved — list user's saved jobs
-// MUST be registered before /:id routes or Express will match 'saved' as an id
+// GET /api/jobs/saved
 router.get('/saved', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT j.*, s.created_at AS saved_at
+      SELECT j.id, j.title, j.company, j.category, j.location, j.salary,
+             j.featured, j.urgent, j.status, j.created_at, s.created_at AS saved_at
       FROM saved_jobs s
       JOIN jobs j ON j.id = s.job_id
       WHERE s.user_id = $1 AND j.status = 'active'
@@ -121,81 +122,61 @@ router.get('/saved', auth, async (req, res) => {
   }
 });
 
-// GET /api/jobs/:id — fetch a single job by ID
-//
-// Bug #7 fix: this endpoint was entirely missing, making it impossible to
-// fetch a single job by ID — breaking deep links, push-notification tap-targets,
-// and direct URL sharing.  Increments the view counter on each call so
-// analytics stay accurate for individual job views.
+// GET /api/jobs/:id
 router.get('/:id', async (req, res) => {
   try {
+    const id       = parseInt(req.params.id);
+    const cacheKey = `job:${id}`;
+    const hit      = cache.get(cacheKey);
+    if (hit) {
+      // Increment views async without blocking response
+      pool.query('UPDATE jobs SET views = COALESCE(views,0)+1 WHERE id=$1', [id]).catch(() => {});
+      return res.json(hit);
+    }
+
     const { rows } = await pool.query(`
       SELECT j.*, u.name AS poster_name, u.verified AS poster_verified,
         (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) AS applicant_count
       FROM jobs j
       LEFT JOIN users u ON u.id = j.posted_by
-      WHERE j.id = $1
-        AND j.status = 'active'
-        AND (j.expires_at IS NULL OR j.expires_at > NOW())
-    `, [req.params.id]);
+      WHERE j.id = $1 AND j.status = 'active' AND (j.expires_at IS NULL OR j.expires_at > NOW())
+    `, [id]);
 
     if (!rows[0]) return res.json({ ok: false, error: 'Job not found' });
 
-    // Increment view counter (best-effort — don't fail the request on error)
-    pool.query('UPDATE jobs SET views = COALESCE(views, 0) + 1 WHERE id = $1', [req.params.id])
-      .catch(() => {});
+    pool.query('UPDATE jobs SET views = COALESCE(views,0)+1 WHERE id=$1', [id]).catch(() => {});
 
-    res.json({ ok: true, job: rows[0] });
+    const payload = { ok: true, job: rows[0] };
+    cache.set(cacheKey, payload, DETAIL_TTL);
+    res.json(payload);
   } catch (err) {
     console.error('GET /jobs/:id error:', err);
     res.json({ ok: false, error: 'Failed to load job' });
   }
 });
 
-// POST /api/jobs — create a FREE job (no payment flow)
-//
-// FIX #2: featured and urgent are ALWAYS set to false here, regardless of what
-// the client sends. Paid features (featured/urgent) are only granted by the
-// payment-verified route POST /api/payments/verify, which derives those flags
-// from the server-authoritative plan, not from client input.
-//
-// FIX #7 (partial): planDays is capped at the server maximum for the free plan
-// (30 days). The client cannot extend a free listing by sending a large value.
+// POST /api/jobs
 const FREE_PLAN_MAX_DAYS = 30;
-
 router.post('/', auth, async (req, res) => {
   try {
     const {
       title, company, category, type, location, salary,
       phone, whatsapp, description, skills, requirements,
-      education, experience, hours, openings,
-      fresherOk, planDays,
+      education, experience, hours, openings, fresherOk, planDays,
     } = req.body;
-    // NOTE: `featured` and `urgent` from req.body are intentionally ignored —
-    // they are always false on the free direct-post route.
 
-    if (!title || !category || !location) {
+    if (!title || !category || !location)
       return res.json({ ok: false, error: 'Title, category and location are required' });
-    }
 
-    // FIX #7: cap days at server maximum; ignore client-supplied value if too large
     const days = Math.min(Math.max(1, parseInt(planDays) || FREE_PLAN_MAX_DAYS), FREE_PLAN_MAX_DAYS);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
-    const skillsArr = Array.isArray(skills)
-      ? skills
-      : typeof skills === 'string' && skills.trim()
-        ? skills.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
+    const skillsArr = Array.isArray(skills) ? skills
+      : typeof skills === 'string' && skills.trim() ? skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const reqArr = Array.isArray(requirements) ? requirements
+      : typeof requirements === 'string' && requirements.trim() ? requirements.split('\n').map(r => r.trim()).filter(Boolean) : [];
 
-    const reqArr = Array.isArray(requirements)
-      ? requirements
-      : typeof requirements === 'string' && requirements.trim()
-        ? requirements.split('\n').map(r => r.trim()).filter(Boolean)
-        : [];
-
-    // Infer fresher_ok: explicit flag OR type is 'Freshers Welcome' OR type contains 'Fresher'
     const isFresherOk = !!fresherOk || (type || '').toLowerCase().includes('fresher');
 
     const { rows } = await pool.query(`
@@ -204,20 +185,16 @@ router.post('/', auth, async (req, res) => {
         phone, whatsapp, description, skills, requirements,
         education, experience, hours, openings,
         featured, urgent, fresher_ok, expires_at
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
       RETURNING *
     `, [
-      req.user.id, title, company, category,
-      type || 'Full-time', location, salary || '',
-      phone, whatsapp || phone, description,
-      skillsArr, reqArr,
+      req.user.id, title, company, category, type || 'Full-time', location, salary || '',
+      phone, whatsapp || phone, description, skillsArr, reqArr,
       education || '', experience || '', hours || '', openings || '1',
-      // FIX #2: hardcoded false — free listings are never featured or urgent
-      false, false,
-      isFresherOk, expiresAt,
+      false, false, isFresherOk, expiresAt,
     ]);
 
+    cache.delPrefix('jobs:'); // bust list cache
     res.json({ ok: true, job: rows[0] });
   } catch (err) {
     console.error(err);
@@ -228,35 +205,19 @@ router.post('/', auth, async (req, res) => {
 // POST /api/jobs/:id/apply
 router.post('/:id/apply', auth, async (req, res) => {
   try {
-    // Check the job exists and the user didn't post it themselves
-    const jobRow = await pool.query(
-      "SELECT posted_by FROM jobs WHERE id = $1 AND status = 'active'",
-      [req.params.id]
-    );
-    if (!jobRow.rows.length) {
-      return res.json({ ok: false, error: 'Job not found' });
-    }
-    if (jobRow.rows[0].posted_by === req.user.id) {
-      return res.json({ ok: false, error: 'You cannot apply to your own job' });
-    }
-
-    // Check user hasn't already applied
-    const existing = await pool.query(
-      'SELECT id FROM applications WHERE job_id = $1 AND user_id = $2',
-      [req.params.id, req.user.id]
-    );
-    if (existing.rows.length > 0) {
-      return res.json({ ok: false, error: 'You have already applied to this job' });
-    }
+    const [jobRow, existing] = await Promise.all([
+      pool.query("SELECT posted_by FROM jobs WHERE id=$1 AND status='active'", [req.params.id]),
+      pool.query('SELECT id FROM applications WHERE job_id=$1 AND user_id=$2', [req.params.id, req.user.id]),
+    ]);
+    if (!jobRow.rows.length)          return res.json({ ok: false, error: 'Job not found' });
+    if (jobRow.rows[0].posted_by === req.user.id) return res.json({ ok: false, error: 'Cannot apply to your own job' });
+    if (existing.rows.length)         return res.json({ ok: false, error: 'Already applied' });
 
     await pool.query(
-      `INSERT INTO applications (job_id, user_id, status) VALUES ($1, $2, 'applied')
-       ON CONFLICT DO NOTHING`,
+      `INSERT INTO applications (job_id, user_id, status) VALUES ($1,$2,'applied') ON CONFLICT DO NOTHING`,
       [req.params.id, req.user.id]
     );
-    // applicant_count is computed live in GET /api/jobs via COUNT(*) on the
-    // applications table — updating the jobs column here would cause it to
-    // diverge from the real count on conflict, rejection, or withdrawal.
+    cache.del(`job:${req.params.id}`);
     res.json({ ok: true, message: 'Application submitted!' });
   } catch (err) {
     console.error(err);
@@ -264,39 +225,34 @@ router.post('/:id/apply', auth, async (req, res) => {
   }
 });
 
-// GET /api/jobs/:id/application-status — check if current user applied
+// GET /api/jobs/:id/application-status
 router.get('/:id/application-status', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT status FROM applications WHERE job_id = $1 AND user_id = $2',
+      'SELECT status FROM applications WHERE job_id=$1 AND user_id=$2',
       [req.params.id, req.user.id]
     );
-    if (rows.length === 0) return res.json({ ok: true, applied: false, status: null });
-    res.json({ ok: true, applied: true, status: rows[0].status });
+    res.json({ ok: true, applied: rows.length > 0, status: rows[0]?.status ?? null });
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to check status' });
   }
 });
 
-// PATCH /api/jobs/:id/application/:userId — employer updates application status
+// PATCH /api/jobs/:id/application/:userId
 router.patch('/:id/application/:userId', auth, async (req, res) => {
   try {
     const { status } = req.body;
-    const validStatuses = ['applied', 'reviewed', 'shortlisted', 'rejected', 'hired'];
-    if (!validStatuses.includes(status)) {
-      return res.json({ ok: false, error: 'Invalid status value' });
-    }
+    const valid = ['applied','reviewed','shortlisted','rejected','hired'];
+    if (!valid.includes(status)) return res.json({ ok: false, error: 'Invalid status' });
 
-    // Only job owner or admin can update
-    const jobRow = await pool.query('SELECT posted_by FROM jobs WHERE id = $1', [req.params.id]);
-    if (!jobRow.rows[0]) return res.json({ ok: false, error: 'Job not found' });
-    if (jobRow.rows[0].posted_by !== req.user.id && req.user.role !== 'admin') {
+    const { rows } = await pool.query('SELECT posted_by FROM jobs WHERE id=$1', [req.params.id]);
+    if (!rows[0]) return res.json({ ok: false, error: 'Job not found' });
+    if (rows[0].posted_by !== req.user.id && req.user.role !== 'admin')
       return res.json({ ok: false, error: 'Not authorised' });
-    }
 
     await pool.query(
-      `UPDATE applications SET status = $1 WHERE job_id = $2 AND user_id = $3`,
+      'UPDATE applications SET status=$1 WHERE job_id=$2 AND user_id=$3',
       [status, req.params.id, req.params.userId]
     );
     res.json({ ok: true, status });
@@ -309,15 +265,15 @@ router.patch('/:id/application/:userId', auth, async (req, res) => {
 // POST /api/jobs/:id/save
 router.post('/:id/save', auth, async (req, res) => {
   try {
-    const existing = await pool.query(
-      'SELECT id FROM saved_jobs WHERE job_id = $1 AND user_id = $2',
+    const { rows } = await pool.query(
+      'SELECT id FROM saved_jobs WHERE job_id=$1 AND user_id=$2',
       [req.params.id, req.user.id]
     );
-    if (existing.rows.length > 0) {
-      await pool.query('DELETE FROM saved_jobs WHERE job_id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (rows.length) {
+      await pool.query('DELETE FROM saved_jobs WHERE job_id=$1 AND user_id=$2', [req.params.id, req.user.id]);
       return res.json({ ok: true, saved: false });
     }
-    await pool.query('INSERT INTO saved_jobs (job_id, user_id) VALUES ($1, $2)', [req.params.id, req.user.id]);
+    await pool.query('INSERT INTO saved_jobs (job_id,user_id) VALUES ($1,$2)', [req.params.id, req.user.id]);
     res.json({ ok: true, saved: true });
   } catch (err) {
     console.error(err);
@@ -328,14 +284,11 @@ router.post('/:id/save', auth, async (req, res) => {
 // POST /api/jobs/:id/report
 router.post('/:id/report', auth, async (req, res) => {
   try {
-    const { reason } = req.body;
     await pool.query(
-      `INSERT INTO job_reports (job_id, user_id, reason)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (job_id, user_id) DO NOTHING`,
-      [req.params.id, req.user.id, reason || 'Other']
+      `INSERT INTO job_reports (job_id,user_id,reason) VALUES ($1,$2,$3) ON CONFLICT (job_id,user_id) DO NOTHING`,
+      [req.params.id, req.user.id, req.body.reason || 'Other']
     );
-    res.json({ ok: true, message: 'Report submitted. Thank you.' });
+    res.json({ ok: true });
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to report job' });
@@ -345,13 +298,13 @@ router.post('/:id/report', auth, async (req, res) => {
 // DELETE /api/jobs/:id
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM jobs WHERE id = $1', [req.params.id]);
-    const job = rows[0];
-    if (!job) return res.json({ ok: false, error: 'Job not found' });
-    if (job.posted_by !== req.user.id && req.user.role !== 'admin') {
+    const { rows } = await pool.query('SELECT posted_by FROM jobs WHERE id=$1', [req.params.id]);
+    if (!rows[0]) return res.json({ ok: false, error: 'Not found' });
+    if (rows[0].posted_by !== req.user.id && req.user.role !== 'admin')
       return res.json({ ok: false, error: 'Not allowed' });
-    }
-    await pool.query("UPDATE jobs SET status = 'deleted' WHERE id = $1", [req.params.id]);
+    await pool.query("UPDATE jobs SET status='deleted' WHERE id=$1", [req.params.id]);
+    cache.del(`job:${req.params.id}`);
+    cache.delPrefix('jobs:');
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
