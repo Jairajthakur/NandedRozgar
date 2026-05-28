@@ -121,7 +121,7 @@ export function useRazorpayCheckout({ http: httpFn, user }) {
           userName:    user?.name  || '',
           userEmail:   user?.email || '',
           userPhone:   user?.phone || '',
-          keyId:       RAZORPAY_KEY_ID,
+          keyId:       orderRes.keyId || RAZORPAY_KEY_ID,  // prefer server-returned key (avoids build-time baking)
         });
         setModalVisible(true);
       } catch {
