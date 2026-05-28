@@ -171,11 +171,14 @@ function buildCheckoutHTML(paymentSessionId, orderId) {
 
         var cashfree = Cashfree({ mode: '${CF_MODE}' });
 
+        // Hide loader NOW — before checkout opens, not after it resolves.
+        // Previously the spinner stayed on top of the Cashfree UI the whole time.
+        document.getElementById('loader').style.display = 'none';
+
         cashfree.checkout({
           paymentSessionId: SESSION_ID,
           redirectTarget: '_modal',
         }).then(function(result) {
-          document.getElementById('loader').style.display = 'none';
           if (result && result.error) {
             post({
               type: 'cashfree_error',
