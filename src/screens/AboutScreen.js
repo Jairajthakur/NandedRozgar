@@ -15,7 +15,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import {
   Platform,
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Animated, Easing, Linking, Alert,
+  Animated, Easing, Linking, Alert, Modal, SafeAreaView,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BASE_URL } from '../utils/constants';
@@ -122,6 +122,114 @@ function TimelineItem({ year, label, isLast }) {
   );
 }
 
+// ── In-app legal content ───────────────────────────────────────────────────────
+const LEGAL_CONTENT = {
+  privacy: {
+    title: 'Privacy Policy', icon: 'lock-closed-outline',
+    color: '#0ea5e9', bg: 'rgba(14,165,233,0.1)', lastUpdated: 'Last updated: June 2025',
+    sections: [
+      { heading: 'Information We Collect', body: 'We collect information you provide directly: name, phone number, email address, and job/listing data. We also collect device information and usage data to improve the app experience.' },
+      { heading: 'How We Use Your Information', body: 'Your information is used solely to operate the NandedRozgar service — to show your listings, connect employers with job seekers, and send relevant notifications. We never sell your data to third parties.' },
+      { heading: 'Data Storage & Security', body: 'All data is stored securely on encrypted servers. Passwords are hashed and never stored in plain text. We use HTTPS for all data transmission.' },
+      { heading: 'Photos & Media', body: 'Photos you upload for listings are stored securely and used only to display your listing. You can delete your listings and photos at any time from your Profile.' },
+      { heading: 'Third-Party Services', body: 'We use Cashfree for payment processing and Firebase for push notifications. These services have their own privacy policies. We share only the minimum data needed for these services to function.' },
+      { heading: 'Your Rights', body: 'You can request deletion of your account and all associated data by contacting us at support@thecityplus.in. We will process deletion requests within 7 business days.' },
+      { heading: 'Contact', body: 'For privacy questions or data deletion requests, contact us at support@thecityplus.in or via WhatsApp at +91 98343 08805.' },
+    ],
+  },
+  terms: {
+    title: 'Terms of Service', icon: 'document-text-outline',
+    color: '#6366f1', bg: 'rgba(99,102,241,0.1)', lastUpdated: 'Last updated: June 2025',
+    sections: [
+      { heading: 'Acceptance of Terms', body: 'By using NandedRozgar, you agree to these Terms of Service. If you do not agree, please do not use the app.' },
+      { heading: 'Eligibility', body: 'You must be at least 18 years old to use NandedRozgar. By using the app you confirm you meet this requirement.' },
+      { heading: 'Account Responsibility', body: 'You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. Provide accurate and complete information during registration.' },
+      { heading: 'Listing Rules', body: 'All job posts, room listings, vehicle listings, and buy/sell items must be genuine and accurate. Fake, misleading, or duplicate listings are prohibited and will be removed.' },
+      { heading: 'Prohibited Content', body: 'You may not post: illegal job offers, adult content, multi-level marketing schemes, spam, or any content that violates applicable laws. Violations result in immediate account suspension.' },
+      { heading: 'Payments', body: 'Paid plans are processed via Cashfree. All payments are final and non-refundable unless the listing is rejected by our moderation team before going live.' },
+      { heading: 'Termination', body: 'We reserve the right to suspend or terminate accounts that violate these terms without prior notice.' },
+      { heading: 'Limitation of Liability', body: 'NandedRozgar is a platform that connects users. We are not responsible for the outcome of any job application, rental agreement, or transaction between users.' },
+    ],
+  },
+  guidelines: {
+    title: 'Community Guidelines', icon: 'newspaper-outline',
+    color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', lastUpdated: 'Last updated: June 2025',
+    sections: [
+      { heading: 'Be Honest', body: 'All listings must accurately represent the job, room, vehicle, or item. Do not exaggerate salary, hide conditions, or misrepresent what you are offering.' },
+      { heading: 'Be Respectful', body: 'Treat all users with respect. Harassment, discrimination, or abusive language of any kind is strictly prohibited and will result in account removal.' },
+      { heading: 'No Spam', body: 'Do not post the same listing multiple times. Do not send unsolicited messages to other users. Spam listings will be deleted without warning.' },
+      { heading: 'Protect Privacy', body: 'Do not share other users\' personal information without their consent. Respect the contact details shared on listings — use them only for the intended purpose.' },
+      { heading: 'Safe Transactions', body: 'Always meet in a public place for buy/sell transactions. NandedRozgar is not responsible for transactions that occur outside the platform.' },
+      { heading: 'Reporting Violations', body: 'If you see a listing or user that violates these guidelines, tap the three-dot menu (⋯) on the listing and select "Report". Our team reviews all reports within 24 hours.' },
+    ],
+  },
+};
+
+function LegalModal({ visible, contentKey, onClose }) {
+  const content  = LEGAL_CONTENT[contentKey];
+  const slideAnim = useRef(new Animated.Value(700)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, { toValue: 0, tension: 65, friction: 12, useNativeDriver: Platform.OS !== 'web' }).start();
+    } else {
+      Animated.timing(slideAnim, { toValue: 700, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }).start();
+    }
+  }, [visible]);
+
+  if (!content) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <View style={legalStyles.backdrop}>
+        <Animated.View style={[legalStyles.sheet, { transform: [{ translateY: slideAnim }] }]}>
+          <SafeAreaView>
+            <View style={legalStyles.header}>
+              <View style={[legalStyles.headerIcon, { backgroundColor: content.bg }]}>
+                <Ionicons name={content.icon} size={18} color={content.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={legalStyles.headerTitle}>{content.title}</Text>
+                <Text style={legalStyles.headerSub}>{content.lastUpdated}</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} style={legalStyles.closeBtn}>
+                <Ionicons name="close" size={20} color={MUTED} />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {content.sections.map((s, i) => (
+              <View key={i} style={legalStyles.section}>
+                <Text style={legalStyles.sectionHeading}>{s.heading}</Text>
+                <Text style={legalStyles.sectionBody}>{s.body}</Text>
+              </View>
+            ))}
+            <Text style={legalStyles.footer}>NandedRozgar · Nanded, Maharashtra{'\n'}Questions? support@thecityplus.in</Text>
+          </ScrollView>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
+const legalStyles = StyleSheet.create({
+  backdrop:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheet:        { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%' },
+  header:       { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' },
+  headerIcon:   { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  headerTitle:  { fontSize: 15, fontWeight: '800', color: TEXT },
+  headerSub:    { fontSize: 11, color: MUTED, marginTop: 1 },
+  closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: '#f4f4f6', alignItems: 'center', justifyContent: 'center' },
+  section:      { marginBottom: 20 },
+  sectionHeading: { fontSize: 13, fontWeight: '700', color: TEXT, marginBottom: 6 },
+  sectionBody:  { fontSize: 13, color: '#444', lineHeight: 20 },
+  footer:       { fontSize: 11, color: MUTED, textAlign: 'center', marginTop: 8, lineHeight: 18 },
+});
+
 // ── Legal / social link row ───────────────────────────────────────────────────
 function LinkRow({ icon, label, sub, color, bg, onPress, isLast }) {
   return (
@@ -148,7 +256,8 @@ export default function AboutScreen() {
   const logoScale = useRef(new Animated.Value(0.6)).current;
   const logoPulse = useRef(new Animated.Value(1)).current;
 
-  const [stats, setStats] = useState({ users: 0, jobs: 0, rooms: 0, rating: null });
+  const [stats, setStats]     = useState({ users: 0, jobs: 0, rooms: 0, rating: null });
+  const [legalKey, setLegalKey] = useState(null); // 'privacy' | 'terms' | 'guidelines'
 
   useEffect(() => {
     fetch(`${BASE_URL}/api/analytics/stats`)
@@ -193,8 +302,9 @@ export default function AboutScreen() {
   }
 
   return (
+  <View style={styles.root}>
     <ScrollView
-      style={styles.root}
+      style={{ flex: 1 }}
       contentContainerStyle={{ paddingBottom: 48 }}
       showsVerticalScrollIndicator={false}
     >
@@ -346,7 +456,7 @@ export default function AboutScreen() {
             sub="How we collect and use your data"
             color="#0ea5e9"
             bg="rgba(14,165,233,0.1)"
-            onPress={() => openLink('https://thecityplus.in/privacy')}
+            onPress={() => setLegalKey('privacy')}
           />
           <LinkRow
             icon="document-text-outline"
@@ -354,7 +464,7 @@ export default function AboutScreen() {
             sub="Rules for using CityPlus"
             color="#6366f1"
             bg="rgba(99,102,241,0.1)"
-            onPress={() => openLink('https://thecityplus.in/terms')}
+            onPress={() => setLegalKey('terms')}
           />
           <LinkRow
             icon="newspaper-outline"
@@ -362,7 +472,7 @@ export default function AboutScreen() {
             sub="Keep CityPlus safe for everyone"
             color="#f59e0b"
             bg="rgba(245,158,11,0.1)"
-            onPress={() => openLink('https://thecityplus.in/guidelines')}
+            onPress={() => setLegalKey('guidelines')}
           />
           <LinkRow
             icon="logo-instagram"
@@ -394,6 +504,8 @@ export default function AboutScreen() {
         <Text style={styles.footerSub}>Nanded, Maharashtra, India 🇮🇳</Text>
       </View>
     </ScrollView>
+    <LegalModal visible={!!legalKey} contentKey={legalKey} onClose={() => setLegalKey(null)} />
+  </View>
   );
 }
 
