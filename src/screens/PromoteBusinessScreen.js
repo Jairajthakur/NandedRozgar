@@ -19,7 +19,7 @@ import { BannerStylePicker } from '../components/PromoBanner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { useRazorpayCheckout } from '../utils/razorpay';
+import { useRazorpayCheckout } from '../utils/cashfree';
 
 const ORANGE  = '#f97316';
 const PURPLE  = '#7c3aed';
@@ -260,9 +260,7 @@ export default function PromoteBusinessScreen() {
 
       // ── Step 2: Verify payment & create promotion ──────────────────────────
       const res = await http('POST', '/api/payments/verify/promotion', {
-        razorpay_order_id:   payResult.free ? undefined : payResult.razorpay_order_id,
-        razorpay_payment_id: payResult.free ? undefined : payResult.razorpay_payment_id,
-        razorpay_signature:  payResult.free ? undefined : payResult.razorpay_signature,
+        cashfree_order_id: payResult.free ? undefined : payResult.cashfree_order_id,
         amount: amountPaise,
         promotion: {
           bizName:     form.bizName,
