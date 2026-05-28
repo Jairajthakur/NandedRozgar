@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Complete</title>
+  <style>
+    body { font-family: sans-serif; display: flex; align-items: center;
+           justify-content: center; min-height: 100vh; margin: 0; background: #fff8f5; }
+    .box { text-align: center; padding: 32px; }
+    .icon { font-size: 64px; margin-bottom: 16px; }
+    h2 { color: #333; margin-bottom: 8px; }
+    p  { color: #666; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="icon" id="icon">⏳</div>
+    <h2 id="title">Processing payment…</h2>
+    <p id="msg">Please wait, do not close this window.</p>
+  </div>
+  <script>
+    const params  = new URLSearchParams(window.location.search);
+    const status  = params.get('payment_status');
+    const pid     = params.get('payment_id');
+    const prid    = params.get('payment_request_id');
+
+    // Send result to parent (WebView or iframe)
+    const payload = { type: 'instamojo_payment', payment_status: status, payment_id: pid, payment_request_id: prid };
+    if (window.parent && window.parent !== window) window.parent.postMessage(JSON.stringify(payload), '*');
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+
+    // Update UI
+    if (status === 'Credit') {
+      document.getElementById('icon').textContent  = '✅';
+      document.getElementById('title').textContent = 'Payment Successful!';
+      document.getElementById('msg').textContent   = 'Redirecting back to the app…';
+    } else {
+      document.getElementById('icon').textContent  = '❌';
+      document.getElementById('title').textContent = 'Payment Failed';
+      document.getElementById('msg').textContent   = 'Please go back and try again.';
+    }
+
+    // Auto-close after 2s if in standalone tab
+    setTimeout(() => { try { window.close(); } catch {} }, 2000);
+  </script>
+</body>
+</html>
