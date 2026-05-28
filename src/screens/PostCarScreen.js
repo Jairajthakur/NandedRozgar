@@ -11,7 +11,7 @@ import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import { urisToBase64DataUris } from '../utils/imageUtils';
 import { http } from '../utils/api';
-import { useRazorpayCheckout } from '../utils/razorpay';
+import { useRazorpayCheckout } from '../utils/cashfree';
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
 import CouponInput from '../components/CouponInput';
@@ -299,9 +299,7 @@ export default function PostCarScreen() {
       // Convert local file:// URIs → base64 data URIs so they display on all devices
       const validPhotos = await urisToBase64DataUris(photos);
       const r = await http('POST','/api/payments/verify/vehicle',{
-        razorpay_order_id:   payResult.free ? undefined : payResult.razorpay_order_id,
-        razorpay_payment_id: payResult.free ? undefined : payResult.razorpay_payment_id,
-        razorpay_signature:  payResult.free ? undefined : payResult.razorpay_signature,
+        cashfree_order_id: payResult.free ? undefined : payResult.cashfree_order_id,
         amount: amountPaise,
         plan:   form.plan?.label || '1 Month',
         days:   form.plan?.days  || 30,
