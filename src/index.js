@@ -197,7 +197,13 @@ app.get('/payment/start', (req, res) => {
 // Web (browser) flow:
 //   The Cashfree Drop-in handles success/failure via its own JS callbacks.
 //   This endpoint is never reached for web users; it is only a safety net.
-const CALLBACK_HTML = path.join(__dirname, '..', 'public', 'payment-callback.html');
+const CALLBACK_HTML   = path.join(__dirname, '..', 'public', 'payment-callback.html');
+const ADMIN_LOGIN_HTML = path.join(__dirname, '..', 'public', 'admin-login.html');
+
+// ── Admin login page ──────────────────────────────────────────────────────────
+app.get('/admin-login', (_req, res) => {
+  res.sendFile(ADMIN_LOGIN_HTML);
+});
 app.get('/payment/callback', (req, res) => {
   if (fs.existsSync(CALLBACK_HTML)) {
     // Serve the custom HTML that fires the cityplus:// deep link
