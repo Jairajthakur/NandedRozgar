@@ -334,8 +334,12 @@ export default function LoginScreen() {
     if (IS_WEB) {
       try {
         const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-        if (!clientId) {
-          setError('Google client ID not configured.');
+        if (!clientId || !clientId.endsWith('.apps.googleusercontent.com')) {
+          setError(
+            'Google Sign-In is not configured for web. ' +
+            'Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in Railway environment variables ' +
+            'and ensure your Railway URL is added as an Authorized JavaScript Origin in Google Cloud Console.'
+          );
           setGoogleLoading(false);
           return;
         }
