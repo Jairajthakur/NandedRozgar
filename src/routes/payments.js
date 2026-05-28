@@ -69,7 +69,7 @@ function verifySignature(orderId, paymentId, signature) {
 // room:    PostRoomScreen PLANS → '15 Days' ₹69, '1 Month' ₹99, '2 Months' ₹169, '3 Months' ₹229
 // vehicle: PostCarScreen  PLANS → '15 Days' ₹69, '1 Month' ₹99, '2 Months' ₹169, '3 Months' ₹229
 // buysell: PostItemScreen PLANS → '7 Days' ₹39, '15 Days' ₹59, '30 Days' ₹89
-// promotion: PromoteBusinessScreen → basic ₹99, popular ₹249, premium ₹499
+// promotion: PromoteBusinessScreen → basic ₹49, popular ₹79, premium ₹99
 const PLAN_PRICES = {
   job: {
     free:      0,
@@ -104,9 +104,9 @@ const PLAN_PRICES = {
   },
   // Promotion plans — must match PROMOTION_PLANS table below
   promotion: {
-    basic:   9900,   // ₹99
-    popular: 24900,  // ₹249
-    premium: 49900,  // ₹499
+    basic:   4900,   // ₹49
+    popular: 7900,   // ₹79
+    premium: 9900,   // ₹99
   },
 };
 
@@ -773,9 +773,9 @@ router.post('/verify/buysell', auth, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const PROMOTION_PLANS = {
-  basic:   { price: 99,  days: 7  },
-  popular: { price: 249, days: 15 },
-  premium: { price: 499, days: 30 },
+  basic:   { price: 49,  days: 7  },
+  popular: { price: 79,  days: 15 },
+  premium: { price: 99,  days: 30 },
 };
 
 const BANNER_COLORS = {
