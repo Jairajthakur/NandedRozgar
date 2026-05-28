@@ -439,7 +439,7 @@ export default function ProfileScreen() {
             <DeleteAccountButton onPress={() => setDeleteModal(true)} />
           </View>
 
-          <Text style={styles.version}>CityPlus v1.2.0</Text>
+          <Text style={styles.version}>CityPlus v4.4.0</Text>
         </View>
 
       </ScrollView>
