@@ -51,6 +51,7 @@ import ChatScreen           from './src/screens/ChatScreen';
 import ChatListScreen       from './src/screens/ChatListScreen';
 import SavedJobsScreen      from './src/screens/SavedJobsScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
+import { emitPaymentResult } from './src/utils/payment_bridge';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -568,8 +569,7 @@ function RootNavigator() {
   }, [user?.id]);
 
   React.useEffect(() => {
-    const unsub = addNotificationResponseListener(response => {
-      const data = response.notification.request.content.data;
+    const unsub = addNotificationResponseListener(response => {      const data = response.notification.request.content.data;
       if (!navigationRef.isReady()) return;
       if (data?.screen === 'JobDetail' && data?.id)
         navigationRef.navigate('JobDetail', { id: data.id });
