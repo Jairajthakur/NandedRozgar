@@ -604,7 +604,7 @@ function RootNavigator() {
         const status  = (params.payment_status || '').toUpperCase();
         const orderId = params.order_id || '';
 
-        if (status === 'SUCCESS' && orderId) {
+        if ((status === 'SUCCESS' || status === 'PENDING') && orderId) {
           emitPaymentResult({ success: true, cashfree_order_id: orderId });
         } else if (status === 'CANCELLED') {
           emitPaymentResult({ success: false, cancelled: true });
