@@ -31,7 +31,13 @@ const { auth } = require('../middleware/auth');
 // ── Cashfree API config ───────────────────────────────────────────────────────
 // Production:  https://api.cashfree.com/pg
 // Sandbox:     https://sandbox.cashfree.com/pg
-const CF_BASE = process.env.NODE_ENV === 'production'
+//
+// To use the sandbox during development set:
+//   CASHFREE_ENV=sandbox   (takes priority over NODE_ENV check)
+//
+// For production on Railway make sure you set:
+//   NODE_ENV=production   OR   CASHFREE_ENV=production
+const CF_BASE = (process.env.CASHFREE_ENV || process.env.NODE_ENV) === 'production'
   ? 'https://api.cashfree.com/pg'
   : 'https://sandbox.cashfree.com/pg';
 
@@ -39,10 +45,17 @@ const CF_VERSION = '2023-08-01';   // Cashfree API version header
 
 if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
   console.error(
-    '[payments] WARNING: CASHFREE_APP_ID and/or CASHFREE_SECRET_KEY are not set. ' +
-    'Add these in Railway → Variables.'
+    '[payments] ❌  CASHFREE_APP_ID and/or CASHFREE_SECRET_KEY are NOT set.\n' +
+    '           Go to Railway → Your Project → Variables and add:\n' +
+    '             CASHFREE_APP_ID      = <your App ID from Cashfree Dashboard>\n' +
+    '             CASHFREE_SECRET_KEY  = <your Secret Key from Cashfree Dashboard>\n' +
+    '             NODE_ENV             = production\n' +
+    '             APP_URL              = https://thecityplus.in\n' +
+    '           Until these are set every payment will fail.'
   );
 }
+
+console.log(`[payments] Cashfree endpoint: ${CF_BASE}`);
 
 function cfHeaders() {
   return {
