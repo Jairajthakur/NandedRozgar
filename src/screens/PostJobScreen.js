@@ -274,6 +274,9 @@ export default function PostJobScreen() {
     }
   };
 
+  // Step 1 – address
+  const [address, setAddress] = useState('');
+
   // Step 2
   const [location,   setLocation]   = useState(() => (LOCATIONS_BY_DISTRICT[currentDistrict?.id] || LOCATIONS_BY_DISTRICT.nanded)[0]);
   const [salaryMin,  setSalaryMin]  = useState('');
@@ -344,6 +347,7 @@ export default function PostJobScreen() {
 
       const basePayload = {
         company:     company.trim(),
+        address:     address.trim(),
         category:    industry === 'Other' ? customIndustry.trim() : (INDUSTRY_TO_CAT[industry] || industry),
         type:        jobType,
         location,
@@ -455,7 +459,18 @@ export default function PostJobScreen() {
             <View style={s.divider} />
 
             <SectionLabel text="COMPANY / EMPLOYER NAME" required />
-            <StyledInput value={company} onChangeText={setCompany} placeholder="e.g. Dhanraj Enterprises" maxLength={100} />
+            <StyledInput value={company} onChangeText={setCompany} placeholder="e.g. Sharma & Sons Pvt. Ltd." maxLength={100} />
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="OFFICE / WORK ADDRESS" />
+            <StyledInput
+              value={address}
+              onChangeText={setAddress}
+              placeholder="e.g. Shop No. 5, MG Road, Nanded – 431601"
+              multiline
+              numberOfLines={3}
+              maxLength={300}
+            />
 
             <View style={{ height: 18 }} />
             <SectionLabel text="INDUSTRY / CATEGORY" required />
@@ -684,6 +699,7 @@ export default function PostJobScreen() {
 
             <View style={s.revGroup}>
               <ReviewRow label="COMPANY"  value={company  || 'Not set'} />
+              {!!address && <ReviewRow label="ADDRESS" value={address} />}
               <ReviewRow label="CATEGORY" value={(industry === 'Other' ? customIndustry.trim() : industry) || 'Not set'} />
               <ReviewRow label="TYPE"     value={jobType} />
               {multiplePos
