@@ -100,29 +100,43 @@ app.use('/api/coupons',    require('./routes/coupons'));
 // Health check
 app.get('/health', (_req, res) => res.json({ ok: true, status: 'CityPlus API running 🚀' }));
 
-// ── Instamojo payment callback ─────────────────────────────────────────────────
-// Instamojo redirects here after payment with ?payment_id=&payment_request_id=&payment_status=
-// This file MUST be at: public/payment-callback.html  (next to the src/ folder)
+// ── Cashfree payment callback ──────────────────────────────────────────────────
+// Cashfree redirects here after payment with ?order_id=XXX&status=SUCCESS|FAILED
+// Native WebView intercepts this URL directly in cashfree.native.js.
+// Web Drop-in handles success/failure via its own callbacks — this page is a
+// safe landing fallback shown briefly before the modal closes itself.
+// Optional: place a custom page at public/payment-callback.html to override.
 const CALLBACK_HTML = path.join(__dirname, '..', 'public', 'payment-callback.html');
-app.get('/payment/callback', (_req, res) => {
+app.get('/payment/callback', (req, res) => {
   if (fs.existsSync(CALLBACK_HTML)) {
     res.sendFile(CALLBACK_HTML);
   } else {
-    // Fallback inline page if file is missing
+    // Inline fallback page — reads Cashfree query params, posts message to parent/WebView
+    const { order_id = '', status = '' } = req.query;
+    const isSuccess = status.toUpperCase() === 'SUCCESS';
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
-      <title>Payment Complete</title>
+      <title>Payment ${isSuccess ? 'Successful' : 'Failed'}</title>
       <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fff8f5}
-      .box{text-align:center;padding:32px}.icon{font-size:64px;margin-bottom:16px}h2{color:#333}p{color:#666}</style></head>
-      <body><div class="box"><div class="icon" id="icon">⏳</div><h2 id="title">Processing…</h2><p id="msg">Please wait.</p></div>
+      .box{text-align:center;padding:32px}.icon{font-size:64px;margin-bottom:16px}h2{color:#333}p{color:#666;font-size:14px}</style></head>
+      <body><div class="box">
+        <div class="icon">${isSuccess ? '✅' : '❌'}</div>
+        <h2>${isSuccess ? 'Payment Successful!' : 'Payment Failed'}</h2>
+        <p>${isSuccess ? 'Redirecting back to app…' : 'Please go back and try again.'}</p>
+        <p style="color:#aaa;font-size:12px">Order: ${order_id}</p>
+      </div>
       <script>
-        const p=new URLSearchParams(location.search),status=p.get('payment_status'),pid=p.get('payment_id'),prid=p.get('payment_request_id');
-        const payload={type:'instamojo_payment',payment_status:status,payment_id:pid,payment_request_id:prid};
-        if(window.parent&&window.parent!==window)window.parent.postMessage(JSON.stringify(payload),'*');
-        if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(payload));
-        if(status==='Credit'){document.getElementById('icon').textContent='✅';document.getElementById('title').textContent='Payment Successful!';document.getElementById('msg').textContent='Redirecting back to app…';}
-        else{document.getElementById('icon').textContent='❌';document.getElementById('title').textContent='Payment Failed';document.getElementById('msg').textContent='Please go back and try again.';}
-        setTimeout(()=>{try{window.close();}catch{}},2000);
+        var payload = JSON.stringify({
+          type: 'cashfree_payment',
+          order_id: '${order_id}',
+          status: '${status}'
+        });
+        // Notify web parent iframe (Drop-in modal)
+        if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
+        // Notify React Native WebView (native app)
+        if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(payload);
+        // Auto-close after 2 s
+        setTimeout(function(){ try { window.close(); } catch(e){} }, 2000);
       </script></body></html>`);
   }
 });
