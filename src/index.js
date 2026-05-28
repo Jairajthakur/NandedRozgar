@@ -1,13 +1,44 @@
 require('dotenv').config();
-const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
-const fs      = require('fs');
+const express  = require('express');
+const cors     = require('cors');
+const path     = require('path');
+const fs       = require('fs');
 const rateLimit = require('express-rate-limit');
-const { runMigrations, pool } = require('./db');
+const { runMigrations, pool, cache } = require('./db');
+
+// ── Gzip compression — dramatically reduces payload size on slow networks ──────
+let compression;
+try { compression = require('compression'); } catch { compression = null; }
 
 const app = express();
 app.set('trust proxy', 1);
+
+// Enable gzip for all responses
+if (compression) {
+  app.use(compression({ level: 6, threshold: 1024 }));
+}
+
+// ── Response-time header (visible in Railway logs & dev tools) ────────────────
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    if (ms > 200) console.warn(`SLOW ${req.method} ${req.path} — ${ms}ms`);
+  });
+  next();
+});
+
+// ── HTTP Cache-Control for read-only API endpoints ────────────────────────────
+// Tells CDNs and browsers to cache public GET responses briefly.
+// Authenticated responses are excluded by the auth middleware (private).
+app.use('/api/', (req, res, next) => {
+  if (req.method === 'GET') {
+    res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
+  } else {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+  next();
+});
 
 // ── Startup guards ─────────────────────────────────────────────────────────────
 if (!process.env.JWT_SECRET) {
@@ -168,6 +199,11 @@ function startExpiryCleanup() {
       const total = jobs.rowCount + vehicles.rowCount + rooms.rowCount + items.rowCount + promos.rowCount;
       if (total > 0) {
         console.log(`🗑️  Expiry cleanup: ${jobs.rowCount} jobs, ${vehicles.rowCount} vehicles, ${rooms.rowCount} rooms, ${items.rowCount} items | ${promos.rowCount} promotions expired`);
+        // Bust all list caches so expired items disappear immediately
+        cache.delPrefix('jobs:');
+        cache.delPrefix('rooms:');
+        cache.delPrefix('vehicles:');
+        cache.delPrefix('buysell:');
       }
     } catch (err) {
       console.error('❌ Expiry cleanup error:', err.message);
