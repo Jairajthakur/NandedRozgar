@@ -1,89 +1,69 @@
 /**
- * razorpay.js
+ * instamojo.js (web) — replaces razorpay.js
  *
- * Web platform fallback — used by Metro when bundling for web (expo export --platform web).
- * No react-native-webview here. Instead, we inject the Razorpay checkout.js script
- * directly into the web page's <head> and open the checkout in the same browser tab.
+ * Instamojo payment flow for web:
+ *   1. /order returns a `longurl`
+ *   2. We open the longurl in an iframe/new tab
+ *   3. After payment, Instamojo redirects to APP_URL/payment/callback?payment_id=&payment_request_id=&payment_status=
+ *   4. We listen for a postMessage from that page, or poll for URL change
  *
- * API surface is identical to razorpay.native.js so all screens work unchanged.
+ * API surface is identical to old razorpay.js so all screens work unchanged.
+ * Screens send `payment_id` and `payment_request_id` to verify routes.
  */
 
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal } from 'react-native';
-import { RAZORPAY_KEY_ID } from './constants';
 
-// ── Load Razorpay checkout.js script once ─────────────────────────────────────
-function loadRazorpayScript() {
-  return new Promise((resolve) => {
-    if (window.Razorpay) { resolve(true); return; }
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload  = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.head.appendChild(script);
-  });
-}
-
-// ── Stub modal component (web doesn't need a WebView modal) ───────────────────
-// We render a simple loading overlay while Razorpay's own popup is open.
 export function RazorpayModal({ visible, onClose, checkoutParams }) {
+  const iframeRef = useRef(null);
+
   useEffect(() => {
-    if (!visible || !checkoutParams) return;
+    if (!visible || !checkoutParams?.longurl) return;
 
-    let rzp;
-    loadRazorpayScript().then((loaded) => {
-      if (!loaded) { onClose({ success: false, error: 'Failed to load payment gateway.' }); return; }
+    // Listen for payment callback via postMessage (set up on your callback page)
+    function handleMessage(event) {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data?.type === 'instamojo_payment') {
+          if (data.payment_status === 'Credit') {
+            onClose({
+              success:            true,
+              payment_id:         data.payment_id,
+              payment_request_id: data.payment_request_id,
+            });
+          } else {
+            onClose({ success: false, error: 'Payment was not successful.' });
+          }
+        }
+      } catch {}
+    }
 
-      rzp = new window.Razorpay({
-        key:         checkoutParams.keyId,
-        amount:      String(checkoutParams.amount),
-        currency:    checkoutParams.currency || 'INR',
-        name:        'CityPlus',
-        description: checkoutParams.description || 'Listing Payment',
-        order_id:    checkoutParams.orderId,
-        prefill: {
-          name:    checkoutParams.userName  || '',
-          email:   checkoutParams.userEmail || '',
-          contact: checkoutParams.userPhone || '',
-        },
-        theme: { color: '#f97316' },
-        modal: {
-          ondismiss: () => onClose({ success: false, cancelled: true }),
-        },
-        handler: (response) => {
-          onClose({
-            success:             true,
-            razorpay_order_id:   response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature:  response.razorpay_signature,
-          });
-        },
-      });
-
-      rzp.on('payment.failed', (response) => {
-        onClose({ success: false, error: response.error?.description || 'Payment failed.' });
-      });
-
-      rzp.open();
-    });
-
-    return () => { try { rzp?.close(); } catch {} };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, [visible, checkoutParams]);
 
   if (!visible) return null;
 
   return (
-    <View style={styles.webOverlay}>
-      <ActivityIndicator size="large" color="#f97316" />
-      <Text style={styles.webOverlayTxt}>Opening payment gateway…</Text>
-      <TouchableOpacity onPress={() => onClose({ success: false, cancelled: true })} style={styles.webCancelBtn}>
-        <Text style={styles.webCancelTxt}>Cancel</Text>
-      </TouchableOpacity>
+    <View style={styles.overlay}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Complete Payment</Text>
+          <TouchableOpacity onPress={() => onClose({ success: false, cancelled: true })} style={styles.closeBtn}>
+            <Text style={styles.closeText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+        <iframe
+          ref={iframeRef}
+          src={checkoutParams?.longurl}
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          title="Instamojo Payment"
+        />
+      </View>
     </View>
   );
 }
 
-// ── useRazorpayCheckout — identical API to native version ─────────────────────
 export function useRazorpayCheckout({ http: httpFn, user }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalParams,  setModalParams]  = useState(null);
@@ -114,14 +94,9 @@ export function useRazorpayCheckout({ http: httpFn, user }) {
           return;
         }
         setModalParams({
-          orderId:     orderRes.orderId,
-          amount:      orderRes.amount,
-          currency:    'INR',
-          description,
-          userName:    user?.name  || '',
-          userEmail:   user?.email || '',
-          userPhone:   user?.phone || '',
-          keyId:       orderRes.keyId || RAZORPAY_KEY_ID,  // prefer server-returned key (avoids build-time baking)
+          longurl:          orderRes.longurl,
+          paymentRequestId: orderRes.paymentRequestId,
+          amount:           orderRes.amount,
         });
         setModalVisible(true);
       } catch {
@@ -143,14 +118,21 @@ export function useRazorpayCheckout({ http: httpFn, user }) {
 }
 
 const styles = StyleSheet.create({
-  webOverlay: {
+  overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center', justifyContent: 'center',
-    zIndex: 9999, gap: 16,
+    zIndex: 9999,
   },
-  webOverlayTxt:  { color: '#fff', fontSize: 15, fontWeight: '600' },
-  webCancelBtn:   { marginTop: 8, paddingHorizontal: 24, paddingVertical: 10,
-                    backgroundColor: '#fff', borderRadius: 8 },
-  webCancelTxt:   { color: '#f97316', fontWeight: '700', fontSize: 14 },
+  container: {
+    width: '92%', height: '88%',
+    backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#f97316', paddingHorizontal: 16, paddingVertical: 12,
+  },
+  headerTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  closeBtn:    { padding: 4 },
+  closeText:   { color: '#fff', fontSize: 18, fontWeight: '700' },
 });
