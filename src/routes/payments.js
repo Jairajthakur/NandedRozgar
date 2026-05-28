@@ -28,6 +28,16 @@ try {
   Razorpay = require('razorpay');
 } catch {
   Razorpay = null;
+  console.error('[payments] razorpay npm package not installed. Run: npm install razorpay');
+}
+
+// Warn loudly at startup if credentials are missing — catches misconfigured
+// Railway / EAS environments before the first real payment attempt.
+if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+  console.error(
+    '[payments] WARNING: RAZORPAY_KEY_ID and/or RAZORPAY_KEY_SECRET are not set. ' +
+    'All payment order requests will fail. Add these env vars in Railway → Variables.'
+  );
 }
 
 function getRazorpay() {
@@ -321,9 +331,10 @@ router.post('/order', auth, async (req, res) => {
 
     const rzp = getRazorpay();
     if (!rzp) {
+      console.error('[payments/order] Razorpay not configured — RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET missing from Railway env vars');
       return res.json({
         ok: false,
-        error: 'Payment gateway not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to Railway.',
+        error: 'Payment gateway is not configured on the server. Please contact support.',
       });
     }
 
