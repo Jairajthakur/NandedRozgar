@@ -16,8 +16,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # FIX: opt into Node.js 24 now to silence the deprecation warning
-      # (actions/checkout and actions/setup-node require this from June 2026)
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
@@ -28,10 +26,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # FIX: removed `cache: npm` — it requires a package-lock.json which
-          # is not committed to this repo. Using npm install instead of npm ci
-          # for the same reason. If you commit package-lock.json in future,
-          # re-add `cache: npm` and switch back to `npm ci`.
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -56,9 +50,6 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
       - name: Install dependencies
-        # FIX: back to npm install (not npm ci) because there is no package-lock.json.
-        # To speed up future builds and use npm ci, run `npm install` locally and
-        # commit the generated package-lock.json to the repo.
         run: npm install --legacy-peer-deps
 
       - name: Install EAS CLI
@@ -83,7 +74,6 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
           NODE_ENV: production
-          # FIX: versionCode priority: manual input → repo secret → auto run_number fallback
           ANDROID_VERSION_CODE: ${{ inputs.version_code || secrets.ANDROID_VERSION_CODE || github.run_number }}
           EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
