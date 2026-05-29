@@ -274,8 +274,8 @@ export default function ProfileScreen() {
     { icon: 'bar-chart-outline',        label: t('profileMenuAnalytics'),      onPress: () => nav.navigate('Analytics') },
   ];
   const adminMenu = [
-    { icon: 'shield-checkmark-outline', label: t('profileMenuAdminDashboard'), onPress: () => nav.navigate('Admin') },
-    { icon: 'people-outline',           label: t('profileMenuManageUsers'),    onPress: () => nav.navigate('Admin') },
+    { icon: 'shield-checkmark-outline', label: t('profileMenuAdminDashboard'), onPress: () => nav.navigate('AdminPanel') },
+    { icon: 'people-outline',           label: t('profileMenuManageUsers'),    onPress: () => nav.navigate('AdminPanel') },
     { icon: 'bar-chart-outline',        label: t('profileMenuAnalyticsShort'), onPress: () => nav.navigate('Analytics') },
   ];
   const commonMenu = [
