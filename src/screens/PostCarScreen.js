@@ -526,7 +526,7 @@ export default function PostCarScreen() {
               {PLANS.map(p=>(
                 <TouchableOpacity key={p.days}
                   style={[s.planCard, form.plan.days===p.days&&{backgroundColor:PURPLE,borderColor:PURPLE}]}
-                  onPress={()=>set('plan',p)}
+                  onPress={()=>{ set('plan',p); setAppliedCoupon(null); }}
                 >
                   {p.popular&&<View style={s.popBadge}><Text style={s.popTxt}>★ POPULAR</Text></View>}
                   <Ionicons name="calendar" size={28} color={form.plan.days===p.days?'#fff':'#6b7280'}/>
@@ -549,7 +549,7 @@ export default function PostCarScreen() {
             {/* ── Coupon Code ── */}
             <View style={{ marginTop: 16 }}>
               <Text style={{ fontWeight: '700', color: '#333', marginBottom: 8, fontSize: 13 }}>Have a coupon code?</Text>
-              <CouponInput listingType="vehicle" originalAmount={form.plan?.price || 0} onApplied={c => setAppliedCoupon(c)} />
+              <CouponInput listingType="vehicle" originalAmount={form.plan?.price ?? 69} onApplied={c => setAppliedCoupon(c)} />
               {appliedCoupon && (
                 <View style={{ flexDirection:'row', justifyContent:'space-between', marginTop:10, padding:10, backgroundColor:'#f0fdf4', borderRadius:8 }}>
                   <Text style={{ color:'#374151', fontSize:13 }}>Original: <Text style={{ textDecorationLine:'line-through' }}>₹{form.plan?.price}</Text></Text>
