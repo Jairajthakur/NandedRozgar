@@ -3,6 +3,7 @@ export default ({ config }) => ({
   name: "CityPlus",
   slug: "cityplus",
   version: "4.4.0",
+  scheme: "cityplus",                   // Required for deep links & payment callbacks
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
@@ -26,6 +27,30 @@ export default ({ config }) => ({
       "ACCESS_COARSE_LOCATION",
       "USE_BIOMETRIC",
       "USE_FINGERPRINT",
+      "CAMERA",
+      "READ_EXTERNAL_STORAGE",
+      "WRITE_EXTERNAL_STORAGE",
+    ],
+    // Handles payment return deep links (Cashfree / Razorpay callbacks)
+    intentFilters: [
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          {
+            scheme: "https",
+            host: "thecityplus.in",
+            pathPrefix: "/payment-callback",
+          },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+      // Also handle cityplus:// scheme for in-app deep links
+      {
+        action: "VIEW",
+        data: [{ scheme: "cityplus" }],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
     ],
   },
 
@@ -41,14 +66,14 @@ export default ({ config }) => ({
       "expo-location",
       {
         locationAlwaysAndWhenInUsePermission:
-          "Allow NandedRozgar to use your location.",
+          "Allow CityPlus to use your location to show nearby jobs, rooms and listings.",
       },
     ],
     [
       "expo-notifications",
       {
         icon: "./assets/icon.png",
-        color: "#ffffff",
+        color: "#f97316",
       },
     ],
     [
@@ -69,5 +94,8 @@ export default ({ config }) => ({
     eas: {
       projectId: process.env.EXPO_PROJECT_ID,
     },
+    // Embed at build time so constants.js can read these as fallback
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || "https://thecityplus.in",
+    razorpayKeyId: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || "",
   },
 });
