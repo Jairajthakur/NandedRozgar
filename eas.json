@@ -9,32 +9,31 @@
       "distribution": "internal",
       "env": {
         "NODE_ENV": "development",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "$EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
-        "gradleCommand": ":app:assembleRelease"
+        "gradleCommand": ":app:assembleRelease",
+        "googleServicesFile": "./google-services.json"
       },
       "env": {
         "NODE_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://thecityplus.in",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "947711727855-ucqjm9eoh41khqj3hc5ppn0r5tb4k60c.apps.googleusercontent.com",
         "EXPO_PUBLIC_CASHFREE_MODE": "production"
       }
     },
     "production": {
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "googleServicesFile": "./google-services.json"
       },
       "env": {
         "NODE_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://thecityplus.in",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "947711727855-ucqjm9eoh41khqj3hc5ppn0r5tb4k60c.apps.googleusercontent.com",
         "EXPO_PUBLIC_CASHFREE_MODE": "production"
       }
     },
