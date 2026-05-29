@@ -16,11 +16,11 @@ export const C = {
 
 // Ensure BASE_URL always has a scheme — guards against eas.json env values
 // accidentally missing 'https://' (e.g. "localloops-production.up.railway.app"
-// instead of "https://localloops-production.up.railway.app").
+// instead of "https://thecityplus.in").
 const _rawApiUrl =
   process.env.EXPO_PUBLIC_API_URL ||
   Constants.expoConfig?.extra?.apiUrl ||
-  'https://localloops-production.up.railway.app';
+  'https://thecityplus.in';
 export const BASE_URL = _rawApiUrl.startsWith('http') ? _rawApiUrl : `https://${_rawApiUrl}`;
 
 // ── Razorpay ──────────────────────────────────────────────────────────────────
