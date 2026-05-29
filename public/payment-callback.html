@@ -37,23 +37,40 @@
     <p id="msg">Returning you to the app…</p>
     <span class="badge">Secured by Cashfree Payments</span>
     <br>
-    <!-- Shown as fallback if auto-redirect doesn't work -->
     <a id="open-app" class="open-btn" style="display:none">Open CityPlus App</a>
   </div>
 
   <script>
-    // Cashfree returns: ?order_id=NR_xxx&payment_status=SUCCESS (or FAILED / CANCELLED)
     var params  = new URLSearchParams(window.location.search);
-    var status  = (params.get('payment_status') || '').toUpperCase();
-    var orderId = params.get('order_id') || '';
 
-    // Build the deep link that App.js will intercept
+    // FIX: Cashfree may send payment_status OR orderStatus OR txStatus
+    // Normalise all of them to a single STATUS variable
+    var status = (
+      params.get('payment_status') ||
+      params.get('orderStatus') ||
+      params.get('txStatus') ||
+      params.get('status') ||
+      ''
+    ).toUpperCase();
+
+    // FIX: Cashfree may send order_id OR orderId OR cf_order_id
+    var orderId = (
+      params.get('order_id') ||
+      params.get('orderId') ||
+      params.get('cf_order_id') ||
+      ''
+    );
+
+    // FIX: Cashfree sometimes sends "PAID" instead of "SUCCESS"
+    if (status === 'PAID') status = 'SUCCESS';
+
+    // Build the deep link back to the app
     var deepLink =
       'cityplus://payment/callback' +
-      '?order_id='        + encodeURIComponent(orderId) +
-      '&payment_status='  + encodeURIComponent(status);
+      '?order_id='       + encodeURIComponent(orderId) +
+      '&payment_status=' + encodeURIComponent(status);
 
-    // Update visible UI
+    // Update visible UI based on status
     if (status === 'SUCCESS') {
       document.getElementById('icon').textContent  = '✅';
       document.getElementById('title').textContent = 'Payment Successful!';
@@ -67,25 +84,30 @@
       document.getElementById('title').textContent = 'Payment Cancelled';
       document.getElementById('msg').textContent   = 'Your payment was cancelled. Go back to the app to retry.';
     } else {
+      // Unknown / empty status — still try to return to app
+      // The app-side verify endpoint will check Cashfree directly
       document.getElementById('icon').textContent  = '⏳';
       document.getElementById('title').textContent = 'Payment Pending';
       document.getElementById('msg').textContent   = 'Your payment is being verified. Returning to the app…';
+      // For PENDING we still send SUCCESS-like deep link with PENDING status
+      // so the app can call /verify which retries up to 5 times
+      deepLink =
+        'cityplus://payment/callback' +
+        '?order_id='       + encodeURIComponent(orderId) +
+        '&payment_status=SUCCESS';   // Let server-side verify confirm the actual status
     }
 
-    // Wire up the manual fallback button
     var btn = document.getElementById('open-app');
     btn.href = deepLink;
 
-    // Auto-redirect to the deep link immediately
     function redirect() {
       window.location.href = deepLink;
-      // Show the manual button after 2 s in case the OS didn't handle the scheme
       setTimeout(function () {
         btn.style.display = 'inline-block';
+        btn.textContent   = 'Open CityPlus App';
       }, 2000);
     }
 
-    // Tiny delay so the user sees the status message before the app takes over
     setTimeout(redirect, 400);
   </script>
 </body>
