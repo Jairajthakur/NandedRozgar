@@ -80,11 +80,11 @@ if (GoogleSignin) {
     );
   }
   GoogleSignin.configure({
-    // webClientId — required so Google embeds the correct audience in the idToken.
-    // FIX: Removed androidClientId — passing it causes DEVELOPER_ERROR (code 10)
-    // because Google strictly checks the APK SHA-1 against the Android OAuth client.
-    // Using webClientId only works perfectly on Android and avoids SHA-1 dependency.
+    // webClientId — Web OAuth client (type 3), required for idToken audience.
     webClientId: _isValidClientId(googleWebClientId) ? googleWebClientId : undefined,
+    // androidClientId — Android OAuth client linked to Play Store signing SHA-1.
+    // This must match the certificate_hash in google-services.json for Play Store builds.
+    androidClientId: '947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com',
     offlineAccess: false,
     scopes: ['profile', 'email'],
   });
