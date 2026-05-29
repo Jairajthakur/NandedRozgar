@@ -555,7 +555,7 @@ export default function PostRoomScreen() {
               {PLANS.map(p=>(
                 <TouchableOpacity key={p.days}
                   style={[s.planCard, form.plan.days===p.days&&{backgroundColor:TEAL,borderColor:TEAL}]}
-                  onPress={()=>set('plan',p)}
+                  onPress={()=>{ set('plan',p); setAppliedCoupon(null); }}
                 >
                   {p.popular&&(
                     <View style={s.popBadge}>
@@ -591,7 +591,7 @@ export default function PostRoomScreen() {
             {/* ── Coupon Code ── */}
             <View style={{ marginTop: 16 }}>
               <Text style={{ fontWeight: '700', color: '#333', marginBottom: 8, fontSize: 13 }}>Have a coupon code?</Text>
-              <CouponInput listingType="room" originalAmount={form.plan?.price || 0} onApplied={c => setAppliedCoupon(c)} />
+              <CouponInput listingType="room" originalAmount={form.plan?.price ?? 69} onApplied={c => setAppliedCoupon(c)} />
               {appliedCoupon && (
                 <View style={{ flexDirection:'row', justifyContent:'space-between', marginTop:10, padding:10, backgroundColor:'#f0fdf4', borderRadius:8 }}>
                   <Text style={{ color:'#374151', fontSize:13 }}>Original: <Text style={{ textDecorationLine:'line-through' }}>₹{form.plan?.price}</Text></Text>
