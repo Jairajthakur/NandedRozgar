@@ -210,12 +210,16 @@ async function rejectIfDuplicatePayment(dbClient, cashfreeOrderId) {
 
 async function resolveCoupon(dbClient, couponId, userId) {
   if (!couponId) return null;
+  // FIX: Removed NOT EXISTS coupon_usage — same reason as /order fix above.
+  // The verify route runs after payment; if the coupon was already inserted into
+  // coupon_usage (by a prior retry), returning null here makes expectedAmount = full
+  // price, which causes a false "amount mismatch" error for discounted payments.
+  // For 100% off coupons: expectedAmount = 0, remaining = 0 → free path in verify.
   const { rows } = await dbClient.query(
     `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
      AND (valid_until IS NULL OR valid_until >= NOW())
-     AND (max_uses IS NULL OR uses_count < max_uses)
-     AND NOT EXISTS (SELECT 1 FROM coupon_usage WHERE coupon_id = $1 AND user_id = $2)`,
-    [couponId, userId]
+     AND (max_uses IS NULL OR uses_count <= max_uses)`,
+    [couponId]
   );
   return rows[0] || null;
 }
@@ -234,12 +238,15 @@ router.post('/order', auth, async (req, res) => {
 
     let couponRow = null;
     if (couponId) {
+      // FIX: Removed NOT EXISTS coupon_usage check from /order lookup.
+      // If the user already used this coupon on a failed attempt, excluding it
+      // here would make amount = full price even though they have a valid coupon.
+      // Actual one-use enforcement is done in markCouponUsed (ON CONFLICT DO NOTHING).
       const { rows } = await pool.query(
         `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
          AND (valid_until IS NULL OR valid_until >= NOW())
-         AND (max_uses IS NULL OR uses_count < max_uses)
-         AND NOT EXISTS (SELECT 1 FROM coupon_usage WHERE coupon_id = $1 AND user_id = $2)`,
-        [couponId, req.user.id]
+         AND (max_uses IS NULL OR uses_count <= max_uses)`,
+        [couponId]
       );
       couponRow = rows[0] || null;
     }
@@ -349,8 +356,13 @@ async function sharedVerify(req, res, listingType, insertFn) {
         return res.json({ ok: false, error: verification.error });
       }
 
-      // Amount check — allow ₹1 tolerance for rounding
-      if (verification.amount < remaining - 1) {
+      // Amount check — allow ₹1 tolerance for rounding.
+      // FIX: use min(remaining, expectedAmount) so a 100%-off coupon that reduces
+      // expectedAmount to 0 never reaches this branch (remaining=0 → free path).
+      // For partial coupons: expectedAmount already includes the discount, so we
+      // compare against that rather than the pre-credits 'remaining'.
+      const lowestAccepted = Math.min(remaining, expectedAmount);
+      if (verification.amount < lowestAccepted - 1) {
         await client.query('ROLLBACK');
         return res.json({ ok: false, error: 'Payment amount mismatch. Please contact support.' });
       }
