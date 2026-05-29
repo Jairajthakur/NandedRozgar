@@ -313,7 +313,7 @@ function FilterPills({ filters, active, onSelect }) {
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
-  const [email, setEmail] = useState('admin@cityplus.app');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -354,7 +354,7 @@ function LoginScreen({ onLogin }) {
           style={styles.loginInput}
           value={email}
           onChangeText={setEmail}
-          placeholder="admin@nandedrozgar.com"
+          placeholder="your-admin@email.com"
           placeholderTextColor="#555"
           keyboardType="email-address"
           autoCapitalize="none"
@@ -607,6 +607,7 @@ export default function AdminScreen() {
           try {
             const d = await apiCall('GET', '/api/auth/me');
             if (d.ok && d.user?.role === 'admin') {
+              _token = savedToken;
               setCurrentUser(d.user);
               setIsLoggedIn(true);
               setCheckingAuth(false);
@@ -628,6 +629,9 @@ export default function AdminScreen() {
       setCheckingAuth(false);
     }
     restoreSession();
+    // Safety net: if restoreSession hangs (server cold start), unblock after 10s
+    const timeout = setTimeout(() => setCheckingAuth(false), 10_000);
+    return () => clearTimeout(timeout);
   }, []);
 
   async function handleLogin(user, token) {
