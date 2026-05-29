@@ -1,6 +1,6 @@
 export default ({ config }) => ({
   ...config,
-  name: "NandedRozgar",
+  name: "CityPlus",
   slug: "cityplus",
   version: "4.4.0",
   orientation: "portrait",
