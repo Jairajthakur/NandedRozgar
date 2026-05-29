@@ -635,7 +635,7 @@ export default function PostJobScreen() {
             <Text style={s.planHint}>Your listing is automatically removed after the selected period.</Text>
 
             {PLANS.map(p => (
-              <TouchableOpacity key={p.id} style={[s.planCard, plan === p.id && s.planCardOn]} onPress={() => setPlan(p.id)} activeOpacity={0.85}>
+              <TouchableOpacity key={p.id} style={[s.planCard, plan === p.id && s.planCardOn]} onPress={() => { setPlan(p.id); setAppliedCoupon(null); }} activeOpacity={0.85}>
                 <View style={s.planLeft}>
                   <Ionicons name="calendar-outline" size={22} color={plan === p.id ? ORANGE : '#aaa'} />
                   <View style={{ marginLeft: 12 }}>
@@ -677,7 +677,7 @@ export default function PostJobScreen() {
                 </Text>
                 <CouponInput
                   listingType="job"
-                  originalAmount={PLANS.find(p => p.id === plan)?.price || 0}
+                  originalAmount={PLANS.find(p => p.id === plan)?.price ?? 79}
                   onApplied={c => setAppliedCoupon(c)}
                 />
                 {appliedCoupon && (
