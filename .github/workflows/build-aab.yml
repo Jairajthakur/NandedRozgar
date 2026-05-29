@@ -1,0 +1,98 @@
+name: Build Production AAB (Play Store)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: 'Android versionCode (increment each release, e.g. 1, 2, 3...)'
+        required: false
+        default: ''
+
+jobs:
+  build-aab:
+    name: Build Production AAB
+    runs-on: ubuntu-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Validate required secrets
+        run: |
+          MISSING=""
+          [ -z "$EXPO_TOKEN" ]           && MISSING="$MISSING EXPO_TOKEN"
+          [ -z "$EXPO_PROJECT_ID" ]      && MISSING="$MISSING EXPO_PROJECT_ID"
+          [ -z "$GOOGLE_SERVICES_JSON" ] && MISSING="$MISSING GOOGLE_SERVICES_JSON"
+          if [ -n "$MISSING" ]; then
+            echo "❌ Missing required secrets:$MISSING"
+            exit 1
+          fi
+          echo "✅ All required secrets present."
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Write google-services.json
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
+          node -e "JSON.parse(require('fs').readFileSync('google-services.json','utf8'))" \
+            && echo "✅ google-services.json is valid JSON." \
+            || { echo "❌ GOOGLE_SERVICES_JSON secret is not valid JSON."; exit 1; }
+
+      - name: Build production AAB
+        run: |
+          eas build \
+            --platform android \
+            --profile production \
+            --local \
+            --output ./CityPlus-release.aab \
+            --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
+          NODE_ENV: production
+          ANDROID_VERSION_CODE: ${{ inputs.version_code || secrets.ANDROID_VERSION_CODE || github.run_number }}
+          EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID }}
+          EXPO_PUBLIC_RAZORPAY_KEY_ID: ${{ secrets.EXPO_PUBLIC_RAZORPAY_KEY_ID }}
+
+      - name: Verify AAB was produced
+        run: |
+          if [ ! -f ./CityPlus-release.aab ]; then
+            echo "❌ CityPlus-release.aab not found — build may have silently failed."
+            exit 1
+          fi
+          SIZE=$(du -sh ./CityPlus-release.aab | cut -f1)
+          echo "✅ CityPlus-release.aab produced — size: $SIZE"
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityPlus-AAB-${{ github.run_number }}
+          path: ./CityPlus-release.aab
+          retention-days: 30
