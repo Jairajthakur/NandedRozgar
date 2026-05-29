@@ -1,60 +1,73 @@
-{
-  "cli": {
-    "version": ">= 16.0.0",
-    "appVersionSource": "local"
+export default ({ config }) => ({
+  ...config,
+  name: "NandedRozgar",
+  slug: "cityplus",
+  version: "4.4.0",
+  orientation: "portrait",
+  icon: "./assets/icon.png",
+  userInterfaceStyle: "light",
+
+  splash: {
+    image: "./assets/splash.png",
+    resizeMode: "contain",
+    backgroundColor: "#ffffff",
   },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "env": {
-        "NODE_ENV": "development",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "$EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID"
-      }
+
+  android: {
+    package: "com.cityplus.app",
+    versionCode: parseInt(process.env.ANDROID_VERSION_CODE) || 1,
+    adaptiveIcon: {
+      foregroundImage: "./assets/adaptive-icon.png",
+      backgroundColor: "#ffffff",
     },
-    "preview": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
-      },
-      "env": {
-        "NODE_ENV": "production",
-        "EXPO_PUBLIC_API_URL": "https://thecityplus.in",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "947711727855-ucqjm9eoh41khqj3hc5ppn0r5tb4k60c.apps.googleusercontent.com",
-        "EXPO_PUBLIC_CASHFREE_MODE": "production"
-      }
-    },
-    "production": {
-      "android": {
-        "buildType": "app-bundle"
-      },
-      "env": {
-        "NODE_ENV": "production",
-        "ANDROID_VERSION_CODE": "2",
-        "EXPO_PUBLIC_API_URL": "https://thecityplus.in",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "947711727855-ucqjm9eoh41khqj3hc5ppn0r5tb4k60c.apps.googleusercontent.com",
-        "EXPO_PUBLIC_CASHFREE_MODE": "production"
-      }
-    },
-    "web": {
-      "distribution": "internal",
-      "env": {
-        "NODE_ENV": "production",
-        "EXPO_PLATFORM": "web"
-      }
-    }
+    googleServicesFile: "./google-services.json",
+    permissions: [
+      "ACCESS_FINE_LOCATION",
+      "ACCESS_COARSE_LOCATION",
+      "USE_BIOMETRIC",
+      "USE_FINGERPRINT",
+    ],
   },
-  "submit": {
-    "production": {
-      "android": {
-        "serviceAccountKeyPath": "${PLAY_SERVICE_ACCOUNT_KEY_PATH}",
-        "track": "internal",
-        "releaseStatus": "draft"
-      }
-    }
-  }
-}
+
+  web: {
+    favicon: "./assets/favicon.png",
+  },
+
+  plugins: [
+    "expo-font",
+    "expo-secure-store",
+    "expo-local-authentication",
+    [
+      "expo-location",
+      {
+        locationAlwaysAndWhenInUsePermission:
+          "Allow NandedRozgar to use your location.",
+      },
+    ],
+    [
+      "expo-notifications",
+      {
+        icon: "./assets/icon.png",
+        color: "#ffffff",
+      },
+    ],
+    [
+      "expo-build-properties",
+      {
+        android: {
+          compileSdkVersion: 35,
+          targetSdkVersion: 35,
+          minSdkVersion: 24,
+        },
+      },
+    ],
+    "@react-native-firebase/app",
+    "@react-native-google-signin/google-signin",
+  ],
+
+  extra: {
+    eas: {
+      projectId: process.env.EXPO_PROJECT_ID,
+    },
+  },
+});
