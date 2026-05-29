@@ -81,13 +81,10 @@ if (GoogleSignin) {
   }
   GoogleSignin.configure({
     // webClientId — required so Google embeds the correct audience in the idToken.
-    // Pass undefined when ID is missing/placeholder — a fake string causes DEVELOPER_ERROR.
+    // FIX: Removed androidClientId — passing it causes DEVELOPER_ERROR (code 10)
+    // because Google strictly checks the APK SHA-1 against the Android OAuth client.
+    // Using webClientId only works perfectly on Android and avoids SHA-1 dependency.
     webClientId: _isValidClientId(googleWebClientId) ? googleWebClientId : undefined,
-    // androidClientId — on native Android APK builds, passing the Android OAuth client ID
-    // prevents DEVELOPER_ERROR (code 10) caused by SHA-1 / package mismatch with web client.
-    ...(Platform.OS === 'android' && _isValidClientId(googleAndroidClientId)
-      ? { androidClientId: googleAndroidClientId }
-      : {}),
     offlineAccess: false,
     scopes: ['profile', 'email'],
   });
