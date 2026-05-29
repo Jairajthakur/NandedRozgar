@@ -21,12 +21,10 @@ export default ({ config }) => ({
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#ffffff",
     },
-    googleServicesFile: "./google-services.json",
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON_PATH || "./google-services.json",
     permissions: [
       "ACCESS_FINE_LOCATION",
       "ACCESS_COARSE_LOCATION",
-      "USE_BIOMETRIC",
-      "USE_FINGERPRINT",
       "CAMERA",
       "READ_EXTERNAL_STORAGE",
       "WRITE_EXTERNAL_STORAGE",
@@ -61,7 +59,6 @@ export default ({ config }) => ({
   plugins: [
     "expo-font",
     "expo-secure-store",
-    "expo-local-authentication",
     [
       "expo-location",
       {
