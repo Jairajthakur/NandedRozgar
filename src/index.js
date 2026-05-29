@@ -199,11 +199,19 @@ app.get('/payment/start', (req, res) => {
 //   This endpoint is never reached for web users; it is only a safety net.
 const CALLBACK_HTML   = path.join(__dirname, '..', 'public', 'payment-callback.html');
 const ADMIN_LOGIN_HTML = path.join(__dirname, '..', 'public', 'admin-login.html');
+const PRIVACY_HTML     = path.join(__dirname, '..', 'public', 'privacy-policy.html');
+const TERMS_HTML       = path.join(__dirname, '..', 'public', 'terms-and-conditions.html');
+const REFUND_HTML      = path.join(__dirname, '..', 'public', 'refund-policy.html');
 
 // ── Admin login page ──────────────────────────────────────────────────────────
 app.get('/admin-login', (_req, res) => {
   res.sendFile(ADMIN_LOGIN_HTML);
 });
+
+// ── Legal / Policy pages (required for Play Store listing) ───────────────────
+app.get('/privacy-policy',       (_req, res) => res.sendFile(PRIVACY_HTML));
+app.get('/terms-and-conditions', (_req, res) => res.sendFile(TERMS_HTML));
+app.get('/refund-policy',        (_req, res) => res.sendFile(REFUND_HTML));
 app.get('/payment/callback', (req, res) => {
   if (fs.existsSync(CALLBACK_HTML)) {
     // Serve the custom HTML that fires the cityplus:// deep link
