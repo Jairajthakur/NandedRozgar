@@ -80,11 +80,7 @@ if (GoogleSignin) {
     );
   }
   GoogleSignin.configure({
-    // webClientId — Web OAuth client (type 3), required for idToken audience.
-    webClientId: _isValidClientId(googleWebClientId) ? googleWebClientId : undefined,
-    // androidClientId — Android OAuth client linked to Play Store signing SHA-1.
-    // This must match the certificate_hash in google-services.json for Play Store builds.
-    androidClientId: '947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com',
+    webClientId: '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com',
     offlineAccess: false,
     scopes: ['profile', 'email'],
   });
