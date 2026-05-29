@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cityplus.app",
+            "certificate_hash": "bfcb0ab0cc4e0be67f93b49e1357a5b8a45d133c"
+          }
+        },
+        {
           "client_id": "947711727855-ucqjm9eoh41khqj3hc5ppn0r5tb4k60c.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
