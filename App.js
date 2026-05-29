@@ -508,87 +508,10 @@ function MainTabs() {
 // at the top level of a component, not inside a render prop / inline function.
 // The previous pattern violated the Rules of Hooks and threw a warning in dev
 // and could silently misbehave in production.
+// AdminScreen manages its own auth internally (token, login form, session).
+// AdminPanelGuard simply renders it — no AuthContext check needed.
 function AdminPanelGuard(props) {
-  const { user: currentUser, login } = useAuth();
-  const [email, setEmail]       = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [error, setError]       = React.useState('');
-  const [loading, setLoading]   = React.useState(false);
-
-  // Already logged in as admin — show admin screen directly
-  if (currentUser?.role === 'admin') {
-    return <AdminScreen {...props} />;
-  }
-
-  // Logged in but NOT admin — go back
-  if (currentUser && currentUser.role !== 'admin') {
-    props.navigation.replace('Main');
-    return null;
-  }
-
-  // Not logged in — show inline admin login form
-  async function handleLogin() {
-    if (!email || !password) { setError('Enter email and password.'); return; }
-    setLoading(true); setError('');
-    try {
-      const r = await login(email.trim(), password);
-      if (!r?.ok) { setError(r?.error || 'Login failed.'); return; }
-      if (r.user?.role !== 'admin') {
-        setError('Access denied. Admins only.');
-      }
-    } catch { setError('Login failed. Try again.'); }
-    finally { setLoading(false); }
-  }
-
-  return (
-    <View style={{ flex: 1, backgroundColor: '#0f172a', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <View style={{ width: '100%', maxWidth: 400, backgroundColor: '#1e293b', borderRadius: 16, padding: 32, borderWidth: 1, borderColor: '#334155' }}>
-        <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', textAlign: 'center', marginBottom: 4 }}>
-          <Text style={{ color: '#fff' }}>City</Text><Text style={{ color: ORANGE }}>Plus</Text>
-        </Text>
-        <Text style={{ color: '#64748b', fontSize: 12, textAlign: 'center', letterSpacing: 2, marginBottom: 32, textTransform: 'uppercase' }}>Admin Portal</Text>
-
-        {!!error && (
-          <View style={{ backgroundColor: '#450a0a', borderWidth: 1, borderColor: '#7f1d1d', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-            <Text style={{ color: '#fca5a5', fontSize: 14 }}>{error}</Text>
-          </View>
-        )}
-
-        <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Email</Text>
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          placeholder="admin@example.com"
-          placeholderTextColor="#475569"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={{ backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155', borderRadius: 10, padding: 12, color: '#f1f5f9', fontSize: 15, marginBottom: 20 }}
-        />
-
-        <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Password</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="••••••••"
-          placeholderTextColor="#475569"
-          secureTextEntry
-          style={{ backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155', borderRadius: 10, padding: 12, color: '#f1f5f9', fontSize: 15, marginBottom: 24 }}
-        />
-
-        <TouchableOpacity
-          onPress={handleLogin}
-          disabled={loading}
-          style={{ backgroundColor: loading ? '#475569' : ORANGE, borderRadius: 10, padding: 14, alignItems: 'center' }}
-          activeOpacity={0.85}
-        >
-          {loading
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Sign In</Text>
-          }
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  return <AdminScreen {...props} />;
 }
 
 // ── Assign per-screen error boundary wrappers ─────────────────────────────────
