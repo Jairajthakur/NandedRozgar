@@ -70,15 +70,6 @@ function _isValidClientId(id) {
 }
 
 if (GoogleSignin) {
-  const googleWebClientId     = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-  const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
-  if (!_isValidClientId(googleWebClientId)) {
-    console.warn(
-      '[LoginScreen] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set or is still the placeholder value. ' +
-      'Google Sign-In will fail. Add the real Web Client ID to your eas.json env block ' +
-      'or EAS Secrets (EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=xxxx.apps.googleusercontent.com).'
-    );
-  }
   GoogleSignin.configure({
     webClientId: '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com',
     offlineAccess: false,
@@ -449,15 +440,9 @@ export default function LoginScreen() {
       } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         setError('Google Play Services not available on this device.');
         triggerShake();
-      } else if (err.code === 10 || (err.message || '').toLowerCase().includes('developer_error')) {
-        // DEVELOPER_ERROR (code 10): SHA-1 fingerprint or package name mismatch in Google Console,
-        // or EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is wrong/not set in eas.json env block.
-        console.error('GoogleSignin DEVELOPER_ERROR:', err);
-        setError('Google Sign-In is not configured correctly. Contact support.');
-        triggerShake();
       } else {
-        console.error('GoogleSignin error:', err);
-        setError('Google sign-in failed. Please try again.');
+        console.error('GoogleSignin error code:', err.code, 'message:', err.message, err);
+        setError('Error ' + (err.code ?? '') + ': ' + (err.message || 'Google sign-in failed. Please try again.'));
         triggerShake();
       }
     }
