@@ -189,11 +189,14 @@ async function savePayment(dbClient, userId, { amountRupees, plan, cashfreeOrder
 
 async function markCouponUsed(dbClient, couponId, userId) {
   if (!couponId) return;
-  await dbClient.query(
+  const { rowCount } = await dbClient.query(
     `INSERT INTO coupon_usage (coupon_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
     [couponId, userId]
   );
-  await dbClient.query(`UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id = $1`, [couponId]);
+  // Only increment the counter when we actually inserted a new row
+  if (rowCount > 0) {
+    await dbClient.query(`UPDATE coupon_codes SET uses_count = uses_count + 1 WHERE id = $1`, [couponId]);
+  }
 }
 
 async function rejectIfDuplicatePayment(dbClient, cashfreeOrderId) {
