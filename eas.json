@@ -15,8 +15,7 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "gradleCommand": ":app:assembleRelease",
-        "googleServicesFile": "./google-services.json"
+        "gradleCommand": ":app:assembleRelease"
       },
       "env": {
         "NODE_ENV": "production",
@@ -27,8 +26,7 @@
     },
     "production": {
       "android": {
-        "buildType": "app-bundle",
-        "googleServicesFile": "./google-services.json"
+        "buildType": "app-bundle"
       },
       "env": {
         "NODE_ENV": "production",
