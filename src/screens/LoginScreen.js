@@ -255,13 +255,16 @@ export default function LoginScreen() {
 
   // ── Google Sign-In handler ────────────────────────────────────────────────
   // ── expo-auth-session Google Sign-In ─────────────────────────────────────
-  // Use app scheme redirect — works reliably on all build types.
-  // redirectUri becomes: cityplus://  on device, which matches the app scheme.
-  const redirectUri = makeRedirectUri({ scheme: 'cityplus', path: 'auth' });
+  // Production-safe Google Sign-In for standalone EAS APKs.
+  // Uses the Android OAuth client (verified by package name + SHA-1, not redirect URI).
+  // The redirectUri 'com.cityplus.app:/oauthredirect' is handled natively by the OS
+  // and does NOT need to be registered in Google Cloud Console.
+  const redirectUri = makeRedirectUri({
+    native: 'com.cityplus.app:/oauthredirect',
+  });
 
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    androidClientId: GOOGLE_WEB_CLIENT_ID,
-    iosClientId:     GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     webClientId:     GOOGLE_WEB_CLIENT_ID,
     scopes: ['profile', 'email'],
     redirectUri,
