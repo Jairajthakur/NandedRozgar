@@ -256,8 +256,7 @@ export default function LoginScreen() {
   // No SHA-1, no androidClientId, no DEVELOPER_ERROR.
   // Works with Internal App Sharing and Play Store installs.
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    webClientId:     GOOGLE_WEB_CLIENT_ID,
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    webClientId:  GOOGLE_WEB_CLIENT_ID,
     scopes: ['profile', 'email'],
     redirectUri: 'https://auth.expo.io/@jai234/cityplus',
   });
