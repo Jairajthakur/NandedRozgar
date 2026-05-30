@@ -160,9 +160,15 @@ export function AuthProvider({ children }) {
   }
 
   // ── Google OAuth login ────────────────────────────────────────────────────
-  async function loginWithGoogle(idToken) {
+  // Accepts either an idToken (web GSI) or an accessToken (expo-auth-session native)
+  async function loginWithGoogle(tokenValue, isAccessToken = false) {
     try {
-      const r = await http('POST', '/api/auth/google', { idToken });
+      // If called from the old web path it passes an idToken string directly;
+      // expo-auth-session passes an accessToken string directly too.
+      // We detect which one to send by checking if it looks like a JWT (has dots).
+      const isJwt = typeof tokenValue === 'string' && tokenValue.split('.').length === 3;
+      const body = isJwt ? { idToken: tokenValue } : { accessToken: tokenValue };
+      const r = await http('POST', '/api/auth/google', body);
       if (!r?.ok) return r ?? { ok: false, error: 'Google sign-in failed.' };
       await saveToken(r.token);
       await _saveBiometricCredentials(r.user.email, r.token);
