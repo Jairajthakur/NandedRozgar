@@ -256,8 +256,12 @@ export default function LoginScreen() {
   //
   // Also make sure https://auth.expo.io/@jai234/cityplus is added to
   // "Authorised redirect URIs" on your Web client in Google Cloud Console.
+  // expo-auth-session on Android requires androidClientId explicitly.
+  // We use the Web client ID for all platforms since this is the proxy/browser flow.
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    clientId:    GOOGLE_WEB_CLIENT_ID,   // Web client ID only for proxy flow
+    androidClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId:     GOOGLE_WEB_CLIENT_ID,
+    webClientId:     GOOGLE_WEB_CLIENT_ID,
     scopes: ['profile', 'email'],
     redirectUri: 'https://auth.expo.io/@jai234/cityplus',
   });
