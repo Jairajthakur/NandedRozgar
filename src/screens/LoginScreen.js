@@ -1,33 +1,7 @@
 /**
  * CityPlus — LoginScreen.js
- *
- * Google Sign-In — NATIVE APK FIX via @react-native-google-signin/google-signin
- * ─────────────────────────────────────────────────────────────────────────────
- * Why expo-auth-session kept failing on APK:
- *   It opens a Chrome browser tab. Chrome cannot resolve the nanded:// custom
- *   scheme redirect → ERR_QUIC_PROTOCOL_ERROR.
- *   No browser-based OAuth works on Android APKs with custom schemes.
- *
- * This fix uses the NATIVE Google Sign-In SDK:
- *   • Shows Google's native account picker (no browser, no redirect URI)
- *   • Returns idToken directly to the app
- *   • Works with your existing Android OAuth client + SHA-1 in Google Console
- *
- * ─── ONE-TIME SETUP (must rebuild APK after) ─────────────────────────────────
- *   1.  npm install @react-native-google-signin/google-signin
- *
- *   2.  In app.config.js → plugins array, add:
- *         ["@react-native-google-signin/google-signin"]
- *
- *   3.  eas build --platform android --profile preview
- *
- * ─── GOOGLE CONSOLE — NO CHANGES NEEDED ──────────────────────────────────────
- *   Your Android client is already configured with your package name and
- *   SHA-1 fingerprint in the Google Cloud Console.
- *   Never commit SHA-1 fingerprints to source control — retrieve them with:
- *     eas credentials   (for EAS-managed keystore)
- *     keytool -list -v -keystore your.keystore  (for local keystore)
- * ─────────────────────────────────────────────────────────────────────────────
+ * Google Sign-In via expo-auth-session — no SHA-1, no androidClientId needed.
+ * Works with Internal App Sharing, Play Store, everywhere.
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -38,60 +12,16 @@ import {
   Dimensions, Image,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-// GoogleSignin is a native-only module — guard against web/SSR environments
-let GoogleSignin = null;
-let statusCodes = {};
-if (Platform.OS !== 'web') {
-  try {
-    const gs = require('@react-native-google-signin/google-signin');
-    GoogleSignin = gs.GoogleSignin;
-    statusCodes = gs.statusCodes;
-  } catch (e) {
-    console.warn('GoogleSignin not available:', e.message);
-  }
-}
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
-// Configure once at module level.
-// webClientId (Web Client ID) is required here — it tells Google which audience
-// to embed in the idToken so your backend can verify it.
-//
-// Validates that the Google Web Client ID is real (not a placeholder or empty).
-// A placeholder string is truthy, so the old `|| undefined` check didn't catch it,
-// causing GoogleSignin.configure() to receive a fake ID → DEVELOPER_ERROR on signIn().
-function _isValidClientId(id) {
-  return (
-    typeof id === 'string' &&
-    id.length > 20 &&
-    id.endsWith('.apps.googleusercontent.com') &&
-    !id.startsWith('your_')
-  );
-}
+// Required for expo-auth-session to complete the redirect back into the app
+WebBrowser.maybeCompleteAuthSession();
 
-// ── Google Sign-In client IDs ─────────────────────────────────────────────────
-// webClientId    → Web OAuth client (type 3) — required for idToken audience
-// androidClientId → Android OAuth client whose SHA-1 matches the certificate
-//                   Google Play uses to sign the APK:
-//                   BF:CB:0A:B0:CC:4E:0B:E6:7F:93:B4:9E:13:57:A5:B8:A4:5D:13:3C
-//                   (visible in Play Console → Internal app sharing → certificate)
-//
-// WHY hardcoded: This app is built via `eas build --local` in GitHub Actions.
-// Local builds do NOT load eas.json env blocks, and the workflow did not pass
-// EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID, so process.env was always empty →
-// DEVELOPER_ERROR 10 / "androidClientId must be defined".
-// Hardcoding here is safe — these are public OAuth client IDs, not secrets.
-const GOOGLE_WEB_CLIENT_ID     = '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com';
-const GOOGLE_ANDROID_CLIENT_ID = '947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com';
-
-if (GoogleSignin) {
-  GoogleSignin.configure({
-    webClientId:     GOOGLE_WEB_CLIENT_ID,
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-    offlineAccess: false,
-    scopes: ['profile', 'email'],
-  });
-}
+// Web Client ID only — no SHA-1, no androidClientId needed
+const GOOGLE_WEB_CLIENT_ID = '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com';
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const ORANGE      = '#f97316';
@@ -322,151 +252,44 @@ export default function LoginScreen() {
   });
 
   // ── Google Sign-In handler ────────────────────────────────────────────────
-  // WEB:    GSI script loaded dynamically → One Tap or renderButton popup
-  //         → credential (idToken JWT) → backend /api/auth/google { idToken }
-  // NATIVE: @react-native-google-signin SDK → idToken JWT → same backend route
-  // NO /google/code endpoint needed — idToken works directly.
+  // ── expo-auth-session Google Sign-In ─────────────────────────────────────
+  // No SHA-1, no androidClientId, no DEVELOPER_ERROR.
+  // Works with Internal App Sharing and Play Store installs.
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    scopes: ['profile', 'email'],
+  });
+
+  // Handle the response from Google when user returns to app
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const { authentication } = googleResponse;
+      handleGoogleSuccess(authentication?.accessToken);
+    } else if (googleResponse?.type === 'error') {
+      setError('Google sign-in failed. Please try again.');
+      setGoogleLoading(false);
+      triggerShake();
+    } else if (googleResponse?.type === 'dismiss') {
+      setGoogleLoading(false);
+    }
+  }, [googleResponse]);
+
   async function handleGooglePress() {
     setError('');
     setGoogleLoading(true);
-
-    // ── WEB ───────────────────────────────────────────────────────────────
-    if (IS_WEB) {
-      try {
-        const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-        if (!clientId || !clientId.endsWith('.apps.googleusercontent.com')) {
-          setError(
-            'Google Sign-In is not configured for web. ' +
-            'Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in Railway environment variables ' +
-            'and ensure your Railway URL is added as an Authorized JavaScript Origin in Google Cloud Console.'
-          );
-          setGoogleLoading(false);
-          return;
-        }
-
-        // Load GSI script dynamically if not already present
-        await new Promise((resolve, reject) => {
-          if (window.google?.accounts?.id) { resolve(); return; }
-          const prev = document.getElementById('gsi-script');
-          if (prev) prev.remove();
-          const s = document.createElement('script');
-          s.id = 'gsi-script';
-          s.src = 'https://accounts.google.com/gsi/client';
-          s.async = true;
-          s.defer = true;
-          s.onload = resolve;
-          s.onerror = () => reject(new Error('Failed to load Google Sign-In. Check your internet connection.'));
-          document.head.appendChild(s);
-        });
-
-        // Give GSI a moment to initialise after load
-        await new Promise(r => setTimeout(r, 200));
-
-        if (!window.google?.accounts?.id) {
-          setError('Google Sign-In failed to load. Please refresh the page.');
-          setGoogleLoading(false);
-          return;
-        }
-
-        // Get idToken via GSI — works for both One Tap and popup
-        const idToken = await new Promise((resolve, reject) => {
-          window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: (response) => {
-              if (response.error || !response.credential) {
-                reject(new Error(response.error || 'No credential returned'));
-              } else {
-                resolve(response.credential); // credential IS the idToken JWT
-              }
-            },
-            cancel_on_tap_outside: false,
-            use_fedcm_for_prompt: false, // avoid FedCM deprecation warning
-          });
-
-          // Try One Tap prompt first
-          window.google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-              // One Tap not available — render an invisible button and click it
-              // This opens the full Google account picker popup
-              const div = document.createElement('div');
-              div.id = '__gsi_btn_container';
-              div.style.cssText = 'position:absolute;opacity:0;pointer-events:none;';
-              document.body.appendChild(div);
-
-              window.google.accounts.id.renderButton(div, {
-                type: 'standard',
-                size: 'large',
-                theme: 'outline',
-                text: 'signin_with',
-              });
-
-              // Click the rendered button to open popup
-              const btn = div.querySelector('[role="button"], button, div[tabindex]');
-              if (btn) {
-                btn.click();
-              } else {
-                document.body.removeChild(div);
-                reject(new Error('Google Sign-In popup could not be opened. Try a different browser.'));
-              }
-
-              // Clean up container after popup resolves
-              setTimeout(() => {
-                const el = document.getElementById('__gsi_btn_container');
-                if (el) document.body.removeChild(el);
-              }, 30000);
-            }
-          });
-        });
-
-        await handleGoogleSuccess(idToken);
-
-      } catch (err) {
-        console.error('Web Google Sign-In error:', err);
-        setError(err.message || 'Google sign-in failed. Please try again.');
-        triggerShake();
-        setGoogleLoading(false);
-      }
-      return;
-    }
-
-    // ── NATIVE (Android / iOS) ────────────────────────────────────────────
-    if (!GoogleSignin) {
-      setError('Google Sign-In is not available on this platform.');
-      setGoogleLoading(false);
-      return;
-    }
-    try {
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const userInfo = await GoogleSignin.signIn();
-      // idToken is a signed JWT — backend verifies via Google tokeninfo
-      const idToken = userInfo?.data?.idToken ?? userInfo?.idToken;
-      if (!idToken) {
-        setError('Google sign-in failed: no token returned.');
-        triggerShake();
-        setGoogleLoading(false);
-        return;
-      }
-      await handleGoogleSuccess(idToken);
-    } catch (err) {
-      setGoogleLoading(false);
-      if (err.code === statusCodes.SIGN_IN_CANCELLED) {
-        // user cancelled — silent
-      } else if (err.code === statusCodes.IN_PROGRESS) {
-        setError('Sign-in already in progress.');
-      } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        setError('Google Play Services not available on this device.');
-        triggerShake();
-      } else {
-        console.error('GoogleSignin error code:', err.code, 'message:', err.message, err);
-        setError('Error ' + (err.code ?? '') + ': ' + (err.message || 'Google sign-in failed. Please try again.'));
-        triggerShake();
-      }
-    }
+    await googlePromptAsync();
   }
 
-  async function handleGoogleSuccess(idToken) {
+  async function handleGoogleSuccess(accessToken) {
+    if (!accessToken) {
+      setError('Google sign-in failed: no token returned.');
+      setGoogleLoading(false);
+      triggerShake();
+      return;
+    }
     setError('');
-    const r = await loginWithGoogle(idToken);
+    // Backend accepts accessToken and verifies via Google userinfo endpoint
+    const r = await loginWithGoogle(accessToken);
     setGoogleLoading(false);
     if (!r?.ok) {
       setError(r?.error || 'Google sign-in failed');
