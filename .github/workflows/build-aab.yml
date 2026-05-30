@@ -59,6 +59,7 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('google-services.json','utf8'))" \
             && echo "✅ google-services.json is valid JSON." \
             || { echo "❌ GOOGLE_SERVICES_JSON secret is not valid JSON."; exit 1; }
+          echo "GOOGLE_SERVICES_JSON_PATH=$(pwd)/google-services.json" >> $GITHUB_ENV
 
       - name: Build production AAB
         run: |
@@ -80,6 +81,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
           EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID }}
           EXPO_PUBLIC_RAZORPAY_KEY_ID: ${{ secrets.EXPO_PUBLIC_RAZORPAY_KEY_ID }}
+          GOOGLE_SERVICES_JSON_PATH: ${{ env.GOOGLE_SERVICES_JSON_PATH }}
 
       - name: Verify AAB was produced
         run: |
