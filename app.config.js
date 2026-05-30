@@ -84,12 +84,7 @@ export default ({ config }) => ({
       },
     ],
     "@react-native-firebase/app",
-    [
-      "@react-native-google-signin/google-signin",
-      {
-        iosUrlScheme: "com.googleusercontent.apps.947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas",
-      }
-    ],
+    // @react-native-google-signin removed — using expo-auth-session instead
   ],
 
   extra: {
