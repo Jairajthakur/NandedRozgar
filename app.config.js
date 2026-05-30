@@ -44,12 +44,13 @@ export default ({ config }) => ({
         ],
         category: ["BROWSABLE", "DEFAULT"],
       },
-      // Also handle cityplus:// scheme for in-app deep links
+      // Handle cityplus:// scheme for in-app deep links
       {
         action: "VIEW",
         data: [{ scheme: "cityplus" }],
         category: ["BROWSABLE", "DEFAULT"],
       },
+
     ],
   },
 
