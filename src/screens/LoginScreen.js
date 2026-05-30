@@ -20,8 +20,13 @@ import { useAuth } from '../context/AuthContext';
 // Required for expo-auth-session to complete the redirect back into the app
 WebBrowser.maybeCompleteAuthSession();
 
-const GOOGLE_WEB_CLIENT_ID     = '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com';
-const GOOGLE_ANDROID_CLIENT_ID = '947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com';
+// Read from env vars set in eas.json (fallback to hardcoded for local dev)
+const GOOGLE_WEB_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+  '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com';
+const GOOGLE_ANDROID_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
+  '947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com';
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const ORANGE      = '#f97316';
