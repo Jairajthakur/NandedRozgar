@@ -258,8 +258,13 @@ export default function LoginScreen() {
   // browser flow. The redirect URI must be https:// and registered in Google Console.
   // Your backend at thecityplus.in already accepts the accessToken directly,
   // so the callback URL just needs to exist — it doesn't need to do anything special.
+  // expo-auth-session ALWAYS checks for androidClientId on Android — even if
+  // you only want the web flow. Pass the Web Client ID for all three fields
+  // so the library check passes, while Google Console validates via the web client.
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    webClientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId:     GOOGLE_WEB_CLIENT_ID,
+    webClientId:     GOOGLE_WEB_CLIENT_ID,
     scopes: ['profile', 'email'],
     redirectUri: 'https://thecityplus.in/auth/google/callback',
   });
