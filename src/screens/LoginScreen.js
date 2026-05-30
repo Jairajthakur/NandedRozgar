@@ -1,6 +1,6 @@
 /**
  * CityPlus — LoginScreen.js
- * Google Sign-In via expo-auth-session — requires androidClientId for native Android.
+ * Google Sign-In via direct OAuth + cityplus:// deep link (no expo-auth-session).
  * Works with Internal App Sharing, Play Store, everywhere.
  */
 
@@ -13,20 +13,16 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import { Linking } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
-// Required for expo-auth-session to complete the redirect back into the app
 WebBrowser.maybeCompleteAuthSession();
 
 // Read from env vars set in eas.json (fallback to hardcoded for local dev)
 const GOOGLE_WEB_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
   '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com';
-const GOOGLE_ANDROID_CLIENT_ID =
-  process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
-  '947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com';
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const ORANGE      = '#f97316';
@@ -252,41 +248,40 @@ export default function LoginScreen() {
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
-  // ── Google Sign-In handler ────────────────────────────────────────────────
-  // ── expo-auth-session Google Sign-In ─────────────────────────────────────
-  // Use Web client ID only — the only type that works with expo-auth-session
-  // browser flow. The redirect URI must be https:// and registered in Google Console.
-  // Your backend at thecityplus.in already accepts the accessToken directly,
-  // so the callback URL just needs to exist — it doesn't need to do anything special.
-  // expo-auth-session ALWAYS checks for androidClientId on Android — even if
-  // you only want the web flow. Pass the Web Client ID for all three fields
-  // so the library check passes, while Google Console validates via the web client.
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    androidClientId: GOOGLE_WEB_CLIENT_ID,
-    iosClientId:     GOOGLE_WEB_CLIENT_ID,
-    webClientId:     GOOGLE_WEB_CLIENT_ID,
-    scopes: ['profile', 'email'],
-    redirectUri: 'https://thecityplus.in/auth/google/callback',
-  });
+  // ── Google Sign-In via deep link ─────────────────────────────────────────
+  // Flow: app opens Google OAuth URL in browser → Google redirects to
+  // https://thecityplus.in/auth/google/callback → backend redirects to
+  // cityplus://google-auth?access_token=... → App.js Linking listener
+  // calls global.__googleAuthHandler(accessToken).
 
-  // Handle the response from Google when user returns to app
+  // Register handler so App.js Linking listener can call back into this screen
   useEffect(() => {
-    if (googleResponse?.type === 'success') {
-      const { authentication } = googleResponse;
-      handleGoogleSuccess(authentication?.accessToken);
-    } else if (googleResponse?.type === 'error') {
-      setError('Google sign-in failed. Please try again.');
-      setGoogleLoading(false);
-      triggerShake();
-    } else if (googleResponse?.type === 'dismiss') {
-      setGoogleLoading(false);
-    }
-  }, [googleResponse]);
+    global.__googleAuthHandler = (accessToken, error) => {
+      if (error) {
+        setError(error);
+        setGoogleLoading(false);
+        triggerShake();
+      } else {
+        handleGoogleSuccess(accessToken);
+      }
+    };
+    return () => { global.__googleAuthHandler = null; };
+  }, []);
 
   async function handleGooglePress() {
     setError('');
     setGoogleLoading(true);
-    await googlePromptAsync();
+    const redirectUri = encodeURIComponent('https://thecityplus.in/auth/google/callback');
+    const scope = encodeURIComponent('openid profile email');
+    const googleUrl =
+      `https://accounts.google.com/o/oauth2/v2/auth` +
+      `?client_id=${GOOGLE_WEB_CLIENT_ID}` +
+      `&redirect_uri=${redirectUri}` +
+      `&response_type=token` +
+      `&scope=${scope}` +
+      `&access_type=online` +
+      `&prompt=select_account`;
+    await Linking.openURL(googleUrl);
   }
 
   async function handleGoogleSuccess(accessToken) {
