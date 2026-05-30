@@ -1,24 +1,32 @@
 /**
  * CityPlus — LoginScreen.js
  *
- * Google Sign-In — expo-auth-session (Web OAuth flow, no SHA-1 needed)
+ * Google Sign-In — NATIVE APK FIX via @react-native-google-signin/google-signin
  * ─────────────────────────────────────────────────────────────────────────────
- * Root cause of Error 10 DEVELOPER_ERROR:
- *   @react-native-google-signin needs the APK's SHA-1 registered in Google
- *   Cloud Console. Even though the SHA-1 in google-services.json matches the
- *   Internal Test Certificate, the native SDK still fails — most likely because
- *   the plugin wasn't baked into the build properly (requires eas build, not
- *   expo start / Expo Go).
+ * Why expo-auth-session kept failing on APK:
+ *   It opens a Chrome browser tab. Chrome cannot resolve the nanded:// custom
+ *   scheme redirect → ERR_QUIC_PROTOCOL_ERROR.
+ *   No browser-based OAuth works on Android APKs with custom schemes.
  *
- * This fix uses expo-auth-session with the Web OAuth client (client_type 3):
- *   • Opens Chrome Custom Tab — no SHA-1 fingerprint required at all
- *   • Returns accessToken → backend POST /api/auth/google { accessToken }
- *   • Works on any APK/AAB without rebuilding (expo-auth-session already in deps)
+ * This fix uses the NATIVE Google Sign-In SDK:
+ *   • Shows Google's native account picker (no browser, no redirect URI)
+ *   • Returns idToken directly to the app
+ *   • Works with your existing Android OAuth client + SHA-1 in Google Console
  *
- * ONE-TIME Google Cloud Console step:
- *   Credentials → Web client (vs3scmgk...) → Authorized redirect URIs → add:
- *     https://auth.expo.io/@YOUR_EXPO_USERNAME/cityplus
- *   Find your exact URI by checking the console.log in handleGooglePress below.
+ * ─── ONE-TIME SETUP (must rebuild APK after) ─────────────────────────────────
+ *   1.  npm install @react-native-google-signin/google-signin
+ *
+ *   2.  In app.config.js → plugins array, add:
+ *         ["@react-native-google-signin/google-signin"]
+ *
+ *   3.  eas build --platform android --profile preview
+ *
+ * ─── GOOGLE CONSOLE — NO CHANGES NEEDED ──────────────────────────────────────
+ *   Your Android client is already configured with your package name and
+ *   SHA-1 fingerprint in the Google Cloud Console.
+ *   Never commit SHA-1 fingerprints to source control — retrieve them with:
+ *     eas credentials   (for EAS-managed keystore)
+ *     keytool -list -v -keystore your.keystore  (for local keystore)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -30,24 +38,44 @@ import {
   Dimensions, Image,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
+// GoogleSignin is a native-only module — guard against web/SSR environments
+let GoogleSignin = null;
+let statusCodes = {};
+if (Platform.OS !== 'web') {
+  try {
+    const gs = require('@react-native-google-signin/google-signin');
+    GoogleSignin = gs.GoogleSignin;
+    statusCodes = gs.statusCodes;
+  } catch (e) {
+    console.warn('GoogleSignin not available:', e.message);
+  }
+}
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
-// Must be called at module level — closes the Chrome Custom Tab when the app
-// is reopened via the cityplus:// deep link redirect.
-WebBrowser.maybeCompleteAuthSession();
+// Configure once at module level.
+// webClientId (Web Client ID) is required here — it tells Google which audience
+// to embed in the idToken so your backend can verify it.
+//
+// Validates that the Google Web Client ID is real (not a placeholder or empty).
+// A placeholder string is truthy, so the old `|| undefined` check didn't catch it,
+// causing GoogleSignin.configure() to receive a fake ID → DEVELOPER_ERROR on signIn().
+function _isValidClientId(id) {
+  return (
+    typeof id === 'string' &&
+    id.length > 20 &&
+    id.endsWith('.apps.googleusercontent.com') &&
+    !id.startsWith('your_')
+  );
+}
 
-// Web Client ID — type 3, no SHA-1 fingerprint required
-const WEB_CLIENT_ID = '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com';
-
-// Google OAuth endpoints
-const GOOGLE_DISCOVERY = {
-  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-  tokenEndpoint:         'https://oauth2.googleapis.com/token',
-  revocationEndpoint:    'https://oauth2.googleapis.com/revoke',
-};
+if (GoogleSignin) {
+  GoogleSignin.configure({
+    webClientId: '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com',
+    offlineAccess: false,
+    scopes: ['profile', 'email'],
+  });
+}
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const ORANGE      = '#f97316';
@@ -185,13 +213,13 @@ export default function LoginScreen() {
     forgotPassword, loginWithBiometrics,
   } = useAuth();
 
-  const [tab, setTab]                     = useState('login');
-  const [form, setForm]                   = useState({ email: '', password: '', name: '', phone: '', confirmPassword: '' });
-  const [loading, setLoading]             = useState(false);
+  const [tab, setTab]                 = useState('login');
+  const [form, setForm]               = useState({ email: '', password: '', name: '', phone: '', confirmPassword: '' });
+  const [loading, setLoading]         = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError]                 = useState('');
-  const [showPass, setShowPass]           = useState(false);
-  const [showConfirm, setShowConfirm]     = useState(false);
+  const [error, setError]             = useState('');
+  const [showPass, setShowPass]       = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [forgotVisible, setForgotVisible] = useState(false);
@@ -202,46 +230,9 @@ export default function LoginScreen() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // ── expo-auth-session Google — pure browser OAuth (no native SDK, no SHA-1) ─
-  // Uses AuthSession.useAuthRequest directly (NOT Google.useAuthRequest).
-  // Google.useAuthRequest internally picks the native SDK on Android → Error 10.
-  // AuthSession.useAuthRequest always opens a Chrome Custom Tab → no SHA-1 needed.
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'cityplus', path: 'google-auth' });
-
-  const [googleRequest, googleResponse, googlePromptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId:             WEB_CLIENT_ID,
-      redirectUri,
-      scopes:               ['openid', 'profile', 'email'],
-      responseType:         AuthSession.ResponseType.Token,
-      usePKCE:              false,
-    },
-    GOOGLE_DISCOVERY,
-  );
-
-  // Fires whenever the OAuth tab returns a result
-  useEffect(() => {
-    if (!googleResponse) return;
-
-    if (googleResponse.type === 'success') {
-      // Token flow returns access_token in params
-      const accessToken = googleResponse.authentication?.accessToken
-                       || googleResponse.params?.access_token;
-      if (accessToken) {
-        _finishNativeGoogleSignIn(accessToken);
-      } else {
-        setError('Google sign-in failed: no access token returned.');
-        triggerShake();
-        setGoogleLoading(false);
-      }
-    } else if (googleResponse.type === 'error') {
-      setError('Google sign-in error: ' + (googleResponse.error?.message || 'unknown'));
-      triggerShake();
-      setGoogleLoading(false);
-    } else if (googleResponse.type === 'dismiss' || googleResponse.type === 'cancel') {
-      setGoogleLoading(false);
-    }
-  }, [googleResponse]);
+  // ── Google Sign-In — native SDK (@react-native-google-signin/google-signin) ─
+  // GoogleSignin.configure() is called at module level above.
+  // No browser, no redirect URI, no ERR_QUIC_PROTOCOL_ERROR.
 
   // ── Entrance animations ───────────────────────────────────────────────────
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -315,14 +306,29 @@ export default function LoginScreen() {
   });
 
   // ── Google Sign-In handler ────────────────────────────────────────────────
+  // WEB:    GSI script loaded dynamically → One Tap or renderButton popup
+  //         → credential (idToken JWT) → backend /api/auth/google { idToken }
+  // NATIVE: @react-native-google-signin SDK → idToken JWT → same backend route
+  // NO /google/code endpoint needed — idToken works directly.
   async function handleGooglePress() {
     setError('');
+    setGoogleLoading(true);
 
-    // ── WEB: use Google Identity Services popup ───────────────────────────
+    // ── WEB ───────────────────────────────────────────────────────────────
     if (IS_WEB) {
-      setGoogleLoading(true);
       try {
-        const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || WEB_CLIENT_ID;
+        const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+        if (!clientId || !clientId.endsWith('.apps.googleusercontent.com')) {
+          setError(
+            'Google Sign-In is not configured for web. ' +
+            'Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in Railway environment variables ' +
+            'and ensure your Railway URL is added as an Authorized JavaScript Origin in Google Cloud Console.'
+          );
+          setGoogleLoading(false);
+          return;
+        }
+
+        // Load GSI script dynamically if not already present
         await new Promise((resolve, reject) => {
           if (window.google?.accounts?.id) { resolve(); return; }
           const prev = document.getElementById('gsi-script');
@@ -330,78 +336,125 @@ export default function LoginScreen() {
           const s = document.createElement('script');
           s.id = 'gsi-script';
           s.src = 'https://accounts.google.com/gsi/client';
-          s.async = true; s.defer = true;
+          s.async = true;
+          s.defer = true;
           s.onload = resolve;
-          s.onerror = () => reject(new Error('Failed to load Google Sign-In.'));
+          s.onerror = () => reject(new Error('Failed to load Google Sign-In. Check your internet connection.'));
           document.head.appendChild(s);
         });
+
+        // Give GSI a moment to initialise after load
         await new Promise(r => setTimeout(r, 200));
+
+        if (!window.google?.accounts?.id) {
+          setError('Google Sign-In failed to load. Please refresh the page.');
+          setGoogleLoading(false);
+          return;
+        }
+
+        // Get idToken via GSI — works for both One Tap and popup
         const idToken = await new Promise((resolve, reject) => {
           window.google.accounts.id.initialize({
             client_id: clientId,
-            callback: (res) => res.credential
-              ? resolve(res.credential)
-              : reject(new Error(res.error || 'No credential returned')),
+            callback: (response) => {
+              if (response.error || !response.credential) {
+                reject(new Error(response.error || 'No credential returned'));
+              } else {
+                resolve(response.credential); // credential IS the idToken JWT
+              }
+            },
             cancel_on_tap_outside: false,
-            use_fedcm_for_prompt: false,
+            use_fedcm_for_prompt: false, // avoid FedCM deprecation warning
           });
-          window.google.accounts.id.prompt((n) => {
-            if (n.isNotDisplayed() || n.isSkippedMoment()) {
+
+          // Try One Tap prompt first
+          window.google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              // One Tap not available — render an invisible button and click it
+              // This opens the full Google account picker popup
               const div = document.createElement('div');
+              div.id = '__gsi_btn_container';
               div.style.cssText = 'position:absolute;opacity:0;pointer-events:none;';
               document.body.appendChild(div);
-              window.google.accounts.id.renderButton(div, { type: 'standard', size: 'large' });
+
+              window.google.accounts.id.renderButton(div, {
+                type: 'standard',
+                size: 'large',
+                theme: 'outline',
+                text: 'signin_with',
+              });
+
+              // Click the rendered button to open popup
               const btn = div.querySelector('[role="button"], button, div[tabindex]');
               if (btn) {
                 btn.click();
               } else {
                 document.body.removeChild(div);
-                reject(new Error('Could not open Google Sign-In popup.'));
+                reject(new Error('Google Sign-In popup could not be opened. Try a different browser.'));
               }
-              setTimeout(() => div.parentNode && document.body.removeChild(div), 30000);
+
+              // Clean up container after popup resolves
+              setTimeout(() => {
+                const el = document.getElementById('__gsi_btn_container');
+                if (el) document.body.removeChild(el);
+              }, 30000);
             }
           });
         });
-        // Web flow returns an idToken JWT
-        const r = await loginWithGoogle(idToken);
-        setGoogleLoading(false);
-        if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
+
+        await handleGoogleSuccess(idToken);
+
       } catch (err) {
-        setError(err.message || 'Google sign-in failed.');
+        console.error('Web Google Sign-In error:', err);
+        setError(err.message || 'Google sign-in failed. Please try again.');
         triggerShake();
         setGoogleLoading(false);
       }
       return;
     }
 
-    // ── NATIVE: Chrome Custom Tab via expo-auth-session ───────────────────
-    // IMPORTANT: copy this redirectUri into Google Cloud Console →
-    // Credentials → Web client (vs3scmgk...) → Authorized redirect URIs
-    console.log('[CityPlus] Google OAuth redirectUri:', redirectUri);
-
-    if (!googleRequest) {
-      setError('Google Sign-In is initialising, please try again.');
+    // ── NATIVE (Android / iOS) ────────────────────────────────────────────
+    if (!GoogleSignin) {
+      setError('Google Sign-In is not available on this platform.');
+      setGoogleLoading(false);
       return;
     }
-    setGoogleLoading(true);
-    // Response handled by the useEffect([googleResponse]) above
-    await googlePromptAsync();
-    // Do NOT setGoogleLoading(false) here — useEffect does it after response
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const userInfo = await GoogleSignin.signIn();
+      // idToken is a signed JWT — backend verifies via Google tokeninfo
+      const idToken = userInfo?.data?.idToken ?? userInfo?.idToken;
+      if (!idToken) {
+        setError('Google sign-in failed: no token returned.');
+        triggerShake();
+        setGoogleLoading(false);
+        return;
+      }
+      await handleGoogleSuccess(idToken);
+    } catch (err) {
+      setGoogleLoading(false);
+      if (err.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user cancelled — silent
+      } else if (err.code === statusCodes.IN_PROGRESS) {
+        setError('Sign-in already in progress.');
+      } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setError('Google Play Services not available on this device.');
+        triggerShake();
+      } else {
+        console.error('GoogleSignin error code:', err.code, 'message:', err.message, err);
+        setError('Error ' + (err.code ?? '') + ': ' + (err.message || 'Google sign-in failed. Please try again.'));
+        triggerShake();
+      }
+    }
   }
 
-  // Called by the useEffect when native OAuth returns an accessToken
-  async function _finishNativeGoogleSignIn(accessToken) {
-    try {
-      const r = await loginWithGoogle(accessToken);
-      if (!r?.ok) {
-        setError(r?.error || 'Google sign-in failed');
-        triggerShake();
-      }
-    } catch (e) {
-      setError('Google sign-in failed. Please try again.');
+  async function handleGoogleSuccess(idToken) {
+    setError('');
+    const r = await loginWithGoogle(idToken);
+    setGoogleLoading(false);
+    if (!r?.ok) {
+      setError(r?.error || 'Google sign-in failed');
       triggerShake();
-    } finally {
-      setGoogleLoading(false);
     }
   }
 
@@ -430,55 +483,76 @@ export default function LoginScreen() {
       if (!r?.ok) { setError(r?.error || 'Login failed'); triggerShake(); }
     } else {
       if (!form.name || !form.email || !form.password) { setError('Fill all required fields'); triggerShake(); return; }
-      if (form.password !== form.confirmPassword) { setError('Passwords do not match'); triggerShake(); return; }
-      if (!termsAccepted) { setError('Please accept the Terms of Service'); triggerShake(); return; }
+      if (form.password.length < 8)                    { setError('Password must be at least 8 characters'); triggerShake(); return; }
+      if (form.password !== form.confirmPassword)       { setError('Passwords do not match'); triggerShake(); return; }
+      if (!termsAccepted)                              { setError('Please accept Terms & Privacy Policy'); triggerShake(); return; }
+      if (getPasswordStrength(form.password).score < 2) { setError('Password too weak — add numbers & symbols'); triggerShake(); return; }
       setLoading(true);
       const r = await register({
-        name: form.name.trim(),
-        email: form.email.trim().toLowerCase(),
+        name:     form.name.trim(),
+        email:    form.email.trim().toLowerCase(),
         password: form.password,
-        phone: form.phone.trim() || undefined,
+        role:     'user',
+        phone:    form.phone || undefined,
       });
       setLoading(false);
       if (!r?.ok) { setError(r?.error || 'Registration failed'); triggerShake(); }
     }
   }
 
+  // ── Forgot password ───────────────────────────────────────────────────────
   async function handleForgotPassword() {
-    if (!forgotEmail) { setError('Enter your email'); return; }
+    if (!forgotEmail) { setError('Please enter your email address'); return; }
     setForgotLoading(true);
     const r = await forgotPassword(forgotEmail.trim().toLowerCase());
     setForgotLoading(false);
-    if (r?.ok) {
-      setForgotDone(true);
+    if (r?.ok === false) {
+      setError(r.error || 'Failed to send reset email. Please try again.');
     } else {
-      setError(r?.error || 'Failed to send reset email');
+      setForgotDone(true);
     }
   }
 
-  const pwStrength    = getPasswordStrength(form.password);
-  const isGoogleBusy  = googleLoading;
+  const pwStrength = getPasswordStrength(form.password);
+  const tabW = `${100 / tabCount}%`;
+  const isGoogleBusy = googleLoading || loading;
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <View style={S.bg}>
       <StatusBar barStyle="dark-content" backgroundColor={BG} />
+
+      {/* BG orbs */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Orb size={300} color="rgba(249,115,22,0.07)"  top={-80}  right={-60} duration={5200} />
+        <Orb size={220} color="rgba(249,115,22,0.055)" bottom={60} left={-50}  duration={4100} />
+        <Orb size={140} color="rgba(251,146,60,0.045)" top={SH * 0.38} right={-20} duration={3700} />
+        <View style={S.dline1} />
+        <View style={S.dline2} />
+      </View>
+
       <GridDots />
-      <Orb size={160} color="rgba(249,115,22,0.07)" top={-40}  left={-60} />
-      <Orb size={120} color="rgba(249,115,22,0.05)" bottom={80} right={-40} duration={5500} />
 
-      <View style={S.dline1} /><View style={S.dline2} />
-
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={S.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        behavior={IS_WEB ? undefined : (Platform.OS === 'ios' ? 'padding' : undefined)}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={S.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
 
           {/* ── LOGO ── */}
           <Animated.View style={[S.logoWrap, { opacity: logoOpacity, transform: [{ translateY: logoY }, { scale: logoScale }] }]}>
             <View style={S.pulseWrap}>
               <Animated.View style={[S.pulseRing, { transform: [{ scale: pulse }], opacity: pulseOp }]} />
               <View style={S.logoMark}>
-                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 22, letterSpacing: 0.5 }}>City</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.85)', fontWeight: '700', fontSize: 10, letterSpacing: 1.5, marginTop: -4 }}>PLUS</Text>
+                <Image
+                  source={require('../../assets/icon.png')}
+                  style={{ width: 52, height: 52, borderRadius: 14 }}
+                  resizeMode="contain"
+                />
               </View>
             </View>
             <Text style={S.logoName}>
@@ -487,31 +561,28 @@ export default function LoginScreen() {
             </Text>
             <View style={S.tagRow}>
               <View style={S.tagDot} />
-              <Text style={S.tagline}>Local Jobs</Text>
-              <Text style={[S.tagline, { color: BORDER }]}>·</Text>
-              <Text style={S.tagline}>Local Life</Text>
-              <Text style={[S.tagline, { color: BORDER }]}>·</Text>
-              <Text style={S.tagline}>Your City</Text>
+              <Text style={S.tagline}>Local Jobs · Local Life · Your City</Text>
               <View style={S.tagDot} />
             </View>
           </Animated.View>
 
           {/* ── CARD ── */}
           <Animated.View style={[S.card, { opacity: cardOpacity, transform: [{ translateY: cardY }, { translateX: shake }] }]}>
+
             <View style={S.accentBar} />
 
-            {/* Tabs */}
+            {/* TABS */}
             <View style={S.tabRow}>
-              <Animated.View style={[S.tabSlider, { left: tabLeft, width: `${100 / tabCount}%` }]} />
+              <Animated.View style={[S.tabSlider, { left: tabLeft, width: tabW }]} />
               {TABS.map(t => (
-                <TouchableOpacity key={t.key} style={S.tabBtn} onPress={() => switchTab(t.key)} activeOpacity={0.75}>
+                <TouchableOpacity key={t.key} onPress={() => switchTab(t.key)} style={S.tabBtn} activeOpacity={0.75}>
                   <Ionicons name={t.icon} size={13} color={tab === t.key ? ORANGE : TEXT_DIM} />
                   <Text style={[S.tabTxt, tab === t.key && S.tabTxtOn]}>{t.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            {/* ── GOOGLE BUTTON ── */}
+            {/* GOOGLE */}
             <TouchableOpacity
               style={[S.googleBtn, isGoogleBusy && { opacity: 0.55 }]}
               onPress={handleGooglePress}
@@ -530,24 +601,18 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
 
-            {/* Divider */}
+            {/* DIVIDER */}
             <View style={S.divRow}>
-              <View style={S.divLine} />
-              <Text style={S.divTxt}>or with email</Text>
-              <View style={S.divLine} />
+              <View style={S.divLine} /><Text style={S.divTxt}>or with email</Text><View style={S.divLine} />
             </View>
 
             {/* Register name */}
             {tab === 'register' && (
-              <Field fkey="name" label="Full Name *" icon="person-outline" value={form.name}
-                onChange={v => set('name', v)} placeholder="Your full name"
-                focusedField={focusedField} setFocusedField={setFocusedField} />
+              <Field fkey="name" label="Full Name *" icon="person-outline" value={form.name} onChange={v => set('name', v)} placeholder="Your full name" focusedField={focusedField} setFocusedField={setFocusedField} />
             )}
 
             {/* Email */}
-            <Field fkey="email" label="Email Address *" icon="mail-outline" value={form.email}
-              onChange={v => set('email', v)} placeholder="you@email.com" keyboard="email-address"
-              focusedField={focusedField} setFocusedField={setFocusedField} />
+            <Field fkey="email" label="Email Address *" icon="mail-outline" value={form.email} onChange={v => set('email', v)} placeholder="you@email.com" keyboard="email-address" focusedField={focusedField} setFocusedField={setFocusedField} />
 
             {/* Password */}
             <View style={S.fw}>
@@ -624,9 +689,7 @@ export default function LoginScreen() {
                   )}
                 </View>
 
-                <Field fkey="regPhone" label="Phone (optional)" icon="call-outline" value={form.phone}
-                  onChange={v => set('phone', v)} placeholder="+91 XXXXXXXXXX" keyboard="phone-pad"
-                  focusedField={focusedField} setFocusedField={setFocusedField} />
+                <Field fkey="regPhone" label="Phone (optional)" icon="call-outline" value={form.phone} onChange={v => set('phone', v)} placeholder="+91 XXXXXXXXXX" keyboard="phone-pad" focusedField={focusedField} setFocusedField={setFocusedField} />
 
                 <TouchableOpacity style={S.termsRow} onPress={() => setTermsAccepted(p => !p)} activeOpacity={0.8}>
                   <View style={[S.chk, termsAccepted && S.chkOn]}>
@@ -671,19 +734,9 @@ export default function LoginScreen() {
             {/* Switch tab link */}
             <View style={S.switchRow}>
               {tab === 'login' ? (
-                <>
-                  <Text style={S.switchTxt}>New here? </Text>
-                  <TouchableOpacity onPress={() => switchTab('register')}>
-                    <Text style={S.switchLink}>Create account →</Text>
-                  </TouchableOpacity>
-                </>
+                <><Text style={S.switchTxt}>New here? </Text><TouchableOpacity onPress={() => switchTab('register')}><Text style={S.switchLink}>Create account →</Text></TouchableOpacity></>
               ) : (
-                <>
-                  <Text style={S.switchTxt}>Have an account? </Text>
-                  <TouchableOpacity onPress={() => switchTab('login')}>
-                    <Text style={S.switchLink}>Sign in →</Text>
-                  </TouchableOpacity>
-                </>
+                <><Text style={S.switchTxt}>Have an account? </Text><TouchableOpacity onPress={() => switchTab('login')}><Text style={S.switchLink}>Sign in →</Text></TouchableOpacity></>
               )}
             </View>
           </Animated.View>
@@ -807,10 +860,10 @@ const S = StyleSheet.create({
   strSeg:   { flex: 1, height: 3, borderRadius: 2 },
   strLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 4 },
 
-  termsRow:  { flexDirection: 'row', alignItems: 'flex-start', marginHorizontal: 20, marginBottom: 16, gap: 10 },
-  chk:       { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: BORDER, alignItems: 'center', justifyContent: 'center', marginTop: 1, backgroundColor: '#fff' },
-  chkOn:     { backgroundColor: ORANGE, borderColor: ORANGE },
-  termsTxt:  { fontSize: 12, color: TEXT_DIM, flex: 1, lineHeight: 18 },
+  termsRow: { flexDirection: 'row', alignItems: 'flex-start', marginHorizontal: 20, marginBottom: 16, gap: 10 },
+  chk:      { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: BORDER, alignItems: 'center', justifyContent: 'center', marginTop: 1, backgroundColor: '#fff' },
+  chkOn:    { backgroundColor: ORANGE, borderColor: ORANGE },
+  termsTxt: { fontSize: 12, color: TEXT_DIM, flex: 1, lineHeight: 18 },
   termsLink: { color: ORANGE, fontWeight: '700' },
 
   errBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fef2f2', borderRadius: 12, padding: 12, marginHorizontal: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(220,38,38,0.2)' },
@@ -824,7 +877,7 @@ const S = StyleSheet.create({
   bioBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.3)', backgroundColor: ORANGE_SOFT, borderRadius: 14, paddingVertical: 12, marginHorizontal: 20, marginTop: 12 },
   bioTxt: { color: ORANGE, fontWeight: '700', fontSize: 13 },
 
-  switchRow:  { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 18, marginBottom: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: BORDER, marginHorizontal: 20 },
+  switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 18, marginBottom: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: BORDER, marginHorizontal: 20 },
   switchTxt:  { fontSize: 13, color: TEXT_DIM },
   switchLink: { fontSize: 13, fontWeight: '800', color: ORANGE },
 
