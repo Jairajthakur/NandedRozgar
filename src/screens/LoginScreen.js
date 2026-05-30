@@ -14,7 +14,6 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
-import { makeRedirectUri } from 'expo-auth-session';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
@@ -255,19 +254,14 @@ export default function LoginScreen() {
 
   // ── Google Sign-In handler ────────────────────────────────────────────────
   // ── expo-auth-session Google Sign-In ─────────────────────────────────────
-  // Production-safe Google Sign-In for standalone EAS APKs.
-  // Uses the Android OAuth client (verified by package name + SHA-1, not redirect URI).
-  // The redirectUri 'com.cityplus.app:/oauthredirect' is handled natively by the OS
-  // and does NOT need to be registered in Google Cloud Console.
-  const redirectUri = makeRedirectUri({
-    native: 'com.cityplus.app:/oauthredirect',
-  });
-
+  // Use Web client ID only — the only type that works with expo-auth-session
+  // browser flow. The redirect URI must be https:// and registered in Google Console.
+  // Your backend at thecityplus.in already accepts the accessToken directly,
+  // so the callback URL just needs to exist — it doesn't need to do anything special.
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-    webClientId:     GOOGLE_WEB_CLIENT_ID,
+    webClientId: GOOGLE_WEB_CLIENT_ID,
     scopes: ['profile', 'email'],
-    redirectUri,
+    redirectUri: 'https://thecityplus.in/auth/google/callback',
   });
 
   // Handle the response from Google when user returns to app
