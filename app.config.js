@@ -21,7 +21,7 @@ export default ({ config }) => ({
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#ffffff",
     },
-    googleServicesFile: process.env.GOOGLE_SERVICES_JSON_PATH || "./google-services.json",
+    googleServicesFile: "./google-services.json",
     permissions: [
       "ACCESS_FINE_LOCATION",
       "ACCESS_COARSE_LOCATION",
