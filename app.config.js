@@ -2,6 +2,7 @@ export default ({ config }) => ({
   ...config,
   name: "CityPlus",
   slug: "cityplus",
+  owner: "jai234",         // Required for auth.expo.io and EAS
   version: "4.4.0",
   scheme: "cityplus",                   // Required for deep links & payment callbacks
   orientation: "portrait",
@@ -83,7 +84,9 @@ export default ({ config }) => ({
         },
       },
     ],
-    "@react-native-firebase/app",
+    // @react-native-firebase/app is included only when google-services.json exists
+    // This prevents expo config from failing during CI before the file is written
+    ...(require('fs').existsSync('./google-services.json') ? ["@react-native-firebase/app"] : []),
     // @react-native-google-signin removed — using expo-auth-session instead
   ],
 
