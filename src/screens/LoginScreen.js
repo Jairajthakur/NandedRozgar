@@ -69,17 +69,25 @@ function _isValidClientId(id) {
   );
 }
 
+// ── Google Sign-In client IDs ─────────────────────────────────────────────────
+// webClientId    → Web OAuth client (type 3) — required for idToken audience
+// androidClientId → Android OAuth client whose SHA-1 matches the certificate
+//                   Google Play uses to sign the APK:
+//                   BF:CB:0A:B0:CC:4E:0B:E6:7F:93:B4:9E:13:57:A5:B8:A4:5D:13:3C
+//                   (visible in Play Console → Internal app sharing → certificate)
+//
+// WHY hardcoded: This app is built via `eas build --local` in GitHub Actions.
+// Local builds do NOT load eas.json env blocks, and the workflow did not pass
+// EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID, so process.env was always empty →
+// DEVELOPER_ERROR 10 / "androidClientId must be defined".
+// Hardcoding here is safe — these are public OAuth client IDs, not secrets.
+const GOOGLE_WEB_CLIENT_ID     = '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com';
+const GOOGLE_ANDROID_CLIENT_ID = '947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com';
+
 if (GoogleSignin) {
   GoogleSignin.configure({
-    // Web Client ID — required so the idToken audience matches your backend
-    webClientId: '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com',
-    // Android Client ID — MUST match the OAuth client whose SHA-1 fingerprint
-    // equals the certificate Google Play uses to sign the APK.
-    // Play Console → Internal app sharing → Internal test certificate SHA-1:
-    //   BF:CB:0A:B0:CC:4E:0B:E6:7F:93:B4:9E:13:57:A5:B8:A4:5D:13:3C
-    // That fingerprint is registered under the "mulh..." OAuth client in
-    // Firebase / Google Cloud Console → fixes DEVELOPER_ERROR (code 10).
-    androidClientId: '947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com',
+    webClientId:     GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     offlineAccess: false,
     scopes: ['profile', 'email'],
   });
