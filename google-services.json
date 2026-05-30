@@ -22,14 +22,6 @@
           }
         },
         {
-          "client_id": "947711727855-ucqjm9eoh41khqj3hc5ppn0r5tb4k60c.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.cityplus.app",
-            "certificate_hash": "2b42c6da3212c0e48575a98400df554f51b7c9a3"
-          }
-        },
-        {
           "client_id": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
           "client_type": 3
         }
