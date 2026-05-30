@@ -259,6 +259,7 @@ export default function LoginScreen() {
     webClientId:     GOOGLE_WEB_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     scopes: ['profile', 'email'],
+    redirectUri: 'https://auth.expo.io/@jai234/cityplus',
   });
 
   // Handle the response from Google when user returns to app
@@ -278,7 +279,7 @@ export default function LoginScreen() {
   async function handleGooglePress() {
     setError('');
     setGoogleLoading(true);
-    await googlePromptAsync();
+    await googlePromptAsync({ useProxy: true });
   }
 
   async function handleGoogleSuccess(accessToken) {
