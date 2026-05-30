@@ -71,7 +71,15 @@ function _isValidClientId(id) {
 
 if (GoogleSignin) {
   GoogleSignin.configure({
+    // Web Client ID — required so the idToken audience matches your backend
     webClientId: '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com',
+    // Android Client ID — MUST match the OAuth client whose SHA-1 fingerprint
+    // equals the certificate Google Play uses to sign the APK.
+    // Play Console → Internal app sharing → Internal test certificate SHA-1:
+    //   BF:CB:0A:B0:CC:4E:0B:E6:7F:93:B4:9E:13:57:A5:B8:A4:5D:13:3C
+    // That fingerprint is registered under the "mulh..." OAuth client in
+    // Firebase / Google Cloud Console → fixes DEVELOPER_ERROR (code 10).
+    androidClientId: '947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com',
     offlineAccess: false,
     scopes: ['profile', 'email'],
   });
