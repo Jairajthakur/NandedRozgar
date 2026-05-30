@@ -14,6 +14,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
@@ -254,21 +255,16 @@ export default function LoginScreen() {
 
   // ── Google Sign-In handler ────────────────────────────────────────────────
   // ── expo-auth-session Google Sign-In ─────────────────────────────────────
-  // IMPORTANT: The proxy flow (useProxy:true / auth.expo.io redirect) requires
-  // the WEB OAuth client ID — NOT the Android client ID.
-  // Android client IDs authenticate via package name + SHA-1 fingerprint and
-  // do NOT accept redirect URIs, which causes redirect_uri_mismatch.
-  //
-  // Also make sure https://auth.expo.io/@jai234/cityplus is added to
-  // "Authorised redirect URIs" on your Web client in Google Cloud Console.
-  // expo-auth-session on Android requires androidClientId explicitly.
-  // We use the Web client ID for all platforms since this is the proxy/browser flow.
+  // Use app scheme redirect — works reliably on all build types.
+  // redirectUri becomes: cityplus://  on device, which matches the app scheme.
+  const redirectUri = makeRedirectUri({ scheme: 'cityplus', path: 'auth' });
+
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     androidClientId: GOOGLE_WEB_CLIENT_ID,
     iosClientId:     GOOGLE_WEB_CLIENT_ID,
     webClientId:     GOOGLE_WEB_CLIENT_ID,
     scopes: ['profile', 'email'],
-    redirectUri: 'https://auth.expo.io/@jai234/cityplus',
+    redirectUri,
   });
 
   // Handle the response from Google when user returns to app
@@ -288,7 +284,7 @@ export default function LoginScreen() {
   async function handleGooglePress() {
     setError('');
     setGoogleLoading(true);
-    await googlePromptAsync({ useProxy: true });
+    await googlePromptAsync();
   }
 
   async function handleGoogleSuccess(accessToken) {
