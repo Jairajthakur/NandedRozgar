@@ -1,6 +1,6 @@
 /**
  * CityPlus — LoginScreen.js
- * Google Sign-In via expo-auth-session — no SHA-1, no androidClientId needed.
+ * Google Sign-In via expo-auth-session — requires androidClientId for native Android.
  * Works with Internal App Sharing, Play Store, everywhere.
  */
 
@@ -176,10 +176,6 @@ export default function LoginScreen() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // ── Google Sign-In — native SDK (@react-native-google-signin/google-signin) ─
-  // GoogleSignin.configure() is called at module level above.
-  // No browser, no redirect URI, no ERR_QUIC_PROTOCOL_ERROR.
-
   // ── Entrance animations ───────────────────────────────────────────────────
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoY       = useRef(new Animated.Value(-24)).current;
@@ -253,10 +249,15 @@ export default function LoginScreen() {
 
   // ── Google Sign-In handler ────────────────────────────────────────────────
   // ── expo-auth-session Google Sign-In ─────────────────────────────────────
-  // No SHA-1, no androidClientId, no DEVELOPER_ERROR.
-  // Works with Internal App Sharing and Play Store installs.
+  // IMPORTANT: The proxy flow (useProxy:true / auth.expo.io redirect) requires
+  // the WEB OAuth client ID — NOT the Android client ID.
+  // Android client IDs authenticate via package name + SHA-1 fingerprint and
+  // do NOT accept redirect URIs, which causes redirect_uri_mismatch.
+  //
+  // Also make sure https://auth.expo.io/@jai234/cityplus is added to
+  // "Authorised redirect URIs" on your Web client in Google Cloud Console.
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    webClientId:  GOOGLE_WEB_CLIENT_ID,
+    clientId:    GOOGLE_WEB_CLIENT_ID,   // Web client ID only for proxy flow
     scopes: ['profile', 'email'],
     redirectUri: 'https://auth.expo.io/@jai234/cityplus',
   });
