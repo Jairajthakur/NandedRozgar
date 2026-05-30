@@ -20,8 +20,8 @@ import { useAuth } from '../context/AuthContext';
 // Required for expo-auth-session to complete the redirect back into the app
 WebBrowser.maybeCompleteAuthSession();
 
-// Web Client ID only — no SHA-1, no androidClientId needed
-const GOOGLE_WEB_CLIENT_ID = '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com';
+const GOOGLE_WEB_CLIENT_ID     = '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com';
+const GOOGLE_ANDROID_CLIENT_ID = '947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com';
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const ORANGE      = '#f97316';
@@ -256,7 +256,8 @@ export default function LoginScreen() {
   // No SHA-1, no androidClientId, no DEVELOPER_ERROR.
   // Works with Internal App Sharing and Play Store installs.
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    webClientId: GOOGLE_WEB_CLIENT_ID,
+    webClientId:     GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     scopes: ['profile', 'email'],
   });
 
