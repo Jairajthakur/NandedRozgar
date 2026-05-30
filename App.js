@@ -578,6 +578,38 @@ function RootNavigator() {
     return unsub;
   }, []);
 
+  // ── Deep-link listener: cityplus://google-auth ──────────────────────────────
+  // Fires after backend /auth/google/callback redirects to cityplus://google-auth
+  // Calls global.__googleAuthHandler registered by LoginScreen
+  React.useEffect(() => {
+    function handleGoogleDeepLink(event) {
+      const url = event.url || '';
+      if (!url.startsWith('cityplus://google-auth')) return;
+
+      const query = url.includes('?') ? url.split('?')[1] : '';
+      const params = {};
+      query.split('&').forEach(pair => {
+        const [k, v] = pair.split('=');
+        if (k) params[decodeURIComponent(k)] = decodeURIComponent(v || '');
+      });
+
+      if (typeof global.__googleAuthHandler === 'function') {
+        if (params.access_token) {
+          global.__googleAuthHandler(params.access_token, null);
+        } else {
+          global.__googleAuthHandler(null, params.error || 'Google sign-in failed.');
+        }
+      }
+    }
+
+    const sub = Linking.addEventListener('url', handleGoogleDeepLink);
+    Linking.getInitialURL().then(url => {
+      if (url) handleGoogleDeepLink({ url });
+    }).catch(() => {});
+
+    return () => sub.remove();
+  }, []);
+
   // ── Deep-link listener: cityplus://payment/callback ────────────────────────
   // Fires when the system browser redirects back to the app after Cashfree
   // completes (or cancels) a payment. Parses the query params that
