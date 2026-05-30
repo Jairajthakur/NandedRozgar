@@ -31,7 +31,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
@@ -41,6 +41,13 @@ WebBrowser.maybeCompleteAuthSession();
 
 // Web Client ID — type 3, no SHA-1 fingerprint required
 const WEB_CLIENT_ID = '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com';
+
+// Google OAuth endpoints
+const GOOGLE_DISCOVERY = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenEndpoint:         'https://oauth2.googleapis.com/token',
+  revocationEndpoint:    'https://oauth2.googleapis.com/revoke',
+};
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const ORANGE      = '#f97316';
@@ -195,20 +202,31 @@ export default function LoginScreen() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // ── expo-auth-session Google hook ─────────────────────────────────────────
-  // webClientId only — no androidClientId — so it always uses the Web OAuth
-  // flow (Chrome Custom Tab). No SHA-1 fingerprint needed whatsoever.
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    webClientId: WEB_CLIENT_ID,
-    scopes: ['profile', 'email'],
-  });
+  // ── expo-auth-session Google — pure browser OAuth (no native SDK, no SHA-1) ─
+  // Uses AuthSession.useAuthRequest directly (NOT Google.useAuthRequest).
+  // Google.useAuthRequest internally picks the native SDK on Android → Error 10.
+  // AuthSession.useAuthRequest always opens a Chrome Custom Tab → no SHA-1 needed.
+  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'cityplus', path: 'google-auth' });
+
+  const [googleRequest, googleResponse, googlePromptAsync] = AuthSession.useAuthRequest(
+    {
+      clientId:             WEB_CLIENT_ID,
+      redirectUri,
+      scopes:               ['openid', 'profile', 'email'],
+      responseType:         AuthSession.ResponseType.Token,
+      usePKCE:              false,
+    },
+    GOOGLE_DISCOVERY,
+  );
 
   // Fires whenever the OAuth tab returns a result
   useEffect(() => {
     if (!googleResponse) return;
 
     if (googleResponse.type === 'success') {
-      const accessToken = googleResponse.authentication?.accessToken;
+      // Token flow returns access_token in params
+      const accessToken = googleResponse.authentication?.accessToken
+                       || googleResponse.params?.access_token;
       if (accessToken) {
         _finishNativeGoogleSignIn(accessToken);
       } else {
@@ -221,7 +239,6 @@ export default function LoginScreen() {
       triggerShake();
       setGoogleLoading(false);
     } else if (googleResponse.type === 'dismiss' || googleResponse.type === 'cancel') {
-      // User closed the tab — silent
       setGoogleLoading(false);
     }
   }, [googleResponse]);
@@ -358,10 +375,9 @@ export default function LoginScreen() {
     }
 
     // ── NATIVE: Chrome Custom Tab via expo-auth-session ───────────────────
-    // Log the redirectUri once so you can register it in Google Cloud Console
-    if (__DEV__ && googleRequest?.redirectUri) {
-      console.log('[Google OAuth] redirectUri =', googleRequest.redirectUri);
-    }
+    // IMPORTANT: copy this redirectUri into Google Cloud Console →
+    // Credentials → Web client (vs3scmgk...) → Authorized redirect URIs
+    console.log('[CityPlus] Google OAuth redirectUri:', redirectUri);
 
     if (!googleRequest) {
       setError('Google Sign-In is initialising, please try again.');
