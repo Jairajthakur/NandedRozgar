@@ -88,7 +88,12 @@ export default ({ config }) => ({
     // @react-native-firebase/app is included only when google-services.json exists
     // This prevents expo config from failing during CI before the file is written
     ...(require('fs').existsSync('./google-services.json') ? ["@react-native-firebase/app"] : []),
-    // @react-native-google-signin removed — using expo-auth-session instead
+    [
+      "@react-native-google-signin/google-signin",
+      {
+        iosUrlScheme: "com.googleusercontent.apps.947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas",
+      }
+    ],
   ],
 
   extra: {
