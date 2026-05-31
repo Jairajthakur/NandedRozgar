@@ -414,16 +414,23 @@ router.get('/google/callback', (req, res) => {
   }
 
   const encodedToken = encodeURIComponent(access_token);
-  const nativeHref   = JSON.stringify(`${NATIVE_SCHEME}?access_token=${encodedToken}`);
-  const webHref      = JSON.stringify(`${appUrl}/?access_token=${encodedToken}`);
+
+  // Android Intent URL — the ONLY reliable way to open a custom-scheme deep link
+  // from Chrome on Android. window.location=cityplus:// is blocked by Chrome.
+  // Format: intent://<host>/<path>#Intent;scheme=<scheme>;package=<pkg>;end
+  const intentUrl =
+    `intent://google-auth?access_token=${encodedToken}` +
+    `#Intent;scheme=cityplus;package=com.cityplus.app;end`;
+
+  const fallbackUrl = JSON.stringify(`${appUrl}/`);
+  const intentStr   = JSON.stringify(intentUrl);
 
   res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'");
   return res.send(
     `<!DOCTYPE html><html><head><title>Signing in\u2026</title></head><body>` +
     `<script>` +
-    `var n=${nativeHref},w=${webHref};` +
-    `window.location=n;` +
-    `setTimeout(function(){window.location=w;},1000);` +
+    `window.location=${intentStr};` +
+    `setTimeout(function(){window.location=${fallbackUrl};},2000);` +
     `</script>` +
     `<p style="font-family:sans-serif;text-align:center;margin-top:40px">` +
     `Signing you in\u2026 please wait.</p>` +
