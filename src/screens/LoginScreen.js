@@ -262,20 +262,50 @@ export default function LoginScreen() {
     setGoogleLoading(true);
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const userInfo = await GoogleSignin.signIn();
-      const idToken = userInfo?.data?.idToken ?? userInfo?.idToken;
-      if (!idToken) throw new Error('No ID token returned from Google.');
+      const response = await GoogleSignin.signIn();
+
+      // v14 API: signIn() returns { type, data } instead of throwing for cancel
+      if (!response || response.type === 'cancelled' || response.type === 'noSavedCredentialFound') {
+        setGoogleLoading(false);
+        return; // silent — user dismissed the picker
+      }
+
+      if (response.type !== 'success') {
+        setError(`Sign-in failed (type: ${response.type})`);
+        triggerShake();
+        setGoogleLoading(false);
+        return;
+      }
+
+      const idToken = response?.data?.idToken ?? response?.idToken;
+      if (!idToken) {
+        // idToken is null when webClientId is wrong or misconfigured
+        setError('Google config error: no ID token. Check webClientId in eas.json.');
+        triggerShake();
+        setGoogleLoading(false);
+        return;
+      }
       await handleGoogleSuccess(idToken);
     } catch (e) {
+      // Show the actual error code so we can diagnose
+      const code = e.code ?? 'unknown';
+      const msg  = e.message ?? 'Unknown error';
+      console.warn('[Google SignIn Error]', 'code:', code, 'message:', msg);
+
       if (e.code === statusCodes.SIGN_IN_CANCELLED) {
         // user cancelled — no error shown
       } else if (e.code === statusCodes.IN_PROGRESS) {
-        // already signing in
+        setError('Sign-in already in progress.');
+        triggerShake();
       } else if (e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        setError('Google Play Services not available.');
+        setError('Google Play Services not available. Please update Google Play Services.');
+        triggerShake();
+      } else if (String(e.code) === '10' || String(msg).includes('DEVELOPER_ERROR')) {
+        // Code 10 = DEVELOPER_ERROR = SHA-1 fingerprint or package name mismatch
+        setError('Google config error (code 10): SHA-1 fingerprint or package name mismatch. Rebuild required.');
         triggerShake();
       } else {
-        setError('Google sign-in failed. Please try again.');
+        setError(`Google sign-in failed (code: ${code}). ${msg}`);
         triggerShake();
       }
       setGoogleLoading(false);
