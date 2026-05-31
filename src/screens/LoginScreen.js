@@ -1,7 +1,8 @@
 /**
  * CityPlus — LoginScreen.js
- * Google Sign-In via direct OAuth + cityplus:// deep link (no expo-auth-session).
- * Works with Internal App Sharing, Play Store, everywhere.
+ * FIX: Google Sign-In now works on BOTH web (Firebase popup) and native Android/iOS.
+ * Root cause: @react-native-google-signin/google-signin requires Google Play Services
+ * which is not available in web browsers — replaced with Firebase web signInWithPopup.
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -13,9 +14,49 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
+
+// ── Native Google Sign-In (Android/iOS only — NOT imported on web) ─────────────
+// We do a lazy conditional import so the web bundle never tries to load the
+// native module (which would crash the web build immediately).
+let GoogleSignin = null;
+let statusCodes  = null;
+if (Platform.OS !== 'web') {
+  const gsModule = require('@react-native-google-signin/google-signin');
+  GoogleSignin   = gsModule.GoogleSignin;
+  statusCodes    = gsModule.statusCodes;
+}
+
+// ── Firebase Web SDK (web only) ───────────────────────────────────────────────
+// Only initialised when running in a browser. Tree-shaken on native.
+let _webAuth            = null;
+let GoogleAuthProvider  = null;
+let signInWithPopup     = null;
+
+if (Platform.OS === 'web') {
+  // Dynamic require so Metro bundler doesn't complain on native builds
+  const firebaseApp  = require('firebase/app');
+  const firebaseAuth = require('firebase/auth');
+
+  GoogleAuthProvider = firebaseAuth.GoogleAuthProvider;
+  signInWithPopup    = firebaseAuth.signInWithPopup;
+
+  const firebaseConfig = {
+    apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY     || 'AIzaSyD_placeholder',
+    authDomain:        'cityplus-7ac75.firebaseapp.com',
+    projectId:         'cityplus',
+    storageBucket:     'cityplus-7ac75.appspot.com',
+    messagingSenderId: '1012993473745',
+    appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID      || '1:1012993473745:web:placeholder',
+  };
+
+  const apps = firebaseApp.getApps();
+  const app  = apps.length === 0
+    ? firebaseApp.initializeApp(firebaseConfig)
+    : apps[0];
+  _webAuth = firebaseAuth.getAuth(app);
+}
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -26,7 +67,6 @@ const GOOGLE_WEB_CLIENT_ID =
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const ORANGE      = '#f97316';
-const ORANGE2     = '#fb923c';
 const ORANGE_SOFT = '#fff7ed';
 const BG          = '#fbf9f6';
 const CARD        = '#ffffff';
@@ -160,13 +200,13 @@ export default function LoginScreen() {
     forgotPassword, loginWithBiometrics,
   } = useAuth();
 
-  const [tab, setTab]                 = useState('login');
-  const [form, setForm]               = useState({ email: '', password: '', name: '', phone: '', confirmPassword: '' });
-  const [loading, setLoading]         = useState(false);
+  const [tab, setTab]                     = useState('login');
+  const [form, setForm]                   = useState({ email: '', password: '', name: '', phone: '', confirmPassword: '' });
+  const [loading, setLoading]             = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError]             = useState('');
-  const [showPass, setShowPass]       = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [error, setError]                 = useState('');
+  const [showPass, setShowPass]           = useState(false);
+  const [showConfirm, setShowConfirm]     = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [forgotVisible, setForgotVisible] = useState(false);
@@ -216,6 +256,14 @@ export default function LoginScreen() {
     ).start();
 
     checkBiometrics();
+
+    // Configure native Google Sign-In on Android/iOS only
+    if (!IS_WEB && GoogleSignin) {
+      GoogleSignin.configure({
+        webClientId: GOOGLE_WEB_CLIENT_ID,
+        offlineAccess: false,
+      });
+    }
   }, []);
 
   async function checkBiometrics() {
@@ -248,19 +296,55 @@ export default function LoginScreen() {
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
-  // ── Native Google Sign-In (no browser, no redirects) ────────────────────
-  // Configure once on mount
-  useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: GOOGLE_WEB_CLIENT_ID,
-      offlineAccess: false,
-    });
-  }, []);
-
+  // ── Google Sign-In handler ────────────────────────────────────────────────
+  // Routes to Firebase popup on web, native GoogleSignin SDK on Android/iOS.
   async function handleGooglePress() {
     setError('');
     setGoogleLoading(true);
+
     try {
+      // ── WEB: Firebase signInWithPopup (no Play Services needed) ──────────
+      if (IS_WEB) {
+        if (!_webAuth || !GoogleAuthProvider || !signInWithPopup) {
+          setError('Google Sign-In is not configured for web. Please check Firebase setup.');
+          triggerShake();
+          setGoogleLoading(false);
+          return;
+        }
+        const provider = new GoogleAuthProvider();
+        provider.addScope('profile');
+        provider.addScope('email');
+
+        const result     = await signInWithPopup(_webAuth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        const accessToken = credential?.accessToken;
+
+        if (!accessToken) {
+          setError('Google sign-in failed: no access token returned.');
+          triggerShake();
+          setGoogleLoading(false);
+          return;
+        }
+
+        // AuthContext.loginWithGoogle detects non-JWT → sends as accessToken
+        // Backend /api/auth/google verifies via Google userinfo endpoint
+        const r = await loginWithGoogle(accessToken);
+        setGoogleLoading(false);
+        if (!r?.ok) {
+          setError(r?.error || 'Google sign-in failed');
+          triggerShake();
+        }
+        return;
+      }
+
+      // ── NATIVE: @react-native-google-signin (Android/iOS only) ───────────
+      if (!GoogleSignin) {
+        setError('Google Sign-In is not available on this platform.');
+        triggerShake();
+        setGoogleLoading(false);
+        return;
+      }
+
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const response = await GoogleSignin.signIn();
 
@@ -279,53 +363,65 @@ export default function LoginScreen() {
 
       const idToken = response?.data?.idToken ?? response?.idToken;
       if (!idToken) {
-        // idToken is null when webClientId is wrong or misconfigured
         setError('Google config error: no ID token. Check webClientId in eas.json.');
         triggerShake();
         setGoogleLoading(false);
         return;
       }
-      await handleGoogleSuccess(idToken);
+
+      // idToken is a JWT (has 3 dots) → AuthContext sends as idToken
+      const r = await loginWithGoogle(idToken);
+      setGoogleLoading(false);
+      if (!r?.ok) {
+        setError(r?.error || 'Google sign-in failed');
+        triggerShake();
+      }
+
     } catch (e) {
-      // Show the actual error code so we can diagnose
       const code = e.code ?? 'unknown';
       const msg  = e.message ?? 'Unknown error';
       console.warn('[Google SignIn Error]', 'code:', code, 'message:', msg);
 
-      if (e.code === statusCodes.SIGN_IN_CANCELLED) {
-        // user cancelled — no error shown
-      } else if (e.code === statusCodes.IN_PROGRESS) {
-        setError('Sign-in already in progress.');
-        triggerShake();
-      } else if (e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        setError('Google Play Services not available. Please update Google Play Services.');
-        triggerShake();
-      } else if (String(e.code) === '10' || String(msg).includes('DEVELOPER_ERROR')) {
-        // Code 10 = DEVELOPER_ERROR = SHA-1 fingerprint or package name mismatch
-        setError('Google config error (code 10): SHA-1 fingerprint or package name mismatch. Rebuild required.');
-        triggerShake();
+      // Web popup errors
+      if (IS_WEB) {
+        if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+          // User closed popup — silent
+        } else if (code === 'auth/popup-blocked') {
+          setError('Popup was blocked by your browser. Please allow popups for this site and try again.');
+          triggerShake();
+        } else if (code === 'auth/unauthorized-domain') {
+          setError('This domain is not authorised for Google Sign-In. Please contact support.');
+          triggerShake();
+        } else {
+          setError(`Google sign-in failed: ${msg}`);
+          triggerShake();
+        }
+        setGoogleLoading(false);
+        return;
+      }
+
+      // Native errors
+      if (statusCodes) {
+        if (e.code === statusCodes.SIGN_IN_CANCELLED) {
+          // silent
+        } else if (e.code === statusCodes.IN_PROGRESS) {
+          setError('Sign-in already in progress.');
+          triggerShake();
+        } else if (e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+          setError('Google Play Services not available. Please update Google Play Services.');
+          triggerShake();
+        } else if (String(e.code) === '10' || String(msg).includes('DEVELOPER_ERROR')) {
+          setError('Google config error (code 10): SHA-1 fingerprint or package name mismatch. Rebuild required.');
+          triggerShake();
+        } else {
+          setError(`Google sign-in failed (code: ${code}). ${msg}`);
+          triggerShake();
+        }
       } else {
-        setError(`Google sign-in failed (code: ${code}). ${msg}`);
+        setError(`Google sign-in failed: ${msg}`);
         triggerShake();
       }
       setGoogleLoading(false);
-    }
-  }
-
-  async function handleGoogleSuccess(idToken) {
-    if (!idToken) {
-      setError('Google sign-in failed: no token returned.');
-      setGoogleLoading(false);
-      triggerShake();
-      return;
-    }
-    setError('');
-    // Backend accepts accessToken and verifies via Google userinfo endpoint
-    const r = await loginWithGoogle(idToken);
-    setGoogleLoading(false);
-    if (!r?.ok) {
-      setError(r?.error || 'Google sign-in failed');
-      triggerShake();
     }
   }
 
@@ -731,10 +827,10 @@ const S = StyleSheet.create({
   strSeg:   { flex: 1, height: 3, borderRadius: 2 },
   strLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 4 },
 
-  termsRow: { flexDirection: 'row', alignItems: 'flex-start', marginHorizontal: 20, marginBottom: 16, gap: 10 },
-  chk:      { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: BORDER, alignItems: 'center', justifyContent: 'center', marginTop: 1, backgroundColor: '#fff' },
-  chkOn:    { backgroundColor: ORANGE, borderColor: ORANGE },
-  termsTxt: { fontSize: 12, color: TEXT_DIM, flex: 1, lineHeight: 18 },
+  termsRow:  { flexDirection: 'row', alignItems: 'flex-start', marginHorizontal: 20, marginBottom: 16, gap: 10 },
+  chk:       { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: BORDER, alignItems: 'center', justifyContent: 'center', marginTop: 1, backgroundColor: '#fff' },
+  chkOn:     { backgroundColor: ORANGE, borderColor: ORANGE },
+  termsTxt:  { fontSize: 12, color: TEXT_DIM, flex: 1, lineHeight: 18 },
   termsLink: { color: ORANGE, fontWeight: '700' },
 
   errBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fef2f2', borderRadius: 12, padding: 12, marginHorizontal: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(220,38,38,0.2)' },
@@ -748,7 +844,7 @@ const S = StyleSheet.create({
   bioBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.3)', backgroundColor: ORANGE_SOFT, borderRadius: 14, paddingVertical: 12, marginHorizontal: 20, marginTop: 12 },
   bioTxt: { color: ORANGE, fontWeight: '700', fontSize: 13 },
 
-  switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 18, marginBottom: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: BORDER, marginHorizontal: 20 },
+  switchRow:  { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 18, marginBottom: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: BORDER, marginHorizontal: 20 },
   switchTxt:  { fontSize: 13, color: TEXT_DIM },
   switchLink: { fontSize: 13, fontWeight: '800', color: ORANGE },
 
