@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import { Linking } from 'react-native';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../context/AuthContext';
 
@@ -248,44 +248,42 @@ export default function LoginScreen() {
     outputRange: TABS.map((_, i) => `${(i / tabCount) * 100}%`),
   });
 
-  // ── Google Sign-In via deep link ─────────────────────────────────────────
-  // Flow: app opens Google OAuth URL in browser → Google redirects to
-  // https://thecityplus.in/auth/google/callback → backend redirects to
-  // cityplus://google-auth?access_token=... → App.js Linking listener
-  // calls global.__googleAuthHandler(accessToken).
-
-  // Register handler so App.js Linking listener can call back into this screen
+  // ── Native Google Sign-In (no browser, no redirects) ────────────────────
+  // Configure once on mount
   useEffect(() => {
-    global.__googleAuthHandler = (accessToken, error) => {
-      if (error) {
-        setError(error);
-        setGoogleLoading(false);
-        triggerShake();
-      } else {
-        handleGoogleSuccess(accessToken);
-      }
-    };
-    return () => { global.__googleAuthHandler = null; };
+    GoogleSignin.configure({
+      webClientId: GOOGLE_WEB_CLIENT_ID,
+      offlineAccess: false,
+    });
   }, []);
 
   async function handleGooglePress() {
     setError('');
     setGoogleLoading(true);
-    const redirectUri = encodeURIComponent('https://thecityplus.in/auth/google/callback');
-    const scope = encodeURIComponent('openid profile email');
-    const googleUrl =
-      `https://accounts.google.com/o/oauth2/v2/auth` +
-      `?client_id=${GOOGLE_WEB_CLIENT_ID}` +
-      `&redirect_uri=${redirectUri}` +
-      `&response_type=token` +
-      `&scope=${scope}` +
-      `&access_type=online` +
-      `&prompt=select_account`;
-    await Linking.openURL(googleUrl);
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo?.data?.idToken ?? userInfo?.idToken;
+      if (!idToken) throw new Error('No ID token returned from Google.');
+      await handleGoogleSuccess(idToken);
+    } catch (e) {
+      if (e.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user cancelled — no error shown
+      } else if (e.code === statusCodes.IN_PROGRESS) {
+        // already signing in
+      } else if (e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setError('Google Play Services not available.');
+        triggerShake();
+      } else {
+        setError('Google sign-in failed. Please try again.');
+        triggerShake();
+      }
+      setGoogleLoading(false);
+    }
   }
 
-  async function handleGoogleSuccess(accessToken) {
-    if (!accessToken) {
+  async function handleGoogleSuccess(idToken) {
+    if (!idToken) {
       setError('Google sign-in failed: no token returned.');
       setGoogleLoading(false);
       triggerShake();
@@ -293,7 +291,7 @@ export default function LoginScreen() {
     }
     setError('');
     // Backend accepts accessToken and verifies via Google userinfo endpoint
-    const r = await loginWithGoogle(accessToken);
+    const r = await loginWithGoogle(idToken);
     setGoogleLoading(false);
     if (!r?.ok) {
       setError(r?.error || 'Google sign-in failed');
