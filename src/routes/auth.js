@@ -390,16 +390,15 @@ router.get('/google/callback', (req, res) => {
     const encodedMsg = encodeURIComponent(rawMsg);
 
     // JSON-encode the full URL strings so they are safe JS string literals.
-    const nativeHref = JSON.stringify(`${NATIVE_SCHEME}?error=${encodedMsg}`);
-    const webHref    = JSON.stringify(`${appUrl}/?error=${encodedMsg}`);
+    const errorIntentUrl = JSON.stringify(
+      `intent://google-auth?error=${encodedMsg}` +
+      `#Intent;scheme=cityplus;package=com.cityplus.app;end`
+    );
 
     res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'");
     return res.send(
       `<!DOCTYPE html><html><head><title>Redirecting\u2026</title></head><body>` +
-      `<script>` +
-      `var n=${nativeHref},w=${webHref};` +
-      `window.location=n;setTimeout(function(){window.location=w;},1000);` +
-      `</script>` +
+      `<script>window.location=${errorIntentUrl};</script>` +
       `<p>Redirecting back to app\u2026</p>` +
       `</body></html>`
     );
@@ -428,10 +427,7 @@ router.get('/google/callback', (req, res) => {
   res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'");
   return res.send(
     `<!DOCTYPE html><html><head><title>Signing in\u2026</title></head><body>` +
-    `<script>` +
-    `window.location=${intentStr};` +
-    `setTimeout(function(){window.location=${fallbackUrl};},2000);` +
-    `</script>` +
+    `<script>window.location=${intentStr};</script>` +
     `<p style="font-family:sans-serif;text-align:center;margin-top:40px">` +
     `Signing you in\u2026 please wait.</p>` +
     `</body></html>`
