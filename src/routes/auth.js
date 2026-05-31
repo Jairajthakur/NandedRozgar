@@ -244,7 +244,7 @@ router.post('/google', loginLimiter, async (req, res) => {
 
         // Validate the audience belongs to our project (project number prefix check)
         // This prevents tokens from completely unrelated Google projects being accepted.
-        const OUR_PROJECT_NUMBER = '947711727855';
+        const OUR_PROJECT_NUMBER = '1012993473745';
         if (!String(payload.aud || '').startsWith(OUR_PROJECT_NUMBER) &&
             !String(payload.azp || '').startsWith(OUR_PROJECT_NUMBER)) {
           console.error(`[Google auth] token not from our project — aud: ${payload.aud}`);
