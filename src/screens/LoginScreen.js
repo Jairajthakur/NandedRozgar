@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import * as LocalAuthentication from 'expo-local-authentication';
+
 import { useAuth } from '../context/AuthContext';
 
 // ── Native Google Sign-In (Android/iOS only — NOT imported on web) ─────────────
@@ -197,7 +197,7 @@ const Field = ({ label, icon, value, onChange, placeholder, secure, rightIcon, r
 export default function LoginScreen() {
   const {
     login, register, loginWithGoogle,
-    forgotPassword, loginWithBiometrics,
+    forgotPassword,
   } = useAuth();
 
   const [tab, setTab]                     = useState('login');
@@ -208,7 +208,7 @@ export default function LoginScreen() {
   const [showPass, setShowPass]           = useState(false);
   const [showConfirm, setShowConfirm]     = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
+
   const [forgotVisible, setForgotVisible] = useState(false);
   const [forgotEmail, setForgotEmail]     = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -255,8 +255,6 @@ export default function LoginScreen() {
       ])
     ).start();
 
-    checkBiometrics();
-
     // Configure native Google Sign-In on Android/iOS only
     if (!IS_WEB && GoogleSignin) {
       GoogleSignin.configure({
@@ -265,15 +263,6 @@ export default function LoginScreen() {
       });
     }
   }, []);
-
-  async function checkBiometrics() {
-    if (IS_WEB) return;
-    try {
-      const compatible = await LocalAuthentication.hasHardwareAsync();
-      const enrolled   = await LocalAuthentication.isEnrolledAsync();
-      setBiometricAvailable(compatible && enrolled);
-    } catch {}
-  }
 
   function triggerShake() {
     shake.setValue(0);
@@ -422,20 +411,6 @@ export default function LoginScreen() {
         triggerShake();
       }
       setGoogleLoading(false);
-    }
-  }
-
-  // ── Biometric ─────────────────────────────────────────────────────────────
-  async function handleBiometric() {
-    const res = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Verify your identity',
-      fallbackLabel: 'Use password',
-    });
-    if (res.success) {
-      setLoading(true);
-      const r = await loginWithBiometrics();
-      setLoading(false);
-      if (!r?.ok) setError(r?.error || 'Biometric sign-in failed');
     }
   }
 
@@ -690,14 +665,6 @@ export default function LoginScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Biometric */}
-            {tab === 'login' && biometricAvailable && !IS_WEB && (
-              <TouchableOpacity style={S.bioBtn} onPress={handleBiometric} activeOpacity={0.8} disabled={isGoogleBusy}>
-                <Ionicons name="finger-print-outline" size={20} color={ORANGE} />
-                <Text style={S.bioTxt}>Sign in with Biometrics</Text>
-              </TouchableOpacity>
-            )}
-
             {/* Switch tab link */}
             <View style={S.switchRow}>
               {tab === 'login' ? (
@@ -841,8 +808,6 @@ const S = StyleSheet.create({
   submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ORANGE, borderRadius: 14, paddingVertical: 15, marginHorizontal: 20, shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 8 },
   submitTxt: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
 
-  bioBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.3)', backgroundColor: ORANGE_SOFT, borderRadius: 14, paddingVertical: 12, marginHorizontal: 20, marginTop: 12 },
-  bioTxt: { color: ORANGE, fontWeight: '700', fontSize: 13 },
 
   switchRow:  { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 18, marginBottom: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: BORDER, marginHorizontal: 20 },
   switchTxt:  { fontSize: 13, color: TEXT_DIM },
