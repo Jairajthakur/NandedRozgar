@@ -175,6 +175,23 @@ export default function JobDetailScreen({ route, navigation }) {
   const [saved,             setSaved]              = useState(job.is_saved || false);
   const savedScale = useRef(new Animated.Value(1)).current;
 
+  // ── Fetch full job details (description + requirements not in list API) ───
+  // The job list endpoint omits description/requirements for performance.
+  // We fetch the full record from /api/jobs/:id on mount so those sections show.
+  useEffect(() => {
+    async function fetchFullJob() {
+      try {
+        const r = await http('GET', `/api/jobs/${initial.id}`);
+        if (r?.ok && r.job) {
+          setJob(prev => ({ ...prev, ...r.job }));
+        }
+      } catch (e) {
+        console.warn('[JobDetail] fetchFullJob failed:', e.message);
+      }
+    }
+    fetchFullJob();
+  }, [initial.id]);
+
   async function toggleSave() {
     const next = !saved;
     setSaved(next);
