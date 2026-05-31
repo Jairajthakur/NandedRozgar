@@ -1,49 +1,41 @@
 {
   "project_info": {
-    "project_number": "947711727855",
-    "project_id": "cityplus-17411",
-    "storage_bucket": "cityplus-17411.firebasestorage.app"
+    "project_number": "1012993473745",
+    "project_id": "cityplus-7ac75",
+    "storage_bucket": "cityplus-7ac75.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:947711727855:android:1d8662c4f72bda091ba31a",
+        "mobilesdk_app_id": "1:1012993473745:android:988f56c3b4a131310e99f0",
         "android_client_info": {
           "package_name": "com.cityplus.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "947711727855-mulh90h37mu868ihijasbculud1bk3f5.apps.googleusercontent.com",
+          "client_id": "1012993473745-ipt582ud6vrvjuht9ah0suu7fjah0erg.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.cityplus.app",
-            "certificate_hash": "bfcb0ab0cc4e0be67f93b49e1357a5b8a45d133c"
+            "certificate_hash": "225042b74658f28b200876d25ab7d9d2d24b21b5"
           }
         },
         {
-          "client_id": "947711727855-nu2g0dv439qadfg0ocvb70apek6r8s1p.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.cityplus.app",
-            "certificate_hash": "2b42c6da3212c0e48575a98400df554f51b7c9a3"
-          }
-        },
-        {
-          "client_id": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
+          "client_id": "1012993473745-iiur989ghkd2pjsu9uuoc6ckqupkevoc.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyChJ9UWixyeRjCGDfGJtS_LBZTRcFcD5R4"
+          "current_key": "AIzaSyAv4fRCtkOcl1DxbyyRkZO9K9sbAQYHx60"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com",
+              "client_id": "1012993473745-iiur989ghkd2pjsu9uuoc6ckqupkevoc.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
