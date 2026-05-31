@@ -22,7 +22,7 @@ WebBrowser.maybeCompleteAuthSession();
 // Read from env vars set in eas.json (fallback to hardcoded for local dev)
 const GOOGLE_WEB_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
-  '947711727855-vs3scmgk4n7e73gdc2siskqd9d538tas.apps.googleusercontent.com';
+  '1012993473745-iiur989ghkd2pjsu9uuoc6ckqupkevoc.apps.googleusercontent.com';
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const ORANGE      = '#f97316';
