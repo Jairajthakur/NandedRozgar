@@ -32,6 +32,7 @@ export default ({ config }) => ({
     ],
     // Handles payment return deep links (Cashfree / Razorpay callbacks)
     intentFilters: [
+      // ── Payment callback deep link ──────────────────────────────────────
       {
         action: "VIEW",
         autoVerify: true,
@@ -44,13 +45,57 @@ export default ({ config }) => ({
         ],
         category: ["BROWSABLE", "DEFAULT"],
       },
-      // Handle cityplus:// scheme for in-app deep links
+
+      // ── Android App Links — enables Google to index app content ─────────
+      // Google Search can show "Open in CityPlus" for thecityplus.in URLs
+      // Requires /.well-known/assetlinks.json on your server (handled by seo.js)
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          { scheme: "https", host: "thecityplus.in", pathPrefix: "/jobs" },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          { scheme: "https", host: "thecityplus.in", pathPrefix: "/rooms" },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          { scheme: "https", host: "thecityplus.in", pathPrefix: "/vehicles" },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          { scheme: "https", host: "thecityplus.in", pathPrefix: "/buy-sell" },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          { scheme: "https", host: "www.thecityplus.in" },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+
+      // ── cityplus:// custom scheme for in-app deep links ──────────────────
       {
         action: "VIEW",
         data: [{ scheme: "cityplus" }],
         category: ["BROWSABLE", "DEFAULT"],
       },
-
     ],
   },
 
