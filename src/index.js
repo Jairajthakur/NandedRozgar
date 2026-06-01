@@ -127,6 +127,8 @@ app.use('/api/analytics',  require('./routes/analytics'));
 app.use('/api/seeker',     require('./routes/seeker'));
 app.use('/api/promotions', require('./routes/promotions'));
 app.use('/api/coupons',    require('./routes/coupons'));
+const { router: seoRouter } = require('./routes/seo');
+app.use('/', seoRouter);
 
 // ── App version check — used by useAppUpdate.js for in-app update prompts ─────
 // Bump versionCode here every time you publish to Play Store.
