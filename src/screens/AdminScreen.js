@@ -1211,13 +1211,44 @@ export default function AdminScreen() {
                   onChangeText={v => setCouponForm(f => ({ ...f, maxUses: v.replace(/[^0-9]/g,'') }))}
                   keyboardType="numeric"
                 />
-                <TextInput
-                  style={styles.adminInput}
-                  placeholder="Valid until (YYYY-MM-DD, blank = no expiry)"
-                  placeholderTextColor="#aaa"
-                  value={couponForm.validUntil}
-                  onChangeText={v => setCouponForm(f => ({ ...f, validUntil: v }))}
-                />
+                {/* Expiry quick-select */}
+                <Text style={{ fontSize:12, fontWeight:'700', color:'#555', marginBottom:2 }}>Expiry</Text>
+                <View style={{ flexDirection:'row', flexWrap:'wrap', gap:8 }}>
+                  {[
+                    { label:'7 days',  days:7  },
+                    { label:'15 days', days:15 },
+                    { label:'30 days', days:30 },
+                    { label:'90 days', days:90 },
+                    { label:'1 year',  days:365},
+                    { label:'Never',   days:0  },
+                  ].map(opt => {
+                    const val = opt.days === 0 ? '' : (() => {
+                      const d = new Date(); d.setDate(d.getDate() + opt.days);
+                      return d.toISOString().slice(0,10);
+                    })();
+                    const selected = couponForm.validUntil === val;
+                    return (
+                      <TouchableOpacity
+                        key={opt.label}
+                        style={{ paddingHorizontal:12, paddingVertical:7, borderRadius:8, borderWidth:1,
+                          borderColor: selected ? C.green : '#e5e7eb',
+                          backgroundColor: selected ? C.greenLight : '#fff' }}
+                        onPress={() => setCouponForm(f => ({ ...f, validUntil: val }))}
+                      >
+                        <Text style={{ fontSize:12, fontWeight:'700', color: selected ? C.green : '#555' }}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {couponForm.validUntil ? (
+                  <Text style={{ fontSize:11, color:'#6b7280', marginTop:2 }}>
+                    Expires: {new Date(couponForm.validUntil).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}
+                  </Text>
+                ) : (
+                  <Text style={{ fontSize:11, color:'#6b7280', marginTop:2 }}>No expiry — coupon active forever</Text>
+                )}
                 <TouchableOpacity
                   style={{ backgroundColor: C.green, borderRadius: 10, paddingVertical: 12, alignItems: 'center', opacity: couponLoading ? 0.6 : 1 }}
                   disabled={couponLoading}
