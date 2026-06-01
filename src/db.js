@@ -480,6 +480,24 @@ async function runMigrations() {
       `, [adminEmail, adminHash]);
     } catch (e) { console.warn('Admin seed warning:', e.message); }
 
+    // Seed WELCOME coupon — 100% off, valid 30 days from deploy, one use per user
+    try {
+      await client.query(`
+        INSERT INTO coupon_codes (code, type, value, max_uses, is_active, applies_to, valid_until)
+        VALUES ('WELCOME', 'percent', 100, NULL, TRUE, '{}', NOW() + INTERVAL '30 days')
+        ON CONFLICT (code) DO UPDATE SET
+          type      = 'percent',
+          value     = 100,
+          is_active = TRUE,
+          valid_until = CASE
+            WHEN coupon_codes.valid_until IS NULL OR coupon_codes.valid_until < NOW()
+            THEN NOW() + INTERVAL '30 days'
+            ELSE coupon_codes.valid_until
+          END;
+      `);
+      console.log('✅ WELCOME coupon seeded (100% off, 30 days).');
+    } catch (e) { console.warn('WELCOME coupon seed warning:', e.message); }
+
     console.log('✅ Database migrations complete.');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
