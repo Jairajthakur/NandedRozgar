@@ -128,6 +128,22 @@ app.use('/api/seeker',     require('./routes/seeker'));
 app.use('/api/promotions', require('./routes/promotions'));
 app.use('/api/coupons',    require('./routes/coupons'));
 
+// ── App version check — used by useAppUpdate.js for in-app update prompts ─────
+// Bump versionCode here every time you publish to Play Store.
+// Set forceUpdate: true to block users on old versions.
+app.get('/api/app/version', (_req, res) => {
+  res.json({
+    ok: true,
+    android: {
+      versionCode:   parseInt(process.env.ANDROID_VERSION_CODE || '1'),
+      versionName:   process.env.ANDROID_VERSION_NAME  || '1.0.0',
+      forceUpdate:   process.env.FORCE_UPDATE === 'true',
+      updateMessage: process.env.UPDATE_MESSAGE
+        || 'A new version of CityPlus is available with improvements and bug fixes. Update now for the best experience!',
+    },
+  });
+});
+
 // Health check
 app.get('/health', (_req, res) => res.json({ ok: true, status: 'CityPlus API running 🚀' }));
 
