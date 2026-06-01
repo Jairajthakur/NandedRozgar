@@ -35,7 +35,9 @@
         "EXPO_PUBLIC_API_URL": "https://thecityplus.in",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1012993473745-iiur989ghkd2pjsu9uuoc6ckqupkevoc.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "1012993473745-ipt582ud6vrvjuht9ah0suu7fjah0erg.apps.googleusercontent.com",
-        "EXPO_PUBLIC_CASHFREE_MODE": "production"
+        "EXPO_PUBLIC_CASHFREE_MODE": "production",
+        "ANDROID_VERSION_CODE": "$ANDROID_VERSION_CODE",
+        "ANDROID_VERSION_NAME": "$ANDROID_VERSION_NAME"
       }
     },
     "web": {
