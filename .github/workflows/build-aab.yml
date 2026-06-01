@@ -116,7 +116,7 @@ jobs:
         # Automatically updates ANDROID_VERSION_CODE on Railway so the
         # backend /api/app/version endpoint returns the new version and
         # users get prompted to update — no manual Railway config needed.
-        if: ${{ secrets.RAILWAY_API_TOKEN != '' && secrets.RAILWAY_SERVICE_ID != '' }}
+        # Skips gracefully if RAILWAY_API_TOKEN or RAILWAY_SERVICE_ID are not set.
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
           RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
@@ -126,12 +126,17 @@ jobs:
           FORCE_UPDATE: ${{ inputs.force_update || 'false' }}
           UPDATE_MESSAGE: ${{ inputs.update_message || '' }}
         run: |
+          if [ -z "$RAILWAY_API_TOKEN" ] || [ -z "$RAILWAY_SERVICE_ID" ]; then
+            echo "⚠️  RAILWAY_API_TOKEN or RAILWAY_SERVICE_ID not set — skipping Railway update."
+            exit 0
+          fi
+
           echo "📦 Updating Railway env: ANDROID_VERSION_CODE=$NEW_VERSION_CODE"
 
           # Build variables JSON
-          VARS="{"ANDROID_VERSION_CODE": "$NEW_VERSION_CODE", "ANDROID_VERSION_NAME": "$NEW_VERSION_NAME", "FORCE_UPDATE": "$FORCE_UPDATE""
+          VARS="{\"ANDROID_VERSION_CODE\": \"$NEW_VERSION_CODE\", \"ANDROID_VERSION_NAME\": \"$NEW_VERSION_NAME\", \"FORCE_UPDATE\": \"$FORCE_UPDATE\""
           if [ -n "$UPDATE_MESSAGE" ]; then
-            VARS="$VARS, "UPDATE_MESSAGE": "$UPDATE_MESSAGE""
+            VARS="$VARS, \"UPDATE_MESSAGE\": \"$UPDATE_MESSAGE\""
           fi
           VARS="$VARS}"
 
@@ -140,13 +145,13 @@ jobs:
             -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{
-              "query": "mutation UpsertVariables(\$input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: \$input) }",
-              "variables": {
-                "input": {
-                  "projectId": null,
-                  "serviceId": "$RAILWAY_SERVICE_ID",
-                  "environmentId": "$RAILWAY_ENVIRONMENT",
-                  "variables": $VARS
+              \"query\": \"mutation UpsertVariables(\$input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: \$input) }\",
+              \"variables\": {
+                \"input\": {
+                  \"projectId\": null,
+                  \"serviceId\": \"$RAILWAY_SERVICE_ID\",
+                  \"environmentId\": \"$RAILWAY_ENVIRONMENT\",
+                  \"variables\": $VARS
                 }
               }
             }")
