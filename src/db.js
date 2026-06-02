@@ -5,17 +5,12 @@ const requireSsl = process.env.NODE_ENV === 'production'
   || dbUrl.includes('railway.internal')
   || dbUrl.includes('railway.app');
 
-// ── Connection pool — tuned for Railway's free tier (max 20 PG connections) ───
-// max:20       — never exhaust Railway's connection limit
-// idleTimeout  — release idle connections after 30 s to avoid "too many clients"
-// connectionTimeout — fail fast if pool is saturated; caller gets a 503 quickly
 const pool = new Pool({
   connectionString:  dbUrl,
   ssl:               requireSsl ? { rejectUnauthorized: false } : false,
   max:               20,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
-  // Keep connections alive through Railway's 60s idle TCP cut-off
   keepAlive:         true,
   keepAliveInitialDelayMillis: 10_000,
 });
@@ -24,40 +19,88 @@ pool.on('error', (err) => {
   console.error('Unexpected pool client error:', err.message);
 });
 
-// ── In-memory cache for hot read-only endpoints ───────────────────────────────
-// Stores { data, expiresAt } keyed by a string.  Zero external dependencies.
-const _cache = new Map();
+// ── Cache: Redis (if REDIS_URL set) with seamless in-memory fallback ──────────
+// When Redis is available, cache survives deployments and is shared across
+// multiple Railway instances. When it's not, we fall back to the original
+// in-memory Map so nothing breaks in development or on free-tier deploys.
+//
+// To enable Redis on Railway:
+//   1. Railway dashboard → your project → + New → Database → Add Redis
+//   2. Railway auto-injects REDIS_URL into your service — no extra config needed.
 
-/**
- * cache.get(key) → value | undefined
- * cache.set(key, value, ttlMs)
- * cache.del(key) — or cache.delPrefix(prefix) to bust a whole namespace
- */
+let _redisClient = null;
+let _redisReady  = false;
+
+async function _initRedis() {
+  const url = process.env.REDIS_URL || process.env.REDIS_PRIVATE_URL;
+  if (!url) return;
+  try {
+    const { createClient } = require('redis');
+    const client = createClient({ url, socket: { reconnectStrategy: (n) => Math.min(n * 100, 3000) } });
+    client.on('error', (e) => console.warn('[Redis] error:', e.message));
+    client.on('ready', () => { _redisReady = true;  console.log('[Redis] connected ✅'); });
+    client.on('end',   () => { _redisReady = false; console.warn('[Redis] disconnected — falling back to in-memory cache'); });
+    await client.connect();
+    _redisClient = client;
+  } catch (e) {
+    console.warn('[Redis] init failed, using in-memory cache:', e.message);
+  }
+}
+_initRedis();
+
+// In-memory fallback
+const _mem   = new Map();
+const _memTtl = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, exp] of _memTtl) { if (now > exp) { _mem.delete(k); _memTtl.delete(k); } }
+}, 120_000).unref();
+
 const cache = {
-  get(key) {
-    const entry = _cache.get(key);
-    if (!entry) return undefined;
-    if (Date.now() > entry.expiresAt) { _cache.delete(key); return undefined; }
-    return entry.data;
-  },
-  set(key, data, ttlMs = 10_000) {
-    _cache.set(key, { data, expiresAt: Date.now() + ttlMs });
-  },
-  del(key) { _cache.delete(key); },
-  delPrefix(prefix) {
-    for (const k of _cache.keys()) {
-      if (k.startsWith(prefix)) _cache.delete(k);
+  async get(key) {
+    if (_redisReady && _redisClient) {
+      try {
+        const val = await _redisClient.get(key);
+        return val ? JSON.parse(val) : undefined;
+      } catch { /* fall through */ }
     }
+    const exp = _memTtl.get(key);
+    if (!exp || Date.now() > exp) { _mem.delete(key); _memTtl.delete(key); return undefined; }
+    return _mem.get(key);
+  },
+  async set(key, data, ttlMs = 10_000) {
+    if (_redisReady && _redisClient) {
+      try {
+        await _redisClient.set(key, JSON.stringify(data), { PX: ttlMs });
+        return;
+      } catch { /* fall through */ }
+    }
+    _mem.set(key, data);
+    _memTtl.set(key, Date.now() + ttlMs);
+  },
+  async del(key) {
+    if (_redisReady && _redisClient) {
+      try { await _redisClient.del(key); } catch { /* ignore */ }
+    }
+    _mem.delete(key); _memTtl.delete(key);
+  },
+  async delPrefix(prefix) {
+    if (_redisReady && _redisClient) {
+      try {
+        // SCAN is non-blocking unlike KEYS — safe for production
+        let cursor = 0;
+        do {
+          const { cursor: next, keys } = await _redisClient.scan(cursor, { MATCH: `${prefix}*`, COUNT: 100 });
+          if (keys.length) await _redisClient.del(keys);
+          cursor = next;
+        } while (cursor !== 0);
+        return;
+      } catch { /* fall through */ }
+    }
+    for (const k of _mem.keys()) { if (k.startsWith(prefix)) { _mem.delete(k); _memTtl.delete(k); } }
   },
 };
 
-// Purge stale entries every 2 minutes so the Map doesn't grow unboundedly
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, v] of _cache) {
-    if (now > v.expiresAt) _cache.delete(k);
-  }
-}, 120_000).unref();
 
 async function runMigrations() {
   const client = await pool.connect();
