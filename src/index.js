@@ -6,12 +6,21 @@ const fs       = require('fs');
 const rateLimit = require('express-rate-limit');
 const { runMigrations, pool, cache } = require('./db');
 
+// Security headers — blocks XSS, clickjacking, MIME sniffing
+// npm i helmet  (if not already installed)
+let helmet;
+try { helmet = require('helmet'); } catch { helmet = null; }
+if (!helmet) console.warn('[startup] helmet not installed — run: npm i helmet');
+
 // ── Gzip compression — dramatically reduces payload size on slow networks ──────
 let compression;
 try { compression = require('compression'); } catch { compression = null; }
 
 const app = express();
 app.set('trust proxy', 1);
+
+// Apply security headers (helmet) as early as possible
+if (helmet) app.use(helmet({ contentSecurityPolicy: false }));
 
 // Enable gzip for all responses
 if (compression) {
