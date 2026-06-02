@@ -100,7 +100,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
     }
 
-    const validDistricts = ['nanded', 'latur'];
+    const validDistricts = (process.env.VALID_DISTRICTS || 'nanded,latur').split(',').map(d => d.trim());
     const userDistrict = validDistricts.includes(district) ? district : 'nanded';
     // Use the cleaned (whitespace-stripped) phone so DB comparisons are reliable
     const cleanedPhone = (phone !== undefined && phone !== null && phone !== '')
