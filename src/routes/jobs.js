@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
 
     // Cache key — include all filter params
     const cacheKey = `jobs:${page}:${limit}:${category}:${search}:${jobType}:${district}`;
-    const hit = cache.get(cacheKey);
+    const hit = await cache.get(cacheKey);
     if (hit) return res.json(hit);
 
     const conditions = ["j.status = 'active'", "(j.expires_at IS NULL OR j.expires_at > NOW())"];
@@ -40,8 +40,8 @@ router.get('/', async (req, res) => {
       }
     }
     if (search) {
-      // Use full-text index when no special chars; fall back to ILIKE otherwise
-      params.push(search);
+      // Wrap in % so ILIKE does substring matching — "driver" matches "Delivery Driver"
+      params.push(`%${search}%`);
       conditions.push(`(j.title ILIKE $${params.length} OR j.company ILIKE $${params.length})`);
     }
     if (district) {
@@ -78,7 +78,7 @@ router.get('/', async (req, res) => {
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit), hasNext: page * limit < total },
     };
 
-    cache.set(cacheKey, payload, JOBS_TTL);
+    await cache.set(cacheKey, payload, JOBS_TTL);
     res.json(payload);
   } catch (err) {
     console.error(err);
@@ -125,9 +125,10 @@ router.get('/saved', auth, async (req, res) => {
 // GET /api/jobs/:id
 router.get('/:id', async (req, res) => {
   try {
-    const id       = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id) || id <= 0) return res.json({ ok: false, error: 'Invalid job ID' });
     const cacheKey = `job:${id}`;
-    const hit      = cache.get(cacheKey);
+    const hit      = await cache.get(cacheKey);
     if (hit) {
       // Increment views async without blocking response
       pool.query('UPDATE jobs SET views = COALESCE(views,0)+1 WHERE id=$1', [id]).catch(() => {});
@@ -147,7 +148,7 @@ router.get('/:id', async (req, res) => {
     pool.query('UPDATE jobs SET views = COALESCE(views,0)+1 WHERE id=$1', [id]).catch(() => {});
 
     const payload = { ok: true, job: rows[0] };
-    cache.set(cacheKey, payload, DETAIL_TTL);
+    await cache.set(cacheKey, payload, DETAIL_TTL);
     res.json(payload);
   } catch (err) {
     console.error('GET /jobs/:id error:', err);
@@ -163,6 +164,7 @@ router.post('/', auth, async (req, res) => {
       title, company, category, type, location, salary,
       phone, whatsapp, description, skills, requirements,
       education, experience, hours, openings, fresherOk, planDays,
+      district,  // ← was missing: free jobs were always stored with NULL district
     } = req.body;
 
     if (!title || !category || !location)
@@ -184,17 +186,56 @@ router.post('/', auth, async (req, res) => {
         posted_by, title, company, category, type, location, salary,
         phone, whatsapp, description, skills, requirements,
         education, experience, hours, openings,
-        featured, urgent, fresher_ok, expires_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+        featured, urgent, fresher_ok, expires_at, district
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
       RETURNING *
     `, [
       req.user.id, title, company, category, type || 'Full-time', location, salary || '',
       phone, whatsapp || phone, description, skillsArr, reqArr,
       education || '', experience || '', hours || '', openings || '1',
       false, false, isFresherOk, expiresAt,
+      (process.env.VALID_DISTRICTS || 'nanded,latur').split(',').map(d=>d.trim()).includes(district) ? district : 'nanded',
     ]);
 
-    cache.delPrefix('jobs:'); // bust list cache
+    await cache.delPrefix('jobs:'); // bust list cache
+
+    // Fire push notifications to users who have an alert matching this job's category.
+    // Done async — any failure here must NOT block the response.
+    const newJob = rows[0];
+    setImmediate(async () => {
+      try {
+        const { rows: alerts } = await pool.query(
+          `SELECT ja.push_token FROM job_alerts ja
+           WHERE ja.category IN ($1, 'All') AND ja.push_token IS NOT NULL AND ja.active = TRUE`,
+          [newJob.category]
+        );
+        if (!alerts.length) return;
+
+        const messages = alerts
+          .filter(a => a.push_token?.startsWith('ExponentPushToken['))
+          .map(a => ({
+            to:    a.push_token,
+            title: `New ${newJob.category} job in ${newJob.location || 'your area'}`,
+            body:  `${newJob.title} at ${newJob.company || 'a local employer'} — tap to view`,
+            data:  { jobId: newJob.id },
+            sound: 'default',
+          }));
+
+        if (!messages.length) return;
+
+        // Send in batches of 100 (Expo limit)
+        for (let i = 0; i < messages.length; i += 100) {
+          await fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify(messages.slice(i, i + 100)),
+          }).catch(e => console.warn('Push batch error:', e.message));
+        }
+      } catch (e) {
+        console.warn('Job alert notifications error:', e.message);
+      }
+    });
+
     res.json({ ok: true, job: rows[0] });
   } catch (err) {
     console.error(err);
@@ -217,7 +258,7 @@ router.post('/:id/apply', auth, async (req, res) => {
       `INSERT INTO applications (job_id, user_id, status) VALUES ($1,$2,'applied') ON CONFLICT DO NOTHING`,
       [req.params.id, req.user.id]
     );
-    cache.del(`job:${req.params.id}`);
+    await cache.del(`job:${req.params.id}`);
     res.json({ ok: true, message: 'Application submitted!' });
   } catch (err) {
     console.error(err);
@@ -303,8 +344,8 @@ router.delete('/:id', auth, async (req, res) => {
     if (rows[0].posted_by !== req.user.id && req.user.role !== 'admin')
       return res.json({ ok: false, error: 'Not allowed' });
     await pool.query("UPDATE jobs SET status='deleted' WHERE id=$1", [req.params.id]);
-    cache.del(`job:${req.params.id}`);
-    cache.delPrefix('jobs:');
+    await cache.del(`job:${req.params.id}`);
+    await cache.delPrefix('jobs:');
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
