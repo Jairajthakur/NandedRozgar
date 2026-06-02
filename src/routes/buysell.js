@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
     const search   = req.query.search   || null;
 
     const cacheKey = `buysell:${page}:${limit}:${district}:${category}:${search}`;
-    const hit = cache.get(cacheKey);
+    const hit = await cache.get(cacheKey);
     if (hit) return res.json(hit);
 
     const conditions = ["b.status='active'", "(b.expires_at IS NULL OR b.expires_at > NOW())"];
@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
       ok: true, items: dataRes.rows,
       pagination: { page, limit, total, hasNext: offset + dataRes.rows.length < total },
     };
-    cache.set(cacheKey, payload, LIST_TTL);
+    await cache.set(cacheKey, payload, LIST_TTL);
     res.json(payload);
   } catch (err) {
     console.error(err);
@@ -62,7 +62,7 @@ router.get('/count', async (req, res) => {
   try {
     const district  = req.query.district || null;
     const cacheKey  = `buysell_count:${district}`;
-    const hit = cache.get(cacheKey);
+    const hit = await cache.get(cacheKey);
     if (hit) return res.json(hit);
 
     const params = [];
@@ -71,7 +71,7 @@ router.get('/count', async (req, res) => {
 
     const { rows } = await pool.query(`SELECT COUNT(*) FROM buysell_items WHERE ${where}`, params);
     const payload = { ok: true, count: parseInt(rows[0].count) };
-    cache.set(cacheKey, payload, LIST_TTL);
+    await cache.set(cacheKey, payload, LIST_TTL);
     res.json(payload);
   } catch (err) {
     console.error(err);
@@ -84,7 +84,7 @@ router.get('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const cacheKey = `buysell:item:${id}`;
-    const hit = cache.get(cacheKey);
+    const hit = await cache.get(cacheKey);
     if (hit) {
       pool.query('UPDATE buysell_items SET views=COALESCE(views,0)+1 WHERE id=$1', [id]).catch(() => {});
       return res.json(hit);
@@ -96,7 +96,7 @@ router.get('/:id', async (req, res) => {
     if (!rows[0]) return res.json({ ok: false, error: 'Item not found' });
     pool.query('UPDATE buysell_items SET views=COALESCE(views,0)+1 WHERE id=$1', [id]).catch(() => {});
     const payload = { ok: true, item: rows[0] };
-    cache.set(cacheKey, payload, DETAIL_TTL);
+    await cache.set(cacheKey, payload, DETAIL_TTL);
     res.json(payload);
   } catch (err) {
     console.error(err);
@@ -125,7 +125,7 @@ router.post('/', auth, async (req, res) => {
       days, expiresAt, district||'nanded',
     ]);
 
-    cache.delPrefix('buysell:');
+    await cache.delPrefix('buysell:');
     res.json({ ok: true, item: rows[0] });
   } catch (err) {
     console.error(err);
@@ -141,8 +141,8 @@ router.delete('/:id', auth, async (req, res) => {
     if (rows[0].posted_by !== req.user.id && req.user.role !== 'admin')
       return res.json({ ok: false, error: 'Not allowed' });
     await pool.query("UPDATE buysell_items SET status='deleted' WHERE id=$1", [req.params.id]);
-    cache.del(`buysell:item:${req.params.id}`);
-    cache.delPrefix('buysell:');
+    await cache.del(`buysell:item:${req.params.id}`);
+    await cache.delPrefix('buysell:');
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
