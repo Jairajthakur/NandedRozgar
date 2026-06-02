@@ -157,20 +157,41 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/jobs
-const FREE_PLAN_MAX_DAYS = 30;
+// Free plan: 7 days, allowed only on the user's very first job post ever.
+// Every post after that requires a paid plan (from ₹49).
+const FREE_PLAN_MAX_DAYS = 7;
 router.post('/', auth, async (req, res) => {
   try {
     const {
       title, company, category, type, location, salary,
       phone, whatsapp, description, skills, requirements,
-      education, experience, hours, openings, fresherOk, planDays,
-      district,  // ← was missing: free jobs were always stored with NULL district
+      education, experience, hours, openings, fresherOk, planDays, plan,
+      district,
     } = req.body;
 
     if (!title || !category || !location)
       return res.json({ ok: false, error: 'Title, category and location are required' });
 
-    const days = Math.min(Math.max(1, parseInt(planDays) || FREE_PLAN_MAX_DAYS), FREE_PLAN_MAX_DAYS);
+    const planKey = (plan || 'free').toLowerCase().trim();
+
+    // ── First-post-free check ─────────────────────────────────────────────────
+    if (planKey === 'free') {
+      const { rows: prior } = await pool.query(
+        `SELECT id FROM jobs WHERE posted_by = $1 AND status != 'deleted' LIMIT 1`,
+        [req.user.id]
+      );
+      if (prior.length > 0) {
+        return res.json({
+          ok: false,
+          error: 'Free listing is only for your first post. Please choose a paid plan (from ₹49) to post again.',
+          requiresPayment: true,
+        });
+      }
+    }
+
+    const days = planKey === 'free'
+      ? FREE_PLAN_MAX_DAYS
+      : Math.max(1, parseInt(planDays) || FREE_PLAN_MAX_DAYS);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
