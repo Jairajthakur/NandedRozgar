@@ -25,7 +25,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const MYMEMORY_URL = 'https://api.mymemory.translated.net/get';
 
 // Optional: add your email to raise free limit 500 → 10,000 words/day
-const MYMEMORY_EMAIL = ''; // e.g. 'yourapp@gmail.com'
+// Set to raise free limit from 500 → 10,000 words/day.
+// Uses a generic contact email tied to the app domain.
+const MYMEMORY_EMAIL = 'support@thecityplus.in';
 
 const CACHE_PREFIX = 'nr_trans_v1_';
 
