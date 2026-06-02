@@ -123,20 +123,24 @@ async function verifyCashfreePayment(orderId, { retries = 5, delayMs = 3000 } = 
   return { ok: false, error: 'Payment verification timed out. Please contact support.' };
 }
 
-// ── Server-side plan pricing (₹). Never trust the client for these. ─────────
+// ── Server-side plan pricing (₹) — Tier-2/3 city friendly ───────────────────
+// Strategy: free listing for 7 days (builds supply/trust), then pay to repost
+// or boost. Prices match what a tea-shop owner or small factory in Nanded can
+// justify — equivalent to one newspaper classified ad (₹50–₹150).
+// Featured = top of list. Urgent = red badge + top. Paid plans = full 30 days.
 const PLAN_PRICES = {
-  job:       { free: 0, featured: 99, urgent: 49, '7 days': 49,  '15 days': 79,  '30 days': 119 },
-  room:      { free: 0, featured: 79, '15 days': 69, '1 month': 99,  '2 months': 169, '3 months': 229 },
-  vehicle:   { free: 0, featured: 79, '15 days': 69, '1 month': 99,  '2 months': 169, '3 months': 229 },
-  buysell:   { free: 0, featured: 49, '7 days': 39,  '15 days': 59,  '30 days': 89  },
+  job:       { free: 0, featured: 99, urgent: 49, '7 days': 49, '15 days': 79, '30 days': 99 },
+  room:      { free: 0, featured: 99, '15 days': 49, '1 month': 79, '2 months': 109, '3 months': 149 },
+  vehicle:   { free: 0, featured: 99, '15 days': 49, '1 month': 79, '2 months': 109, '3 months': 149 },
+  buysell:   { free: 0, featured: 49, '7 days': 49, '15 days': 79, '30 days': 99 },
   promotion: { basic: 49, popular: 79, premium: 99 },
 };
 
 const PLAN_DAYS = {
-  job:     { free: 30, featured: 30, urgent: 30, '7 days': 7, '15 days': 15, '30 days': 30 },
-  room:    { free: 30, featured: 30, '15 days': 15, '1 month': 30, '2 months': 60, '3 months': 90 },
-  vehicle: { free: 30, featured: 30, '15 days': 15, '1 month': 30, '2 months': 60, '3 months': 90 },
-  buysell: { free: 15, featured: 15, '7 days': 7, '15 days': 15, '30 days': 30 },
+  job:     { free: 7, featured: 30, urgent: 30, '7 days': 7, '15 days': 15, '30 days': 30 },
+  room:    { free: 7, featured: 30, '15 days': 15, '1 month': 30, '2 months': 60, '3 months': 90 },
+  vehicle: { free: 7, featured: 30, '15 days': 15, '1 month': 30, '2 months': 60, '3 months': 90 },
+  buysell: { free: 7, featured: 15, '7 days': 7, '15 days': 15, '30 days': 30 },
 };
 
 function resolveExpectedAmount(listingType, planKey, coupon) {
