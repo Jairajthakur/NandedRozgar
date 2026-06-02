@@ -13,8 +13,8 @@ const { auth } = require('../middleware/auth');
 
 // Plan config — source of truth on the server
 const PLANS = {
-  basic:   { price: 29,  days: 7  },
-  popular: { price: 59, days: 15 },
+  basic:   { price: 49, days: 7  },
+  popular: { price: 79, days: 15 },
   premium: { price: 99, days: 30 },
 };
 
