@@ -27,8 +27,10 @@ export default ({ config }) => ({
       "ACCESS_FINE_LOCATION",
       "ACCESS_COARSE_LOCATION",
       "CAMERA",
-      "READ_EXTERNAL_STORAGE",
-      "WRITE_EXTERNAL_STORAGE",
+      // READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE are deprecated and
+      // blocked on Android 13+ (API 33+). Removed to pass Play Store review.
+      // expo-file-system + expo-image-picker handle storage access via
+      // scoped storage APIs which don't require these broad permissions.
     ],
     // Handles payment return deep links (Cashfree / Razorpay callbacks)
     intentFilters: [
