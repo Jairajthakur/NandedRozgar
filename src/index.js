@@ -38,13 +38,15 @@ app.use((req, res, next) => {
 });
 
 // ── HTTP Cache-Control for read-only API endpoints ────────────────────────────
-// Tells CDNs and browsers to cache public GET responses briefly.
-// Authenticated responses are excluded by the auth middleware (private).
+// Public GET endpoints (jobs list, rooms list) get a short public cache.
+// Authenticated requests (Authorization header present) are always private
+// so CDNs never serve one user's data to another.
 app.use('/api/', (req, res, next) => {
-  if (req.method === 'GET') {
+  const hasAuth = !!req.headers['authorization'];
+  if (req.method === 'GET' && !hasAuth) {
     res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
   } else {
-    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Cache-Control', 'no-store, private');
   }
   next();
 });
