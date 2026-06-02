@@ -97,9 +97,12 @@ router.get('/stats', async (req, res) => {
 });
 
 // POST /api/analytics/job/:id/view — increment view count
-router.post('/job/:id/view', async (req, res) => {
+router.post('/job/:id/view', auth, async (req, res) => {
   try {
-    await pool.query('UPDATE jobs SET views = views + 1 WHERE id=$1', [req.params.id]);
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id) || id <= 0)
+      return res.json({ ok: false, error: 'Invalid job ID' });
+    await pool.query('UPDATE jobs SET views = views + 1 WHERE id=$1', [id]);
     res.json({ ok: true });
   } catch (err) {
     res.json({ ok: false });
