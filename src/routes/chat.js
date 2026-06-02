@@ -44,7 +44,9 @@ router.get('/conversations', auth, async (req, res) => {
 // GET /api/chat/:userId/:jobId — messages in a thread
 router.get('/:userId/:jobId', auth, async (req, res) => {
   try {
-    const other = parseInt(req.params.userId);
+    const other = parseInt(req.params.userId, 10);
+    if (!Number.isInteger(other) || other <= 0)
+      return res.json({ ok: false, error: 'Invalid user ID' });
     const jobId = req.params.jobId === 'null' ? null : parseInt(req.params.jobId);
 
     const { rows } = await pool.query(`
