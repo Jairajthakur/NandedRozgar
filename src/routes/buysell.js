@@ -82,7 +82,9 @@ router.get('/count', async (req, res) => {
 // GET /api/buysell/:id — full detail including photos
 router.get('/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id) || id <= 0)
+      return res.json({ ok: false, error: 'Invalid item ID' });
     const cacheKey = `buysell:item:${id}`;
     const hit = await cache.get(cacheKey);
     if (hit) {
@@ -112,6 +114,11 @@ router.post('/', auth, async (req, res) => {
     if (!title || !price || !whatsapp)
       return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
 
+    const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
+    if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
+      return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
+
+    const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
     const planKey = (plan || 'free').toLowerCase().trim();
 
     // ── First-post-free check ─────────────────────────────────────────────────
@@ -138,8 +145,8 @@ router.post('/', auth, async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *
     `, [
       req.user.id, title, category||'Other', condition||'Good', age||'',
-      price, negotiable!==false, area||'', description||'', whatsapp,
-      JSON.stringify(Array.isArray(photos)?photos:[]),
+      price, negotiable!==false, area||'', description||'', cleanWhatsapp,
+      JSON.stringify(safePhotos),
       planKey, days, expiresAt, district||'nanded',
     ]);
 
