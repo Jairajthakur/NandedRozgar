@@ -35,27 +35,26 @@ export const DISTRICTS = [
     emoji: '🌆',
     description: 'Jobs, Rooms, Cars & more in Latur district',
   },
-  // ── To add a new district: uncomment and fill in ──────────────────────────
-  // {
-  //   id: 'osmanabad',
-  //   name: 'Osmanabad',
-  //   nameMarathi: 'उस्मानाबाद',
-  //   nameHindi: 'उस्मानाबाद',
-  //   state: 'Maharashtra',
-  //   color: '#0d9488',
-  //   emoji: '🌇',
-  //   description: 'Jobs, Rooms, Cars & more in Osmanabad district',
-  // },
-  // {
-  //   id: 'hingoli',
-  //   name: 'Hingoli',
-  //   nameMarathi: 'हिंगोली',
-  //   nameHindi: 'हिंगोली',
-  //   state: 'Maharashtra',
-  //   color: '#059669',
-  //   emoji: '🌄',
-  //   description: 'Jobs, Rooms, Cars & more in Hingoli district',
-  // },
+  {
+    id: 'osmanabad',
+    name: 'Osmanabad',
+    nameMarathi: 'उस्मानाबाद',
+    nameHindi: 'उस्मानाबाद',
+    state: 'Maharashtra',
+    color: '#0d9488',
+    emoji: '🌇',
+    description: 'Jobs, Rooms, Cars & more in Osmanabad district',
+  },
+  {
+    id: 'hingoli',
+    name: 'Hingoli',
+    nameMarathi: 'हिंगोली',
+    nameHindi: 'हिंगोली',
+    state: 'Maharashtra',
+    color: '#059669',
+    emoji: '🌄',
+    description: 'Jobs, Rooms, Cars & more in Hingoli district',
+  },
 ];
 
 // Derived list of valid district IDs — used for validation everywhere
@@ -69,8 +68,8 @@ export const VALID_DISTRICT_IDS = DISTRICTS.map(d => d.id);
 const DISTRICT_BOUNDS = {
   nanded:    { latMin: 17.8, latMax: 19.4, lngMin: 76.8, lngMax: 78.0 },
   latur:     { latMin: 17.4, latMax: 18.5, lngMin: 76.1, lngMax: 77.4 },
-  // osmanabad: { latMin: 17.8, latMax: 18.5, lngMin: 75.8, lngMax: 76.6 },
-  // hingoli:   { latMin: 18.8, latMax: 20.0, lngMin: 76.8, lngMax: 77.8 },
+  osmanabad: { latMin: 17.8, latMax: 18.5, lngMin: 75.8, lngMax: 76.6 },
+  hingoli:   { latMin: 18.8, latMax: 20.0, lngMin: 76.8, lngMax: 77.8 },
 };
 
 function detectDistrictFromCoords(lat, lng) {
