@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
     const district = req.query.district || null;
 
     const cacheKey = `vehicles:${page}:${limit}:${district}`;
-    const hit = cache.get(cacheKey);
+    const hit = await cache.get(cacheKey);
     if (hit) return res.json(hit);
 
     const conditions = ["v.status='active'", "(v.expires_at IS NULL OR v.expires_at > NOW())"];
@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
       ok: true, vehicles: dataRes.rows,
       pagination: { page, limit, total, hasNext: offset + dataRes.rows.length < total },
     };
-    cache.set(cacheKey, payload, LIST_TTL);
+    await cache.set(cacheKey, payload, LIST_TTL);
     res.json(payload);
   } catch (err) {
     console.error(err);
@@ -61,7 +61,7 @@ router.get('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const cacheKey = `vehicle:${id}`;
-    const hit = cache.get(cacheKey);
+    const hit = await cache.get(cacheKey);
     if (hit) {
       pool.query('UPDATE vehicles SET views=COALESCE(views,0)+1 WHERE id=$1', [id]).catch(() => {});
       return res.json(hit);
@@ -73,7 +73,7 @@ router.get('/:id', async (req, res) => {
     if (!rows[0]) return res.json({ ok: false, error: 'Vehicle not found' });
     pool.query('UPDATE vehicles SET views=COALESCE(views,0)+1 WHERE id=$1', [id]).catch(() => {});
     const payload = { ok: true, vehicle: rows[0] };
-    cache.set(cacheKey, payload, DETAIL_TTL);
+    await cache.set(cacheKey, payload, DETAIL_TTL);
     res.json(payload);
   } catch (err) {
     console.error(err);
@@ -107,7 +107,7 @@ router.post('/', auth, async (req, res) => {
       expiresAt, district||'nanded',
     ]);
 
-    cache.delPrefix('vehicles:');
+    await cache.delPrefix('vehicles:');
     res.json({ ok: true, vehicle: rows[0] });
   } catch (err) {
     console.error(err);
@@ -123,8 +123,8 @@ router.delete('/:id', auth, async (req, res) => {
     if (rows[0].posted_by !== req.user.id && req.user.role !== 'admin')
       return res.json({ ok: false, error: 'Not allowed' });
     await pool.query("UPDATE vehicles SET status='deleted' WHERE id=$1", [req.params.id]);
-    cache.del(`vehicle:${req.params.id}`);
-    cache.delPrefix('vehicles:');
+    await cache.del(`vehicle:${req.params.id}`);
+    await cache.delPrefix('vehicles:');
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
