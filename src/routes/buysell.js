@@ -105,24 +105,42 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/buysell
+// Free plan: 7 days, only on the user's very first buy-sell post ever.
 router.post('/', auth, async (req, res) => {
   try {
-    const { title, category, condition, age, price, negotiable, area, description, whatsapp, photos, planDays, district } = req.body;
+    const { title, category, condition, age, price, negotiable, area, description, whatsapp, photos, planDays, plan, district } = req.body;
     if (!title || !price || !whatsapp)
       return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
 
-    const days = Math.min(Math.max(1, parseInt(planDays)||15), 15);
+    const planKey = (plan || 'free').toLowerCase().trim();
+
+    // ── First-post-free check ─────────────────────────────────────────────────
+    if (planKey === 'free') {
+      const { rows: prior } = await pool.query(
+        `SELECT id FROM buysell_items WHERE posted_by = $1 AND status != 'deleted' LIMIT 1`,
+        [req.user.id]
+      );
+      if (prior.length > 0) {
+        return res.json({
+          ok: false,
+          error: 'Free listing is only for your first post. Please choose a paid plan (from ₹49) to post again.',
+          requiresPayment: true,
+        });
+      }
+    }
+
+    const days = planKey === 'free' ? 7 : Math.max(1, parseInt(planDays) || 7);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
     const { rows } = await pool.query(`
-      INSERT INTO buysell_items (posted_by,title,category,condition,age,price,negotiable,area,description,whatsapp,photos,plan_days,expires_at,district)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *
+      INSERT INTO buysell_items (posted_by,title,category,condition,age,price,negotiable,area,description,whatsapp,photos,plan_label,plan_days,expires_at,district)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *
     `, [
       req.user.id, title, category||'Other', condition||'Good', age||'',
       price, negotiable!==false, area||'', description||'', whatsapp,
       JSON.stringify(Array.isArray(photos)?photos:[]),
-      days, expiresAt, district||'nanded',
+      planKey, days, expiresAt, district||'nanded',
     ]);
 
     await cache.delPrefix('buysell:');
