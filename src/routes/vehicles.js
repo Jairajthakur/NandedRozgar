@@ -60,7 +60,9 @@ router.get('/', async (req, res) => {
 // GET /api/vehicles/:id — full detail including photos
 router.get('/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id) || id <= 0)
+      return res.json({ ok: false, error: 'Invalid vehicle ID' });
     const cacheKey = `vehicle:${id}`;
     const hit = await cache.get(cacheKey);
     if (hit) {
@@ -93,6 +95,11 @@ router.post('/', auth, async (req, res) => {
     if (!title || !price || !whatsapp)
       return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
 
+    const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
+    if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
+      return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
+
+    const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
     const planKey = (plan || 'free').toLowerCase().trim();
 
     // ── First-post-free check ─────────────────────────────────────────────────
@@ -119,12 +126,12 @@ router.post('/', auth, async (req, res) => {
     const { rows } = await pool.query(`
       INSERT INTO vehicles (posted_by,title,type,brand,model,year,km_driven,fuel,transmission,
                             price,area,address,owner_name,whatsapp,description,photos,plan,expires_at,district)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'free',$17,$18) RETURNING *
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *
     `, [
       req.user.id, title, type||'', brand||'', model||'', year||null, kmDriven||null,
-      fuel||'', transmission||'', price, area||'', address||'', ownerName||'', whatsapp,
-      description||'', JSON.stringify(Array.isArray(photos)?photos:[]),
-      expiresAt, district||'nanded',
+      fuel||'', transmission||'', price, area||'', address||'', ownerName||'', cleanWhatsapp,
+      description||'', JSON.stringify(safePhotos),
+      planKey, expiresAt, district||'nanded',
     ]);
 
     await cache.delPrefix('vehicles:');
