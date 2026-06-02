@@ -536,7 +536,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
         }),
       });
     } else {
-      console.log(`\n🔑 Password reset link for ${email}:\n${resetUrl}\n`);
+      console.log(`[auth] Reset email not sent (RESEND_API_KEY not set). Email: ${email}`);
     }
 
     return res.json({ ok: true, message: 'If that email exists, a reset link was sent.' });
