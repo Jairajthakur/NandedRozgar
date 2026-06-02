@@ -19,40 +19,69 @@ export async function getToken() {
   return loadToken();
 }
 
-export async function http(method, path, body) {
-  try {
-    const token = await loadToken();
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${BASE_URL}${path}`, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+// ── http — fetch with automatic retry on network failure ─────────────────────
+// On patchy connections (Nanded/Latur 2G/3G), a single transient failure would
+// previously show a blank screen with no recovery path. Now:
+//   - GET requests retry up to 3 times with exponential back-off (1s, 2s, 4s)
+//   - POST/PATCH/DELETE do NOT retry (not idempotent — avoid double-submit)
+//   - A timeout of 15 s per attempt prevents hanging indefinitely
+//   - status: 0 is returned on network error so callers can distinguish from auth errors
+export async function http(method, path, body, { retries = method === 'GET' ? 3 : 1, timeoutMs = 15_000 } = {}) {
+  const token = await loadToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    // Safely parse JSON — server may return HTML/text on error or cold start
-    const text = await res.text();
-    let data = {};
+  for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      data = JSON.parse(text);
-    } catch {
-      console.warn('Non-JSON response from server:', text.slice(0, 200));
-      // If server is waking up or returned HTML, give a friendly message
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+      const res = await fetch(`${BASE_URL}${path}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timer));
+
+      // Safely parse JSON — server may return HTML/text on cold start or errors
+      const text = await res.text();
+      let data = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.warn('Non-JSON response from server:', text.slice(0, 200));
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 1000 * attempt));
+          continue;
+        }
+        return {
+          ok: false,
+          error: res.status === 503 || res.status === 502
+            ? 'Server is starting up, please try again in a moment.'
+            : 'Server error. Please try again.',
+        };
+      }
+
+      return { ...data, ok: data.ok ?? res.ok, status: res.status };
+    } catch (e) {
+      const isTimeout = e.name === 'AbortError';
+      const isNetwork = e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('fetch');
+      console.warn(`http attempt ${attempt}/${retries} failed:`, e.message);
+
+      if (attempt < retries && (isTimeout || isNetwork)) {
+        // Exponential back-off: 1s, 2s, 4s
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+        continue;
+      }
+
       return {
         ok: false,
-        error: res.status === 503 || res.status === 502
-          ? 'Server is starting up, please try again in a moment.'
-          : 'Server error. Please try again.',
+        status: 0,
+        error: isTimeout
+          ? 'Request timed out. Check your internet connection and try again.'
+          : 'Unable to connect. Check your internet connection.',
       };
     }
-
-    return { ...data, ok: data.ok ?? res.ok, status: res.status };
-  } catch (e) {
-    console.warn('http error:', e.message);
-    // Network-level failure (no internet, server unreachable, timeout).
-    // status: 0 signals a network error — lets callers like init() distinguish
-    // "server rejected token" (401/403) from "couldn't reach server" (0).
-    return { ok: false, status: 0, error: 'Unable to connect. Check your internet connection.' };
   }
 }
 
