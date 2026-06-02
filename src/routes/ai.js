@@ -17,7 +17,8 @@ const aiLimiter = rateLimit({
 
 // Groq model — update here if deprecated. See: https://console.groq.com/docs/deprecations
 // Active models: llama-3.1-8b-instant | llama-3.3-70b-versatile | gemma2-9b-it
-const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
+// 70b is still free on Groq and significantly better for regional salary/job context
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 
 // POST /api/ai/chat — powered by Groq (free, fast, no restrictions)
 router.post('/chat', auth, aiLimiter, async (req, res) => {
