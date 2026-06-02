@@ -193,6 +193,9 @@ async function runMigrations() {
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS template_id  INTEGER`,
 
       `ALTER TABLE seeker_profiles ADD COLUMN IF NOT EXISTS resume_url TEXT`,
+
+      // Free-first-post tracking: plan_label on buysell_items was missing
+      `ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30) DEFAULT 'free'`,
     ];
 
     for (const sql of safeAlters) {
