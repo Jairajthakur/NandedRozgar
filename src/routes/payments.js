@@ -606,9 +606,20 @@ router.post('/verify/promotion', auth, async (req, res) => {
 // See: https://docs.cashfree.com/docs/webhooks
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/cashfree-webhook', async (req, res) => {
-  // Simply acknowledge — actual verification is done in /verify routes above.
-  // If you want to auto-activate listings on webhook, implement it here.
-  console.log('[cashfree-webhook] received:', JSON.stringify(req.body).slice(0, 200));
+  // Verify Cashfree webhook signature before trusting the payload.
+  // Cashfree sends x-webhook-signature as HMAC-SHA256(rawBody, SECRET_KEY).
+  const secret = process.env.CASHFREE_SECRET_KEY;
+  if (secret) {
+    const sig  = req.headers['x-webhook-signature'] || '';
+    const ts   = req.headers['x-webhook-timestamp'] || '';
+    const body = ts + JSON.stringify(req.body);
+    const expected = require('crypto').createHmac('sha256', secret).update(body).digest('base64');
+    if (sig !== expected) {
+      console.warn('[cashfree-webhook] Invalid signature — ignoring');
+      return res.status(400).json({ ok: false, error: 'Invalid signature' });
+    }
+  }
+  // Actual listing activation is handled via /verify routes called by the client.
   res.json({ ok: true });
 });
 
