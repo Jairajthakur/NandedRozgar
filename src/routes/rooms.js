@@ -4,7 +4,8 @@ const { auth } = require('../middleware/auth');
 
 const LIST_TTL   = 15_000;
 const DETAIL_TTL = 30_000;
-const FREE_PLAN_MAX_DAYS = 30;
+// Free plan: 7 days, only on the user's very first room post ever.
+const FREE_PLAN_MAX_DAYS = 7;
 
 // GET /api/rooms
 router.get('/', async (req, res) => {
@@ -87,12 +88,31 @@ router.post('/', auth, async (req, res) => {
     const {
       title, type, bhk, rent, furnished, area, address,
       landmark, ownerName, whatsapp, description, photos,
-      planDays, district,
+      planDays, plan, district,
     } = req.body;
     if (!title || !rent || !whatsapp)
       return res.json({ ok: false, error: 'Title, rent and WhatsApp are required' });
 
-    const days = Math.min(Math.max(1, parseInt(planDays) || FREE_PLAN_MAX_DAYS), FREE_PLAN_MAX_DAYS);
+    const planKey = (plan || 'free').toLowerCase().trim();
+
+    // ── First-post-free check ─────────────────────────────────────────────────
+    if (planKey === 'free') {
+      const { rows: prior } = await pool.query(
+        `SELECT id FROM rooms WHERE posted_by = $1 AND status != 'deleted' LIMIT 1`,
+        [req.user.id]
+      );
+      if (prior.length > 0) {
+        return res.json({
+          ok: false,
+          error: 'Free listing is only for your first post. Please choose a paid plan (from ₹49) to post again.',
+          requiresPayment: true,
+        });
+      }
+    }
+
+    const days = planKey === 'free'
+      ? FREE_PLAN_MAX_DAYS
+      : Math.max(1, parseInt(planDays) || FREE_PLAN_MAX_DAYS);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
