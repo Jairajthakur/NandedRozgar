@@ -28,9 +28,9 @@ async function auth(req, res, next) {
     return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
   }
 
-  // Step 2: check memory cache before hitting the DB
+  // Step 2: check cache before hitting the DB
   const cacheKey = `auth:${payload.id}`;
-  const cached   = cache.get(cacheKey);
+  const cached   = await cache.get(cacheKey);
   if (cached) {
     req.user = cached;
     return next();
@@ -45,7 +45,7 @@ async function auth(req, res, next) {
     if (!rows[0]) {
       return res.status(401).json({ ok: false, error: 'User not found or deactivated' });
     }
-    cache.set(cacheKey, rows[0], USER_CACHE_TTL);
+    await cache.set(cacheKey, rows[0], USER_CACHE_TTL);
     req.user = rows[0];
     next();
   } catch (e) {
