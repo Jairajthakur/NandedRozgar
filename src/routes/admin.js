@@ -27,6 +27,9 @@ router.patch('/users/:id/toggle', async (req, res) => {
       'UPDATE users SET active = NOT active WHERE id = $1 RETURNING id, active, name',
       [req.params.id]
     );
+    // Evict auth cache so a banned user loses access immediately (not after 60 s TTL)
+    const { cache } = require('../db');
+    await cache.del(`auth:${req.params.id}`);
     res.json({ ok: true, user: rows[0] });
   } catch (err) {
     console.error(err);
