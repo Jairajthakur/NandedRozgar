@@ -1,4 +1,29 @@
 import React, { createContext, useContext, useState } from 'react';
+import { Platform, NativeModules } from 'react-native';
+
+// Detect device locale at startup and default to Marathi if applicable.
+// Nanded/Marathwada users predominantly use Marathi — this is the single
+// biggest UX differentiator over OLX/Apna which default to English/Hindi.
+function getDefaultLang() {
+  try {
+    let locale = 'en';
+    if (Platform.OS === 'android') {
+      locale = NativeModules.I18nManager?.localeIdentifier || 'en';
+    } else if (Platform.OS === 'ios') {
+      locale = NativeModules.SettingsManager?.settings?.AppleLocale ||
+               NativeModules.SettingsManager?.settings?.AppleLanguages?.[0] || 'en';
+    } else {
+      // Web
+      locale = (typeof navigator !== 'undefined' && navigator.language) || 'en';
+    }
+    const code = locale.toLowerCase().slice(0, 2);
+    if (code === 'mr') return 'mr';
+    if (code === 'hi') return 'hi';
+    return 'en';
+  } catch {
+    return 'en';
+  }
+}
 
 export const LANGUAGES = [
   { code: 'en', label: 'English', native: 'EN' },
@@ -897,7 +922,7 @@ const STRINGS = {
 const LangContext = createContext(null);
 
 export function LangProvider({ children }) {
-  const [lang, setLang] = useState('en');
+  const [lang, setLang] = useState(getDefaultLang);
   function changeLang(code) { setLang(code); }
   function t(key) { return STRINGS[lang]?.[key] || STRINGS.en[key] || key; }
   return (
