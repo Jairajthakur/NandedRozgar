@@ -32,8 +32,9 @@ router.post('/', auth, async (req, res) => {
   try {
     const { jobId, ratedId, stars, comment } = req.body;
 
-    if (!stars || stars < 1 || stars > 5) {
-      return res.json({ ok: false, error: 'Stars must be between 1 and 5' });
+    const s = parseInt(stars, 10);
+    if (!s || s < 1 || s > 5) {
+      return res.json({ ok: false, error: 'Stars must be a whole number between 1 and 5' });
     }
     if (!jobId) {
       return res.json({ ok: false, error: 'A job must be specified to submit a rating' });
@@ -68,7 +69,7 @@ router.post('/', auth, async (req, res) => {
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (job_id, rater_id) DO UPDATE SET stars=$4, comment=$5
       RETURNING *
-    `, [jobId, req.user.id, ratedId, stars, comment?.trim() || null]);
+    `, [jobId, req.user.id, ratedId, s, comment?.trim() || null]);
 
     res.json({ ok: true, rating: rows[0] });
   } catch (err) {
