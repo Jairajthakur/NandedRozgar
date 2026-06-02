@@ -91,19 +91,31 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
+// Raw body parser for Cashfree webhook (must come before express.json)
+// Cashfree signature is computed over the raw request body; parsing as JSON
+// first would change whitespace and break HMAC verification.
+app.use('/api/payments/cashfree-webhook', express.raw({ type: 'application/json', limit: '1mb' }), (req, _res, next) => {
+  if (Buffer.isBuffer(req.body)) {
+    try { req.body = JSON.parse(req.body.toString()); } catch { req.body = {}; }
+  }
+  next();
+});
 app.use(express.json({ limit: '5mb' }));
 
 // ── Security headers ──────────────────────────────────────────────────────────
 app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   next();
 });
 
 // ── Force HTTPS in production ─────────────────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   app.use((req, res, next) => {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     const proto = req.headers['x-forwarded-proto'];
     if (proto && proto !== 'https') {
       return res.redirect(301, 'https://' + req.headers.host + req.url);
