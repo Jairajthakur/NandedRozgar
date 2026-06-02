@@ -127,6 +127,7 @@ app.use('/api/analytics',  require('./routes/analytics'));
 app.use('/api/seeker',     require('./routes/seeker'));
 app.use('/api/promotions', require('./routes/promotions'));
 app.use('/api/coupons',    require('./routes/coupons'));
+app.use('/api/upload',     require('./routes/upload'));
 const { router: seoRouter } = require('./routes/seo');
 app.use('/', seoRouter);
 
@@ -286,10 +287,10 @@ function startExpiryCleanup() {
       if (total > 0) {
         console.log(`🗑️  Expiry cleanup: ${jobs.rowCount} jobs, ${vehicles.rowCount} vehicles, ${rooms.rowCount} rooms, ${items.rowCount} items | ${promos.rowCount} promotions expired`);
         // Bust all list caches so expired items disappear immediately
-        cache.delPrefix('jobs:');
-        cache.delPrefix('rooms:');
-        cache.delPrefix('vehicles:');
-        cache.delPrefix('buysell:');
+        await cache.delPrefix('jobs:');
+        await cache.delPrefix('rooms:');
+        await cache.delPrefix('vehicles:');
+        await cache.delPrefix('buysell:');
       }
     } catch (err) {
       console.error('❌ Expiry cleanup error:', err.message);
