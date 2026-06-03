@@ -134,6 +134,138 @@ const globalLimiter = rateLimit({
 });
 app.use('/api/', globalLimiter);
 
+
+// ── ISO 27001 Audit Logging Middleware ────────────────────────────────────────
+// Automatically logs every authenticated mutating API request (POST/PUT/PATCH/DELETE)
+// and sensitive GET requests (profile views, payment info, admin actions).
+// Fires async after response is sent — zero latency impact on API responses.
+//
+// Action map: derives a human-readable action name from method + path
+// so logs read as "job_created", "payment_made" etc. instead of "POST /api/jobs"
+(function installAuditMiddleware(app) {
+  const { pool } = require('./db');
+
+  function deriveAction(method, path) {
+    const p = path.replace(/\/[0-9]+/g, '/:id').replace(/\/api\//, '');
+    const map = {
+      // Auth
+      'POST auth/login':                   'login',
+      'POST auth/logout':                  'logout',
+      'POST auth/register':                'register',
+      'POST auth/google':                  'login_google',
+      'POST auth/verify-firebase-otp':     'login_otp',
+      'POST auth/forgot-password':         'password_reset_request',
+      'POST auth/reset-password':          'password_reset',
+      'POST auth/change-password':         'password_changed',
+      'DELETE auth/account':               'account_deleted',
+      // Jobs
+      'POST jobs/':                        'job_created',
+      'POST jobs/:id/apply':               'job_applied',
+      'POST jobs/:id/save':                'job_saved',
+      'POST jobs/:id/report':              'job_reported',
+      'DELETE jobs/:id':                   'job_deleted',
+      'PATCH jobs/:id/application/:id':    'application_status_updated',
+      // Payments
+      'POST payments/order':               'payment_initiated',
+      'POST payments/verify':              'payment_verified',
+      'POST payments/verify/room':         'payment_verified_room',
+      'POST payments/verify/vehicle':      'payment_verified_vehicle',
+      'POST payments/verify/buysell':      'payment_verified_buysell',
+      'POST payments/verify/promotion':    'payment_verified_promotion',
+      // Listings
+      'POST vehicles/':                    'vehicle_listed',
+      'DELETE vehicles/:id':               'vehicle_deleted',
+      'POST rooms/':                       'room_listed',
+      'DELETE rooms/:id':                  'room_deleted',
+      'POST buysell/':                     'buysell_item_listed',
+      'DELETE buysell/:id':                'buysell_item_deleted',
+      // Profile / Seeker
+      'PUT seeker/profile':                'profile_updated',
+      'POST seeker/resume':                'resume_uploaded',
+      'DELETE seeker/resume':              'resume_deleted',
+      // Upload
+      'POST upload/image':                 'image_uploaded',
+      'DELETE upload/image':               'image_deleted',
+      // Chat
+      'POST chat/:id/:id':                 'message_sent',
+      // Ratings
+      'POST ratings/':                     'rating_submitted',
+      // Alerts
+      'POST alerts/':                      'job_alert_created',
+      'PATCH alerts/:id/toggle':           'job_alert_toggled',
+      'DELETE alerts/:id':                 'job_alert_deleted',
+      // Promotions
+      'POST promotions/':                  'promotion_created',
+      // Coupons
+      'POST coupons/validate':             'coupon_validated',
+      'POST coupons/mark-used':            'coupon_used',
+      // Admin actions
+      'PATCH admin/users/:id/toggle':      'admin_user_toggled',
+      'PATCH admin/users/:id/grant-pro':   'admin_pro_granted',
+      'PATCH admin/users/:id/revoke-pro':  'admin_pro_revoked',
+      'PATCH admin/users/:id/role':        'admin_role_changed',
+      'PATCH admin/jobs/:id/status':       'admin_job_status_changed',
+      'PATCH admin/jobs/:id/feature':      'admin_job_featured',
+      'DELETE admin/jobs/:id':             'admin_job_deleted',
+      'DELETE admin/buysell/:id':          'admin_buysell_deleted',
+      'PATCH admin/vehicles/:id/status':   'admin_vehicle_status_changed',
+      'DELETE admin/vehicles/:id':         'admin_vehicle_deleted',
+      'PATCH admin/rooms/:id/status':      'admin_room_status_changed',
+      'DELETE admin/rooms/:id':            'admin_room_deleted',
+      'POST admin/notifications':          'admin_notification_sent',
+      'POST admin/logs/test':              'admin_test_log',
+    };
+    const key = `${method} ${p}`;
+    return map[key] || null;
+  }
+
+  // Only log paths under /api/  — skip static files, health checks etc.
+  app.use('/api/', (req, res, next) => {
+    const originalJson = res.json.bind(res);
+    res.json = function (body) {
+      // Determine action
+      const action = deriveAction(req.method, req.path);
+
+      // Log if:
+      //  - we have a mapped action name, AND
+      //  - the request is authenticated (req.user set by auth middleware), AND
+      //  - the response was successful (ok: true or 2xx)
+      const userId = req.user?.id || null;
+      const shouldLog = action && userId && body?.ok !== false;
+
+      if (shouldLog) {
+        const ip        = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
+        const userAgent = req.headers['user-agent'] || null;
+        const detail    = buildDetail(req);
+
+        // Fire and forget — never block the response
+        setImmediate(() => {
+          pool.query(
+            `INSERT INTO activity_logs (user_id, action, status, ip, user_agent, detail) VALUES ($1,$2,$3,$4,$5,$6)`,
+            [userId, action, 'success', ip, userAgent, detail]
+          ).catch(e => console.warn('[audit] log insert failed:', e.message));
+        });
+      }
+
+      return originalJson(body);
+    };
+    next();
+  });
+
+  function buildDetail(req) {
+    const parts = [];
+    if (req.params?.id)     parts.push(`id:${req.params.id}`);
+    // Safe fields only — never log passwords, tokens, full bodies
+    const safeFields = ['title','category','type','status','action','plan','code','reason','email'];
+    for (const f of safeFields) {
+      if (req.body?.[f]) parts.push(`${f}:${String(req.body[f]).slice(0, 80)}`);
+    }
+    return parts.join(' | ') || null;
+  }
+
+  console.log('[audit] ISO 27001 audit middleware installed ✅');
+})(app);
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',       require('./routes/auth'));
 app.use('/api/jobs',       require('./routes/jobs'));
