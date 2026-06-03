@@ -273,7 +273,7 @@ function toast(msg, type = 'success') {
 function showTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  const idx = ['overview','users','jobs','vehicles','rooms','buysell','payments','analytics','logs','post','notify'].indexOf(tab);
+  const idx = ['overview','users','jobs','payments','vehicles','rooms','buysell','analytics','logs','post','notify'].indexOf(tab);
   document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
   const m = document.getElementById('main-content');
   m.innerHTML = '<div class="tab-spinner">Loading…</div>';
