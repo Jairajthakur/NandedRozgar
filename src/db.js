@@ -163,6 +163,9 @@ async function runMigrations() {
       `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(100)`,
       `ALTER TABLE payments ADD COLUMN IF NOT EXISTS razorpay_order_id   VARCHAR(100)`,
       `ALTER TABLE payments ADD COLUMN IF NOT EXISTS status              VARCHAR(20) DEFAULT 'paid'`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS category            VARCHAR(20)  DEFAULT 'job'`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS plan                VARCHAR(30)`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS ref_id              INTEGER`,
 
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS district     VARCHAR(50)  DEFAULT 'nanded'`,
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS status       VARCHAR(20)  DEFAULT 'active'`,
@@ -261,6 +264,11 @@ async function runMigrations() {
         job_id          INTEGER,
         amount          NUMERIC(10,2),
         status          VARCHAR(20) DEFAULT 'paid',
+        category        VARCHAR(20) DEFAULT 'job',
+        plan            VARCHAR(30),
+        ref_id          INTEGER,
+        razorpay_payment_id VARCHAR(100),
+        razorpay_order_id   VARCHAR(100),
         created_at      TIMESTAMPTZ DEFAULT NOW()
       );
     `);
