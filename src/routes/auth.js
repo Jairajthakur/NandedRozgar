@@ -37,6 +37,18 @@ function getFirebaseAdmin() {
   }
 }
 
+// ── Activity logger ───────────────────────────────────────────────────────────
+async function log(action, { userId = null, status = 'success', ip = null, userAgent = null, detail = null } = {}) {
+  try {
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, action, status, ip, user_agent, detail) VALUES ($1,$2,$3,$4,$5,$6)`,
+      [userId || null, action, status, ip, userAgent, detail]
+    );
+  } catch (e) { /* non-fatal */ }
+}
+function getIP(req) { return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null; }
+function getUA(req) { return req.headers['user-agent'] || null; }
+
 // ── Rate limiters ──────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, max: 20,
@@ -140,9 +152,13 @@ router.post('/register', registerLimiter, async (req, res) => {
       }
     }
 
+    await log('register', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: user.email });
     return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
   } catch (err) {
-    if (err.code === '23505') return res.json({ ok: false, error: 'Email already registered' });
+    if (err.code === '23505') {
+      await log('register_failed', { status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Duplicate email: ${req.body.email}` });
+      return res.json({ ok: false, error: 'Email already registered' });
+    }
     console.error('register error:', err.message);
     return res.json({ ok: false, error: 'Registration failed' });
   }
@@ -193,12 +209,21 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     const user = rows[0];
-    if (!user)          return res.json({ ok: false, error: 'No account found with this email' });
-    if (!user.active)   return res.json({ ok: false, error: 'This account has been suspended' });
+    if (!user) {
+      await log('login_failed', { status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Unknown email: ${email}` });
+      return res.json({ ok: false, error: 'No account found with this email' });
+    }
+    if (!user.active) {
+      await log('login_blocked', { userId: user.id, status: 'blocked', ip: getIP(req), userAgent: getUA(req), detail: `Banned user tried to login: ${email}` });
+      return res.json({ ok: false, error: 'This account has been suspended' });
+    }
     if (!user.password) return res.json({ ok: false, error: 'This account uses Google sign-in. Use that option instead.' });
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.json({ ok: false, error: 'Incorrect password' });
+    if (!match) {
+      await log('login_failed', { userId: user.id, status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Wrong password for ${email}` });
+      return res.json({ ok: false, error: 'Incorrect password' });
+    }
 
     await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(() => {});
     return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
@@ -609,6 +634,7 @@ router.post('/change-password', changePasswordLimiter, auth, async (req, res) =>
 router.post('/logout', auth, async (req, res) => {
   try {
     await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [req.user.id]).catch(() => {});
+    await log('logout', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req) });
     return res.json({ ok: true });
   } catch {
     return res.json({ ok: true });
