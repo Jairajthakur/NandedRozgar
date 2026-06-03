@@ -1,216 +1,548 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CityPlus Admin Login</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      min-height: 100vh;
-      background: #0f172a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-    .card {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 16px;
-      padding: 40px 36px;
-      width: 100%;
-      max-width: 400px;
-      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-    }
-    .logo {
-      text-align: center;
-      margin-bottom: 32px;
-    }
-    .logo-text {
-      font-size: 28px;
-      font-weight: 900;
-      letter-spacing: -0.5px;
-    }
-    .logo-city { color: #fff; }
-    .logo-plus { color: #f97316; }
-    .logo-sub {
-      color: #64748b;
-      font-size: 13px;
-      margin-top: 4px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-    }
-    .shield {
-      font-size: 40px;
-      display: block;
-      margin-bottom: 8px;
-    }
-    label {
-      display: block;
-      color: #94a3b8;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 6px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-    input {
-      width: 100%;
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 10px;
-      padding: 12px 16px;
-      color: #f1f5f9;
-      font-size: 15px;
-      outline: none;
-      transition: border-color 0.2s;
-      margin-bottom: 20px;
-    }
-    input:focus { border-color: #f97316; }
-    input::placeholder { color: #475569; }
-    button {
-      width: 100%;
-      background: #f97316;
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      padding: 14px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-      margin-top: 4px;
-    }
-    button:hover { background: #ea6c0a; }
-    button:active { transform: scale(0.98); }
-    button:disabled { background: #475569; cursor: not-allowed; }
-    .error {
-      background: #450a0a;
-      border: 1px solid #7f1d1d;
-      color: #fca5a5;
-      border-radius: 8px;
-      padding: 12px 14px;
-      font-size: 14px;
-      margin-bottom: 16px;
-      display: none;
-    }
-    .spinner {
-      display: inline-block;
-      width: 18px; height: 18px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle;
-      margin-right: 8px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CityPlus Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0c0c0d;--surface:#141415;--surface2:#1c1c1e;--border:#2a2a2e;--border2:#3a3a3e;
+  --text:#f0f0f0;--text2:#888;--text3:#555;
+  --orange:#f97316;--orange-dim:#7c3800;--orange-bg:rgba(249,115,22,.08);
+  --green:#22c55e;--green-bg:rgba(34,197,94,.08);
+  --red:#ef4444;--red-bg:rgba(239,68,68,.08);
+  --blue:#60a5fa;--blue-bg:rgba(96,165,250,.08);
+  --radius:10px;--radius-sm:6px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+a{color:inherit;text-decoration:none}
+
+/* ── LOGIN ── */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:44px 40px;width:100%;max-width:400px}
+.brand{text-align:center;margin-bottom:36px}
+.brand-name{font-size:26px;font-weight:600;letter-spacing:-.5px}
+.brand-name span{color:var(--orange)}
+.brand-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-top:6px}
+.field{margin-bottom:18px}
+.field label{display:block;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .15s}
+.field input:focus{border-color:var(--orange)}
+.field input::placeholder{color:var(--text3)}
+.btn-primary{width:100%;background:var(--orange);color:#fff;border:none;border-radius:var(--radius-sm);padding:13px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:opacity .15s;margin-top:4px}
+.btn-primary:hover{opacity:.88}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.error-msg{background:var(--red-bg);border:1px solid rgba(239,68,68,.25);color:#fca5a5;border-radius:var(--radius-sm);padding:11px 14px;font-size:13px;margin-bottom:16px;display:none}
+
+/* ── APP SHELL ── */
+#app{display:none;min-height:100vh}
+.sidebar{position:fixed;top:0;left:0;width:220px;height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:10}
+.sidebar-brand{padding:24px 20px;border-bottom:1px solid var(--border)}
+.sidebar-brand .brand-name{font-size:18px}
+.nav-items{flex:1;padding:12px 8px;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text2);transition:all .15s;margin-bottom:2px;font-size:13px}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--orange-bg);color:var(--orange)}
+.nav-item svg{width:16px;height:16px;flex-shrink:0}
+.sidebar-footer{padding:16px;border-top:1px solid var(--border)}
+.logout-btn{width:100%;background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .15s}
+.logout-btn:hover{border-color:var(--red);color:var(--red)}
+.main{margin-left:220px;padding:32px;min-height:100vh}
+.page-title{font-size:20px;font-weight:600;margin-bottom:24px;color:var(--text)}
+
+/* ── STATS GRID ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.stat-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.stat-val{font-size:26px;font-weight:600;color:var(--text)}
+.stat-val.orange{color:var(--orange)}
+.stat-val.green{color:var(--green)}
+.stat-val.red{color:var(--red)}
+.stat-val.blue{color:var(--blue)}
+
+/* ── TABLE ── */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.table-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.table-header h3{font-size:14px;font-weight:600}
+.search-input{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:220px;transition:border-color .15s}
+.search-input:focus{border-color:var(--orange)}
+.search-input::placeholder{color:var(--text3)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:11px 16px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge-active{background:var(--green-bg);color:var(--green)}
+.badge-inactive{background:var(--red-bg);color:var(--red)}
+.badge-admin{background:var(--orange-bg);color:var(--orange)}
+.badge-pro{background:var(--blue-bg);color:var(--blue)}
+.badge-paid{background:var(--green-bg);color:var(--green)}
+.badge-pending{background:rgba(250,204,21,.1);color:#fbbf24}
+.action-btn{padding:5px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;border:1px solid;transition:all .15s;font-family:'DM Sans',sans-serif}
+.btn-ban{background:var(--red-bg);border-color:rgba(239,68,68,.3);color:var(--red)}
+.btn-ban:hover{background:var(--red);color:#fff}
+.btn-unban{background:var(--green-bg);border-color:rgba(34,197,94,.3);color:var(--green)}
+.btn-unban:hover{background:var(--green);color:#fff}
+.btn-feature{background:var(--orange-bg);border-color:rgba(249,115,22,.3);color:var(--orange)}
+.btn-feature:hover{background:var(--orange);color:#fff}
+.btn-delete{background:var(--red-bg);border-color:rgba(239,68,68,.3);color:var(--red)}
+.btn-delete:hover{background:var(--red);color:#fff}
+.btn-pro{background:var(--blue-bg);border-color:rgba(96,165,250,.3);color:var(--blue)}
+.btn-pro:hover{background:var(--blue);color:#fff}
+.actions-cell{display:flex;gap:6px;flex-wrap:wrap}
+.loading{text-align:center;padding:48px;color:var(--text3);font-family:'DM Mono',monospace;font-size:12px}
+.empty{text-align:center;padding:48px;color:var(--text3);font-size:13px}
+
+/* ── NOTIFY PANEL ── */
+.notify-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;max-width:560px}
+.notify-form .field input,.notify-form .field textarea,.notify-form .field select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .15s}
+.notify-form .field textarea{resize:vertical;min-height:90px}
+.notify-form .field select option{background:var(--surface2)}
+.notify-form .field input:focus,.notify-form .field textarea:focus,.notify-form .field select:focus{border-color:var(--orange)}
+.send-result{margin-top:14px;padding:11px 14px;border-radius:var(--radius-sm);font-size:13px;display:none}
+.send-result.ok{background:var(--green-bg);border:1px solid rgba(34,197,94,.25);color:#86efac}
+.send-result.err{background:var(--red-bg);border:1px solid rgba(239,68,68,.25);color:#fca5a5}
+
+/* ── SPINNER ── */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tab-spinner{display:block;text-align:center;padding:48px;color:var(--text3);font-size:12px;font-family:'DM Mono',monospace}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px 18px;font-size:13px;color:var(--text);opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;z-index:100;max-width:320px}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.success{border-color:rgba(34,197,94,.4);color:var(--green)}
+#toast.error{border-color:rgba(239,68,68,.4);color:#fca5a5}
+</style>
 </head>
 <body>
-  <div class="card">
-    <div class="logo">
-      <span class="shield">🛡️</span>
-      <div class="logo-text">
-        <span class="logo-city">City</span><span class="logo-plus">Plus</span>
-      </div>
-      <div class="logo-sub">Admin Portal</div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-name">City<span>Plus</span></div>
+      <div class="brand-sub">Admin Portal</div>
     </div>
-
-    <div class="error" id="errorBox"></div>
-
-    <label for="email">Email</label>
-    <input type="email" id="email" placeholder="admin@example.com" autocomplete="username" />
-
-    <label for="password">Password</label>
-    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
-
-    <button id="loginBtn" onclick="doLogin()">Sign In</button>
+    <div class="error-msg" id="err"></div>
+    <div class="field"><label>Email</label><input type="email" id="em" placeholder="admin@example.com" autocomplete="username"/></div>
+    <div class="field"><label>Password</label><input type="password" id="pw" placeholder="••••••••" autocomplete="current-password"/></div>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">Sign In</button>
   </div>
+</div>
 
-  <script>
-    const TOKEN_KEY = 'cityplus_token';
+<!-- APP -->
+<div id="app">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-name">City<span style="color:var(--orange)">Plus</span></div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-top:5px">Admin</div>
+    </div>
+    <nav class="nav-items">
+      <div class="nav-item active" onclick="showTab('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Overview
+      </div>
+      <div class="nav-item" onclick="showTab('users')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>
+        Users
+      </div>
+      <div class="nav-item" onclick="showTab('jobs')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        Jobs
+      </div>
+      <div class="nav-item" onclick="showTab('payments')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Payments
+      </div>
+      <div class="nav-item" onclick="showTab('notify')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Notifications
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </aside>
 
-    // If already logged in as admin, skip login and go straight to the app
-    (async function checkExisting() {
-      const token = localStorage.getItem(TOKEN_KEY);
-      if (!token) return;
-      try {
-        const res  = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } });
-        const data = await res.json();
-        if (data.ok && data.user?.role === 'admin') {
-          window.location.href = '/?admin=1';
-        } else {
-          localStorage.removeItem(TOKEN_KEY);
-        }
-      } catch (_) {}
-    })();
+  <main class="main" id="main-content"></main>
+</div>
 
-    // Allow pressing Enter to submit
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') doLogin();
-    });
+<div id="toast"></div>
 
-    async function doLogin() {
-      const email    = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      const btn      = document.getElementById('loginBtn');
-      const errBox   = document.getElementById('errorBox');
+<script>
+const API = '';
+let TOKEN = localStorage.getItem('admin_token') || '';
+let currentTab = 'overview';
+let allUsers = [], allJobs = [], allPayments = [];
 
-      errBox.style.display = 'none';
+// ── AUTH ─────────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+  const r = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  return r.json();
+}
 
-      if (!email || !password) {
-        showError('Please enter email and password.');
-        return;
-      }
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLogin(); });
 
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>Signing in…';
+async function doLogin() {
+  const email = document.getElementById('em').value.trim();
+  const pw    = document.getElementById('pw').value;
+  const btn   = document.getElementById('login-btn');
+  const err   = document.getElementById('err');
+  err.style.display = 'none';
+  if (!email || !pw) { showErr('Enter email and password.'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Signing in…';
+  try {
+    const d = await api('POST', '/api/auth/login', { email, password: pw });
+    if (!d.ok) { showErr(d.error || 'Login failed.'); return; }
+    if (d.user?.role !== 'admin') { showErr('Access denied — admins only.'); return; }
+    TOKEN = d.token;
+    localStorage.setItem('admin_token', TOKEN);
+    bootApp();
+  } catch { showErr('Network error. Try again.'); }
+  finally { btn.disabled = false; btn.innerHTML = 'Sign In'; }
+}
+function showErr(m) { const e = document.getElementById('err'); e.textContent = m; e.style.display = 'block'; }
 
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-        const data = await res.json();
+async function checkExistingSession() {
+  if (!TOKEN) return false;
+  try {
+    const d = await api('GET', '/api/auth/me');
+    if (d.ok && d.user?.role === 'admin') return true;
+    TOKEN = ''; localStorage.removeItem('admin_token'); return false;
+  } catch { return false; }
+}
 
-        if (!data.ok) {
-          showError(data.error || 'Login failed.');
-          return;
-        }
+async function bootApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  showTab('overview');
+}
 
-        if (data.user?.role !== 'admin') {
-          showError('Access denied. This portal is for admins only.');
-          return;
-        }
+function logout() {
+  TOKEN = ''; localStorage.removeItem('admin_token');
+  allUsers = []; allJobs = []; allPayments = [];
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('pw').value = '';
+}
 
-        // Store token the same way the Expo web app does
-        // (AsyncStorage maps to localStorage on web with key prefix)
-        localStorage.setItem(TOKEN_KEY, data.token);
-        // Also write the Expo AsyncStorage key format so the React app
-        // picks it up immediately without a separate login step
-        localStorage.setItem('AsyncStorage:cityplus_token', data.token);
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 3000);
+}
 
-        // Go to the Expo web app root — it will read the token from
-        // localStorage, see role=admin, and navigate to AdminScreen
-        window.location.href = '/?admin=1';
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+function showTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const idx = ['overview','users','jobs','payments','notify'].indexOf(tab);
+  document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
+  const m = document.getElementById('main-content');
+  m.innerHTML = '<div class="tab-spinner">Loading…</div>';
+  if (tab === 'overview')  loadOverview();
+  if (tab === 'users')     loadUsers();
+  if (tab === 'jobs')      loadJobs();
+  if (tab === 'payments')  loadPayments();
+  if (tab === 'notify')    renderNotify();
+}
 
-      } catch (err) {
-        showError('Network error. Please try again.');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Sign In';
-      }
+// ── FORMAT ────────────────────────────────────────────────────────────────────
+function fDate(d) { return d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
+function fMoney(v) { return '₹' + Number(v||0).toLocaleString('en-IN'); }
+
+// ── OVERVIEW ──────────────────────────────────────────────────────────────────
+async function loadOverview() {
+  const d = await api('GET', '/api/admin/stats');
+  const s = d.stats || {};
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-title">Overview</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Active Jobs</div><div class="stat-val orange">${s.active_jobs||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-val">${s.total_users||0}</div></div>
+      <div class="stat-card"><div class="stat-label">PRO Users</div><div class="stat-val blue">${s.pro_users||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-val green">${fMoney(s.total_revenue)}</div></div>
+      <div class="stat-card"><div class="stat-label">Total Views</div><div class="stat-val">${Number(s.total_views||0).toLocaleString()}</div></div>
+      <div class="stat-card"><div class="stat-label">Applications</div><div class="stat-val">${s.total_applicants||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Featured Jobs</div><div class="stat-val orange">${s.featured_jobs||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Banned Users</div><div class="stat-val red">${s.banned_users||0}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="table-wrap" style="cursor:pointer" onclick="showTab('users')">
+        <div class="table-header"><h3>Users</h3><span style="font-size:12px;color:var(--text3)">View all →</span></div>
+        <div style="padding:16px 20px;color:var(--text2);font-size:13px">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Total</span><span style="color:var(--text)">${s.total_users||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>PRO</span><span style="color:var(--blue)">${s.pro_users||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Admins</span><span style="color:var(--orange)">${s.admin_users||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span>Banned</span><span style="color:var(--red)">${s.banned_users||0}</span></div>
+        </div>
+      </div>
+      <div class="table-wrap" style="cursor:pointer" onclick="showTab('jobs')">
+        <div class="table-header"><h3>Jobs</h3><span style="font-size:12px;color:var(--text3)">View all →</span></div>
+        <div style="padding:16px 20px;color:var(--text2);font-size:13px">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Active</span><span style="color:var(--green)">${s.active_jobs||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Inactive</span><span style="color:var(--text3)">${s.inactive_jobs||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Featured</span><span style="color:var(--orange)">${s.featured_jobs||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span>Urgent</span><span style="color:var(--red)">${s.urgent_jobs||0}</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── USERS ─────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const d = await api('GET', '/api/admin/users');
+  allUsers = d.users || [];
+  renderUsers(allUsers);
+}
+
+function renderUsers(users) {
+  const rows = users.map(u => `
+    <tr>
+      <td style="font-weight:500">${esc(u.name||'—')}</td>
+      <td style="color:var(--text2)">${esc(u.email||'—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2)">${esc(u.phone||'—')}</td>
+      <td>${u.role==='admin'?'<span class="badge badge-admin">admin</span>':'<span class="badge" style="background:var(--surface2);color:var(--text2)">user</span>'}</td>
+      <td>${u.premium?'<span class="badge badge-pro">PRO</span>':'—'}</td>
+      <td><span class="badge ${u.active?'badge-active':'badge-inactive'}">${u.active?'active':'banned'}</span></td>
+      <td style="color:var(--text3);font-size:12px">${fDate(u.created_at)}</td>
+      <td><div class="actions-cell">
+        <button class="action-btn ${u.active?'btn-ban':'btn-unban'}" onclick="toggleUser(${u.id},${u.active})">${u.active?'Ban':'Unban'}</button>
+        ${u.premium
+          ? `<button class="action-btn btn-ban" onclick="setPro(${u.id},false)">Revoke PRO</button>`
+          : `<button class="action-btn btn-pro" onclick="setPro(${u.id},true)">Grant PRO</button>`}
+      </div></td>
+    </tr>`).join('');
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-title">Users</div>
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>All users <span style="color:var(--text3);font-weight:400;font-size:12px">(${users.length})</span></h3>
+        <input class="search-input" placeholder="Search name or email…" oninput="filterUsers(this.value)"/>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Plan</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody id="users-body">${rows || '<tr><td colspan="8" class="empty">No users found</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function filterUsers(q) {
+  const lq = q.toLowerCase();
+  const filtered = allUsers.filter(u =>
+    (u.name||'').toLowerCase().includes(lq) || (u.email||'').toLowerCase().includes(lq)
+  );
+  document.getElementById('users-body').innerHTML = filtered.map(u => `
+    <tr>
+      <td style="font-weight:500">${esc(u.name||'—')}</td>
+      <td style="color:var(--text2)">${esc(u.email||'—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2)">${esc(u.phone||'—')}</td>
+      <td>${u.role==='admin'?'<span class="badge badge-admin">admin</span>':'<span class="badge" style="background:var(--surface2);color:var(--text2)">user</span>'}</td>
+      <td>${u.premium?'<span class="badge badge-pro">PRO</span>':'—'}</td>
+      <td><span class="badge ${u.active?'badge-active':'badge-inactive'}">${u.active?'active':'banned'}</span></td>
+      <td style="color:var(--text3);font-size:12px">${fDate(u.created_at)}</td>
+      <td><div class="actions-cell">
+        <button class="action-btn ${u.active?'btn-ban':'btn-unban'}" onclick="toggleUser(${u.id},${u.active})">${u.active?'Ban':'Unban'}</button>
+        ${u.premium
+          ? `<button class="action-btn btn-ban" onclick="setPro(${u.id},false)">Revoke PRO</button>`
+          : `<button class="action-btn btn-pro" onclick="setPro(${u.id},true)">Grant PRO</button>`}
+      </div></td>
+    </tr>`).join('') || '<tr><td colspan="8" class="empty">No results</td></tr>';
+}
+
+async function toggleUser(id, active) {
+  const d = await api('PATCH', `/api/admin/users/${id}/toggle`);
+  if (d.ok) { toast(active ? 'User banned' : 'User unbanned'); loadUsers(); }
+  else toast(d.error || 'Failed', 'error');
+}
+async function setPro(id, grant) {
+  const d = await api('PATCH', `/api/admin/users/${id}/${grant?'grant-pro':'revoke-pro'}`);
+  if (d.ok) { toast(grant ? 'PRO granted' : 'PRO revoked'); loadUsers(); }
+  else toast(d.error || 'Failed', 'error');
+}
+
+// ── JOBS ─────────────────────────────────────────────────────────────────────
+async function loadJobs() {
+  const d = await api('GET', '/api/admin/jobs');
+  allJobs = d.jobs || [];
+  renderJobs(allJobs);
+}
+
+function renderJobs(jobs) {
+  const rows = jobs.map(j => `
+    <tr>
+      <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(j.title||'—')}</td>
+      <td style="color:var(--text2)">${esc(j.company||'—')}</td>
+      <td style="color:var(--text2)">${esc(j.poster_name||'—')}</td>
+      <td>${j.featured?'<span class="badge badge-active">✓ featured</span>':'—'}</td>
+      <td><span class="badge ${j.status==='active'?'badge-active':'badge-inactive'}">${j.status}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${Number(j.views||0).toLocaleString()}</td>
+      <td style="color:var(--text3);font-size:12px">${fDate(j.created_at)}</td>
+      <td><div class="actions-cell">
+        <button class="action-btn btn-feature" onclick="toggleFeature(${j.id},${j.featured})">${j.featured?'Unfeature':'Feature'}</button>
+        <button class="action-btn ${j.status==='active'?'btn-ban':'btn-unban'}" onclick="toggleJobStatus(${j.id},'${j.status}')">${j.status==='active'?'Deactivate':'Activate'}</button>
+        <button class="action-btn btn-delete" onclick="deleteJob(${j.id})">Delete</button>
+      </div></td>
+    </tr>`).join('');
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-title">Jobs</div>
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>All jobs <span style="color:var(--text3);font-weight:400;font-size:12px">(${jobs.length})</span></h3>
+        <input class="search-input" placeholder="Search title or company…" oninput="filterJobs(this.value)"/>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Title</th><th>Company</th><th>Posted by</th><th>Featured</th><th>Status</th><th>Views</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="jobs-body">${rows || '<tr><td colspan="8" class="empty">No jobs found</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function filterJobs(q) {
+  const lq = q.toLowerCase();
+  const filtered = allJobs.filter(j =>
+    (j.title||'').toLowerCase().includes(lq) || (j.company||'').toLowerCase().includes(lq)
+  );
+  renderJobsBody(filtered);
+}
+
+function renderJobsBody(jobs) {
+  document.getElementById('jobs-body').innerHTML = jobs.map(j => `
+    <tr>
+      <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(j.title||'—')}</td>
+      <td style="color:var(--text2)">${esc(j.company||'—')}</td>
+      <td style="color:var(--text2)">${esc(j.poster_name||'—')}</td>
+      <td>${j.featured?'<span class="badge badge-active">✓ featured</span>':'—'}</td>
+      <td><span class="badge ${j.status==='active'?'badge-active':'badge-inactive'}">${j.status}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${Number(j.views||0).toLocaleString()}</td>
+      <td style="color:var(--text3);font-size:12px">${fDate(j.created_at)}</td>
+      <td><div class="actions-cell">
+        <button class="action-btn btn-feature" onclick="toggleFeature(${j.id},${j.featured})">${j.featured?'Unfeature':'Feature'}</button>
+        <button class="action-btn ${j.status==='active'?'btn-ban':'btn-unban'}" onclick="toggleJobStatus(${j.id},'${j.status}')">${j.status==='active'?'Deactivate':'Activate'}</button>
+        <button class="action-btn btn-delete" onclick="deleteJob(${j.id})">Delete</button>
+      </div></td>
+    </tr>`).join('') || '<tr><td colspan="8" class="empty">No results</td></tr>';
+}
+
+async function toggleFeature(id, featured) {
+  const d = await api('PATCH', `/api/admin/jobs/${id}/feature`, { featured: !featured });
+  if (d.ok) { toast(featured ? 'Unfeatured' : 'Featured'); loadJobs(); }
+  else toast(d.error || 'Failed', 'error');
+}
+async function toggleJobStatus(id, status) {
+  const newStatus = status === 'active' ? 'inactive' : 'active';
+  const d = await api('PATCH', `/api/admin/jobs/${id}/status`, { status: newStatus });
+  if (d.ok) { toast('Status updated'); loadJobs(); }
+  else toast(d.error || 'Failed', 'error');
+}
+async function deleteJob(id) {
+  if (!confirm('Delete this job? This cannot be undone.')) return;
+  const d = await api('DELETE', `/api/admin/jobs/${id}`);
+  if (d.ok) { toast('Job deleted'); loadJobs(); }
+  else toast(d.error || 'Failed', 'error');
+}
+
+// ── PAYMENTS ──────────────────────────────────────────────────────────────────
+async function loadPayments() {
+  const d = await api('GET', '/api/admin/payments');
+  allPayments = d.payments || [];
+  const rows = allPayments.map(p => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3)">#${p.id}</td>
+      <td style="font-weight:500">${esc(p.user_name||'—')}</td>
+      <td style="color:var(--text2);font-size:12px">${esc(p.user_email||'—')}</td>
+      <td style="font-weight:500;color:var(--green)">${fMoney(p.amount)}</td>
+      <td><span class="badge ${p.status==='paid'?'badge-paid':'badge-pending'}">${p.status||'—'}</span></td>
+      <td style="color:var(--text2)">${esc(p.plan||'—')}</td>
+      <td style="color:var(--text3);font-size:12px">${fDate(p.created_at)}</td>
+    </tr>`).join('');
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-title">Payments</div>
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>All payments <span style="color:var(--text3);font-weight:400;font-size:12px">(${allPayments.length})</span></h3>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--green)">
+          Total paid: ${fMoney(allPayments.filter(p=>p.status==='paid').reduce((s,p)=>s+Number(p.amount||0),0))}
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>ID</th><th>User</th><th>Email</th><th>Amount</th><th>Status</th><th>Plan</th><th>Date</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="7" class="empty">No payments yet</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+function renderNotify() {
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-title">Push Notifications</div>
+    <div class="notify-form">
+      <div class="field"><label>Title</label><input type="text" id="ntitle" placeholder="e.g. New jobs in Nanded!"/></div>
+      <div class="field"><label>Message</label><textarea id="nbody" placeholder="Write your notification message…"></textarea></div>
+      <div class="field">
+        <label>Target audience</label>
+        <select id="ntarget">
+          <option value="all">All users</option>
+          <option value="pro">PRO users only</option>
+          <option value="free">Free users only</option>
+        </select>
+      </div>
+      <button class="btn-primary" id="send-btn" onclick="sendNotif()" style="width:auto;padding:11px 28px">Send Notification</button>
+      <div class="send-result" id="send-result"></div>
+    </div>`;
+}
+
+async function sendNotif() {
+  const title  = document.getElementById('ntitle').value.trim();
+  const body   = document.getElementById('nbody').value.trim();
+  const target = document.getElementById('ntarget').value;
+  const btn    = document.getElementById('send-btn');
+  const res    = document.getElementById('send-result');
+  res.style.display = 'none';
+  if (!title || !body) { res.className='send-result err'; res.textContent='Title and message are required.'; res.style.display='block'; return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Sending…';
+  try {
+    const d = await api('POST', '/api/admin/notifications', { title, body, target });
+    if (d.ok) {
+      res.className = 'send-result ok';
+      res.textContent = `Sent to ${d.sent_to} device${d.sent_to!==1?'s':''}${d.failed?' ('+d.failed+' failed)':''}`;
+    } else {
+      res.className = 'send-result err';
+      res.textContent = d.error || 'Failed to send.';
     }
+    res.style.display = 'block';
+  } catch { res.className='send-result err'; res.textContent='Network error.'; res.style.display='block'; }
+  finally { btn.disabled=false; btn.innerHTML='Send Notification'; }
+}
 
-    function showError(msg) {
-      const box = document.getElementById('errorBox');
-      box.textContent = msg;
-      box.style.display = 'block';
-    }
-  </script>
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+(async () => {
+  if (await checkExistingSession()) bootApp();
+})();
+</script>
 </body>
 </html>
