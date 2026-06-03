@@ -608,7 +608,8 @@ router.post('/reset-password', resetLimiter, async (req, res) => {
 });
 
 // ── GET /api/auth/me ───────────────────────────────────────────────────────────
-router.get('/me', auth, (req, res) => {
+router.get('/me', auth, async (req, res) => {
+  log('app_open', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: 'Session resumed' }).catch(() => {});
   res.json({ ok: true, user: safeUser(req.user) });
 });
 
