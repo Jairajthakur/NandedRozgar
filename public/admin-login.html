@@ -877,6 +877,8 @@ function renderPostTab() {
 }
 
 function buildPostForm(service) {
+  // Reset uploaded photos for this form
+  window._adminPhotos = [];
   const inp = (name, placeholder, type='text', required=false) =>
     `<input name="${name}" type="${type}" placeholder="${placeholder}${required?' *':''}"
       style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;box-sizing:border-box"
@@ -895,6 +897,20 @@ function buildPostForm(service) {
   const label = txt => `<label style="font-size:12px;color:var(--text3);margin-bottom:4px;display:block">${txt}</label>`;
   const field = (lbl, ...inputs) =>
     `<div style="display:flex;flex-direction:column;gap:4px">${label(lbl)}${inputs.join('')}</div>`;
+
+  const photoField = `
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label style="font-size:12px;color:var(--text3);display:block">Photos (up to 10)</label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label style="padding:8px 16px;background:var(--surface2);border:1px dashed var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:13px;color:var(--text2);font-family:'DM Sans',sans-serif">
+          📷 Choose Photos
+          <input type="file" accept="image/*" multiple onchange="handleAdminPhotoUpload(this)"
+            style="display:none">
+        </label>
+        <span id="photo-upload-status" style="font-size:12px;color:var(--text3)">No photos selected</span>
+      </div>
+      <div id="photo-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
+    </div>`;
 
   const submitBtn = `
     <div id="post-result" style="font-size:13px;min-height:20px"></div>
@@ -924,6 +940,7 @@ function buildPostForm(service) {
         ${row(field('Area / Locality', inp('area','Locality')), field('Landmark', inp('landmark','Near…')))}
         ${row(field('Owner Name', inp('ownerName','Name')), field('WhatsApp *', inp('whatsapp','10-digit','text',true)))}
         ${field('Description', ta('description','Room details…',3))}
+        ${photoField}
         ${submitBtn}
       </form>`,
 
@@ -936,6 +953,7 @@ function buildPostForm(service) {
         ${row(field('Price (₹) *', inp('price','','number',true)), field('Transmission', sel('transmission',['Manual','Automatic'],'Type')))}
         ${row(field('Area', inp('area','Locality')), field('WhatsApp *', inp('whatsapp','10-digit','text',true)))}
         ${field('Description', ta('description','Vehicle details…',3))}
+        ${photoField}
         ${submitBtn}
       </form>`,
 
@@ -947,10 +965,59 @@ function buildPostForm(service) {
         ${field('Area / Locality', inp('area','Where is item located?'))}
         ${row(field('WhatsApp *', inp('whatsapp','10-digit','text',true)), field('Negotiable', sel('negotiable',[['true','Yes'],['false','No']],'Negotiable?')))}
         ${field('Description', ta('description','Item details…',3))}
+        ${photoField}
         ${submitBtn}
       </form>`,
   };
   return forms[service] || '';
+}
+
+
+async function handleAdminPhotoUpload(input) {
+  const files = Array.from(input.files).slice(0, 10);
+  const status = document.getElementById('photo-upload-status');
+  const preview = document.getElementById('photo-preview');
+  if (!files.length) return;
+
+  status.innerHTML = `<span style="color:var(--orange)">Uploading ${files.length} photo(s)…</span>`;
+  window._adminPhotos = [];
+  preview.innerHTML = '';
+
+  for (const file of files) {
+    try {
+      // Convert to base64
+      const base64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+
+      const d = await api('POST', '/api/upload/image', { image: base64, folder: 'cityplus/admin' });
+
+      if (d.ok && d.url) {
+        window._adminPhotos.push(d.url);
+        preview.innerHTML += `
+          <div style="position:relative;display:inline-block">
+            <img src="${d.url}" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">
+            <button onclick="removeAdminPhoto('${d.url}',this.parentElement)"
+              style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;border:none;cursor:pointer;font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>
+          </div>`;
+      } else {
+        status.innerHTML += ` <span style="color:var(--red)">⚠ ${file.name} failed</span>`;
+      }
+    } catch(e) {
+      status.innerHTML += ` <span style="color:var(--red)">⚠ ${file.name} error</span>`;
+    }
+  }
+  status.innerHTML = `<span style="color:var(--green)">✅ ${window._adminPhotos.length} photo(s) uploaded</span>`;
+}
+
+function removeAdminPhoto(url, el) {
+  window._adminPhotos = (window._adminPhotos || []).filter(u => u !== url);
+  el.remove();
+  const status = document.getElementById('photo-upload-status');
+  if (status) status.innerHTML = `<span style="color:var(--green)">${window._adminPhotos.length} photo(s) uploaded</span>`;
 }
 
 async function submitAdminPost() {
@@ -960,6 +1027,10 @@ async function submitAdminPost() {
 
   const data = {};
   new FormData(form).forEach((v, k) => { data[k] = v; });
+  // Attach uploaded photo URLs
+  if (window._adminPhotos && window._adminPhotos.length > 0) {
+    data.photos = window._adminPhotos;
+  }
 
   // Basic required check
   const required = form.querySelectorAll('[required]');
