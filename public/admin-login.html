@@ -906,6 +906,13 @@ async function loadLogs(page = 1, silent = false) {
     // Profile
     profile_updated:'var(--blue)', resume_uploaded:'var(--blue)', resume_deleted:'var(--red)',
     image_uploaded:'var(--blue)', image_deleted:'var(--red)',
+    // Views & Browse
+    job_viewed:'var(--text2)', jobs_browsed:'var(--text3)', applications_viewed:'var(--text2)', saved_jobs_viewed:'var(--text2)',
+    room_viewed:'var(--text2)', rooms_browsed:'var(--text3)',
+    vehicle_viewed:'var(--text2)', vehicles_browsed:'var(--text3)',
+    buysell_item_viewed:'var(--text2)', buysell_browsed:'var(--text3)',
+    chat_opened:'var(--text3)', profile_viewed:'var(--text3)', alerts_viewed:'var(--text3)', analytics_viewed:'var(--text3)',
+    app_open:'var(--blue)',
     // Social
     message_sent:'var(--text2)', rating_submitted:'var(--blue)',
     job_alert_created:'var(--blue)', job_alert_toggled:'var(--text2)', job_alert_deleted:'var(--red)',
@@ -968,6 +975,21 @@ async function loadLogs(page = 1, silent = false) {
               <option value="login_blocked" ${logsAction==='login_blocked'?'selected':''}>Login Blocked</option>
               <option value="register" ${logsAction==='register'?'selected':''}>Register</option>
               <option value="logout" ${logsAction==='logout'?'selected':''}>Logout</option>
+              <option value="app_open" ${logsAction==='app_open'?'selected':''}>App Open</option>
+            </optgroup>
+            <optgroup label="── Views ──">
+              <option value="job_viewed" ${logsAction==='job_viewed'?'selected':''}>Job Viewed</option>
+              <option value="jobs_browsed" ${logsAction==='jobs_browsed'?'selected':''}>Jobs Browsed</option>
+              <option value="applications_viewed" ${logsAction==='applications_viewed'?'selected':''}>Applications Viewed</option>
+              <option value="saved_jobs_viewed" ${logsAction==='saved_jobs_viewed'?'selected':''}>Saved Jobs Viewed</option>
+              <option value="room_viewed" ${logsAction==='room_viewed'?'selected':''}>Room Viewed</option>
+              <option value="rooms_browsed" ${logsAction==='rooms_browsed'?'selected':''}>Rooms Browsed</option>
+              <option value="vehicle_viewed" ${logsAction==='vehicle_viewed'?'selected':''}>Vehicle Viewed</option>
+              <option value="vehicles_browsed" ${logsAction==='vehicles_browsed'?'selected':''}>Vehicles Browsed</option>
+              <option value="buysell_item_viewed" ${logsAction==='buysell_item_viewed'?'selected':''}>Buy&Sell Item Viewed</option>
+              <option value="buysell_browsed" ${logsAction==='buysell_browsed'?'selected':''}>Buy&Sell Browsed</option>
+              <option value="chat_opened" ${logsAction==='chat_opened'?'selected':''}>Chat Opened</option>
+              <option value="profile_viewed" ${logsAction==='profile_viewed'?'selected':''}>Profile Viewed</option>
               <option value="password_changed" ${logsAction==='password_changed'?'selected':''}>Password Changed</option>
               <option value="account_deleted" ${logsAction==='account_deleted'?'selected':''}>Account Deleted</option>
             </optgroup>
