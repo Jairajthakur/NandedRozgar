@@ -203,79 +203,102 @@ router.get('/payments', async (req, res) => {
 
 // GET /api/admin/stats — aggregate platform stats
 router.get('/stats', async (req, res) => {
-  try {
-    const [jobs, users, payments, apps, vehicles, rooms, buysell] = await Promise.all([
-      pool.query(`
-        SELECT
-          COUNT(*) FILTER (WHERE status = 'active')   AS active_jobs,
-          COUNT(*) FILTER (WHERE status = 'inactive') AS inactive_jobs,
-          COUNT(*) FILTER (WHERE featured = true)     AS featured_jobs,
-          COUNT(*) FILTER (WHERE urgent = true)       AS urgent_jobs,
-          SUM(views)                                  AS total_views,
-          (SELECT COUNT(*) FROM applications)         AS total_applicants
-        FROM jobs WHERE status != 'deleted'
-      `),
-      pool.query(`
-        SELECT
-          COUNT(*)                              AS total_users,
-          COUNT(*) FILTER (WHERE premium)       AS pro_users,
-          COUNT(*) FILTER (WHERE NOT active)    AS banned_users,
-          COUNT(*) FILTER (WHERE role='admin')  AS admin_users
-        FROM users
-      `),
-      pool.query(`SELECT COALESCE(SUM(amount),0) AS total_revenue FROM payments WHERE status='paid'`),
-      pool.query(`SELECT COUNT(*) AS total FROM applications`),
-      pool.query(`
-        SELECT
-          COUNT(*)                                    AS total_vehicles,
-          COUNT(*) FILTER (WHERE status = 'active')   AS active_vehicles,
-          COUNT(*) FILTER (WHERE status = 'inactive') AS inactive_vehicles,
-          COALESCE(SUM(CASE WHEN plan != 'free' THEN 1 ELSE 0 END), 0) AS paid_vehicle_listings
-        FROM vehicles
-      `),
-      pool.query(`
-        SELECT
-          COUNT(*)                                    AS total_rooms,
-          COUNT(*) FILTER (WHERE status = 'active')   AS active_rooms,
-          COUNT(*) FILTER (WHERE status = 'inactive') AS inactive_rooms,
-          COALESCE(SUM(CASE WHEN plan != 'free' THEN 1 ELSE 0 END), 0) AS paid_room_listings
-        FROM rooms
-      `),
-      pool.query(`
-        SELECT
-          COUNT(*)                                           AS total_buysell,
-          COUNT(*) FILTER (WHERE status = 'active')          AS active_buysell,
-          COUNT(*) FILTER (WHERE status = 'sold')            AS sold_buysell
-        FROM buysell_items
-      `),
-    ]);
+  const safe = async (fn, fallback) => { try { return await fn(); } catch(e) { console.error('stats partial error:', e.message); return fallback; } };
 
-    // Fetch per-category revenue breakdown from payments table (by plan/category field)
-    const revenueBreakdown = await pool.query(`
+  const [jobs, users, payments, apps, vehicles, rooms, buysell, revenue] = await Promise.all([
+    safe(() => pool.query(`
       SELECT
-        COALESCE(SUM(amount) FILTER (WHERE category = 'job' OR job_id IS NOT NULL), 0)     AS jobs_revenue,
-        COALESCE(SUM(amount) FILTER (WHERE category = 'vehicle'), 0)                        AS vehicles_revenue,
-        COALESCE(SUM(amount) FILTER (WHERE category = 'room'), 0)                           AS rooms_revenue,
-        COALESCE(SUM(amount) FILTER (WHERE category = 'buysell'), 0)                        AS buysell_revenue
-      FROM payments WHERE status = 'paid'
-    `).catch(() => ({ rows: [{ jobs_revenue: 0, vehicles_revenue: 0, rooms_revenue: 0, buysell_revenue: 0 }] }));
+        COUNT(*) FILTER (WHERE status = 'active')   AS active_jobs,
+        COUNT(*) FILTER (WHERE status = 'inactive') AS inactive_jobs,
+        COUNT(*) FILTER (WHERE featured = true)     AS featured_jobs,
+        COUNT(*) FILTER (WHERE urgent = true)       AS urgent_jobs,
+        COALESCE(SUM(views),0)                      AS total_views,
+        (SELECT COUNT(*) FROM applications)         AS total_applicants
+      FROM jobs WHERE status != 'deleted'
+    `), { rows: [{ active_jobs:0, inactive_jobs:0, featured_jobs:0, urgent_jobs:0, total_views:0, total_applicants:0 }] }),
 
-    res.json({
-      ok: true,
-      stats: {
-        ...jobs.rows[0],
-        ...users.rows[0],
-        total_revenue: payments.rows[0].total_revenue,
-        total_applications: apps.rows[0].total,
-        ...vehicles.rows[0],
-        ...rooms.rows[0],
-        ...buysell.rows[0],
-        ...revenueBreakdown.rows[0],
-      },
-    });
-  } catch (err) {
-    console.error(err);
-    res.json({ ok: false, error: 'Failed to load stats' });
+    safe(() => pool.query(`
+      SELECT
+        COUNT(*)                              AS total_users,
+        COUNT(*) FILTER (WHERE premium)       AS pro_users,
+        COUNT(*) FILTER (WHERE NOT active)    AS banned_users,
+        COUNT(*) FILTER (WHERE role='admin')  AS admin_users
+      FROM users
+    `), { rows: [{ total_users:0, pro_users:0, banned_users:0, admin_users:0 }] }),
+
+    safe(() => pool.query(`SELECT COALESCE(SUM(amount),0) AS total_revenue FROM payments WHERE status='paid'`),
+      { rows: [{ total_revenue: 0 }] }),
+
+    safe(() => pool.query(`SELECT COUNT(*) AS total FROM applications`),
+      { rows: [{ total: 0 }] }),
+
+    safe(() => pool.query(`
+      SELECT
+        COUNT(*)                                    AS total_vehicles,
+        COUNT(*) FILTER (WHERE status = 'active')   AS active_vehicles,
+        COUNT(*) FILTER (WHERE status = 'inactive') AS inactive_vehicles,
+        COALESCE(SUM(CASE WHEN plan != 'free' THEN 1 ELSE 0 END), 0) AS paid_vehicle_listings
+      FROM vehicles
+    `), { rows: [{ total_vehicles:0, active_vehicles:0, inactive_vehicles:0, paid_vehicle_listings:0 }] }),
+
+    safe(() => pool.query(`
+      SELECT
+        COUNT(*)                                    AS total_rooms,
+        COUNT(*) FILTER (WHERE status = 'active')   AS active_rooms,
+        COUNT(*) FILTER (WHERE status = 'inactive') AS inactive_rooms,
+        COALESCE(SUM(CASE WHEN plan != 'free' THEN 1 ELSE 0 END), 0) AS paid_room_listings
+      FROM rooms
+    `), { rows: [{ total_rooms:0, active_rooms:0, inactive_rooms:0, paid_room_listings:0 }] }),
+
+    safe(() => pool.query(`
+      SELECT
+        COUNT(*)                                    AS total_buysell,
+        COUNT(*) FILTER (WHERE status = 'active')   AS active_buysell,
+        COUNT(*) FILTER (WHERE status = 'sold')     AS sold_buysell
+      FROM buysell_items
+    `), { rows: [{ total_buysell:0, active_buysell:0, sold_buysell:0 }] }),
+
+    safe(() => pool.query(`
+      SELECT
+        COALESCE(SUM(amount) FILTER (WHERE category = 'job' OR job_id IS NOT NULL), 0) AS jobs_revenue,
+        COALESCE(SUM(amount) FILTER (WHERE category = 'vehicle'), 0)                    AS vehicles_revenue,
+        COALESCE(SUM(amount) FILTER (WHERE category = 'room'), 0)                       AS rooms_revenue,
+        COALESCE(SUM(amount) FILTER (WHERE category = 'buysell'), 0)                    AS buysell_revenue
+      FROM payments WHERE status = 'paid'
+    `), { rows: [{ jobs_revenue:0, vehicles_revenue:0, rooms_revenue:0, buysell_revenue:0 }] }),
+  ]);
+
+  res.json({
+    ok: true,
+    stats: {
+      ...jobs.rows[0],
+      ...users.rows[0],
+      total_revenue:      payments.rows[0].total_revenue,
+      total_applications: apps.rows[0].total,
+      ...vehicles.rows[0],
+      ...rooms.rows[0],
+      ...buysell.rows[0],
+      ...revenue.rows[0],
+    },
+  });
+});
+
+// GET /api/admin/debug — raw table counts for troubleshooting
+router.get('/debug', async (req, res) => {
+  try {
+    const tables = ['users','jobs','applications','payments','vehicles','rooms','buysell_items'];
+    const counts = {};
+    for (const t of tables) {
+      try {
+        const r = await pool.query(`SELECT COUNT(*) AS n FROM ${t}`);
+        counts[t] = parseInt(r.rows[0].n);
+      } catch(e) {
+        counts[t] = `ERROR: ${e.message}`;
+      }
+    }
+    res.json({ ok: true, counts });
+  } catch(err) {
+    res.json({ ok: false, error: err.message });
   }
 });
 
