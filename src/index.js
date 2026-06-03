@@ -136,132 +136,128 @@ app.use('/api/', globalLimiter);
 
 
 // ── ISO 27001 Audit Logging Middleware ────────────────────────────────────────
-// Automatically logs every authenticated mutating API request (POST/PUT/PATCH/DELETE)
-// and sensitive GET requests (profile views, payment info, admin actions).
-// Fires async after response is sent — zero latency impact on API responses.
-//
-// Action map: derives a human-readable action name from method + path
-// so logs read as "job_created", "payment_made" etc. instead of "POST /api/jobs"
+// Uses res.on('finish') so req.user is always populated by auth middleware first.
+// Matches against req.originalUrl so paths are always full and correct.
 (function installAuditMiddleware(app) {
   const { pool } = require('./db');
 
-  function deriveAction(method, path) {
-    const p = path.replace(/\/[0-9]+/g, '/:id').replace(/\/api\//, '');
-    const map = {
-      // Auth
-      'POST auth/login':                   'login',
-      'POST auth/logout':                  'logout',
-      'POST auth/register':                'register',
-      'POST auth/google':                  'login_google',
-      'POST auth/verify-firebase-otp':     'login_otp',
-      'POST auth/forgot-password':         'password_reset_request',
-      'POST auth/reset-password':          'password_reset',
-      'POST auth/change-password':         'password_changed',
-      'DELETE auth/account':               'account_deleted',
-      // Jobs
-      'POST jobs/':                        'job_created',
-      'POST jobs/:id/apply':               'job_applied',
-      'POST jobs/:id/save':                'job_saved',
-      'POST jobs/:id/report':              'job_reported',
-      'DELETE jobs/:id':                   'job_deleted',
-      'PATCH jobs/:id/application/:id':    'application_status_updated',
-      // Payments
-      'POST payments/order':               'payment_initiated',
-      'POST payments/verify':              'payment_verified',
-      'POST payments/verify/room':         'payment_verified_room',
-      'POST payments/verify/vehicle':      'payment_verified_vehicle',
-      'POST payments/verify/buysell':      'payment_verified_buysell',
-      'POST payments/verify/promotion':    'payment_verified_promotion',
-      // Listings
-      'POST vehicles/':                    'vehicle_listed',
-      'DELETE vehicles/:id':               'vehicle_deleted',
-      'POST rooms/':                       'room_listed',
-      'DELETE rooms/:id':                  'room_deleted',
-      'POST buysell/':                     'buysell_item_listed',
-      'DELETE buysell/:id':                'buysell_item_deleted',
-      // Profile / Seeker
-      'PUT seeker/profile':                'profile_updated',
-      'POST seeker/resume':                'resume_uploaded',
-      'DELETE seeker/resume':              'resume_deleted',
-      // Upload
-      'POST upload/image':                 'image_uploaded',
-      'DELETE upload/image':               'image_deleted',
-      // Chat
-      'POST chat/:id/:id':                 'message_sent',
-      // Ratings
-      'POST ratings/':                     'rating_submitted',
-      // Alerts
-      'POST alerts/':                      'job_alert_created',
-      'PATCH alerts/:id/toggle':           'job_alert_toggled',
-      'DELETE alerts/:id':                 'job_alert_deleted',
-      // Promotions
-      'POST promotions/':                  'promotion_created',
-      // Coupons
-      'POST coupons/validate':             'coupon_validated',
-      'POST coupons/mark-used':            'coupon_used',
-      // Admin actions
-      'PATCH admin/users/:id/toggle':      'admin_user_toggled',
-      'PATCH admin/users/:id/grant-pro':   'admin_pro_granted',
-      'PATCH admin/users/:id/revoke-pro':  'admin_pro_revoked',
-      'PATCH admin/users/:id/role':        'admin_role_changed',
-      'PATCH admin/jobs/:id/status':       'admin_job_status_changed',
-      'PATCH admin/jobs/:id/feature':      'admin_job_featured',
-      'DELETE admin/jobs/:id':             'admin_job_deleted',
-      'DELETE admin/buysell/:id':          'admin_buysell_deleted',
-      'PATCH admin/vehicles/:id/status':   'admin_vehicle_status_changed',
-      'DELETE admin/vehicles/:id':         'admin_vehicle_deleted',
-      'PATCH admin/rooms/:id/status':      'admin_room_status_changed',
-      'DELETE admin/rooms/:id':            'admin_room_deleted',
-      'POST admin/notifications':          'admin_notification_sent',
-      'POST admin/logs/test':              'admin_test_log',
-    };
-    const key = `${method} ${p}`;
-    return map[key] || null;
+  // Ordered rules — first match wins.
+  // Pattern: [METHOD, regex, action_name]
+  const RULES = [
+    // ── Auth (handled in auth.js already, skip to avoid double-logging) ──────
+    // Jobs
+    ['POST',   /^\/api\/jobs\/?$/,                          'job_created'],
+    ['POST',   /^\/api\/jobs\/\d+\/apply/,                  'job_applied'],
+    ['POST',   /^\/api\/jobs\/\d+\/save/,                   'job_saved'],
+    ['POST',   /^\/api\/jobs\/\d+\/report/,                 'job_reported'],
+    ['DELETE', /^\/api\/jobs\/\d+/,                         'job_deleted'],
+    ['PATCH',  /^\/api\/jobs\/\d+\/application\/\d+/,       'application_status_updated'],
+    // Payments
+    ['POST',   /^\/api\/payments\/order/,                   'payment_initiated'],
+    ['POST',   /^\/api\/payments\/verify\/room/,            'payment_verified_room'],
+    ['POST',   /^\/api\/payments\/verify\/vehicle/,         'payment_verified_vehicle'],
+    ['POST',   /^\/api\/payments\/verify\/buysell/,         'payment_verified_buysell'],
+    ['POST',   /^\/api\/payments\/verify\/promotion/,       'payment_verified_promotion'],
+    ['POST',   /^\/api\/payments\/verify/,                  'payment_verified'],
+    // Vehicles
+    ['POST',   /^\/api\/vehicles\/?$/,                      'vehicle_listed'],
+    ['DELETE', /^\/api\/vehicles\/\d+/,                     'vehicle_deleted'],
+    // Rooms
+    ['POST',   /^\/api\/rooms\/?$/,                         'room_listed'],
+    ['DELETE', /^\/api\/rooms\/\d+/,                        'room_deleted'],
+    // Buy & Sell
+    ['POST',   /^\/api\/buysell\/?$/,                       'buysell_item_listed'],
+    ['DELETE', /^\/api\/buysell\/\d+/,                      'buysell_item_deleted'],
+    // Seeker / Profile
+    ['PUT',    /^\/api\/seeker\/profile/,                   'profile_updated'],
+    ['POST',   /^\/api\/seeker\/resume/,                    'resume_uploaded'],
+    ['DELETE', /^\/api\/seeker\/resume/,                    'resume_deleted'],
+    // Upload
+    ['POST',   /^\/api\/upload\/image/,                     'image_uploaded'],
+    ['DELETE', /^\/api\/upload\/image/,                     'image_deleted'],
+    // Chat
+    ['POST',   /^\/api\/chat\//,                            'message_sent'],
+    // Ratings
+    ['POST',   /^\/api\/ratings\/?$/,                       'rating_submitted'],
+    // Alerts
+    ['POST',   /^\/api\/alerts\/?$/,                        'job_alert_created'],
+    ['PATCH',  /^\/api\/alerts\/\d+\/toggle/,               'job_alert_toggled'],
+    ['DELETE', /^\/api\/alerts\/\d+/,                       'job_alert_deleted'],
+    // Promotions
+    ['POST',   /^\/api\/promotions\/?$/,                    'promotion_created'],
+    // Coupons
+    ['POST',   /^\/api\/coupons\/validate/,                 'coupon_validated'],
+    ['POST',   /^\/api\/coupons\/mark-used/,                'coupon_used'],
+    // Admin actions
+    ['PATCH',  /^\/api\/admin\/users\/\d+\/toggle/,         'admin_user_toggled'],
+    ['PATCH',  /^\/api\/admin\/users\/\d+\/grant-pro/,      'admin_pro_granted'],
+    ['PATCH',  /^\/api\/admin\/users\/\d+\/revoke-pro/,     'admin_pro_revoked'],
+    ['PATCH',  /^\/api\/admin\/users\/\d+\/role/,           'admin_role_changed'],
+    ['PATCH',  /^\/api\/admin\/jobs\/\d+\/status/,          'admin_job_status_changed'],
+    ['PATCH',  /^\/api\/admin\/jobs\/\d+\/feature/,         'admin_job_featured'],
+    ['DELETE', /^\/api\/admin\/jobs\/\d+/,                  'admin_job_deleted'],
+    ['DELETE', /^\/api\/admin\/buysell\/\d+/,               'admin_buysell_deleted'],
+    ['PATCH',  /^\/api\/admin\/vehicles\/\d+\/status/,      'admin_vehicle_status_changed'],
+    ['DELETE', /^\/api\/admin\/vehicles\/\d+/,              'admin_vehicle_deleted'],
+    ['PATCH',  /^\/api\/admin\/rooms\/\d+\/status/,         'admin_room_status_changed'],
+    ['DELETE', /^\/api\/admin\/rooms\/\d+/,                 'admin_room_deleted'],
+    ['POST',   /^\/api\/admin\/notifications/,              'admin_notification_sent'],
+    ['PATCH',  /^\/api\/admin\/users\/\d+\/verify/,         'admin_user_verified'],
+    ['PATCH',  /^\/api\/admin\/users\/\d+\/unverify/,       'admin_user_unverified'],
+  ];
+
+  function deriveAction(method, url) {
+    // Strip query string
+    const path = url.split('?')[0];
+    for (const [m, re, action] of RULES) {
+      if (m === method && re.test(path)) return action;
+    }
+    return null;
   }
-
-  // Only log paths under /api/  — skip static files, health checks etc.
-  app.use('/api/', (req, res, next) => {
-    const originalJson = res.json.bind(res);
-    res.json = function (body) {
-      // Determine action
-      const action = deriveAction(req.method, req.path);
-
-      // Log if:
-      //  - we have a mapped action name, AND
-      //  - the request is authenticated (req.user set by auth middleware), AND
-      //  - the response was successful (ok: true or 2xx)
-      const userId = req.user?.id || null;
-      const shouldLog = action && userId && body?.ok !== false;
-
-      if (shouldLog) {
-        const ip        = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
-        const userAgent = req.headers['user-agent'] || null;
-        const detail    = buildDetail(req);
-
-        // Fire and forget — never block the response
-        setImmediate(() => {
-          pool.query(
-            `INSERT INTO activity_logs (user_id, action, status, ip, user_agent, detail) VALUES ($1,$2,$3,$4,$5,$6)`,
-            [userId, action, 'success', ip, userAgent, detail]
-          ).catch(e => console.warn('[audit] log insert failed:', e.message));
-        });
-      }
-
-      return originalJson(body);
-    };
-    next();
-  });
 
   function buildDetail(req) {
     const parts = [];
-    if (req.params?.id)     parts.push(`id:${req.params.id}`);
-    // Safe fields only — never log passwords, tokens, full bodies
-    const safeFields = ['title','category','type','status','action','plan','code','reason','email'];
+    // Safe fields only — never log passwords, tokens
+    const safeFields = ['title', 'category', 'type', 'status', 'plan', 'code', 'reason'];
     for (const f of safeFields) {
       if (req.body?.[f]) parts.push(`${f}:${String(req.body[f]).slice(0, 80)}`);
     }
+    // Extract IDs from URL
+    const ids = req.originalUrl.match(/\/(\d+)/g);
+    if (ids?.length) parts.push(`ref:${ids.map(i => i.slice(1)).join(',')}`);
     return parts.join(' | ') || null;
   }
+
+  // Register as a late middleware — runs on every request AFTER route handlers
+  // by wrapping res.json. Since we read req.user inside the wrapper (which runs
+  // AFTER auth middleware sets req.user), it is always populated.
+  app.use((req, res, next) => {
+    const _json = res.json.bind(res);
+    res.json = function(body) {
+      // Run action detection & logging after response, non-blocking
+      setImmediate(() => {
+        try {
+          const action = deriveAction(req.method, req.originalUrl || req.url);
+          const userId = req.user?.id || null;
+          // Only log if: known action + authenticated user + successful response
+          if (!action || !userId || body?.ok === false) return;
+
+          const ip        = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || null;
+          const userAgent = req.headers['user-agent'] || null;
+          const detail    = buildDetail(req);
+
+          pool.query(
+            `INSERT INTO activity_logs (user_id, action, status, ip, user_agent, detail) VALUES ($1,$2,$3,$4,$5,$6)`,
+            [userId, action, 'success', ip, userAgent, detail]
+          ).catch(e => console.warn('[audit] insert failed:', e.message));
+        } catch(e) {
+          console.warn('[audit] middleware error:', e.message);
+        }
+      });
+      return _json(body);
+    };
+    next();
+  });
 
   console.log('[audit] ISO 27001 audit middleware installed ✅');
 })(app);
