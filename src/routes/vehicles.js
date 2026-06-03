@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { pool, cache } = require('../db');
 const { auth } = require('../middleware/auth');
+const { logActivity, getIP, getUA } = require('../utils/logActivity');
 
 const LIST_TTL   = 15_000;
 const DETAIL_TTL = 30_000;
@@ -135,6 +136,7 @@ router.post('/', auth, async (req, res) => {
     ]);
 
     await cache.delPrefix('vehicles:');
+    await logActivity('vehicle_post', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `Vehicle posted: "${title}" (${planKey} plan)` });
     res.json({ ok: true, vehicle: rows[0] });
   } catch (err) {
     console.error(err);
@@ -152,6 +154,7 @@ router.delete('/:id', auth, async (req, res) => {
     await pool.query("UPDATE vehicles SET status='deleted' WHERE id=$1", [req.params.id]);
     await cache.del(`vehicle:${req.params.id}`);
     await cache.delPrefix('vehicles:');
+    await logActivity('vehicle_delete', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `Deleted vehicle #${req.params.id}` });
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
