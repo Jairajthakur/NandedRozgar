@@ -247,6 +247,7 @@ async function bootApp() {
 }
 
 async function logout() {
+  stopLogsPolling();
   try { await fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' } }); } catch {}
   TOKEN = ''; localStorage.removeItem('admin_token');
   allUsers = []; allJobs = []; allPayments = [];
@@ -280,7 +281,8 @@ function showTab(tab) {
   if (tab === 'buysell')    loadBuySell();
   if (tab === 'payments')   loadPayments();
   if (tab === 'analytics')  loadAnalytics();
-  if (tab === 'logs')       { logsPage=1; logsAction=''; logsStatus=''; logsSearch=''; loadLogs(); }
+  if (tab === 'logs')       { logsPage=1; logsAction=''; logsStatus=''; logsSearch=''; loadLogs(); startLogsPolling(); }
+  else                       { stopLogsPolling(); }
   if (tab === 'notify')     renderNotify();
 }
 
@@ -848,6 +850,20 @@ async function loadAnalytics() {
 
 // ── ACTIVITY LOGS ─────────────────────────────────────────────────────────────
 let logsPage = 1, logsAction = '', logsStatus = '', logsSearch = '';
+let logsPollingTimer = null;
+
+function startLogsPolling() {
+  stopLogsPolling();
+  logsPollingTimer = setInterval(() => {
+    if (currentTab === 'logs' && logsPage === 1 && !logsSearch && !logsAction && !logsStatus) {
+      loadLogs(1, true); // silent refresh
+    }
+  }, 5000);
+}
+
+function stopLogsPolling() {
+  if (logsPollingTimer) { clearInterval(logsPollingTimer); logsPollingTimer = null; }
+}
 
 async function deleteTestLogs() {
   if (!confirm('Delete all admin_test logs?')) return;
@@ -856,7 +872,7 @@ async function deleteTestLogs() {
   else showToast('❌ ' + (d.error || 'Failed'), true);
 }
 
-async function loadLogs(page = 1) {
+async function loadLogs(page = 1, silent = false) {
   logsPage = page;
 
   const params = new URLSearchParams({ page, limit: 50 });
@@ -927,11 +943,19 @@ async function loadLogs(page = 1) {
       </div>
     </div>` : '';
 
+  if (silent && document.getElementById('logs-tbody')) {
+    document.getElementById('logs-tbody').innerHTML = rows;
+    const counter = document.getElementById('logs-counter');
+    if (counter) counter.textContent = '(' + total + ')';
+    const liveIndicator = document.getElementById('logs-live-dot');
+    if (liveIndicator) { liveIndicator.style.opacity='1'; setTimeout(()=>{ liveIndicator.style.opacity='0.3'; }, 600); }
+    return;
+  }
   document.getElementById('main-content').innerHTML = `
     <div class="page-title">Activity Logs</div>
     <div class="table-wrap">
       <div class="table-header" style="flex-wrap:wrap;gap:8px">
-        <h3>All logs <span style="color:var(--text3);font-weight:400;font-size:12px">(${total})</span></h3>
+        <h3>All logs <span id="logs-counter" style="color:var(--text3);font-weight:400;font-size:12px">(${total})</span> <span id="logs-live-dot" title="Live" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e;opacity:0.3;transition:opacity 0.4s;vertical-align:middle;margin-left:4px"></span></h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <input class="search-input" style="width:180px" placeholder="Search user, IP, detail…" value="${esc(logsSearch)}" oninput="logsSearch=this.value" onkeydown="if(event.key==='Enter')loadLogs(1)"/>
           <select class="search-input" style="width:160px" onchange="logsAction=this.value;loadLogs(1)">
@@ -989,7 +1013,7 @@ async function loadLogs(page = 1) {
       <div style="overflow-x:auto">
         <table>
           <thead><tr><th>ID</th><th>Action</th><th>User</th><th>Email</th><th>Status</th><th>IP</th><th>Detail</th><th>Time</th></tr></thead>
-          <tbody>${rows}</tbody>
+          <tbody id="logs-tbody">${rows}</tbody>
         </table>
       </div>
       ${pagination}
