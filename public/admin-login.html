@@ -273,7 +273,7 @@ function toast(msg, type = 'success') {
 function showTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  const idx = ['overview','users','jobs','vehicles','rooms','buysell','payments','analytics','logs','notify'].indexOf(tab);
+  const idx = ['overview','users','jobs','vehicles','rooms','buysell','payments','analytics','logs','post','notify'].indexOf(tab);
   document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
   const m = document.getElementById('main-content');
   m.innerHTML = '<div class="tab-spinner">Loading…</div>';
@@ -286,8 +286,8 @@ function showTab(tab) {
   if (tab === 'payments')   loadPayments();
   if (tab === 'analytics')  loadAnalytics();
   if (tab === 'logs')       { logsPage=1; logsAction=''; logsStatus=''; logsSearch=''; loadLogs(); startLogsPolling(); }
-  if (tab === 'post')       { renderPostTab(); }
   else                       { stopLogsPolling(); }
+  if (tab === 'post')       renderPostTab();
   if (tab === 'notify')     renderNotify();
 }
 
