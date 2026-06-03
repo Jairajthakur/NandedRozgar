@@ -209,6 +209,22 @@ app.use('/', seoRouter);
     ['PATCH',  /^\/api\/admin\/rooms\/\d+\/status/,     'admin_room_status_changed'],
     ['DELETE', /^\/api\/admin\/rooms\/\d+/,              'admin_room_deleted'],
     ['POST',   /^\/api\/admin\/notifications/,             'admin_notification_sent'],
+
+    // ── View / Browse actions (GET) ──────────────────────────────────────────
+    ['GET',    /^\/api\/jobs\/\d+(?:\?|$)/,                  'job_viewed'],
+    ['GET',    /^\/api\/jobs\/my-applications/,               'applications_viewed'],
+    ['GET',    /^\/api\/jobs\/saved/,                         'saved_jobs_viewed'],
+    ['GET',    /^\/api\/jobs(\/|\?|$)/,                       'jobs_browsed'],
+    ['GET',    /^\/api\/rooms\/\d+(?:\?|$)/,                 'room_viewed'],
+    ['GET',    /^\/api\/rooms(\/|\?|$)/,                      'rooms_browsed'],
+    ['GET',    /^\/api\/vehicles\/\d+(?:\?|$)/,              'vehicle_viewed'],
+    ['GET',    /^\/api\/vehicles(\/|\?|$)/,                   'vehicles_browsed'],
+    ['GET',    /^\/api\/buysell\/\d+(?:\?|$)/,               'buysell_item_viewed'],
+    ['GET',    /^\/api\/buysell(\/|\?|$)/,                    'buysell_browsed'],
+    ['GET',    /^\/api\/chat\//,                               'chat_opened'],
+    ['GET',    /^\/api\/seeker\/profile/,                     'profile_viewed'],
+    ['GET',    /^\/api\/alerts/,                               'alerts_viewed'],
+    ['GET',    /^\/api\/analytics/,                            'analytics_viewed'],
   ];
 
   function deriveAction(method, url) {
