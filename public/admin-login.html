@@ -131,6 +131,23 @@
   </div>
 
   <script>
+    const TOKEN_KEY = 'cityplus_token';
+
+    // If already logged in as admin, skip login and go straight to the app
+    (async function checkExisting() {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) return;
+      try {
+        const res  = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } });
+        const data = await res.json();
+        if (data.ok && data.user?.role === 'admin') {
+          window.location.href = '/?admin=1';
+        } else {
+          localStorage.removeItem(TOKEN_KEY);
+        }
+      } catch (_) {}
+    })();
+
     // Allow pressing Enter to submit
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') doLogin();
@@ -170,12 +187,16 @@
           return;
         }
 
-        // Store token same way the app does (AsyncStorage uses localStorage on web)
-        const TOKEN_KEY = 'cityplus_token';
+        // Store token the same way the Expo web app does
+        // (AsyncStorage maps to localStorage on web with key prefix)
         localStorage.setItem(TOKEN_KEY, data.token);
+        // Also write the Expo AsyncStorage key format so the React app
+        // picks it up immediately without a separate login step
+        localStorage.setItem('AsyncStorage:cityplus_token', data.token);
 
-        // Redirect to admin panel in the app
-        window.location.href = '/admin';
+        // Go to the Expo web app root — it will read the token from
+        // localStorage, see role=admin, and navigate to AdminScreen
+        window.location.href = '/?admin=1';
 
       } catch (err) {
         showError('Network error. Please try again.');
