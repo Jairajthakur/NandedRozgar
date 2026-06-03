@@ -27,6 +27,7 @@ const router   = require('express').Router();
 const axios    = require('axios');
 const { pool } = require('../db');
 const { auth } = require('../middleware/auth');
+const { logActivity, getIP, getUA } = require('../utils/logActivity');
 
 // ── Cashfree API config ───────────────────────────────────────────────────────
 // Production:  https://api.cashfree.com/pg
@@ -394,6 +395,7 @@ async function sharedVerify(req, res, listingType, insertFn) {
     const result = await insertFn(client, req, { planDays, expiresAt, expectedAmount });
     await markCouponUsed(client, couponId, req.user.id);
     await client.query('COMMIT');
+    await logActivity('payment_success', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `${listingType} listing via ${plan} plan` });
     return res.json({ ok: true, ...result });
   } catch (err) {
     await client.query('ROLLBACK');
