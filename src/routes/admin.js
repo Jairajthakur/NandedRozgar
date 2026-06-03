@@ -516,6 +516,40 @@ router.delete('/rooms/:id', async (req, res) => {
 // ─── ACTIVITY LOGS ────────────────────────────────────────────────────────────
 
 // GET /api/admin/logs?page=1&limit=50&action=login&status=failed
+// POST /api/admin/logs/test — inserts a test log entry to verify the table works
+router.post('/logs/test', async (req, res) => {
+  try {
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, action, status, ip, detail) VALUES ($1, $2, $3, $4, $5)`,
+      [req.user.id, 'admin_test', 'success', '127.0.0.1', 'Test log inserted from admin panel']
+    );
+    res.json({ ok: true, message: 'Test log inserted successfully!' });
+  } catch (err) {
+    console.error('[logs/test]', err.message);
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+// GET /api/admin/logs/check — verifies the activity_logs table exists and returns its row count
+router.get('/logs/check', async (req, res) => {
+  try {
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'activity_logs'
+      ) AS exists
+    `);
+    const exists = tableCheck.rows[0].exists;
+    if (!exists) return res.json({ ok: false, error: 'activity_logs table does NOT exist!' });
+
+    const countRes = await pool.query('SELECT COUNT(*) AS n FROM activity_logs');
+    const count = parseInt(countRes.rows[0].n);
+    res.json({ ok: true, table_exists: true, total_logs: count });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
 router.get('/logs', async (req, res) => {
   try {
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
