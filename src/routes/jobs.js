@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { pool, cache } = require('../db');
 const { auth } = require('../middleware/auth');
+const { logActivity, getIP, getUA } = require('../utils/logActivity');
 
 const JOBS_TTL   = 15_000;  // list cache: 15 s
 const DETAIL_TTL = 30_000;  // single-job cache: 30 s
@@ -219,6 +220,7 @@ router.post('/', auth, async (req, res) => {
     ]);
 
     await cache.delPrefix('jobs:'); // bust list cache
+    await logActivity('job_post', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `Job posted: "${title}" (${planKey} plan)` });
 
     // Fire push notifications to users who have an alert matching this job's category.
     // Done async — any failure here must NOT block the response.
@@ -280,6 +282,7 @@ router.post('/:id/apply', auth, async (req, res) => {
       [req.params.id, req.user.id]
     );
     await cache.del(`job:${req.params.id}`);
+    await logActivity('job_apply', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `Applied to job #${req.params.id}` });
     res.json({ ok: true, message: 'Application submitted!' });
   } catch (err) {
     console.error(err);
@@ -367,6 +370,7 @@ router.delete('/:id', auth, async (req, res) => {
     await pool.query("UPDATE jobs SET status='deleted' WHERE id=$1", [req.params.id]);
     await cache.del(`job:${req.params.id}`);
     await cache.delPrefix('jobs:');
+    await logActivity('job_delete', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `Deleted job #${req.params.id}` });
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
