@@ -516,6 +516,16 @@ router.delete('/rooms/:id', async (req, res) => {
 // ─── ACTIVITY LOGS ────────────────────────────────────────────────────────────
 
 // GET /api/admin/logs?page=1&limit=50&action=login&status=failed
+// DELETE /api/admin/logs/test-cleanup — removes admin_test entries
+router.delete('/logs/test-cleanup', async (req, res) => {
+  try {
+    const result = await pool.query("DELETE FROM activity_logs WHERE action = 'admin_test'");
+    res.json({ ok: true, deleted: result.rowCount });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
 router.get('/logs', async (req, res) => {
   try {
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
