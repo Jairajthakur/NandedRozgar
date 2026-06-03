@@ -204,7 +204,7 @@ router.get('/payments', async (req, res) => {
 // GET /api/admin/stats — aggregate platform stats
 router.get('/stats', async (req, res) => {
   try {
-    const [jobs, users, payments, apps] = await Promise.all([
+    const [jobs, users, payments, apps, vehicles, rooms, buysell] = await Promise.all([
       pool.query(`
         SELECT
           COUNT(*) FILTER (WHERE status = 'active')   AS active_jobs,
@@ -225,7 +225,40 @@ router.get('/stats', async (req, res) => {
       `),
       pool.query(`SELECT COALESCE(SUM(amount),0) AS total_revenue FROM payments WHERE status='paid'`),
       pool.query(`SELECT COUNT(*) AS total FROM applications`),
+      pool.query(`
+        SELECT
+          COUNT(*)                                    AS total_vehicles,
+          COUNT(*) FILTER (WHERE status = 'active')   AS active_vehicles,
+          COUNT(*) FILTER (WHERE status = 'inactive') AS inactive_vehicles,
+          COALESCE(SUM(CASE WHEN plan != 'free' THEN 1 ELSE 0 END), 0) AS paid_vehicle_listings
+        FROM vehicles
+      `),
+      pool.query(`
+        SELECT
+          COUNT(*)                                    AS total_rooms,
+          COUNT(*) FILTER (WHERE status = 'active')   AS active_rooms,
+          COUNT(*) FILTER (WHERE status = 'inactive') AS inactive_rooms,
+          COALESCE(SUM(CASE WHEN plan != 'free' THEN 1 ELSE 0 END), 0) AS paid_room_listings
+        FROM rooms
+      `),
+      pool.query(`
+        SELECT
+          COUNT(*)                                           AS total_buysell,
+          COUNT(*) FILTER (WHERE status = 'active')          AS active_buysell,
+          COUNT(*) FILTER (WHERE status = 'sold')            AS sold_buysell
+        FROM buysell_items
+      `),
     ]);
+
+    // Fetch per-category revenue breakdown from payments table (by plan/category field)
+    const revenueBreakdown = await pool.query(`
+      SELECT
+        COALESCE(SUM(amount) FILTER (WHERE category = 'job' OR job_id IS NOT NULL), 0)     AS jobs_revenue,
+        COALESCE(SUM(amount) FILTER (WHERE category = 'vehicle'), 0)                        AS vehicles_revenue,
+        COALESCE(SUM(amount) FILTER (WHERE category = 'room'), 0)                           AS rooms_revenue,
+        COALESCE(SUM(amount) FILTER (WHERE category = 'buysell'), 0)                        AS buysell_revenue
+      FROM payments WHERE status = 'paid'
+    `).catch(() => ({ rows: [{ jobs_revenue: 0, vehicles_revenue: 0, rooms_revenue: 0, buysell_revenue: 0 }] }));
 
     res.json({
       ok: true,
@@ -234,6 +267,10 @@ router.get('/stats', async (req, res) => {
         ...users.rows[0],
         total_revenue: payments.rows[0].total_revenue,
         total_applications: apps.rows[0].total,
+        ...vehicles.rows[0],
+        ...rooms.rows[0],
+        ...buysell.rows[0],
+        ...revenueBreakdown.rows[0],
       },
     });
   } catch (err) {
@@ -335,6 +372,120 @@ router.get('/buysell', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to load buysell items' });
+  }
+});
+
+// PATCH /api/admin/buysell/:id/status
+router.patch('/buysell/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['active', 'inactive', 'sold'].includes(status)) {
+      return res.json({ ok: false, error: 'Invalid status' });
+    }
+    await pool.query('UPDATE buysell_items SET status = $1 WHERE id = $2', [status, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to update buysell status' });
+  }
+});
+
+// DELETE /api/admin/buysell/:id
+router.delete('/buysell/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM buysell_items WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to delete buysell item' });
+  }
+});
+
+// ─── VEHICLES (CAR RENT) ──────────────────────────────────────────────────────
+
+// GET /api/admin/vehicles — all vehicle listings
+router.get('/vehicles', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT v.*, u.name AS poster_name, u.email AS poster_email
+       FROM vehicles v
+       LEFT JOIN users u ON v.posted_by = u.id
+       ORDER BY v.created_at DESC`
+    );
+    res.json({ ok: true, vehicles: rows });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to load vehicles' });
+  }
+});
+
+// PATCH /api/admin/vehicles/:id/status
+router.patch('/vehicles/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['active', 'inactive'].includes(status)) {
+      return res.json({ ok: false, error: 'Invalid status' });
+    }
+    await pool.query('UPDATE vehicles SET status = $1 WHERE id = $2', [status, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to update vehicle status' });
+  }
+});
+
+// DELETE /api/admin/vehicles/:id
+router.delete('/vehicles/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM vehicles WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to delete vehicle' });
+  }
+});
+
+// ─── ROOMS (HOME/PG) ──────────────────────────────────────────────────────────
+
+// GET /api/admin/rooms — all room listings
+router.get('/rooms', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.*, u.name AS poster_name, u.email AS poster_email
+       FROM rooms r
+       LEFT JOIN users u ON r.posted_by = u.id
+       ORDER BY r.created_at DESC`
+    );
+    res.json({ ok: true, rooms: rows });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to load rooms' });
+  }
+});
+
+// PATCH /api/admin/rooms/:id/status
+router.patch('/rooms/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['active', 'inactive'].includes(status)) {
+      return res.json({ ok: false, error: 'Invalid status' });
+    }
+    await pool.query('UPDATE rooms SET status = $1 WHERE id = $2', [status, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to update room status' });
+  }
+});
+
+// DELETE /api/admin/rooms/:id
+router.delete('/rooms/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM rooms WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to delete room' });
   }
 });
 
