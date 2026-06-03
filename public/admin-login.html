@@ -884,8 +884,38 @@ async function loadLogs(page = 1) {
   const totalPages = Math.ceil(total / 50);
 
   const actionColors = {
-    login:'var(--green)', register:'var(--blue)', logout:'var(--text3)',
-    login_failed:'var(--red)', login_blocked:'var(--orange)', admin_test:'var(--orange)',
+    // Auth
+    login:'var(--green)', login_google:'var(--green)', login_otp:'var(--green)',
+    register:'var(--blue)', logout:'var(--text3)',
+    login_failed:'var(--red)', login_blocked:'var(--red)',
+    password_changed:'var(--orange)', password_reset_request:'var(--orange)', password_reset:'var(--orange)',
+    account_deleted:'var(--red)',
+    // Jobs
+    job_created:'var(--blue)', job_applied:'var(--green)', job_saved:'var(--text2)',
+    job_deleted:'var(--red)', job_reported:'var(--orange)', application_status_updated:'var(--blue)',
+    // Payments
+    payment_initiated:'var(--orange)', payment_verified:'var(--green)',
+    payment_verified_room:'var(--green)', payment_verified_vehicle:'var(--green)',
+    payment_verified_buysell:'var(--green)', payment_verified_promotion:'var(--green)',
+    // Listings
+    vehicle_listed:'var(--blue)', vehicle_deleted:'var(--red)',
+    room_listed:'var(--blue)', room_deleted:'var(--red)',
+    buysell_item_listed:'var(--blue)', buysell_item_deleted:'var(--red)',
+    // Profile
+    profile_updated:'var(--blue)', resume_uploaded:'var(--blue)', resume_deleted:'var(--red)',
+    image_uploaded:'var(--blue)', image_deleted:'var(--red)',
+    // Social
+    message_sent:'var(--text2)', rating_submitted:'var(--blue)',
+    job_alert_created:'var(--blue)', job_alert_toggled:'var(--text2)', job_alert_deleted:'var(--red)',
+    promotion_created:'var(--blue)', coupon_validated:'var(--text2)', coupon_used:'var(--green)',
+    // Admin
+    admin_user_toggled:'var(--orange)', admin_pro_granted:'var(--green)', admin_pro_revoked:'var(--red)',
+    admin_role_changed:'var(--orange)', admin_job_status_changed:'var(--orange)',
+    admin_job_featured:'var(--blue)', admin_job_deleted:'var(--red)',
+    admin_buysell_deleted:'var(--red)', admin_vehicle_status_changed:'var(--orange)',
+    admin_vehicle_deleted:'var(--red)', admin_room_status_changed:'var(--orange)',
+    admin_room_deleted:'var(--red)', admin_notification_sent:'var(--blue)',
+    admin_test:'var(--text3)',
   };
   const statusColors = { success:'badge-active', failed:'badge-inactive', blocked:'badge-inactive' };
 
@@ -919,13 +949,46 @@ async function loadLogs(page = 1) {
         <h3>All logs <span style="color:var(--text3);font-weight:400;font-size:12px">(${total})</span></h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <input class="search-input" style="width:180px" placeholder="Search user, IP, detail…" value="${esc(logsSearch)}" oninput="logsSearch=this.value" onkeydown="if(event.key==='Enter')loadLogs(1)"/>
-          <select class="search-input" style="width:140px" onchange="logsAction=this.value;loadLogs(1)">
+          <select class="search-input" style="width:160px" onchange="logsAction=this.value;loadLogs(1)">
             <option value="">All actions</option>
-            <option value="login" ${logsAction==='login'?'selected':''}>Login</option>
-            <option value="login_failed" ${logsAction==='login_failed'?'selected':''}>Login Failed</option>
-            <option value="login_blocked" ${logsAction==='login_blocked'?'selected':''}>Login Blocked</option>
-            <option value="register" ${logsAction==='register'?'selected':''}>Register</option>
-            <option value="logout" ${logsAction==='logout'?'selected':''}>Logout</option>
+            <optgroup label="── Auth ──">
+              <option value="login" ${logsAction==='login'?'selected':''}>Login (Email)</option>
+              <option value="login_google" ${logsAction==='login_google'?'selected':''}>Login (Google)</option>
+              <option value="login_otp" ${logsAction==='login_otp'?'selected':''}>Login (OTP)</option>
+              <option value="login_failed" ${logsAction==='login_failed'?'selected':''}>Login Failed</option>
+              <option value="login_blocked" ${logsAction==='login_blocked'?'selected':''}>Login Blocked</option>
+              <option value="register" ${logsAction==='register'?'selected':''}>Register</option>
+              <option value="logout" ${logsAction==='logout'?'selected':''}>Logout</option>
+              <option value="password_changed" ${logsAction==='password_changed'?'selected':''}>Password Changed</option>
+              <option value="account_deleted" ${logsAction==='account_deleted'?'selected':''}>Account Deleted</option>
+            </optgroup>
+            <optgroup label="── Jobs ──">
+              <option value="job_created" ${logsAction==='job_created'?'selected':''}>Job Created</option>
+              <option value="job_applied" ${logsAction==='job_applied'?'selected':''}>Job Applied</option>
+              <option value="job_saved" ${logsAction==='job_saved'?'selected':''}>Job Saved</option>
+              <option value="job_deleted" ${logsAction==='job_deleted'?'selected':''}>Job Deleted</option>
+              <option value="job_reported" ${logsAction==='job_reported'?'selected':''}>Job Reported</option>
+            </optgroup>
+            <optgroup label="── Payments ──">
+              <option value="payment_initiated" ${logsAction==='payment_initiated'?'selected':''}>Payment Initiated</option>
+              <option value="payment_verified" ${logsAction==='payment_verified'?'selected':''}>Payment Verified</option>
+            </optgroup>
+            <optgroup label="── Listings ──">
+              <option value="vehicle_listed" ${logsAction==='vehicle_listed'?'selected':''}>Vehicle Listed</option>
+              <option value="room_listed" ${logsAction==='room_listed'?'selected':''}>Room Listed</option>
+              <option value="buysell_item_listed" ${logsAction==='buysell_item_listed'?'selected':''}>Buy&Sell Listed</option>
+            </optgroup>
+            <optgroup label="── Profile ──">
+              <option value="profile_updated" ${logsAction==='profile_updated'?'selected':''}>Profile Updated</option>
+              <option value="resume_uploaded" ${logsAction==='resume_uploaded'?'selected':''}>Resume Uploaded</option>
+              <option value="message_sent" ${logsAction==='message_sent'?'selected':''}>Message Sent</option>
+            </optgroup>
+            <optgroup label="── Admin ──">
+              <option value="admin_user_toggled" ${logsAction==='admin_user_toggled'?'selected':''}>Admin: User Toggled</option>
+              <option value="admin_pro_granted" ${logsAction==='admin_pro_granted'?'selected':''}>Admin: PRO Granted</option>
+              <option value="admin_job_deleted" ${logsAction==='admin_job_deleted'?'selected':''}>Admin: Job Deleted</option>
+              <option value="admin_notification_sent" ${logsAction==='admin_notification_sent'?'selected':''}>Admin: Notification Sent</option>
+            </optgroup>
           </select>
           <select class="search-input" style="width:120px" onchange="logsStatus=this.value;loadLogs(1)">
             <option value="">All status</option>
