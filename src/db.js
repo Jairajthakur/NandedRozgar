@@ -435,6 +435,19 @@ async function runMigrations() {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id          SERIAL PRIMARY KEY,
+        user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        action      VARCHAR(50)  NOT NULL,
+        status      VARCHAR(20)  DEFAULT 'success',
+        ip          VARCHAR(60),
+        user_agent  TEXT,
+        detail      TEXT,
+        created_at  TIMESTAMPTZ  DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS coupon_codes (
         id            SERIAL PRIMARY KEY,
         code          VARCHAR(30)  UNIQUE NOT NULL,
@@ -503,6 +516,9 @@ async function runMigrations() {
       `CREATE INDEX IF NOT EXISTS idx_promos_status  ON business_promotions(status)`,
       `CREATE INDEX IF NOT EXISTS idx_reports_job    ON job_reports(job_id)`,
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_razorpay ON payments(razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL`,
+      `CREATE INDEX IF NOT EXISTS idx_logs_user       ON activity_logs(user_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_logs_action     ON activity_logs(action)`,
+      `CREATE INDEX IF NOT EXISTS idx_logs_created    ON activity_logs(created_at DESC)`,
     ];
 
     for (const sql of indexes) {
@@ -551,6 +567,11 @@ async function runMigrations() {
       `);
       console.log('✅ WELCOME coupon seeded (100% off, 30 days).');
     } catch (e) { console.warn('WELCOME coupon seed warning:', e.message); }
+
+    // One-time cleanup: remove erroneous ₹249 payment record (id=3)
+    try {
+      await client.query(`DELETE FROM payments WHERE id = 3 AND amount = 249`);
+    } catch (e) { /* already deleted or doesn't exist — safe to ignore */ }
 
     console.log('✅ Database migrations complete.');
   } catch (err) {
