@@ -178,6 +178,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Activity Logs
       </div>
+      <div class="nav-item" onclick="showTab('post')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Post Listing
+      </div>
       <div class="nav-item" onclick="showTab('notify')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         Notifications
@@ -282,6 +286,7 @@ function showTab(tab) {
   if (tab === 'payments')   loadPayments();
   if (tab === 'analytics')  loadAnalytics();
   if (tab === 'logs')       { logsPage=1; logsAction=''; logsStatus=''; logsSearch=''; loadLogs(); startLogsPolling(); }
+  if (tab === 'post')       { renderPostTab(); }
   else                       { stopLogsPolling(); }
   if (tab === 'notify')     renderNotify();
 }
@@ -846,6 +851,136 @@ async function loadAnalytics() {
     </div>
     ${barChart(days30, [payMap], ['var(--green)'], ['Revenue ₹'], 'Revenue Last 30 Days (₹)', '₹')}
   `;
+}
+
+
+// ── ADMIN POST LISTING ────────────────────────────────────────────────────────
+let postService = 'job';
+
+function renderPostTab() {
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-title">Post a Listing</div>
+    <div class="table-wrap" style="padding:20px">
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px">
+        ${['job','room','vehicle','buysell'].map(s => `
+          <button onclick="postService='${s}';renderPostTab()"
+            style="padding:8px 20px;border-radius:20px;border:1px solid ${postService===s?'var(--orange)':'var(--border)'};
+                   background:${postService===s?'var(--orange-bg)':'transparent'};
+                   color:${postService===s?'var(--orange)':'var(--text2)'};cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif">
+            ${{job:'💼 Job',room:'🏠 Room',vehicle:'🚗 Vehicle',buysell:'🛍 Buy & Sell'}[s]}
+          </button>`).join('')}
+      </div>
+
+      <div id="post-form-area">${buildPostForm(postService)}</div>
+    </div>`;
+}
+
+function buildPostForm(service) {
+  const inp = (name, placeholder, type='text', required=false) =>
+    `<input name="${name}" type="${type}" placeholder="${placeholder}${required?' *':''}"
+      style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;box-sizing:border-box"
+      ${required?'required':''}>`;
+  const row = (...cols) =>
+    `<div style="display:grid;grid-template-columns:${cols.map(()=>'1fr').join(' ')};gap:12px">${cols.join('')}</div>`;
+  const sel = (name, opts, placeholder) =>
+    `<select name="${name}" style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif">
+      <option value="">${placeholder}</option>
+      ${opts.map(o=>Array.isArray(o)?`<option value="${o[0]}">${o[1]}</option>`:`<option value="${o}">${o}</option>`).join('')}
+    </select>`;
+  const ta = (name, placeholder, rows=3) =>
+    `<textarea name="${name}" placeholder="${placeholder}" rows="${rows}"
+      style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;resize:vertical;box-sizing:border-box"></textarea>`;
+
+  const label = txt => `<label style="font-size:12px;color:var(--text3);margin-bottom:4px;display:block">${txt}</label>`;
+  const field = (lbl, ...inputs) =>
+    `<div style="display:flex;flex-direction:column;gap:4px">${label(lbl)}${inputs.join('')}</div>`;
+
+  const submitBtn = `
+    <div id="post-result" style="font-size:13px;min-height:20px"></div>
+    <button onclick="submitAdminPost()" style="padding:11px 32px;background:var(--orange);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
+      Post Now (No Payment)
+    </button>`;
+
+  const forms = {
+    job: `
+      <form id="admin-post-form" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+        ${field('Job Title *', inp('title','e.g. Sales Executive',  'text', true))}
+        ${row(field('Company', inp('company','Company name')), field('Category *', sel('category',['IT','Sales','Teaching','Driver','Security','Electrician','Plumber','Cook','Helper','Other'],'Select category')))}
+        ${row(field('Job Type', sel('type',['Full-time','Part-time','Freelance','Internship'],'Type')), field('Location *', inp('location','City / Area','text',true)))}
+        ${row(field('Salary', inp('salary','e.g. ₹8000–₹12000')), field('Openings', inp('openings','1','number')))}
+        ${row(field('Phone *', inp('phone','10-digit number','text',true)), field('WhatsApp', inp('whatsapp','Same as phone if blank')))}
+        ${field('Description', ta('description','Job details, responsibilities…',4))}
+        ${field('Skills (comma separated)', inp('skills','e.g. Excel, Communication'))}
+        ${submitBtn}
+      </form>`,
+
+    room: `
+      <form id="admin-post-form" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+        ${field('Title *', inp('title','e.g. 2BHK Flat near Station','text',true))}
+        ${row(field('Rent (₹/month) *', inp('rent','','number',true)), field('BHK', sel('bhk',['1 RK','1 BHK','2 BHK','3 BHK','4+ BHK'],'Select')))}
+        ${row(field('Type', sel('type',['Apartment','Independent House','PG','Hostel','Shop','Office'],'Type')), field('Furnished', sel('furnished',['Furnished','Semi-Furnished','Unfurnished'],'Select')))}
+        ${field('Address', inp('address','Full address'))}
+        ${row(field('Area / Locality', inp('area','Locality')), field('Landmark', inp('landmark','Near…')))}
+        ${row(field('Owner Name', inp('ownerName','Name')), field('WhatsApp *', inp('whatsapp','10-digit','text',true)))}
+        ${field('Description', ta('description','Room details…',3))}
+        ${submitBtn}
+      </form>`,
+
+    vehicle: `
+      <form id="admin-post-form" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+        ${field('Title *', inp('title','e.g. Honda Activa 2020','text',true))}
+        ${row(field('Type', sel('type',['Bike','Car','Auto','Truck','Tractor','Other'],'Type')), field('Brand', inp('brand','e.g. Honda')))}
+        ${row(field('Model', inp('model','e.g. Activa 6G')), field('Year', inp('year','e.g. 2020','number')))}
+        ${row(field('KM Driven', inp('kmDriven','e.g. 12000','number')), field('Fuel', sel('fuel',['Petrol','Diesel','Electric','CNG'],'Fuel')))}
+        ${row(field('Price (₹) *', inp('price','','number',true)), field('Transmission', sel('transmission',['Manual','Automatic'],'Type')))}
+        ${row(field('Area', inp('area','Locality')), field('WhatsApp *', inp('whatsapp','10-digit','text',true)))}
+        ${field('Description', ta('description','Vehicle details…',3))}
+        ${submitBtn}
+      </form>`,
+
+    buysell: `
+      <form id="admin-post-form" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+        ${field('Title *', inp('title','e.g. Samsung TV 43 inch','text',true))}
+        ${row(field('Category', sel('category',['Electronics','Furniture','Clothes','Vehicles','Books','Sports','Other'],'Category')), field('Condition', sel('condition',['New','Like New','Good','Fair','Poor'],'Condition')))}
+        ${row(field('Price (₹) *', inp('price','','number',true)), field('Age', inp('age','e.g. 2 years')))}
+        ${field('Area / Locality', inp('area','Where is item located?'))}
+        ${row(field('WhatsApp *', inp('whatsapp','10-digit','text',true)), field('Negotiable', sel('negotiable',[['true','Yes'],['false','No']],'Negotiable?')))}
+        ${field('Description', ta('description','Item details…',3))}
+        ${submitBtn}
+      </form>`,
+  };
+  return forms[service] || '';
+}
+
+async function submitAdminPost() {
+  const form = document.getElementById('admin-post-form');
+  const result = document.getElementById('post-result');
+  if (!form) return;
+
+  const data = {};
+  new FormData(form).forEach((v, k) => { data[k] = v; });
+
+  // Basic required check
+  const required = form.querySelectorAll('[required]');
+  for (const el of required) {
+    if (!el.value.trim()) {
+      result.innerHTML = `<span style="color:var(--red)">⚠ Please fill in: ${el.placeholder.replace(' *','')}</span>`;
+      el.focus(); return;
+    }
+  }
+
+  result.innerHTML = `<span style="color:var(--text3)">Posting…</span>`;
+
+  const endpointMap = { job: 'job', room: 'room', vehicle: 'vehicle', buysell: 'buysell' };
+  const d = await api('POST', '/api/admin/post/' + endpointMap[postService], data);
+
+  if (d.ok) {
+    result.innerHTML = `<span style="color:var(--green)">✅ Posted successfully! (No payment required)</span>`;
+    form.reset();
+  } else {
+    result.innerHTML = `<span style="color:var(--red)">❌ ${d.error || 'Failed to post'}</span>`;
+  }
 }
 
 // ── ACTIVITY LOGS ─────────────────────────────────────────────────────────────
