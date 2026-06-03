@@ -158,6 +158,18 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         Payments
       </div>
+      <div class="nav-item" onclick="showTab('vehicles')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Car Rent
+      </div>
+      <div class="nav-item" onclick="showTab('rooms')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Home / PG
+      </div>
+      <div class="nav-item" onclick="showTab('buysell')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        Buy &amp; Sell
+      </div>
       <div class="nav-item" onclick="showTab('notify')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         Notifications
@@ -246,13 +258,16 @@ function toast(msg, type = 'success') {
 function showTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  const idx = ['overview','users','jobs','payments','notify'].indexOf(tab);
+  const idx = ['overview','users','jobs','vehicles','rooms','buysell','payments','notify'].indexOf(tab);
   document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
   const m = document.getElementById('main-content');
   m.innerHTML = '<div class="tab-spinner">Loading…</div>';
   if (tab === 'overview')  loadOverview();
   if (tab === 'users')     loadUsers();
   if (tab === 'jobs')      loadJobs();
+  if (tab === 'vehicles')  loadVehicles();
+  if (tab === 'rooms')     loadRooms();
+  if (tab === 'buysell')   loadBuySell();
   if (tab === 'payments')  loadPayments();
   if (tab === 'notify')    renderNotify();
 }
@@ -271,13 +286,41 @@ async function loadOverview() {
       <div class="stat-card"><div class="stat-label">Active Jobs</div><div class="stat-val orange">${s.active_jobs||0}</div></div>
       <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-val">${s.total_users||0}</div></div>
       <div class="stat-card"><div class="stat-label">PRO Users</div><div class="stat-val blue">${s.pro_users||0}</div></div>
-      <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-val green">${fMoney(s.total_revenue)}</div></div>
+      <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-val green">${fMoney(s.total_revenue)}</div></div>
       <div class="stat-card"><div class="stat-label">Total Views</div><div class="stat-val">${Number(s.total_views||0).toLocaleString()}</div></div>
       <div class="stat-card"><div class="stat-label">Applications</div><div class="stat-val">${s.total_applicants||0}</div></div>
       <div class="stat-card"><div class="stat-label">Featured Jobs</div><div class="stat-val orange">${s.featured_jobs||0}</div></div>
       <div class="stat-card"><div class="stat-label">Banned Users</div><div class="stat-val red">${s.banned_users||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Active Vehicles</div><div class="stat-val orange">${s.active_vehicles||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Active Rooms</div><div class="stat-val blue">${s.active_rooms||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Active Listings</div><div class="stat-val">${s.active_buysell||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Items Sold</div><div class="stat-val green">${s.sold_buysell||0}</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+    <!-- Revenue Breakdown -->
+    <div class="table-wrap" style="margin-bottom:16px">
+      <div class="table-header"><h3>Revenue Breakdown</h3></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0">
+        <div style="padding:16px 20px;border-right:1px solid var(--border);text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Jobs</div>
+          <div style="font-size:20px;font-weight:600;color:var(--green)">${fMoney(s.jobs_revenue||0)}</div>
+        </div>
+        <div style="padding:16px 20px;border-right:1px solid var(--border);text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Car Rent</div>
+          <div style="font-size:20px;font-weight:600;color:var(--orange)">${fMoney(s.vehicles_revenue||0)}</div>
+        </div>
+        <div style="padding:16px 20px;border-right:1px solid var(--border);text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Home / PG</div>
+          <div style="font-size:20px;font-weight:600;color:var(--blue)">${fMoney(s.rooms_revenue||0)}</div>
+        </div>
+        <div style="padding:16px 20px;text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Buy &amp; Sell</div>
+          <div style="font-size:20px;font-weight:600;color:var(--text)">${fMoney(s.buysell_revenue||0)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
       <div class="table-wrap" style="cursor:pointer" onclick="showTab('users')">
         <div class="table-header"><h3>Users</h3><span style="font-size:12px;color:var(--text3)">View all →</span></div>
         <div style="padding:16px 20px;color:var(--text2);font-size:13px">
@@ -294,6 +337,32 @@ async function loadOverview() {
           <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Inactive</span><span style="color:var(--text3)">${s.inactive_jobs||0}</span></div>
           <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Featured</span><span style="color:var(--orange)">${s.featured_jobs||0}</span></div>
           <div style="display:flex;justify-content:space-between;padding:6px 0"><span>Urgent</span><span style="color:var(--red)">${s.urgent_jobs||0}</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+      <div class="table-wrap" style="cursor:pointer" onclick="showTab('vehicles')">
+        <div class="table-header"><h3>Car Rent</h3><span style="font-size:12px;color:var(--text3)">View all →</span></div>
+        <div style="padding:16px 20px;color:var(--text2);font-size:13px">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Total</span><span style="color:var(--text)">${s.total_vehicles||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Active</span><span style="color:var(--green)">${s.active_vehicles||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span>Paid listings</span><span style="color:var(--orange)">${s.paid_vehicle_listings||0}</span></div>
+        </div>
+      </div>
+      <div class="table-wrap" style="cursor:pointer" onclick="showTab('rooms')">
+        <div class="table-header"><h3>Home / PG</h3><span style="font-size:12px;color:var(--text3)">View all →</span></div>
+        <div style="padding:16px 20px;color:var(--text2);font-size:13px">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Total</span><span style="color:var(--text)">${s.total_rooms||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Active</span><span style="color:var(--green)">${s.active_rooms||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span>Paid listings</span><span style="color:var(--blue)">${s.paid_room_listings||0}</span></div>
+        </div>
+      </div>
+      <div class="table-wrap" style="cursor:pointer" onclick="showTab('buysell')">
+        <div class="table-header"><h3>Buy &amp; Sell</h3><span style="font-size:12px;color:var(--text3)">View all →</span></div>
+        <div style="padding:16px 20px;color:var(--text2);font-size:13px">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Total</span><span style="color:var(--text)">${s.total_buysell||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Active</span><span style="color:var(--green)">${s.active_buysell||0}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span>Sold</span><span style="color:var(--orange)">${s.sold_buysell||0}</span></div>
         </div>
       </div>
     </div>`;
@@ -532,6 +601,147 @@ async function sendNotif() {
     res.style.display = 'block';
   } catch { res.className='send-result err'; res.textContent='Network error.'; res.style.display='block'; }
   finally { btn.disabled=false; btn.innerHTML='Send Notification'; }
+}
+
+// ── VEHICLES ──────────────────────────────────────────────────────────────────
+async function loadVehicles() {
+  const d = await api('GET', '/api/admin/vehicles');
+  const vehicles = d.vehicles || [];
+  const rows = vehicles.map(v => `
+    <tr>
+      <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.title||'—')}</td>
+      <td style="color:var(--text2)">${esc(v.type||'—')}</td>
+      <td style="color:var(--text2)">${esc(v.brand||'')} ${esc(v.model||'')}</td>
+      <td style="color:var(--text2)">${esc(v.poster_name||'—')}</td>
+      <td><span class="badge badge-${v.plan==='free'?'inactive':'pro'}">${esc(v.plan||'free')}</span></td>
+      <td><span class="badge ${v.status==='active'?'badge-active':'badge-inactive'}">${v.status}</span></td>
+      <td style="color:var(--text3);font-size:12px">${fDate(v.created_at)}</td>
+      <td><div class="actions-cell">
+        <button class="action-btn ${v.status==='active'?'btn-ban':'btn-unban'}" onclick="toggleVehicleStatus(${v.id},'${v.status}')">${v.status==='active'?'Deactivate':'Activate'}</button>
+        <button class="action-btn btn-delete" onclick="deleteVehicle(${v.id})">Delete</button>
+      </div></td>
+    </tr>`).join('');
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-title">Car Rent</div>
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>All vehicles <span style="color:var(--text3);font-weight:400;font-size:12px">(${vehicles.length})</span></h3>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Title</th><th>Type</th><th>Brand/Model</th><th>Posted By</th><th>Plan</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="8" class="empty">No vehicles found</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+async function toggleVehicleStatus(id, status) {
+  const newStatus = status === 'active' ? 'inactive' : 'active';
+  const d = await api('PATCH', `/api/admin/vehicles/${id}/status`, { status: newStatus });
+  if (d.ok) { toast('Status updated'); loadVehicles(); }
+  else toast(d.error || 'Failed', 'error');
+}
+async function deleteVehicle(id) {
+  if (!confirm('Delete this vehicle listing?')) return;
+  const d = await api('DELETE', `/api/admin/vehicles/${id}`);
+  if (d.ok) { toast('Vehicle deleted'); loadVehicles(); }
+  else toast(d.error || 'Failed', 'error');
+}
+
+// ── ROOMS ─────────────────────────────────────────────────────────────────────
+async function loadRooms() {
+  const d = await api('GET', '/api/admin/rooms');
+  const rooms = d.rooms || [];
+  const rows = rooms.map(r => `
+    <tr>
+      <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title||'—')}</td>
+      <td style="color:var(--text2)">${esc(r.type||'—')}</td>
+      <td style="color:var(--text2)">${r.bhk ? r.bhk+' BHK' : '—'}</td>
+      <td style="color:var(--text2)">${esc(r.poster_name||'—')}</td>
+      <td style="color:var(--green);font-weight:500">${fMoney(r.rent||0)}/mo</td>
+      <td><span class="badge badge-${r.plan==='free'?'inactive':'pro'}">${esc(r.plan||'free')}</span></td>
+      <td><span class="badge ${r.status==='active'?'badge-active':'badge-inactive'}">${r.status}</span></td>
+      <td style="color:var(--text3);font-size:12px">${fDate(r.created_at)}</td>
+      <td><div class="actions-cell">
+        <button class="action-btn ${r.status==='active'?'btn-ban':'btn-unban'}" onclick="toggleRoomStatus(${r.id},'${r.status}')">${r.status==='active'?'Deactivate':'Activate'}</button>
+        <button class="action-btn btn-delete" onclick="deleteRoom(${r.id})">Delete</button>
+      </div></td>
+    </tr>`).join('');
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-title">Home / PG</div>
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>All rooms <span style="color:var(--text3);font-weight:400;font-size:12px">(${rooms.length})</span></h3>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Title</th><th>Type</th><th>BHK</th><th>Posted By</th><th>Rent</th><th>Plan</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="9" class="empty">No rooms found</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+async function toggleRoomStatus(id, status) {
+  const newStatus = status === 'active' ? 'inactive' : 'active';
+  const d = await api('PATCH', `/api/admin/rooms/${id}/status`, { status: newStatus });
+  if (d.ok) { toast('Status updated'); loadRooms(); }
+  else toast(d.error || 'Failed', 'error');
+}
+async function deleteRoom(id) {
+  if (!confirm('Delete this room listing?')) return;
+  const d = await api('DELETE', `/api/admin/rooms/${id}`);
+  if (d.ok) { toast('Room deleted'); loadRooms(); }
+  else toast(d.error || 'Failed', 'error');
+}
+
+// ── BUY & SELL ────────────────────────────────────────────────────────────────
+async function loadBuySell() {
+  const d = await api('GET', '/api/admin/buysell');
+  const items = d.buysell || [];
+  const rows = items.map(b => `
+    <tr>
+      <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.title||'—')}</td>
+      <td style="color:var(--text2)">${esc(b.category||'—')}</td>
+      <td style="color:var(--text2)">${esc(b.seller_name||b.poster_name||'—')}</td>
+      <td style="color:var(--green);font-weight:500">${fMoney(b.price||0)}</td>
+      <td><span class="badge ${b.status==='active'?'badge-active':b.status==='sold'?'badge-pro':'badge-inactive'}">${b.status||'—'}</span></td>
+      <td style="color:var(--text3);font-size:12px">${fDate(b.created_at)}</td>
+      <td><div class="actions-cell">
+        <button class="action-btn ${b.status==='active'?'btn-ban':'btn-unban'}" onclick="toggleBuySellStatus(${b.id},'${b.status}')">${b.status==='active'?'Deactivate':'Activate'}</button>
+        <button class="action-btn btn-delete" onclick="deleteBuySell(${b.id})">Delete</button>
+      </div></td>
+    </tr>`).join('');
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-title">Buy &amp; Sell</div>
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>All items <span style="color:var(--text3);font-weight:400;font-size:12px">(${items.length})</span></h3>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Title</th><th>Category</th><th>Seller</th><th>Price</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="7" class="empty">No items found</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+async function toggleBuySellStatus(id, status) {
+  const newStatus = status === 'active' ? 'inactive' : 'active';
+  const d = await api('PATCH', `/api/admin/buysell/${id}/status`, { status: newStatus });
+  if (d.ok) { toast('Status updated'); loadBuySell(); }
+  else toast(d.error || 'Failed', 'error');
+}
+async function deleteBuySell(id) {
+  if (!confirm('Delete this item?')) return;
+  const d = await api('DELETE', `/api/admin/buysell/${id}`);
+  if (d.ok) { toast('Item deleted'); loadBuySell(); }
+  else toast(d.error || 'Failed', 'error');
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
