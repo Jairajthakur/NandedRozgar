@@ -278,7 +278,7 @@ function showTab(tab) {
   if (tab === 'buysell')    loadBuySell();
   if (tab === 'payments')   loadPayments();
   if (tab === 'analytics')  loadAnalytics();
-  if (tab === 'logs')       loadLogs();
+  if (tab === 'logs')       { logsPage=1; logsAction=''; logsStatus=''; logsSearch=''; loadLogs(); }
   if (tab === 'notify')     renderNotify();
 }
 
@@ -847,6 +847,13 @@ async function loadAnalytics() {
 // ── ACTIVITY LOGS ─────────────────────────────────────────────────────────────
 let logsPage = 1, logsAction = '', logsStatus = '', logsSearch = '';
 
+async function deleteTestLogs() {
+  if (!confirm('Delete all admin_test logs?')) return;
+  const d = await api('DELETE', '/api/admin/logs/test-cleanup', {}).catch(() => ({ ok: false }));
+  if (d.ok) { showToast('✅ Test logs deleted'); loadLogs(1); }
+  else showToast('❌ ' + (d.error || 'Failed'), true);
+}
+
 async function loadLogs(page = 1) {
   logsPage = page;
 
@@ -973,6 +980,8 @@ async function loadLogs(page = 1) {
             <option value="blocked" ${logsStatus==='blocked'?'selected':''}>Blocked</option>
           </select>
           <button class="action-btn btn-pro" onclick="loadLogs(1)">Filter</button>
+          <button class="action-btn" style="background:rgba(107,114,128,0.15);color:var(--text2)" onclick="logsAction='';logsStatus='';logsSearch='';loadLogs(1)">✕ Clear</button>
+          <button class="action-btn" style="background:rgba(239,68,68,0.1);color:var(--red)" onclick="deleteTestLogs()">🗑 Delete Test Logs</button>
         </div>
       </div>
       <div style="overflow-x:auto">
