@@ -246,9 +246,11 @@ const TERMS_HTML       = path.join(__dirname, '..', 'public', 'terms-and-conditi
 const REFUND_HTML      = path.join(__dirname, '..', 'public', 'refund-policy.html');
 
 // ── Admin login page ──────────────────────────────────────────────────────────
-app.get('/admin-login', (_req, res) => {
-  res.sendFile(ADMIN_LOGIN_HTML);
-});
+// Serve at BOTH /admin and /admin-login.
+// /admin must be registered BEFORE the Expo web build catch-all (app.get('*'))
+// otherwise the catch-all serves index.html and the login form never appears.
+app.get('/admin',       (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
+app.get('/admin-login', (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
 
 // ── Legal / Policy pages (required for Play Store listing) ───────────────────
 app.get('/privacy-policy',       (_req, res) => res.sendFile(PRIVACY_HTML));
