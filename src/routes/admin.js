@@ -592,4 +592,167 @@ router.get("/analytics", async (req, res) => {
   });
 });
 
+
+// ── ADMIN DIRECT POSTING (no payment required) ───────────────────────────────
+// All routes below bypass the free-check and payment gateway entirely.
+// Admin posts get plan='admin', featured=true, 365-day expiry.
+
+const { cache } = require('../db');
+const ADMIN_EXPIRY_DAYS = 365;
+
+function adminExpiry() {
+  const d = new Date();
+  d.setDate(d.getDate() + ADMIN_EXPIRY_DAYS);
+  return d;
+}
+
+// POST /api/admin/post/job
+router.post('/post/job', async (req, res) => {
+  try {
+    const {
+      title, company, category, type, location, salary,
+      phone, whatsapp, description, skills, requirements,
+      education, experience, hours, openings, fresherOk, district,
+    } = req.body;
+
+    if (!title || !category || !location)
+      return res.json({ ok: false, error: 'Title, category and location are required' });
+
+    const skillsArr = Array.isArray(skills) ? skills
+      : typeof skills === 'string' && skills.trim() ? skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const reqArr = Array.isArray(requirements) ? requirements
+      : typeof requirements === 'string' && requirements.trim() ? requirements.split('\n').map(r => r.trim()).filter(Boolean) : [];
+
+    const { rows } = await pool.query(`
+      INSERT INTO jobs (
+        posted_by, title, company, category, type, location, salary,
+        phone, whatsapp, description, skills, requirements,
+        education, experience, hours, openings,
+        featured, urgent, fresher_ok, expires_at, district, status
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+      RETURNING *
+    `, [
+      req.user.id, title, company || '', category, type || 'Full-time', location, salary || '',
+      phone || '', whatsapp || phone || '', description || '', skillsArr, reqArr,
+      education || '', experience || '', hours || '', openings || '1',
+      true, false, !!fresherOk, adminExpiry(),
+      district || 'nanded', 'active',
+    ]);
+
+    await cache.delPrefix('jobs:');
+    res.json({ ok: true, job: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to post job' });
+  }
+});
+
+// POST /api/admin/post/room
+router.post('/post/room', async (req, res) => {
+  try {
+    const {
+      title, type, bhk, rent, furnished, area, address,
+      landmark, ownerName, whatsapp, description, photos, district,
+    } = req.body;
+
+    if (!title || !rent || !whatsapp)
+      return res.json({ ok: false, error: 'Title, rent and WhatsApp are required' });
+
+    const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
+    if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
+      return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
+
+    const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
+
+    const { rows } = await pool.query(`
+      INSERT INTO rooms (posted_by,title,type,bhk,rent,furnished,area,address,landmark,
+                         owner_name,whatsapp,description,photos,plan,expires_at,district,status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *
+    `, [
+      req.user.id, title, type || '', bhk || '', rent, furnished || '',
+      area || '', address || '', landmark || '', ownerName || '', cleanWhatsapp,
+      description || '', JSON.stringify(safePhotos),
+      'admin', adminExpiry(), district || 'nanded', 'active',
+    ]);
+
+    await cache.delPrefix('rooms:');
+    res.json({ ok: true, room: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to post room' });
+  }
+});
+
+// POST /api/admin/post/vehicle
+router.post('/post/vehicle', async (req, res) => {
+  try {
+    const {
+      title, type, brand, model, year, kmDriven, fuel, transmission,
+      price, area, address, ownerName, whatsapp, description, photos, district,
+    } = req.body;
+
+    if (!title || !price || !whatsapp)
+      return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
+
+    const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
+    if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
+      return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
+
+    const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
+
+    const { rows } = await pool.query(`
+      INSERT INTO vehicles (posted_by,title,type,brand,model,year,km_driven,fuel,transmission,
+                            price,area,address,owner_name,whatsapp,description,photos,plan,expires_at,district,status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *
+    `, [
+      req.user.id, title, type || '', brand || '', model || '', year || null, kmDriven || null,
+      fuel || '', transmission || '', price, area || '', address || '', ownerName || '', cleanWhatsapp,
+      description || '', JSON.stringify(safePhotos),
+      'admin', adminExpiry(), district || 'nanded', 'active',
+    ]);
+
+    await cache.delPrefix('vehicles:');
+    res.json({ ok: true, vehicle: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to post vehicle' });
+  }
+});
+
+// POST /api/admin/post/buysell
+router.post('/post/buysell', async (req, res) => {
+  try {
+    const {
+      title, category, condition, age, price, negotiable,
+      area, description, whatsapp, photos, district,
+    } = req.body;
+
+    if (!title || !price || !whatsapp)
+      return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
+
+    const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
+    if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
+      return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
+
+    const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
+
+    const { rows } = await pool.query(`
+      INSERT INTO buysell_items (posted_by,title,category,condition,age,price,negotiable,
+                                 area,description,whatsapp,photos,plan_label,plan_days,expires_at,district,status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *
+    `, [
+      req.user.id, title, category || 'Other', condition || 'Good', age || '',
+      price, negotiable !== false, area || '', description || '', cleanWhatsapp,
+      JSON.stringify(safePhotos),
+      'admin', ADMIN_EXPIRY_DAYS, adminExpiry(), district || 'nanded', 'active',
+    ]);
+
+    await cache.delPrefix('buysell:');
+    res.json({ ok: true, item: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to post item' });
+  }
+});
+
 module.exports = router;
