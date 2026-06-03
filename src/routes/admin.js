@@ -512,4 +512,74 @@ router.delete('/rooms/:id', async (req, res) => {
   }
 });
 
+
+// ─── ACTIVITY LOGS ────────────────────────────────────────────────────────────
+
+// GET /api/admin/logs?page=1&limit=50&action=login&status=failed
+router.get('/logs', async (req, res) => {
+  try {
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(200, parseInt(req.query.limit) || 50);
+    const offset = (page - 1) * limit;
+    const action = req.query.action || null;
+    const status = req.query.status || null;
+    const search = req.query.search || null;
+
+    const conditions = [];
+    const params = [];
+
+    if (action) { params.push(action); conditions.push(`l.action = $${params.length}`); }
+    if (status) { params.push(status); conditions.push(`l.status = $${params.length}`); }
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(u.name ILIKE $${params.length} OR u.email ILIKE $${params.length} OR l.detail ILIKE $${params.length} OR l.ip ILIKE $${params.length})`);
+    }
+
+    const where = conditions.length ? "WHERE " + conditions.join(" AND ") : "";
+    const countParams = [...params];
+    params.push(limit, offset);
+
+    const [countRes, dataRes] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM activity_logs l LEFT JOIN users u ON u.id = l.user_id ${where}`, countParams),
+      pool.query(`
+        SELECT l.*, u.name AS user_name, u.email AS user_email
+        FROM activity_logs l
+        LEFT JOIN users u ON u.id = l.user_id
+        ${where}
+        ORDER BY l.created_at DESC
+        LIMIT $${params.length - 1} OFFSET $${params.length}
+      `, params),
+    ]);
+
+    res.json({ ok: true, logs: dataRes.rows, total: parseInt(countRes.rows[0].count), page, limit });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: "Failed to load logs" });
+  }
+});
+
+// GET /api/admin/analytics — charts data (last 30 days)
+router.get("/analytics", async (req, res) => {
+  const safe = async (fn, fallback) => { try { return await fn(); } catch(e) { return fallback; } };
+
+  const [signups, logins, loginFails, jobsChart, paymentsChart, topActions] = await Promise.all([
+    safe(() => pool.query(`SELECT DATE(created_at) AS day, COUNT(*) AS count FROM users WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY day ORDER BY day`), { rows: [] }),
+    safe(() => pool.query(`SELECT DATE(created_at) AS day, COUNT(*) AS count FROM activity_logs WHERE action = 'login' AND created_at >= NOW() - INTERVAL '30 days' GROUP BY day ORDER BY day`), { rows: [] }),
+    safe(() => pool.query(`SELECT DATE(created_at) AS day, COUNT(*) AS count FROM activity_logs WHERE action IN ('login_failed','login_blocked') AND created_at >= NOW() - INTERVAL '30 days' GROUP BY day ORDER BY day`), { rows: [] }),
+    safe(() => pool.query(`SELECT DATE(created_at) AS day, COUNT(*) AS count FROM jobs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY day ORDER BY day`), { rows: [] }),
+    safe(() => pool.query(`SELECT DATE(created_at) AS day, COALESCE(SUM(amount),0) AS total FROM payments WHERE status='paid' AND created_at >= NOW() - INTERVAL '30 days' GROUP BY day ORDER BY day`), { rows: [] }),
+    safe(() => pool.query(`SELECT action, COUNT(*) AS count FROM activity_logs WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY action ORDER BY count DESC LIMIT 10`), { rows: [] }),
+  ]);
+
+  res.json({
+    ok: true,
+    signups:        signups.rows,
+    logins:         logins.rows,
+    login_fails:    loginFails.rows,
+    jobs_chart:     jobsChart.rows,
+    payments_chart: paymentsChart.rows,
+    top_actions:    topActions.rows,
+  });
+});
+
 module.exports = router;
