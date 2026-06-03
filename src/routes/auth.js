@@ -636,10 +636,25 @@ router.post('/change-password', changePasswordLimiter, auth, async (req, res) =>
 });
 
 // ── POST /api/auth/logout ──────────────────────────────────────────────────────
-router.post('/logout', auth, async (req, res) => {
+// No auth middleware — we decode the JWT ourselves so logout is logged even if
+// the token is expired or the cache has already been cleared on the client.
+router.post('/logout', async (req, res) => {
   try {
-    await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [req.user.id]).catch(() => {});
-    await log('logout', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req) });
+    const header = req.headers.authorization;
+    let userId = null;
+    if (header?.startsWith('Bearer ')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
+        userId = payload.id;
+      } catch {
+        // expired or invalid token — still log with null userId
+      }
+    }
+    if (userId) {
+      await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]).catch(() => {});
+    }
+    await log('logout', { userId, ip: getIP(req), userAgent: getUA(req) });
     return res.json({ ok: true });
   } catch {
     return res.json({ ok: true });
