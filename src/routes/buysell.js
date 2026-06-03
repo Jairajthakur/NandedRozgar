@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { pool, cache } = require('../db');
 const { auth } = require('../middleware/auth');
+const { logActivity, getIP, getUA } = require('../utils/logActivity');
 
 const LIST_TTL   = 15_000;
 const DETAIL_TTL = 30_000;
@@ -151,6 +152,7 @@ router.post('/', auth, async (req, res) => {
     ]);
 
     await cache.delPrefix('buysell:');
+    await logActivity('buysell_post', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `Item posted: "${title}" (${planKey} plan)` });
     res.json({ ok: true, item: rows[0] });
   } catch (err) {
     console.error(err);
@@ -168,6 +170,7 @@ router.delete('/:id', auth, async (req, res) => {
     await pool.query("UPDATE buysell_items SET status='deleted' WHERE id=$1", [req.params.id]);
     await cache.del(`buysell:item:${req.params.id}`);
     await cache.delPrefix('buysell:');
+    await logActivity('buysell_delete', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `Deleted buysell item #${req.params.id}` });
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
