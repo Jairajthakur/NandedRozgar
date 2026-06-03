@@ -338,6 +338,7 @@ router.post('/google', loginLimiter, async (req, res) => {
     }
 
     if (!user.active) return res.json({ ok: false, error: 'This account has been suspended' });
+    await log('login', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: `Google: ${email}` });
     return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
   } catch (err) {
     console.error('google auth error:', err.message);
@@ -496,6 +497,7 @@ router.post('/verify-firebase-otp', otpLimiter, async (req, res) => {
 
     if (!user.active) return res.json({ ok: false, error: 'This account has been suspended' });
     await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(() => {});
+    await log('login', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: `OTP: ${phoneLocal}` });
     return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
   } catch (err) {
     console.error('verify-firebase-otp error:', err.message);
