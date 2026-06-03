@@ -44,7 +44,7 @@ async function log(action, { userId = null, status = 'success', ip = null, userA
       `INSERT INTO activity_logs (user_id, action, status, ip, user_agent, detail) VALUES ($1,$2,$3,$4,$5,$6)`,
       [userId || null, action, status, ip, userAgent, detail]
     );
-  } catch (e) { /* non-fatal */ }
+  } catch (e) { console.warn('[activity_log] Insert failed:', e.message); }
 }
 function getIP(req) { return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null; }
 function getUA(req) { return req.headers['user-agent'] || null; }
@@ -187,6 +187,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
 
       if (!adminPasswordMatch) {
+        await log('login_failed', { status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Wrong admin password for ${ADMIN_EMAIL}` });
         return res.json({ ok: false, error: 'Incorrect admin password' });
       }
 
@@ -204,6 +205,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         await pool.query('UPDATE users SET role = $1 WHERE id = $2', ['admin', admin.id]);
         admin.role = 'admin';
       }
+      await log('login', { userId: admin.id, ip: getIP(req), userAgent: getUA(req), detail: `Admin login: ${ADMIN_EMAIL}` });
       return res.json({ ok: true, token: makeToken(admin), user: safeUser(admin) });
     }
 
@@ -226,6 +228,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(() => {});
+    await log('login', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: user.email });
     return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
   } catch (err) {
     console.error('login error:', err.message);
