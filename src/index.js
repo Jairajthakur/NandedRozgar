@@ -239,17 +239,17 @@ app.get('/payment/start', (req, res) => {
 // Web (browser) flow:
 //   The Cashfree Drop-in handles success/failure via its own JS callbacks.
 //   This endpoint is never reached for web users; it is only a safety net.
-const CALLBACK_HTML   = path.join(__dirname, '..', 'public', 'payment-callback.html');
+const CALLBACK_HTML    = path.join(__dirname, '..', 'public', 'payment-callback.html');
 const ADMIN_LOGIN_HTML = path.join(__dirname, '..', 'public', 'admin-login.html');
+const ADMIN_PANEL_HTML = path.join(__dirname, '..', 'public', 'admin-panel.html');
 const PRIVACY_HTML     = path.join(__dirname, '..', 'public', 'privacy-policy.html');
 const TERMS_HTML       = path.join(__dirname, '..', 'public', 'terms-and-conditions.html');
 const REFUND_HTML      = path.join(__dirname, '..', 'public', 'refund-policy.html');
 
-// ── Admin login page ──────────────────────────────────────────────────────────
-// Serve at BOTH /admin and /admin-login.
-// /admin must be registered BEFORE the Expo web build catch-all (app.get('*'))
-// otherwise the catch-all serves index.html and the login form never appears.
-app.get('/admin',       (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
+// ── Admin panel — standalone dashboard, no Expo dependency ───────────────────
+// /admin serves the full self-contained admin panel (login + dashboard in one).
+// Must be registered BEFORE the Expo web build catch-all (app.get('*')).
+app.get('/admin',       (_req, res) => res.sendFile(ADMIN_PANEL_HTML));
 app.get('/admin-login', (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
 
 // ── Legal / Policy pages (required for Play Store listing) ───────────────────
