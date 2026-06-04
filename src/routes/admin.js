@@ -1,6 +1,15 @@
 const router = require('express').Router();
-const { pool } = require('../db');
+const { pool, cache } = require('../db');
 const { auth, adminOnly } = require('../middleware/auth');
+
+// ── Admin direct-post constants ───────────────────────────────────────────────
+const ADMIN_EXPIRY_DAYS = 365;
+
+function adminExpiry() {
+  const d = new Date();
+  d.setDate(d.getDate() + ADMIN_EXPIRY_DAYS);
+  return d;
+}
 
 // All admin routes require auth + admin role
 router.use(auth, adminOnly);
@@ -28,7 +37,6 @@ router.patch('/users/:id/toggle', async (req, res) => {
       [req.params.id]
     );
     // Evict auth cache so a banned user loses access immediately (not after 60 s TTL)
-    const { cache } = require('../db');
     await cache.del(`auth:${req.params.id}`);
     res.json({ ok: true, user: rows[0] });
   } catch (err) {
@@ -596,15 +604,6 @@ router.get("/analytics", async (req, res) => {
 // ── ADMIN DIRECT POSTING (no payment required) ───────────────────────────────
 // All routes below bypass the free-check and payment gateway entirely.
 // Admin posts get plan='admin', featured=true, 365-day expiry.
-
-const { cache } = require('../db');
-const ADMIN_EXPIRY_DAYS = 365;
-
-function adminExpiry() {
-  const d = new Date();
-  d.setDate(d.getDate() + ADMIN_EXPIRY_DAYS);
-  return d;
-}
 
 // POST /api/admin/post/job
 router.post('/post/job', async (req, res) => {
