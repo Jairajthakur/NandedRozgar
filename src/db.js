@@ -357,6 +357,7 @@ async function runMigrations() {
         status        VARCHAR(20) DEFAULT 'active',
         views         INTEGER DEFAULT 0,
         expires_at    TIMESTAMPTZ,
+        district      VARCHAR(50) DEFAULT 'nanded',
         created_at    TIMESTAMPTZ DEFAULT NOW()
       );
     `);
@@ -381,6 +382,7 @@ async function runMigrations() {
         status        VARCHAR(20) DEFAULT 'active',
         views         INTEGER DEFAULT 0,
         expires_at    TIMESTAMPTZ,
+        district      VARCHAR(50) DEFAULT 'nanded',
         created_at    TIMESTAMPTZ DEFAULT NOW()
       );
     `);
