@@ -677,7 +677,7 @@ router.post('/post/room', async (req, res) => {
     await cache.delPrefix('rooms:');
     res.json({ ok: true, room: rows[0] });
   } catch (err) {
-    console.error(err);
+    console.error('[admin/post/room]', err.message, err.detail || '');
     res.json({ ok: false, error: 'Failed to post room' });
   }
 });
@@ -713,7 +713,7 @@ router.post('/post/vehicle', async (req, res) => {
     await cache.delPrefix('vehicles:');
     res.json({ ok: true, vehicle: rows[0] });
   } catch (err) {
-    console.error(err);
+    console.error('[admin/post/vehicle]', err.message, err.detail || '');
     res.json({ ok: false, error: 'Failed to post vehicle' });
   }
 });
@@ -749,7 +749,7 @@ router.post('/post/buysell', async (req, res) => {
     await cache.delPrefix('buysell:');
     res.json({ ok: true, item: rows[0] });
   } catch (err) {
-    console.error(err);
+    console.error('[admin/post/buysell]', err.message, err.detail || '');
     res.json({ ok: false, error: 'Failed to post item' });
   }
 });
