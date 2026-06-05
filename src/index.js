@@ -100,7 +100,8 @@ app.use('/api/payments/cashfree-webhook', express.raw({ type: 'application/json'
   }
   next();
 });
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 // ── Security headers ──────────────────────────────────────────────────────────
 app.use((_req, res, next) => {
