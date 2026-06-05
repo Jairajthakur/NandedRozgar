@@ -174,6 +174,7 @@ async function runMigrations() {
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS plan_label   VARCHAR(30)`,
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS plan_price   INTEGER`,
 
+      `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS title           VARCHAR(200)`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS district        VARCHAR(50)  DEFAULT 'nanded'`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS status          VARCHAR(20)  DEFAULT 'active'`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS expires_at      TIMESTAMPTZ`,
