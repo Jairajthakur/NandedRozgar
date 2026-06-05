@@ -65,15 +65,15 @@ router.post('/image', auth, async (req, res) => {
   // Accept both plain base64 and data URI format
   const base64Data = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`;
 
-  // Validate it looks like an image data URI (JPEG, PNG, WebP, HEIC)
-  if (!/^data:image\/(jpeg|jpg|png|webp|heic);base64,/.test(base64Data)) {
-    return res.json({ ok: false, error: 'Only JPEG, PNG, WebP, and HEIC images are supported' });
+  // Validate it looks like an image data URI (JPEG, PNG, WebP, HEIC, GIF)
+  if (!/^data:image\/(jpeg|jpg|png|webp|heic|gif|bmp|tiff|avif);base64,/i.test(base64Data)) {
+    return res.json({ ok: false, error: 'Only JPEG, PNG, WebP, HEIC, and GIF images are supported' });
   }
 
   // Rough size check — base64 is ~33% larger than binary
   const approxBytes = (base64Data.length * 3) / 4;
-  if (approxBytes > 5 * 1024 * 1024) {
-    return res.json({ ok: false, error: 'Image too large. Maximum size is 5 MB.' });
+  if (approxBytes > 10 * 1024 * 1024) {
+    return res.json({ ok: false, error: 'Image too large. Maximum size is 10 MB.' });
   }
 
   try {
