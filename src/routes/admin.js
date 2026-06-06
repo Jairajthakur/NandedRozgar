@@ -414,6 +414,9 @@ router.patch('/buysell/:id/status', async (req, res) => {
       return res.json({ ok: false, error: 'Invalid status' });
     }
     await pool.query('UPDATE buysell_items SET status = $1 WHERE id = $2', [status, req.params.id]);
+    // Clear all buysell caches so users see updated status immediately
+    await cache.delPrefix('buysell:');
+    await cache.delPrefix('buysell_count:');
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -741,12 +744,13 @@ router.post('/post/buysell', async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *
     `, [
       req.user.id, title, category || 'Other', condition || 'Good', age || '',
-      price, negotiable !== false, area || '', description || '', cleanWhatsapp,
+      price, negotiable !== false && negotiable !== 'false', area || '', description || '', cleanWhatsapp,
       JSON.stringify(safePhotos),
       'admin', ADMIN_EXPIRY_DAYS, adminExpiry(), district || 'nanded', 'active',
     ]);
 
     await cache.delPrefix('buysell:');
+    await cache.delPrefix('buysell_count:');
     res.json({ ok: true, item: rows[0] });
   } catch (err) {
     console.error(err);
