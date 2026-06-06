@@ -12,6 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { urisToBase64DataUris } from '../utils/imageUtils';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/cashfree';
+import MonthlyPlanBanner, { useMonthlyPlan } from '../components/MonthlyPlanBanner';
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
 import CouponInput from '../components/CouponInput';
@@ -156,6 +157,7 @@ export default function PostCarScreen() {
   const { district, currentDistrict } = useDistrict();
   const PICKUP_LOCS = PICKUP_LOCS_BY_DISTRICT[currentDistrict?.id] || PICKUP_LOCS_BY_DISTRICT.nanded;
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
+  const { active: hasMonthlyPlan } = useMonthlyPlan();
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -279,14 +281,19 @@ export default function PostCarScreen() {
       const discountedPrice = appliedCoupon ? appliedCoupon.finalAmount : planPrice;
       const amountPaise = discountedPrice * 100;
 
-      // ── Step 1: Payment ────────────────────────────────────────────────────
-      const payResult = await initiatePayment({
-        amount:      amountPaise,
-        description: `Vehicle Listing – ${form.plan?.label || '1 Month'}`,
-        listingType: 'vehicle',
-        plan:        form.plan?.label || '1 Month',
-        couponId:    appliedCoupon?.id || null,
-      });
+      // ── Step 1: Payment (skipped if Monthly Plan is active) ───────────────
+      let payResult;
+      if (hasMonthlyPlan) {
+        payResult = { success: true, free: true };
+      } else {
+        payResult = await initiatePayment({
+          amount:      amountPaise,
+          description: `Vehicle Listing – ${form.plan?.label || '1 Month'}`,
+          listingType: 'vehicle',
+          plan:        form.plan?.label || '1 Month',
+          couponId:    appliedCoupon?.id || null,
+        });
+      }
 
       if (!payResult.success) {
         if (!payResult.cancelled) {
@@ -520,6 +527,7 @@ export default function PostCarScreen() {
 
           {/* ── STEP 4: Plan ── */}
           {step===4&&<>
+            <MonthlyPlanBanner navigation={nav} compact />
             <Text style={s.planQ}>How long should your listing stay live?</Text>
             <Text style={s.planNote}>Your listing is automatically removed after the selected period.</Text>
             <View style={s.planGrid}>
