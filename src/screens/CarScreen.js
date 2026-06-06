@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
 import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../components/PromoBanner';
+import MonthlyPlanBanner from '../components/MonthlyPlanBanner';
 import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
 import { useDistrict } from '../context/DistrictContext';
@@ -511,6 +512,7 @@ export default function CarsScreen({ route }) {
 
   const ListHeader = (
     <>
+      <MonthlyPlanBanner navigation={useNavigation()} />
       <FadeIn delay={180}><TopVehiclesBanner /></FadeIn>
       <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
         {promos.length > 0
