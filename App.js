@@ -42,6 +42,7 @@ import SeekerProfileScreen  from './src/screens/SeekerProfileScreen';
 import AnalyticsScreen      from './src/screens/AnalyticsScreen';
 import AlertsScreen         from './src/screens/AlertsScreen';
 import PromoteBusinessScreen from './src/screens/PromoteBusinessScreen';
+import MonthlyPlanScreen     from './src/screens/MonthlyPlanScreen';
 import HelpSupportScreen    from './src/screens/HelpSupportScreen';
 // Bug fix #15: was SellItemForm.jsx — renamed to .js to match all other screens
 // and avoid potential Metro / Expo SDK build pipeline resolution issues.
@@ -71,7 +72,8 @@ let _HomeScreen, _BoardScreen, _JobDetailScreen, _PostScreen, _PostJobScreen,
     _BuySellScreen, _BuySellDetailScreen, _PostItemScreen, _LoginScreen,
     _ReferralScreen, _MyApplicationsScreen, _SeekerProfileScreen,
     _AnalyticsScreen, _AlertsScreen, _PromoteBusinessScreen,
-    _HelpSupportScreen, _SellItemForm, _AboutScreen, _ChatScreen, _ChatListScreen, _SavedJobsScreen;
+    _HelpSupportScreen, _SellItemForm, _AboutScreen, _ChatScreen, _ChatListScreen, _SavedJobsScreen,
+    _MonthlyPlanScreen;
 
 // ── Online / offline detection ────────────────────────────────────────────────
 // FIX: The previous version pinged our own backend server (/health) to decide
@@ -541,6 +543,7 @@ _SeekerProfileScreen   = withScreenErrorBoundary(SeekerProfileScreen,   'SeekerP
 _AnalyticsScreen       = withScreenErrorBoundary(AnalyticsScreen,       'AnalyticsScreen');
 _AlertsScreen          = withScreenErrorBoundary(AlertsScreen,          'AlertsScreen');
 _PromoteBusinessScreen = withScreenErrorBoundary(PromoteBusinessScreen, 'PromoteBusinessScreen');
+_MonthlyPlanScreen     = withScreenErrorBoundary(MonthlyPlanScreen,     'MonthlyPlanScreen');
 _HelpSupportScreen     = withScreenErrorBoundary(HelpSupportScreen,     'HelpSupportScreen');
 _SellItemForm          = withScreenErrorBoundary(SellItemForm,          'SellItemForm');
 _AboutScreen           = withScreenErrorBoundary(AboutScreen,           'AboutScreen');
@@ -722,6 +725,7 @@ function RootNavigator() {
       <Stack.Screen name="BuySellDetail" component={_BuySellDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="PostItem"   component={_PostItemScreen}       options={{ headerShown: false }} />
       <Stack.Screen name="PromoteBusiness" component={_PromoteBusinessScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="MonthlyPlan"     component={_MonthlyPlanScreen}     options={{ headerShown: false }} />
       <Stack.Screen name="Profile"    component={_ProfileScreen}    options={{ headerShown: true, headerTitle: t('myProfile'), ...HEADER }} />
       <Stack.Screen name="AIMatch"    component={_AIScreen}         options={{ headerShown: true, headerTitle: t('aiJobMatch'), ...HEADER }} />
       <Stack.Screen
