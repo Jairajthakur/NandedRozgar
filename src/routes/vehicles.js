@@ -36,6 +36,7 @@ router.get('/', async (req, res) => {
         SELECT v.id, v.title, v.price, v.type, v.brand, v.model, v.year, v.km_driven,
                v.fuel, v.transmission, v.area, v.address, v.owner_name, v.whatsapp,
                v.district, v.plan, v.status, v.created_at, v.expires_at, v.views,
+               v.photos,
                u.name AS poster_name
         FROM vehicles v
         LEFT JOIN users u ON u.id = v.posted_by
