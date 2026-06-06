@@ -125,11 +125,11 @@ router.post('/', auth, async (req, res) => {
     expiresAt.setDate(expiresAt.getDate() + days);
 
     const { rows } = await pool.query(`
-      INSERT INTO vehicles (posted_by,title,type,brand,model,year,km_driven,fuel,transmission,
+      INSERT INTO vehicles (posted_by,name,title,type,brand,model,year,km_driven,fuel,transmission,
                             price,area,address,owner_name,whatsapp,description,photos,plan,expires_at,district)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *
     `, [
-      req.user.id, title, type||'', brand||'', model||'', year||null, kmDriven||null,
+      req.user.id, title, title, type||'', brand||'', model||'', year||null, kmDriven||null,
       fuel||'', transmission||'', price, area||'', address||'', ownerName||'', cleanWhatsapp,
       description||'', JSON.stringify(safePhotos),
       planKey, expiresAt, district||'nanded',
