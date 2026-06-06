@@ -650,23 +650,18 @@ router.post('/post/job', async (req, res) => {
 router.post('/post/room', async (req, res) => {
   try {
     const {
-      title, type, bhk, furnished, area, address,
-      landmark, ownerName, whatsapp, description, district,
+      title, type, bhk, rent, furnished, area, address,
+      landmark, ownerName, whatsapp, description, photos, district,
     } = req.body;
-
-    const rent = parseInt(req.body.rent, 10);
-    const photos = Array.isArray(req.body.photos) ? req.body.photos : [];
 
     if (!title || !rent || !whatsapp)
       return res.json({ ok: false, error: 'Title, rent and WhatsApp are required' });
-    if (isNaN(rent) || rent <= 0)
-      return res.json({ ok: false, error: 'Rent must be a valid number' });
 
     const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
     if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
       return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
 
-    const safePhotos = photos.slice(0, 10);
+    const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
 
     const { rows } = await pool.query(`
       INSERT INTO rooms (posted_by,title,type,bhk,rent,furnished,area,address,landmark,
@@ -682,8 +677,8 @@ router.post('/post/room', async (req, res) => {
     await cache.delPrefix('rooms:');
     res.json({ ok: true, room: rows[0] });
   } catch (err) {
-    console.error('[admin/post/room]', err.message, err.detail || '');
-    res.json({ ok: false, error: `Failed to post room: ${err.message}` });
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to post room' });
   }
 });
 
@@ -691,32 +686,25 @@ router.post('/post/room', async (req, res) => {
 router.post('/post/vehicle', async (req, res) => {
   try {
     const {
-      title, type, brand, model, fuel, transmission,
-      area, address, ownerName, whatsapp, description, district,
+      title, type, brand, model, year, kmDriven, fuel, transmission,
+      price, area, address, ownerName, whatsapp, description, photos, district,
     } = req.body;
-
-    const price     = parseInt(req.body.price, 10);
-    const year      = req.body.year     ? parseInt(req.body.year, 10)      : null;
-    const kmDriven  = req.body.kmDriven ? parseInt(req.body.kmDriven, 10)  : null;
-    const photos    = Array.isArray(req.body.photos) ? req.body.photos : [];
 
     if (!title || !price || !whatsapp)
       return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
-    if (isNaN(price) || price <= 0)
-      return res.json({ ok: false, error: 'Price must be a valid number' });
 
     const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
     if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
       return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
 
-    const safePhotos = photos.slice(0, 10);
+    const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
 
     const { rows } = await pool.query(`
-      INSERT INTO vehicles (posted_by,title,type,brand,model,year,km_driven,fuel,transmission,
+      INSERT INTO vehicles (posted_by,name,title,type,brand,model,year,km_driven,fuel,transmission,
                             price,area,address,owner_name,whatsapp,description,photos,plan,expires_at,district,status)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING *
     `, [
-      req.user.id, title, type || '', brand || '', model || '', year, kmDriven,
+      req.user.id, title, title, type || '', brand || '', model || '', year || null, kmDriven || null,
       fuel || '', transmission || '', price, area || '', address || '', ownerName || '', cleanWhatsapp,
       description || '', JSON.stringify(safePhotos),
       'admin', adminExpiry(), district || 'nanded', 'active',
@@ -725,8 +713,8 @@ router.post('/post/vehicle', async (req, res) => {
     await cache.delPrefix('vehicles:');
     res.json({ ok: true, vehicle: rows[0] });
   } catch (err) {
-    console.error('[admin/post/vehicle]', err.message, err.detail || '');
-    res.json({ ok: false, error: `Failed to post vehicle: ${err.message}` });
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to post vehicle' });
   }
 });
 
@@ -734,24 +722,18 @@ router.post('/post/vehicle', async (req, res) => {
 router.post('/post/buysell', async (req, res) => {
   try {
     const {
-      title, category, condition, age,
-      area, description, whatsapp, district,
+      title, category, condition, age, price, negotiable,
+      area, description, whatsapp, photos, district,
     } = req.body;
-
-    const price      = parseInt(req.body.price, 10);
-    const negotiable = req.body.negotiable !== 'false' && req.body.negotiable !== false;
-    const photos     = Array.isArray(req.body.photos) ? req.body.photos : [];
 
     if (!title || !price || !whatsapp)
       return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
-    if (isNaN(price) || price <= 0)
-      return res.json({ ok: false, error: 'Price must be a valid number' });
 
     const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
     if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
       return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
 
-    const safePhotos = photos.slice(0, 10);
+    const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
 
     const { rows } = await pool.query(`
       INSERT INTO buysell_items (posted_by,title,category,condition,age,price,negotiable,
@@ -759,7 +741,7 @@ router.post('/post/buysell', async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *
     `, [
       req.user.id, title, category || 'Other', condition || 'Good', age || '',
-      price, negotiable, area || '', description || '', cleanWhatsapp,
+      price, negotiable !== false, area || '', description || '', cleanWhatsapp,
       JSON.stringify(safePhotos),
       'admin', ADMIN_EXPIRY_DAYS, adminExpiry(), district || 'nanded', 'active',
     ]);
@@ -767,8 +749,8 @@ router.post('/post/buysell', async (req, res) => {
     await cache.delPrefix('buysell:');
     res.json({ ok: true, item: rows[0] });
   } catch (err) {
-    console.error('[admin/post/buysell]', err.message, err.detail || '');
-    res.json({ ok: false, error: `Failed to post item: ${err.message}` });
+    console.error(err);
+    res.json({ ok: false, error: 'Failed to post item' });
   }
 });
 
