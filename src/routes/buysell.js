@@ -36,6 +36,7 @@ router.get('/', async (req, res) => {
       pool.query(`
         SELECT b.id, b.title, b.price, b.category, b.condition, b.area, b.address,
                b.whatsapp, b.district, b.plan_label, b.status, b.created_at, b.expires_at, b.views,
+               b.photos,
                u.name AS seller_name
         FROM buysell_items b
         LEFT JOIN users u ON u.id = b.posted_by
