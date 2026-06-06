@@ -13,6 +13,7 @@ import { useDistrict } from '../context/DistrictContext';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/cashfree';
 import CouponInput from '../components/CouponInput';
+import MonthlyPlanBanner, { useMonthlyPlan } from '../components/MonthlyPlanBanner';
 
 const ORANGE = '#f97316';
 const TOTAL_STEPS = 5;
@@ -239,6 +240,7 @@ export default function PostJobScreen() {
   const LOCATIONS = LOCATIONS_BY_DISTRICT[currentDistrict?.id] || LOCATIONS_BY_DISTRICT.nanded;
   const scrollRef = useRef(null);
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
+  const { active: hasMonthlyPlan } = useMonthlyPlan();
 
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -369,14 +371,19 @@ export default function PostJobScreen() {
         district:    district || 'nanded',
       };
 
-      // ── Step 1: Razorpay payment ───────────────────────────────────────────
-      const payResult = await initiatePayment({
-        amount:      amountPaise,
-        description: `Job Listing – ${planLabel}`,
-        listingType: 'job',
-        plan:        planLabel,
-        couponId:    appliedCoupon?.id || null,
-      });
+      // ── Step 1: Razorpay payment (skipped if user has active Monthly Plan) ──
+      let payResult;
+      if (hasMonthlyPlan) {
+        payResult = { success: true, free: true };
+      } else {
+        payResult = await initiatePayment({
+          amount:      amountPaise,
+          description: `Job Listing – ${planLabel}`,
+          listingType: 'job',
+          plan:        planLabel,
+          couponId:    appliedCoupon?.id || null,
+        });
+      }
 
       if (!payResult.success) {
         if (!payResult.cancelled) {
@@ -630,6 +637,7 @@ export default function PostJobScreen() {
         {/* ══════════ STEP 4 – CHOOSE PLAN ══════════ */}
         {step === 4 && <>
           <StepBanner step={4} title="Choose Plan" subtitle="How long should your listing stay live?" onBack={goBack} />
+          <MonthlyPlanBanner navigation={nav} compact />
           <View style={s.card}>
             <Text style={s.planQ}>How long should your listing stay live?</Text>
             <Text style={s.planHint}>Your listing is automatically removed after the selected period.</Text>
