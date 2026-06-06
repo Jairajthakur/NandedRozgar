@@ -134,7 +134,8 @@ const PLAN_PRICES = {
   room:      { free: 0, featured: 99, '15 days': 49, '1 month': 79, '2 months': 109, '3 months': 149 },
   vehicle:   { free: 0, featured: 99, '15 days': 49, '1 month': 79, '2 months': 109, '3 months': 149 },
   buysell:   { free: 0, featured: 49, '7 days': 49, '15 days': 79, '30 days': 99 },
-  promotion: { basic: 49, popular: 79, premium: 99 },
+  promotion:    { basic: 49, popular: 79, premium: 99 },
+  monthly_plan: { monthly: 299 },
 };
 
 const PLAN_DAYS = {
@@ -332,6 +333,24 @@ async function sharedVerify(req, res, listingType, insertFn) {
     const { cashfree_order_id, plan, couponId } = req.body;
 
     await client.query('BEGIN');
+
+    // ── Monthly plan check: if user has active subscription, post is FREE ─────
+    const { rows: subRows } = await client.query(
+      `SELECT monthly_plan_expires_at FROM users WHERE id = $1`, [req.user.id]
+    );
+    const subExpiry = subRows[0]?.monthly_plan_expires_at;
+    const hasActivePlan = subExpiry && new Date(subExpiry) > new Date();
+
+    if (hasActivePlan) {
+      // Grant 30-day free listing, skip all payment checks
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+      const result = await insertFn(client, req, { planDays: 30, expiresAt, expectedAmount: 0 });
+      await client.query('COMMIT');
+      await logActivity('monthly_plan_post', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `${listingType} posted via monthly plan` });
+      return res.json({ ok: true, freePost: true, ...result });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const couponRow      = await resolveCoupon(client, couponId, req.user.id);
     const expectedAmount = resolveExpectedAmount(listingType, plan, couponRow);
@@ -623,6 +642,112 @@ router.post('/cashfree-webhook', async (req, res) => {
   }
   // Actual listing activation is handled via /verify routes called by the client.
   res.json({ ok: true });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MONTHLY PLAN — ₹299/month — unlocks free posting across Jobs, Rooms, Cars, BuySell
+// POST /api/payments/order/monthly-plan  — create Cashfree order for ₹299
+// POST /api/payments/verify/monthly-plan — verify payment & activate subscription
+// GET  /api/payments/monthly-plan/status — check if current user has active plan
+// ══════════════════════════════════════════════════════════════════════════════
+
+const MONTHLY_PLAN_PRICE = 299; // ₹299/month
+
+router.post('/order/monthly-plan', auth, async (req, res) => {
+  try {
+    const user = req.user;
+    const orderId = `NR_MPLAN_${user.id}_${Date.now()}`;
+    const customerName  = user.name  || 'User';
+    const customerEmail = user.email || `user${user.id}@nandedrozgar.in`;
+    const customerPhone = user.phone || '9999999999';
+
+    const body = {
+      order_id:       orderId,
+      order_amount:   MONTHLY_PLAN_PRICE,
+      order_currency: 'INR',
+      order_note:     'Monthly Plan – Unlimited Free Posts for 30 Days',
+      customer_details: {
+        customer_id:    `user_${user.id}`,
+        customer_name:  customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+      },
+      order_meta: {
+        return_url: `${process.env.APP_URL || 'https://thecityplus.in'}/payment/callback?order_id={order_id}&status={order_status}`,
+      },
+    };
+
+    const { data } = await axios.post(`${CF_BASE}/orders`, body, { headers: cfHeaders() });
+    res.json({ ok: true, orderId, paymentSessionId: data.payment_session_id });
+  } catch (err) {
+    console.error('monthly-plan order error:', err?.response?.data || err.message);
+    res.json({ ok: false, error: 'Could not create payment order.' });
+  }
+});
+
+router.post('/verify/monthly-plan', auth, async (req, res) => {
+  const { cashfree_order_id } = req.body;
+  if (!cashfree_order_id) return res.json({ ok: false, error: 'cashfree_order_id is required.' });
+
+  const verification = await verifyCashfreePayment(cashfree_order_id);
+  if (!verification.ok) return res.json({ ok: false, error: verification.error });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    // Upsert subscription
+    await client.query(
+      `INSERT INTO user_subscriptions (user_id, plan, amount, cashfree_order_id, cashfree_payment_id, started_at, expires_at)
+       VALUES ($1, 'monthly', $2, $3, $4, NOW(), $5)
+       ON CONFLICT (user_id) DO UPDATE
+         SET plan = 'monthly', amount = $2, cashfree_order_id = $3,
+             cashfree_payment_id = $4, started_at = NOW(), expires_at = $5`,
+      [req.user.id, MONTHLY_PLAN_PRICE, cashfree_order_id,
+       verification.paymentId || null, expiresAt]
+    );
+
+    // Also update users table column for easy lookup
+    await client.query(
+      `UPDATE users SET monthly_plan_expires_at = $1 WHERE id = $2`,
+      [expiresAt, req.user.id]
+    );
+
+    await savePayment(client, req.user.id, {
+      amountRupees:      MONTHLY_PLAN_PRICE,
+      plan:              'monthly_plan',
+      cashfreeOrderId:   cashfree_order_id,
+      cashfreePaymentId: verification.paymentId || null,
+    });
+
+    await client.query('COMMIT');
+    res.json({ ok: true, expiresAt });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('verify/monthly-plan error:', err);
+    res.json({ ok: false, error: 'Failed to activate monthly plan.' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/payments/monthly-plan/status — returns { active, expiresAt }
+router.get('/monthly-plan/status', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT monthly_plan_expires_at FROM users WHERE id = $1`,
+      [req.user.id]
+    );
+    const expiry = rows[0]?.monthly_plan_expires_at;
+    const active = expiry && new Date(expiry) > new Date();
+    res.json({ ok: true, active: !!active, expiresAt: expiry || null });
+  } catch (err) {
+    console.error('monthly-plan/status error:', err);
+    res.json({ ok: false, active: false, expiresAt: null });
+  }
 });
 
 module.exports = router;
