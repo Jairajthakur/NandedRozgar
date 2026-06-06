@@ -228,6 +228,7 @@ async function runMigrations() {
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS available_from  VARCHAR(50)  DEFAULT 'Immediately'`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS tenant_pref     VARCHAR(50)  DEFAULT 'Any'`,
 
+      `ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS address     TEXT`,
       `ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS title       VARCHAR(200)`,
       `ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS category    VARCHAR(50)  DEFAULT 'Other'`,
       `ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS condition   VARCHAR(50)  DEFAULT 'Good'`,
