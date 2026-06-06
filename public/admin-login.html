@@ -962,7 +962,7 @@ function buildPostForm(service) {
         ${field('Title *', inp('title','e.g. Samsung TV 43 inch','text',true))}
         ${row(field('Category', sel('category',['Electronics','Furniture','Clothes','Vehicles','Books','Sports','Other'],'Category')), field('Condition', sel('condition',['New','Like New','Good','Fair','Poor'],'Condition')))}
         ${row(field('Price (₹) *', inp('price','','number',true)), field('Age', inp('age','e.g. 2 years')))}
-        ${field('Area / Locality', inp('area','Where is item located?'))}
+        ${row(field('Area / Locality', inp('area','Where is item located?')), field('District', sel('district',[['nanded','Nanded'],['latur','Latur'],['osmanabad','Osmanabad'],['hingoli','Hingoli']],'Select District')))}
         ${row(field('WhatsApp *', inp('whatsapp','10-digit','text',true)), field('Negotiable', sel('negotiable',[['true','Yes'],['false','No']],'Negotiable?')))}
         ${field('Description', ta('description','Item details…',3))}
         ${photoField}
