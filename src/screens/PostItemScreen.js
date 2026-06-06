@@ -11,6 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { urisToBase64DataUris } from '../utils/imageUtils';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/cashfree';
+import MonthlyPlanBanner, { useMonthlyPlan } from '../components/MonthlyPlanBanner';
 import CouponInput from '../components/CouponInput';
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
@@ -459,8 +460,10 @@ function Step3({ form, set, setForm }) {
 }
 
 function Step4({ form, set, appliedCoupon, setAppliedCoupon }) {
+  const nav = useNavigation();
   return (
     <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false}>
+      <MonthlyPlanBanner navigation={nav} compact />
       <Text style={styles.planQuestion}>How long should your listing stay live?</Text>
       <Text style={styles.planNote}>Your listing is automatically removed after the selected period.</Text>
 
@@ -612,6 +615,7 @@ export default function PostItemScreen() {
   const { user } = useAuth();
   const { currentDistrict } = useDistrict();
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
+  const { active: hasMonthlyPlan } = useMonthlyPlan();
 
   // Derive area list from current district (default to nanded)
   const AREAS = AREAS_BY_DISTRICT[currentDistrict?.id] || AREAS_BY_DISTRICT.nanded;
@@ -682,11 +686,16 @@ export default function PostItemScreen() {
       const discountedPrice = appliedCoupon ? appliedCoupon.finalAmount : planPrice;
       const amountPaise = discountedPrice * 100;
 
-      // ── Step 1: Payment ────────────────────────────────────────────────────
-      const payResult = await initiatePayment({
-        amount:      amountPaise,
-        description: `Buy & Sell Listing – ${form.plan?.label || '15 Days'}`,
-      });
+      // ── Step 1: Payment (skipped if Monthly Plan is active) ───────────────
+      let payResult;
+      if (hasMonthlyPlan) {
+        payResult = { success: true, free: true };
+      } else {
+        payResult = await initiatePayment({
+          amount:      amountPaise,
+          description: `Buy & Sell Listing – ${form.plan?.label || '15 Days'}`,
+        });
+      }
 
       if (!payResult.success) {
         if (!payResult.cancelled) {
