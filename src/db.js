@@ -259,6 +259,8 @@ async function runMigrations() {
 
       `ALTER TABLE seeker_profiles ADD COLUMN IF NOT EXISTS resume_url TEXT`,
 
+      `ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS views       INTEGER      DEFAULT 0`,
+
       // Free-first-post tracking: plan_label on buysell_items was missing
       `ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30) DEFAULT 'free'`,
     ];
@@ -494,6 +496,7 @@ async function runMigrations() {
         plan_price  INTEGER,
         expires_at  TIMESTAMPTZ,
         status      VARCHAR(20)  DEFAULT 'active',
+        views       INTEGER      DEFAULT 0,
         created_at  TIMESTAMPTZ  DEFAULT NOW()
       );
     `);
