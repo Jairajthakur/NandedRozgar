@@ -143,13 +143,13 @@ router.post('/', auth, async (req, res) => {
     expiresAt.setDate(expiresAt.getDate() + days);
 
     const { rows } = await pool.query(`
-      INSERT INTO buysell_items (posted_by,title,category,condition,age,price,negotiable,area,description,whatsapp,photos,plan_label,plan_days,expires_at,district)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *
+      INSERT INTO buysell_items (posted_by,title,category,condition,age,price,negotiable,area,description,whatsapp,photos,plan_label,plan_days,expires_at,district,status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *
     `, [
       req.user.id, title, category||'Other', condition||'Good', age||'',
       price, negotiable!==false, area||'', description||'', cleanWhatsapp,
       JSON.stringify(safePhotos),
-      planKey, days, expiresAt, district||'nanded',
+      planKey, days, expiresAt, district||'nanded', 'active',
     ]);
 
     await cache.delPrefix('buysell:');
