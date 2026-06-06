@@ -153,6 +153,7 @@ router.post('/', auth, async (req, res) => {
     ]);
 
     await cache.delPrefix('buysell:');
+    await cache.delPrefix('buysell_count:');
     await logActivity('buysell_post', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `Item posted: "${title}" (${planKey} plan)` });
     res.json({ ok: true, item: rows[0] });
   } catch (err) {
@@ -171,6 +172,7 @@ router.delete('/:id', auth, async (req, res) => {
     await pool.query("UPDATE buysell_items SET status='deleted' WHERE id=$1", [req.params.id]);
     await cache.del(`buysell:item:${req.params.id}`);
     await cache.delPrefix('buysell:');
+    await cache.delPrefix('buysell_count:');
     await logActivity('buysell_delete', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `Deleted buysell item #${req.params.id}` });
     res.json({ ok: true });
   } catch (err) {
