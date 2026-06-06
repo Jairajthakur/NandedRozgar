@@ -264,6 +264,9 @@ async function runMigrations() {
 
       // Free-first-post tracking: plan_label on buysell_items was missing
       `ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30) DEFAULT 'free'`,
+
+      // Monthly subscription plan
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS monthly_plan_expires_at TIMESTAMPTZ`,
     ];
 
     for (const sql of safeAlters) {
@@ -512,6 +515,20 @@ async function runMigrations() {
         user_agent  TEXT,
         detail      TEXT,
         created_at  TIMESTAMPTZ  DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_subscriptions (
+        id                 SERIAL PRIMARY KEY,
+        user_id            INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+        plan               VARCHAR(30)  DEFAULT 'monthly',
+        amount             NUMERIC(10,2),
+        cashfree_order_id  VARCHAR(100),
+        cashfree_payment_id VARCHAR(100),
+        started_at         TIMESTAMPTZ  DEFAULT NOW(),
+        expires_at         TIMESTAMPTZ  NOT NULL,
+        created_at         TIMESTAMPTZ  DEFAULT NOW()
       );
     `);
 
