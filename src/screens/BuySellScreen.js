@@ -438,7 +438,7 @@ export default function BuySellScreen({ route }) {
     try {
       const districtParam = currentDistrict?.id ? `?district=${currentDistrict.id}` : '';
       const res = await http('GET', `/api/buysell${districtParam}`);
-      if (res.ok && res.items?.length > 0) {
+      if (res.ok && Array.isArray(res.items)) {
         const mapped = res.items.map(v => ({
           id:          String(v.id),
           title:       v.title || v.name || 'Item',
@@ -466,14 +466,9 @@ export default function BuySellScreen({ route }) {
       }
     } catch (_) {}
     finally { setLoading(false); setRefreshing(false); }
-  }, []);
+  }, [currentDistrict?.id]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
-
-  // Re-fetch when district changes
-  useEffect(() => {
-    if (currentDistrict?.id) fetchItems();
-  }, [currentDistrict?.id]);
 
   useEffect(() => {
     http('GET', '/api/promotions/all').then(res => {
