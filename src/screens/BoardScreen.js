@@ -591,7 +591,7 @@ export default function BoardScreen({ route }) {
                 <QuickAction icon="home-outline"      label="Find a Room"    color={TEAL}    onPress={() => nav.navigate('Rooms')} />
                 <QuickAction icon="car-sport-outline" label="Rent a Vehicle" color="#9333ea" onPress={() => nav.navigate('Cars')} />
                 <QuickAction icon="pricetag-outline"  label="Buy & Sell"     color="#0ea5e9" onPress={() => nav.navigate('BuySell')} />
-                <QuickAction icon="sparkles-outline"  label="AI Career Help" color={ORANGE}  onPress={() => nav.navigate('AIMatch')} />
+                <QuickAction icon="sparkles"  label="AI Career Help" color={ORANGE}  onPress={() => nav.navigate('AIMatch')} />
               </SideCard>
 
             </View>
@@ -707,7 +707,7 @@ export default function BoardScreen({ route }) {
                   </View>
                 ))}
                 <TouchableOpacity style={ws.tipBtn} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.85}>
-                  <Ionicons name="sparkles-outline" size={14} color={ORANGE} />
+                  <Ionicons name="sparkles" size={14} color={ORANGE} />
                   <Text style={ws.tipBtnTxt}>{t('tryAI')}</Text>
                 </TouchableOpacity>
               </SideCard>
