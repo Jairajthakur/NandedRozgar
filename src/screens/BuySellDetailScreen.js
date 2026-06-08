@@ -156,7 +156,7 @@ function ImageGallery({ photos, category }) {
         showsHorizontalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        keyExtractor={(_, i) => String(i)}
+        keyExtractor={(url, i) => url || String(i)}
         renderItem={({ item }) => (
           <View style={{ width: SCREEN_W, height: GALLERY_H }}>
             <Image source={{ uri: item }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
