@@ -1,10 +1,22 @@
 import React, { useRef, useEffect } from 'react';
 import {
-  Platform, View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
+  Platform, View, Text, TouchableOpacity, StyleSheet, Animated, Easing, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CAT_ICONS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
+
+function shareJobOnWhatsApp(job) {
+  const title = job.title || 'Job Opportunity';
+  const company = job.company ? ` at ${job.company}` : '';
+  const location = job.location ? `, ${job.location}` : '';
+  const salary = job.salary ? `\n💰 Salary: ₹${job.salary}` : '';
+  const msg = `🔔 *Job Alert – ${title}${company}*${location}${salary}\n\n📲 Apply on NandedRozgar app!`;
+  const url = `whatsapp://send?text=${encodeURIComponent(msg)}`;
+  Linking.openURL(url).catch(() => {
+    Linking.openURL(`https://wa.me/?text=${encodeURIComponent(msg)}`);
+  });
+}
 
 const ORANGE = '#f97316';
 
@@ -84,8 +96,8 @@ export default function JobCard({ job, onPress, index = 0 }) {
                 </Text>
                 {!!job.poster_verified && (
                   <View style={s.verifiedBadge}>
-                    <Ionicons name="checkmark-circle" size={11} color="#fff" />
-                    <Text style={s.verifiedTxt}>{t('verified')}</Text>
+                    <Ionicons name="shield-checkmark" size={13} color="#fff" />
+                    <Text style={s.verifiedTxt}>Verified Employer</Text>
                   </View>
                 )}
               </View>
@@ -114,8 +126,17 @@ export default function JobCard({ job, onPress, index = 0 }) {
               </View>
             )}
 
-            {/* Apply button — right-aligned, outlined pill (Image 2) */}
+            {/* Footer: WhatsApp share + Apply button */}
             <View style={s.footer}>
+              <TouchableOpacity
+                style={s.waShareBtn}
+                onPress={() => shareJobOnWhatsApp(job)}
+                activeOpacity={0.75}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                <Text style={s.waShareTxt}>Share</Text>
+              </TouchableOpacity>
               <View style={{ flex: 1 }} />
               <TouchableOpacity style={s.applyBtn} onPress={handlePress} activeOpacity={0.8}>
                 <Text style={s.applyTxt}>{t('applyNow')}</Text>
@@ -181,8 +202,12 @@ const s = StyleSheet.create({
 
   subtitle: { fontSize: 12, color: '#888', fontWeight: '500', marginBottom: 6 },
   companyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' },
-  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#10b981', borderRadius: 10, paddingVertical: 2, paddingHorizontal: 6 },
-  verifiedTxt: { fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
+  verifiedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#10b981', borderRadius: 10,
+    paddingVertical: 3, paddingHorizontal: 8,
+  },
+  verifiedTxt: { fontSize: 10, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
 
   // Meta: applied · views
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
@@ -203,6 +228,19 @@ const s = StyleSheet.create({
 
   // Footer
   footer: { flexDirection: 'row', alignItems: 'center' },
+
+  // WhatsApp share button
+  waShareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: '#25D366',
+  },
+  waShareTxt: { color: '#25D366', fontSize: 12, fontWeight: '700' },
 
   // Outlined orange pill Apply button (Image 2 style)
   applyBtn: {
