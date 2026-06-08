@@ -286,11 +286,19 @@ router.post('/google', loginLimiter, async (req, res) => {
         // that is legitimately allowed to call this backend.  List both the
         // web client ID and the Android client ID here.  Any token whose `aud`
         // (or `azp`) is not in this set is rejected immediately.
+        // NOTE: EXPO_PUBLIC_* vars are frontend-only and will be undefined on
+        // the Railway backend server. We include hardcoded fallbacks so the
+        // allowlist is never empty. Add GOOGLE_WEB_CLIENT_ID and
+        // GOOGLE_ANDROID_CLIENT_ID to Railway env vars to override without redeploy.
         const ALLOWED_CLIENT_IDS = new Set([
+          process.env.GOOGLE_WEB_CLIENT_ID,
+          process.env.GOOGLE_ANDROID_CLIENT_ID,
           process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
           process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-          process.env.GOOGLE_ANDROID_CLIENT_ID,
-        ].filter(Boolean)); // drop undefined entries if env vars are not set
+          // Hardcoded fallbacks — always present even if env vars are missing
+          '1012993473745-iiur989ghkd2pjsu9uuoc6ckqupkevoc.apps.googleusercontent.com', // web client
+          '1012993473745-ipt582ud6vrvjuht9ah0suu7fjah0erg.apps.googleusercontent.com', // android client
+        ].filter(Boolean));
 
         const tokenAud = String(payload.aud || '');
         const tokenAzp = String(payload.azp || '');
