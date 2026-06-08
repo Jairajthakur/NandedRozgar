@@ -16,7 +16,7 @@ import { CAT_ICONS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
 import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../components/PromoBanner';
-import MonthlyPlanBanner from '../components/MonthlyPlanBanner';
+
 import { http, timeAgo } from '../utils/api';
 
 const ORANGE = '#f97316';
@@ -412,7 +412,6 @@ export default function BoardScreen({ route }) {
 
   const ListHeader = (
     <>
-      <MonthlyPlanBanner navigation={useNavigation()} />
       <FadeIn delay={180}>
         <HiringBanner onPress={() => {}} />
       </FadeIn>
