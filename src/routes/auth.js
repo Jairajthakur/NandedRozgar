@@ -92,24 +92,30 @@ function safeUser(u) {
 }
 
 // ── POST /api/auth/register ────────────────────────────────────────────────────
+// FIX (Bug #8): All error responses now return the semantically correct HTTP
+// status code alongside the JSON body.  Previously every error returned 200,
+// which breaks monitoring tools, CDNs, and any client that branches on status.
+//   400 Bad Request   — missing/invalid input supplied by the caller
+//   409 Conflict      — duplicate resource (email already registered)
+//   500 Internal      — unexpected server-side failure
 router.post('/register', registerLimiter, async (req, res) => {
   try {
     const { name, email, password, phone, company, referralCode, district } = req.body;
 
     if (!name?.trim() || !email?.trim() || !password)
-      return res.json({ ok: false, error: 'Name, email and password are required' });
+      return res.status(400).json({ ok: false, error: 'Name, email and password are required' });
     if (password.length < 8)
-      return res.json({ ok: false, error: 'Password must be at least 8 characters' });
+      return res.status(400).json({ ok: false, error: 'Password must be at least 8 characters' });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      return res.json({ ok: false, error: 'Enter a valid email address' });
+      return res.status(400).json({ ok: false, error: 'Enter a valid email address' });
     if (!/[0-9]/.test(password) && !/[^A-Za-z0-9]/.test(password))
-      return res.json({ ok: false, error: 'Password must contain at least one number or symbol' });
+      return res.status(400).json({ ok: false, error: 'Password must contain at least one number or symbol' });
     // Phone is optional, but if provided it must be a valid 10-digit Indian mobile number.
     // Storing garbage breaks SMS/WhatsApp features and pollutes the DB.
     if (phone !== undefined && phone !== null && phone !== '') {
       const cleaned = String(phone).replace(/\s+/g, '');
       if (!/^[6-9]\d{9}$/.test(cleaned))
-        return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
+        return res.status(400).json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
     }
 
     const validDistricts = (process.env.VALID_DISTRICTS || 'nanded,latur').split(',').map(d => d.trim());
@@ -153,14 +159,14 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     await log('register', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: user.email });
-    return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
+    return res.status(201).json({ ok: true, token: makeToken(user), user: safeUser(user) });
   } catch (err) {
     if (err.code === '23505') {
       await log('register_failed', { status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Duplicate email: ${req.body.email}` });
-      return res.json({ ok: false, error: 'Email already registered' });
+      return res.status(409).json({ ok: false, error: 'Email already registered' });
     }
     console.error('register error:', err.message);
-    return res.json({ ok: false, error: 'Registration failed' });
+    return res.status(500).json({ ok: false, error: 'Registration failed' });
   }
 });
 
@@ -168,7 +174,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.json({ ok: false, error: 'Email and password required' });
+    if (!email || !password) return res.status(400).json({ ok: false, error: 'Email and password required' });
 
     const ADMIN_EMAIL    = process.env.ADMIN_EMAIL;
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -188,7 +194,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
       if (!adminPasswordMatch) {
         await log('login_failed', { status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Wrong admin password for ${ADMIN_EMAIL}` });
-        return res.json({ ok: false, error: 'Incorrect admin password' });
+        return res.status(401).json({ ok: false, error: 'Incorrect admin password' });
       }
 
       // Upsert the admin user row in the DB
@@ -213,18 +219,18 @@ router.post('/login', loginLimiter, async (req, res) => {
     const user = rows[0];
     if (!user) {
       await log('login_failed', { status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Unknown email: ${email}` });
-      return res.json({ ok: false, error: 'No account found with this email' });
+      return res.status(401).json({ ok: false, error: 'No account found with this email' });
     }
     if (!user.active) {
       await log('login_blocked', { userId: user.id, status: 'blocked', ip: getIP(req), userAgent: getUA(req), detail: `Banned user tried to login: ${email}` });
-      return res.json({ ok: false, error: 'This account has been suspended' });
+      return res.status(403).json({ ok: false, error: 'This account has been suspended' });
     }
-    if (!user.password) return res.json({ ok: false, error: 'This account uses Google sign-in. Use that option instead.' });
+    if (!user.password) return res.status(401).json({ ok: false, error: 'This account uses Google sign-in. Use that option instead.' });
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       await log('login_failed', { userId: user.id, status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Wrong password for ${email}` });
-      return res.json({ ok: false, error: 'Incorrect password' });
+      return res.status(401).json({ ok: false, error: 'Incorrect password' });
     }
 
     await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(() => {});
@@ -232,7 +238,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
   } catch (err) {
     console.error('login error:', err.message);
-    return res.json({ ok: false, error: 'Login failed' });
+    return res.status(500).json({ ok: false, error: 'Login failed' });
   }
 });
 
@@ -243,7 +249,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 router.post('/google', loginLimiter, async (req, res) => {
   try {
     const { idToken, accessToken } = req.body;
-    if (!idToken && !accessToken) return res.json({ ok: false, error: 'Google token required' });
+    if (!idToken && !accessToken) return res.status(400).json({ ok: false, error: 'Google token required' });
 
     let googleId, email, name, picture, email_verified;
 
@@ -270,12 +276,26 @@ router.post('/google', loginLimiter, async (req, res) => {
           throw new Error(payload.error_description || payload.error || 'Invalid token');
         }
 
-        // Validate the audience belongs to our project (project number prefix check)
-        // This prevents tokens from completely unrelated Google projects being accepted.
-        const OUR_PROJECT_NUMBER = '1012993473745';
-        if (!String(payload.aud || '').startsWith(OUR_PROJECT_NUMBER) &&
-            !String(payload.azp || '').startsWith(OUR_PROJECT_NUMBER)) {
-          console.error(`[Google auth] token not from our project — aud: ${payload.aud}`);
+        // FIX (Bug #3): Replace the prefix check with an exact-match allowlist.
+        //
+        // The old code used String(payload.aud).startsWith(OUR_PROJECT_NUMBER),
+        // which would also accept tokens from any Google project whose numeric
+        // project ID happens to share the same leading digits — a weak guard.
+        //
+        // The correct check is an exact match against every OAuth client ID
+        // that is legitimately allowed to call this backend.  List both the
+        // web client ID and the Android client ID here.  Any token whose `aud`
+        // (or `azp`) is not in this set is rejected immediately.
+        const ALLOWED_CLIENT_IDS = new Set([
+          process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+          process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+          process.env.GOOGLE_ANDROID_CLIENT_ID,
+        ].filter(Boolean)); // drop undefined entries if env vars are not set
+
+        const tokenAud = String(payload.aud || '');
+        const tokenAzp = String(payload.azp || '');
+        if (!ALLOWED_CLIENT_IDS.has(tokenAud) && !ALLOWED_CLIENT_IDS.has(tokenAzp)) {
+          console.error(`[Google auth] token audience not in allowlist — aud: ${tokenAud}, azp: ${tokenAzp}`);
           throw new Error('Token does not belong to this app');
         }
 
@@ -291,7 +311,7 @@ router.post('/google', loginLimiter, async (req, res) => {
         tokenData = payload;
       } catch (e) {
         console.error('Google ID token verification failed:', e.message);
-        return res.json({ ok: false, error: 'Invalid Google ID token' });
+        return res.status(401).json({ ok: false, error: 'Invalid Google ID token' });
       }
 
       googleId       = tokenData.sub;
@@ -304,12 +324,12 @@ router.post('/google', loginLimiter, async (req, res) => {
       const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (!googleRes.ok) return res.json({ ok: false, error: 'Invalid Google access token' });
+      if (!googleRes.ok) return res.status(401).json({ ok: false, error: 'Invalid Google access token' });
       ({ sub: googleId, email, name, picture, email_verified } = await googleRes.json());
     }
 
-    if (!email_verified) return res.json({ ok: false, error: 'Google account email not verified' });
-    if (!email)          return res.json({ ok: false, error: 'Could not retrieve email from Google' });
+    if (!email_verified) return res.status(401).json({ ok: false, error: 'Google account email not verified' });
+    if (!email)          return res.status(401).json({ ok: false, error: 'Could not retrieve email from Google' });
 
     let { rows } = await pool.query(
       'SELECT * FROM users WHERE google_id = $1 OR email = $2 LIMIT 1',
@@ -337,12 +357,12 @@ router.post('/google', loginLimiter, async (req, res) => {
       user = newRows[0];
     }
 
-    if (!user.active) return res.json({ ok: false, error: 'This account has been suspended' });
+    if (!user.active) return res.status(403).json({ ok: false, error: 'This account has been suspended' });
     await log('login', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: `Google: ${email}` });
     return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
   } catch (err) {
     console.error('google auth error:', err.message);
-    return res.json({ ok: false, error: 'Google sign-in failed' });
+    return res.status(500).json({ ok: false, error: 'Google sign-in failed' });
   }
 });
 
@@ -467,21 +487,21 @@ router.get('/google/callback', (req, res) => {
 router.post('/verify-firebase-otp', otpLimiter, async (req, res) => {
   try {
     const { idToken } = req.body;
-    if (!idToken) return res.json({ ok: false, error: 'Firebase ID token required' });
+    if (!idToken) return res.status(400).json({ ok: false, error: 'Firebase ID token required' });
 
     const admin = getFirebaseAdmin();
-    if (!admin) return res.json({ ok: false, error: 'Firebase not configured on server. Set FIREBASE_SERVICE_ACCOUNT.' });
+    if (!admin) return res.status(503).json({ ok: false, error: 'Firebase not configured on server. Set FIREBASE_SERVICE_ACCOUNT.' });
 
     let decoded;
     try {
       decoded = await admin.auth().verifyIdToken(idToken);
     } catch (e) {
       console.warn('Firebase token verification failed:', e.message);
-      return res.json({ ok: false, error: 'OTP verification failed. Please try again.' });
+      return res.status(401).json({ ok: false, error: 'OTP verification failed. Please try again.' });
     }
 
     const phone = decoded.phone_number;
-    if (!phone) return res.json({ ok: false, error: 'No phone number in token' });
+    if (!phone) return res.status(401).json({ ok: false, error: 'No phone number in token' });
 
     const phoneLocal = phone.replace(/^\+91/, '');
 
@@ -495,13 +515,13 @@ router.post('/verify-firebase-otp', otpLimiter, async (req, res) => {
       user = newRows[0];
     }
 
-    if (!user.active) return res.json({ ok: false, error: 'This account has been suspended' });
+    if (!user.active) return res.status(403).json({ ok: false, error: 'This account has been suspended' });
     await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(() => {});
     await log('login', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: `OTP: ${phoneLocal}` });
     return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
   } catch (err) {
     console.error('verify-firebase-otp error:', err.message);
-    return res.json({ ok: false, error: 'OTP verification failed' });
+    return res.status(500).json({ ok: false, error: 'OTP verification failed' });
   }
 });
 
@@ -509,7 +529,7 @@ router.post('/verify-firebase-otp', otpLimiter, async (req, res) => {
 router.post('/forgot-password', forgotLimiter, async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.json({ ok: false, error: 'Email is required' });
+    if (!email) return res.status(400).json({ ok: false, error: 'Email is required' });
 
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     if (!rows[0]) return res.json({ ok: true, message: 'If that email exists, a reset link was sent.' });
@@ -572,7 +592,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
     return res.json({ ok: true, message: 'If that email exists, a reset link was sent.' });
   } catch (err) {
     console.error('forgot-password error:', err.message);
-    return res.json({ ok: false, error: 'Failed to process reset request' });
+    return res.status(500).json({ ok: false, error: 'Failed to process reset request' });
   }
 });
 
@@ -580,8 +600,8 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
 router.post('/reset-password', resetLimiter, async (req, res) => {
   try {
     const { token, password } = req.body;
-    if (!token || !password) return res.json({ ok: false, error: 'Token and new password are required' });
-    if (password.length < 8)  return res.json({ ok: false, error: 'Password must be at least 8 characters' });
+    if (!token || !password) return res.status(400).json({ ok: false, error: 'Token and new password are required' });
+    if (password.length < 8)  return res.status(400).json({ ok: false, error: 'Password must be at least 8 characters' });
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     // Query by the hash directly — lets the DB use an index and avoids loading
@@ -593,7 +613,7 @@ router.post('/reset-password', resetLimiter, async (req, res) => {
       [tokenHash]
     );
     const user = rows[0];
-    if (!user) return res.json({ ok: false, error: 'Reset link is invalid or has expired' });
+    if (!user) return res.status(400).json({ ok: false, error: 'Reset link is invalid or has expired' });
 
     const hash = await bcrypt.hash(password, 12);
     await pool.query(
@@ -603,7 +623,7 @@ router.post('/reset-password', resetLimiter, async (req, res) => {
     return res.json({ ok: true, message: 'Password reset successfully. You can now sign in.' });
   } catch (err) {
     console.error('reset-password error:', err.message);
-    return res.json({ ok: false, error: 'Password reset failed' });
+    return res.status(500).json({ ok: false, error: 'Password reset failed' });
   }
 });
 
@@ -617,22 +637,22 @@ router.get('/me', auth, async (req, res) => {
 router.post('/change-password', changePasswordLimiter, auth, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) return res.json({ ok: false, error: 'Both passwords required' });
-    if (newPassword.length < 8)           return res.json({ ok: false, error: 'New password must be at least 8 characters' });
+    if (!currentPassword || !newPassword) return res.status(400).json({ ok: false, error: 'Both passwords required' });
+    if (newPassword.length < 8)           return res.status(400).json({ ok: false, error: 'New password must be at least 8 characters' });
 
     const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
     const user = rows[0];
-    if (!user.password) return res.json({ ok: false, error: 'No password set — use forgot-password to create one' });
+    if (!user.password) return res.status(400).json({ ok: false, error: 'No password set — use forgot-password to create one' });
 
     const match = await bcrypt.compare(currentPassword, user.password);
-    if (!match) return res.json({ ok: false, error: 'Current password is incorrect' });
+    if (!match) return res.status(401).json({ ok: false, error: 'Current password is incorrect' });
 
     const hash = await bcrypt.hash(newPassword, 12);
     await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hash, user.id]);
     return res.json({ ok: true, message: 'Password changed successfully' });
   } catch (err) {
     console.error('change-password error:', err.message);
-    return res.json({ ok: false, error: 'Failed to change password' });
+    return res.status(500).json({ ok: false, error: 'Failed to change password' });
   }
 });
 
@@ -667,7 +687,7 @@ router.post('/save-push-token', auth, async (req, res) => {
   try {
     const { pushToken } = req.body;
     if (!pushToken || typeof pushToken !== 'string' || !pushToken.startsWith('ExponentPushToken[')) {
-      return res.json({ ok: false, error: 'Invalid push token format' });
+      return res.status(400).json({ ok: false, error: 'Invalid push token format' });
     }
     await pool.query(
       'UPDATE users SET push_token = $1 WHERE id = $2',
@@ -676,7 +696,7 @@ router.post('/save-push-token', auth, async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error('save-push-token error:', err.message);
-    return res.json({ ok: false, error: 'Failed to save push token' });
+    return res.status(500).json({ ok: false, error: 'Failed to save push token' });
   }
 });
 
@@ -702,7 +722,7 @@ router.delete('/account', auth, async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('account-delete error:', err.message);
-    return res.json({ ok: false, error: 'Failed to delete account. Please contact support.' });
+    return res.status(500).json({ ok: false, error: 'Failed to delete account. Please contact support.' });
   } finally {
     client.release();
   }
