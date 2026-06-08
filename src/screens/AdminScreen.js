@@ -808,6 +808,7 @@ export default function AdminScreen() {
     { id: 'revenue', label: '₹ Revenue' },
     { id: 'payments', label: '🧾 Payments' },
     { id: 'coupons', label: '🎟 Coupons' },
+    { id: 'growth', label: '🚀 Growth' },
   ];
 
   // Show splash while checking saved token
@@ -1321,6 +1322,107 @@ export default function AdminScreen() {
                 </View>
               ))}
             </Card>
+            <View style={{ height: 30 }} />
+          </View>
+        )}
+
+        {/* ═══ GROWTH LEVERS ═══ */}
+        {activeTab === 'growth' && (
+          <View>
+            <View style={{ backgroundColor: C.dark, borderRadius: 16, padding: 20, marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <View style={{ backgroundColor: C.orange, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 }}>
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>Growth levers</Text>
+                </View>
+              </View>
+              <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>Reach more people outside the app</Text>
+              <Text style={{ color: '#aaa', fontSize: 13, marginTop: 6 }}>Proven tactics to grow your user base and revenue in Nanded district.</Text>
+            </View>
+
+            {[
+              {
+                icon: '🖼️',
+                bg: C.greenLight,
+                title: 'Auto-generate WhatsApp-ready job image cards',
+                desc: 'A job poster that looks like a flyer — company, role, salary, contact — that employers and seekers can forward in WhatsApp groups. This is how classifieds spread organically in Indian small cities. The referral system is already built.',
+                tags: [{ label: 'Reach', color: C.green, bg: C.greenLight, border: C.greenBorder }],
+                action: 'How to enable →',
+                actionColor: C.green,
+                onPress: () => Alert.alert('WhatsApp Cards', 'Generate a shareable image per job post with company, role, salary and contact. One tap to share to WhatsApp groups.\n\nContact your developer to wire up the image-generation endpoint.'),
+              },
+              {
+                icon: '📊',
+                bg: C.blueLight,
+                title: 'Give employers a simple results dashboard',
+                desc: 'Analytics exist but are admin-only. Showing employers "your job got 47 views and 8 applications this week" inside the app gives them a tangible reason to keep posting — and justifies upgrading to featured.',
+                tags: [
+                  { label: 'Revenue', color: C.orange, bg: C.orangeLight, border: C.orangeBorder },
+                  { label: 'Retention', color: C.purple, bg: C.purpleLight, border: C.purpleBorder },
+                ],
+                action: 'How to enable →',
+                actionColor: C.blue,
+                onPress: () => Alert.alert('Employer Dashboard', 'Expose job-level stats to the employer:\n• Views over time\n• Application count\n• Comparison vs. similar listings\n\nDrives upgrades to featured and monthly plans.'),
+              },
+              {
+                icon: '🌐',
+                bg: C.goldLight,
+                title: 'Full Marathi UI — not just translations',
+                desc: 'The i18n system exists but several screens still have hardcoded English strings. Fully native Marathi UI — including error messages, placeholder text, and button labels — doubles the accessible audience in Nanded district.',
+                tags: [{ label: 'Reach', color: C.green, bg: C.greenLight, border: C.greenBorder }],
+                action: 'See implementation steps →',
+                actionColor: C.gold,
+                onPress: () => Alert.alert('Marathi UI', '1. Audit screens for hardcoded English strings\n2. Add missing keys to i18n/mr.json\n3. Test on low-end devices\n4. Update Play Store listing with Marathi description\n\nEstimated: 2–3 dev days.'),
+              },
+              {
+                icon: '🔗',
+                bg: C.purpleLight,
+                title: 'Activate the referral system',
+                desc: 'The referral infrastructure is already built. Add a visible referral banner on the home screen and give users a clear incentive (e.g. 7 free PRO days per successful referral). Word-of-mouth is the #1 acquisition channel in small cities.',
+                tags: [
+                  { label: 'Reach', color: C.green, bg: C.greenLight, border: C.greenBorder },
+                  { label: 'Revenue', color: C.orange, bg: C.orangeLight, border: C.orangeBorder },
+                ],
+                action: 'Activate referrals →',
+                actionColor: C.purple,
+                onPress: () => Alert.alert('Referral Program', 'Already built!\n\nNext steps:\n• Add a "Refer a friend" card to HomeScreen\n• Configure the reward (e.g. 7 free PRO days)\n• Track conversions in admin analytics'),
+              },
+              {
+                icon: '🔔',
+                bg: C.redLight,
+                title: 'Re-engagement push notification campaigns',
+                desc: 'Users who haven\'t opened the app in 7+ days are at churn risk. A targeted push — "3 new jobs in Nanded added today" — can bring 20–30% of dormant users back within 24 hours.',
+                tags: [{ label: 'Retention', color: C.purple, bg: C.purpleLight, border: C.purpleBorder }],
+                action: 'Set up campaigns →',
+                actionColor: C.red,
+                onPress: () => Alert.alert('Push Campaigns', 'Use the existing /api/admin/notify endpoint to:\n• Target users inactive for 7+ days\n• Personalise by district and category\n• Schedule weekly digests\n\nAvailable now under Notifications in this panel.'),
+              },
+            ].map((lever, idx) => (
+              <View key={idx} style={{ backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: C.border }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: lever.bg, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 20 }}>{lever.icon}</Text>
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: C.text, lineHeight: 20 }}>{lever.title}</Text>
+                  </View>
+                </View>
+                <Text style={{ fontSize: 13, color: C.text2, lineHeight: 20, marginBottom: 12 }}>{lever.desc}</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                  {lever.tags.map((tag, ti) => (
+                    <View key={ti} style={{ backgroundColor: tag.bg, borderWidth: 1, borderColor: tag.border, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: tag.color }}>{tag.label}</Text>
+                    </View>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  style={{ backgroundColor: lever.actionColor, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' }}
+                  onPress={lever.onPress}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>{lever.action}</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
             <View style={{ height: 30 }} />
           </View>
         )}
