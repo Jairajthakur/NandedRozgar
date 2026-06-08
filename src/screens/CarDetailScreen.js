@@ -188,7 +188,7 @@ function ImageGallery({ photos, vehicleType }) {
         showsHorizontalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        keyExtractor={(_, i) => String(i)}
+        keyExtractor={(url, i) => url || String(i)}
         renderItem={({ item }) => (
           <View style={{ width: SCREEN_W, height: GALLERY_H }}>
             <Image
