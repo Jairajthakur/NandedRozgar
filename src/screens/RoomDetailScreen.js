@@ -48,7 +48,7 @@ function ImageViewer({ visible, images, startIndex, onClose }) {
         <FlatList
           ref={flatRef}
           data={images}
-          keyExtractor={(_, i) => String(i)}
+          keyExtractor={(url, i) => url || String(i)}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -100,7 +100,7 @@ function HeroCarousel({ photos, cardBg, onImagePress }) {
       <FlatList
         ref={flatRef}
         data={photos}
-        keyExtractor={(_, i) => String(i)}
+        keyExtractor={(url, i) => url || String(i)}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
