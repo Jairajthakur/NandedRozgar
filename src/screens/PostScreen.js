@@ -15,6 +15,7 @@ import {
   Platform, useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import MonthlyPlanBanner from '../components/MonthlyPlanBanner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -306,6 +307,9 @@ export default function PostScreen() {
               />
             ))}
           </View>
+
+          {/* Monthly Plan Banner */}
+          <MonthlyPlanBanner navigation={nav} />
         </ScrollView>
       </View>
     );
@@ -353,6 +357,9 @@ export default function PostScreen() {
             />
           ))}
         </View>
+
+        {/* Monthly Plan Banner */}
+        <MonthlyPlanBanner navigation={nav} />
       </ScrollView>
     </View>
   );
