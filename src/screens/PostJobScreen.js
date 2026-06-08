@@ -256,10 +256,10 @@ export default function PostJobScreen() {
 
   // Multiple positions list (used when multiplePos === true)
   const [positions, setPositions] = useState([
-    { id: 1, title: '', vacancies: '1' },
+    { id: 1, title: '', vacancies: '1', salaryMin: '', salaryMax: '' },
   ]);
   const addPosition = () =>
-    setPositions(p => [...p, { id: Date.now(), title: '', vacancies: '1' }]);
+    setPositions(p => [...p, { id: Date.now(), title: '', vacancies: '1', salaryMin: '', salaryMax: '' }]);
   const removePosition = id =>
     setPositions(p => p.filter(x => x.id !== id));
   const updatePosition = (id, key, val) =>
@@ -269,7 +269,7 @@ export default function PostJobScreen() {
     setMultiplePos(val);
     // seed with current single title if switching on
     if (val && title.trim()) {
-      setPositions([{ id: Date.now(), title: title.trim(), vacancies: openings }]);
+      setPositions([{ id: Date.now(), title: title.trim(), vacancies: openings, salaryMin: salaryMin, salaryMax: salaryMax }]);
     } else if (!val) {
       // restore first position back to single fields
       if (positions[0]) { setTitle(positions[0].title); setOpenings(positions[0].vacancies); }
@@ -388,8 +388,15 @@ export default function PostJobScreen() {
 
       // ── Step 2: Verify payment & create job on backend ────────────────────
       const jobs = multiplePos
-        ? positions.map(p => ({ title: p.title.trim(), openings: p.vacancies }))
-        : [{ title: title.trim(), openings }];
+        ? positions.map(p => {
+            const posMin = p.salaryMin;
+            const posMax = p.salaryMax;
+            const posSalaryStr = posMin
+              ? posMax ? `₹${posMin}–₹${posMax}/mo` : `₹${posMin}/mo`
+              : '';
+            return { title: p.title.trim(), openings: p.vacancies, salary: posSalaryStr };
+          })
+        : [{ title: title.trim(), openings, salary: salaryStr }];
 
       let allOk = true;
       for (const job of jobs) {
@@ -397,7 +404,7 @@ export default function PostJobScreen() {
           // Razorpay verification fields (null for free plan)
           cashfree_order_id: payResult.free ? undefined : payResult.cashfree_order_id,
           // Job data
-          job:    { ...basePayload, title: job.title, openings: job.openings },
+          job:    { ...basePayload, title: job.title, openings: job.openings, salary: job.salary ?? basePayload.salary },
           plan:   planLabel,
           amount: amountPaise,
           days:   planDays,
@@ -497,6 +504,30 @@ export default function PostJobScreen() {
                       </TouchableOpacity>
                     ))}
                   </View>
+                  <View style={{ height: 12 }} />
+                  <Text style={s.posVacLbl}>SALARY (₹ / month, optional)</Text>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <StyledInput
+                        value={pos.salaryMin}
+                        onChangeText={v => updatePosition(pos.id, 'salaryMin', v)}
+                        placeholder="Min e.g. 10000"
+                        keyboardType="number-pad"
+                        prefix="₹"
+                        maxLength={8}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <StyledInput
+                        value={pos.salaryMax}
+                        onChangeText={v => updatePosition(pos.id, 'salaryMax', v)}
+                        placeholder="Max e.g. 15000"
+                        keyboardType="number-pad"
+                        prefix="₹"
+                        maxLength={8}
+                      />
+                    </View>
+                  </View>
                 </View>
               ))}
               <TouchableOpacity style={s.addPosBtn} onPress={addPosition}>
@@ -506,17 +537,18 @@ export default function PostJobScreen() {
             </>}
 
             <View style={{ height: 18 }} />
-            <SectionLabel text="SALARY (₹ / month, optional)" />
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <StyledInput value={salaryMin} onChangeText={setSalaryMin} placeholder="Min e.g. 10000" keyboardType="number-pad" prefix="₹" maxLength={8} />
+            {!multiplePos && <>
+              <SectionLabel text="SALARY (₹ / month, optional)" />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <StyledInput value={salaryMin} onChangeText={setSalaryMin} placeholder="Min e.g. 10000" keyboardType="number-pad" prefix="₹" maxLength={8} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <StyledInput value={salaryMax} onChangeText={setSalaryMax} placeholder="Max e.g. 15000" keyboardType="number-pad" prefix="₹" maxLength={8} />
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <StyledInput value={salaryMax} onChangeText={setSalaryMax} placeholder="Max e.g. 15000" keyboardType="number-pad" prefix="₹" maxLength={8} />
-              </View>
-            </View>
-
-            <View style={{ height: 18 }} />
+              <View style={{ height: 18 }} />
+            </>}
             <SectionLabel text="WHATSAPP NUMBER" required />
             <StyledInput value={whatsapp} onChangeText={setWhatsapp} placeholder="+91 98765 43210" keyboardType="phone-pad" maxLength={15} />
 
@@ -674,11 +706,13 @@ export default function PostJobScreen() {
             <View style={s.revGroup}>
               {multiplePos
                 ? positions.map((p, i) => (
-                    <ReviewRow key={p.id} label={`POSITION ${i+1}`} value={`${p.title || 'Untitled'} — ${p.vacancies} opening${p.vacancies === '1' ? '' : 's'}`} />
+                    <ReviewRow key={p.id} label={`POSITION ${i+1}`} value={`${p.title || 'Untitled'} — ${p.vacancies} opening${p.vacancies === '1' ? '' : 's'}${p.salaryMin ? ` | ₹${p.salaryMin}${p.salaryMax ? `–₹${p.salaryMax}` : ''}/mo` : ''}`} />
                   ))
-                : <ReviewRow label="TITLE" value={title || 'Not set'} />
+                : <>
+                    <ReviewRow label="TITLE" value={title || 'Not set'} />
+                    <ReviewRow label="SALARY" value={salaryMin ? `₹${salaryMin}${salaryMax ? `–₹${salaryMax}` : ''}/mo` : 'Not specified'} />
+                  </>
               }
-              <ReviewRow label="SALARY"    value={salaryMin ? `₹${salaryMin}${salaryMax ? `–₹${salaryMax}` : ''}/mo` : 'Not specified'} />
               <ReviewRow label="WHATSAPP"  value={whatsapp || 'Not set'} />
               {!!company    && <ReviewRow label="COMPANY"  value={company} />}
               {!!location   && <ReviewRow label="LOCATION" value={location} />}
