@@ -125,7 +125,7 @@ function LangModal({ visible, current, onSelect, onClose }) {
   useEffect(() => {
     Animated.timing(slideY, {
       toValue: visible ? 0 : 300, duration: 320,
-      easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web',
+      easing: Easing.out(Easing.ease), useNativeDriver: Platform.OS !== 'web',
     }).start();
   }, [visible]);
   return (
