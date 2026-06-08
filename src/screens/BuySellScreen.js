@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
 import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../components/PromoBanner';
-import MonthlyPlanBanner from '../components/MonthlyPlanBanner';
+
 import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
 import { useDistrict } from '../context/DistrictContext';
@@ -644,7 +644,6 @@ export default function BuySellScreen({ route }) {
 
   const ListHeader = (
     <>
-      <MonthlyPlanBanner navigation={useNavigation()} />
       {promos.length === 0 && (
         <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
           <SponsoredLabel />
