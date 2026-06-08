@@ -220,11 +220,21 @@ async function resolveCoupon(dbClient, couponId, userId) {
   // The verify route runs after payment; if the coupon was already inserted into
   // coupon_usage (by a prior retry), returning null here makes expectedAmount = full
   // price, which causes a false "amount mismatch" error for discounted payments.
-  // For 100% off coupons: expectedAmount = 0, remaining = 0 → free path in verify.
+  // For 100% off coupons: expectedAmount = 0, remaining = 0 -> free path in verify.
+  //
+  // FIX (Bug #9): Added FOR UPDATE to lock the coupon row for the duration of
+  // the transaction. Without a row lock, two concurrent payments using the same
+  // coupon both read uses_count = N, both pass the max_uses check, and both
+  // proceed -- only one of them will insert into coupon_usage (ON CONFLICT DO
+  // NOTHING), but markCouponUsed increments uses_count only on a real insert, so
+  // the second redemption slips through without incrementing the counter.
+  // FOR UPDATE serialises access: the second transaction blocks until the first
+  // commits or rolls back, guaranteeing at most one winner per coupon slot.
   const { rows } = await dbClient.query(
     `SELECT * FROM coupon_codes WHERE id = $1 AND is_active = TRUE
      AND (valid_until IS NULL OR valid_until >= NOW())
-     AND (max_uses IS NULL OR uses_count <= max_uses)`,
+     AND (max_uses IS NULL OR uses_count <= max_uses)
+     FOR UPDATE`,
     [couponId]
   );
   return rows[0] || null;
@@ -335,8 +345,17 @@ async function sharedVerify(req, res, listingType, insertFn) {
     await client.query('BEGIN');
 
     // ── Monthly plan check: if user has active subscription, post is FREE ─────
+    // FIX (Bug #10): Use SELECT ... FOR UPDATE to lock the user row before
+    // reading monthly_plan_expires_at. Without this lock, two concurrent
+    // requests for the same user both read an active plan and both proceed to
+    // insert a free listing before either transaction commits, letting two
+    // listings through for the price of zero. FOR UPDATE ensures the second
+    // request waits until the first transaction finishes, by which point the
+    // first listing is already committed and the second request sees the
+    // unchanged (still-active) plan and correctly posts its own listing -- or,
+    // if the plan has just expired, correctly falls through to the paid path.
     const { rows: subRows } = await client.query(
-      `SELECT monthly_plan_expires_at FROM users WHERE id = $1`, [req.user.id]
+      `SELECT monthly_plan_expires_at FROM users WHERE id = $1 FOR UPDATE`, [req.user.id]
     );
     const subExpiry = subRows[0]?.monthly_plan_expires_at;
     const hasActivePlan = subExpiry && new Date(subExpiry) > new Date();
@@ -628,14 +647,45 @@ router.post('/verify/promotion', auth, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/cashfree-webhook', async (req, res) => {
   // Verify Cashfree webhook signature before trusting the payload.
-  // Cashfree sends x-webhook-signature as HMAC-SHA256(rawBody, SECRET_KEY).
+  //
+  // FIX (Bug #1): Use req.rawBody (the original bytes captured before JSON
+  // parsing) instead of JSON.stringify(req.body).  Re-serialising a parsed
+  // object changes whitespace and key order, producing a different HMAC than
+  // what Cashfree computed over the wire.  req.rawBody is attached in
+  // index.js by the express.raw() middleware that runs before express.json().
+  //
+  // FIX (Bug #2): Replace the string equality check (sig !== expected) with
+  // crypto.timingSafeEqual().  Plain string comparison leaks timing
+  // information that allows an attacker to brute-force the expected value.
   const secret = process.env.CASHFREE_SECRET_KEY;
   if (secret) {
-    const sig  = req.headers['x-webhook-signature'] || '';
-    const ts   = req.headers['x-webhook-timestamp'] || '';
-    const body = ts + JSON.stringify(req.body);
-    const expected = require('crypto').createHmac('sha256', secret).update(body).digest('base64');
-    if (sig !== expected) {
+    const crypto   = require('crypto');
+    const sig      = req.headers['x-webhook-signature'] || '';
+    const ts       = req.headers['x-webhook-timestamp'] || '';
+
+    // req.rawBody is the original Buffer set in index.js before JSON parsing.
+    // Fall back to JSON.stringify only if somehow rawBody is missing (should
+    // never happen in normal operation, but avoids a hard crash).
+    const rawBody  = req.rawBody
+      ? req.rawBody.toString()
+      : JSON.stringify(req.body);
+
+    const message  = ts + rawBody;
+    const expected = crypto.createHmac('sha256', secret).update(message).digest('base64');
+
+    // Constant-time comparison — prevents timing-based side-channel attacks.
+    let signaturesMatch = false;
+    try {
+      signaturesMatch = crypto.timingSafeEqual(
+        Buffer.from(sig,      'utf8'),
+        Buffer.from(expected, 'utf8')
+      );
+    } catch {
+      // timingSafeEqual throws if buffers are different lengths (definite mismatch)
+      signaturesMatch = false;
+    }
+
+    if (!signaturesMatch) {
       console.warn('[cashfree-webhook] Invalid signature — ignoring');
       return res.status(400).json({ ok: false, error: 'Invalid signature' });
     }
@@ -689,12 +739,23 @@ router.post('/verify/monthly-plan', auth, async (req, res) => {
   const { cashfree_order_id } = req.body;
   if (!cashfree_order_id) return res.json({ ok: false, error: 'cashfree_order_id is required.' });
 
+  // FIX (Bug #5): Verify with Cashfree BEFORE opening the DB transaction so a
+  // failed payment never touches the database, then guard against duplicate
+  // submissions (network retries, double-taps) using rejectIfDuplicatePayment
+  // inside the transaction — same pattern used by every other verify route.
   const verification = await verifyCashfreePayment(cashfree_order_id);
   if (!verification.ok) return res.json({ ok: false, error: verification.error });
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    // Idempotency guard — reject if this order_id was already processed.
+    // Without this, a client that retries (network timeout, double-tap) can
+    // call this endpoint multiple times with the same cashfree_order_id and
+    // each call would reset/extend the subscription independently.
+    const dupErr = await rejectIfDuplicatePayment(client, cashfree_order_id);
+    if (dupErr) { await client.query('ROLLBACK'); return res.json(dupErr); }
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
