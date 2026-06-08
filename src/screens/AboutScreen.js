@@ -389,7 +389,7 @@ export default function AboutScreen() {
             { icon: 'home-outline',             color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  title: 'Rooms & Rentals',    desc: 'Find verified PGs, flats, and rooms in any Nanded neighbourhood.', delay: 80  },
             { icon: 'car-outline',              color: '#0ea5e9', bg: 'rgba(14,165,233,0.1)',  title: 'Vehicles',           desc: 'Buy and sell used cars, bikes, and scooters locally.', delay: 160 },
             { icon: 'storefront-outline',       color: '#16a34a', bg: 'rgba(22,163,74,0.1)',   title: 'Buy & Sell',         desc: 'List or discover second-hand electronics, furniture, and more.', delay: 240 },
-            { icon: 'sparkles-outline',         color: ORANGE,    bg: '#fff7ed',               title: 'AI Job Match',       desc: 'Our AI assistant helps you craft resumes and find best-fit jobs instantly.', delay: 320 },
+            { icon: 'sparkles',         color: ORANGE,    bg: '#fff7ed',               title: 'AI Job Match',       desc: 'Our AI assistant helps you craft resumes and find best-fit jobs instantly.', delay: 320 },
             { icon: 'megaphone-outline',        color: '#ec4899', bg: 'rgba(236,72,153,0.1)',  title: 'Promote Business',   desc: 'Advertise your local business to thousands of Nanded residents.', delay: 400 },
             { icon: 'chatbubbles-outline',      color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)',  title: 'In-app Messaging',   desc: 'Chat securely with employers, landlords, or buyers within the app.', delay: 480 },
             { icon: 'notifications-outline',    color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  title: 'Smart Alerts',       desc: 'Get notified instantly when new jobs match your saved search filters.', delay: 560 },
