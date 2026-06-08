@@ -1556,7 +1556,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#fff',
     borderRadius: 14, borderWidth: 1.5, borderColor: ORANGE + '55',
-    marginHorizontal: 16, marginBottom: 10, padding: 14,
+    marginHorizontal: 16, marginTop: 14, marginBottom: 10, padding: 14,
     shadowColor: ORANGE, shadowOpacity: 0.08, shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 }, elevation: 3,
   },
