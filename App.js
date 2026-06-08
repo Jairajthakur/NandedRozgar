@@ -15,7 +15,6 @@ import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-ic
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { DistrictProvider, useDistrict } from './src/context/DistrictContext';
 import { LangProvider, useLang } from './src/utils/i18n';
-import DistrictPickerScreen from './src/screens/DistrictPickerScreen';
 import LoginScreen      from './src/screens/LoginScreen';
 import HomeScreen       from './src/screens/HomeScreen';
 import BoardScreen      from './src/screens/BoardScreen';
@@ -734,16 +733,16 @@ function RootNavigator() {
         options={{ headerShown: true, headerTitle: t('admin'), ...HEADER }}
       />
       <Stack.Screen name="Referral"        component={_ReferralScreen}        options={{ headerShown: true, headerTitle: t('referralTitle'), ...HEADER }} />
-      <Stack.Screen name="MyApplications"  component={_MyApplicationsScreen}  options={{ headerShown: true, headerTitle: 'My Applications',      ...HEADER }} />
-      <Stack.Screen name="SeekerProfile"   component={_SeekerProfileScreen}   options={{ headerShown: true, headerTitle: 'My Seeker Profile',     ...HEADER }} />
-      <Stack.Screen name="Analytics"       component={_AnalyticsScreen}       options={{ headerShown: true, headerTitle: 'Analytics',             ...HEADER }} />
-      <Stack.Screen name="Alerts"          component={_AlertsScreen}          options={{ headerShown: true, headerTitle: 'Job Alerts',            ...HEADER }} />
-      <Stack.Screen name="HelpSupport"     component={_HelpSupportScreen}     options={{ headerShown: true, headerTitle: 'Help & Support',         ...HEADER }} />
+      <Stack.Screen name="MyApplications"  component={_MyApplicationsScreen}  options={{ headerShown: true, headerTitle: t('headerMyApplications'), ...HEADER }} />
+      <Stack.Screen name="SeekerProfile"   component={_SeekerProfileScreen}   options={{ headerShown: true, headerTitle: t('headerSeekerProfile'),  ...HEADER }} />
+      <Stack.Screen name="Analytics"       component={_AnalyticsScreen}       options={{ headerShown: true, headerTitle: t('headerAnalytics'),      ...HEADER }} />
+      <Stack.Screen name="Alerts"          component={_AlertsScreen}          options={{ headerShown: true, headerTitle: t('headerJobAlerts'),      ...HEADER }} />
+      <Stack.Screen name="HelpSupport"     component={_HelpSupportScreen}     options={{ headerShown: true, headerTitle: t('headerHelpSupport'),    ...HEADER }} />
       <Stack.Screen name="SellItemForm"    component={_SellItemForm}          options={{ headerShown: false }} />
-      <Stack.Screen name="About"           component={_AboutScreen}           options={{ headerShown: true, headerTitle: 'About CityPlus',          ...HEADER }} />
+      <Stack.Screen name="About"           component={_AboutScreen}           options={{ headerShown: true, headerTitle: t('headerAbout'),           ...HEADER }} />
       <Stack.Screen name="Chat"            component={_ChatScreen}            options={{ headerShown: true, ...HEADER }} />
-      <Stack.Screen name="ChatList"        component={_ChatListScreen}        options={{ headerShown: true, headerTitle: 'Messages',                 ...HEADER }} />
-      <Stack.Screen name="SavedJobs"       component={_SavedJobsScreen}       options={{ headerShown: true, headerTitle: 'Saved Jobs',               ...HEADER }} />
+      <Stack.Screen name="ChatList"        component={_ChatListScreen}        options={{ headerShown: true, headerTitle: t('headerMessages'),        ...HEADER }} />
+      <Stack.Screen name="SavedJobs"       component={_SavedJobsScreen}       options={{ headerShown: true, headerTitle: t('headerSavedJobs'),       ...HEADER }} />
     </Stack.Navigator>
   );
 }
@@ -793,7 +792,15 @@ const linking = {
       Chat:            'chat/:chatId',
       ChatList:        'chat-list',
       SellItemForm:    'sell-item',
-      AdminPanel2:     'admin-panel',  // legacy — keep for backwards compat
+      // Fix #3: SavedJobs and MonthlyPlan were registered in the Stack Navigator
+      // but missing from the linking config — refreshing these URLs on web or
+      // tapping a push-notification deep link for them would fail to resolve.
+      SavedJobs:       'saved-jobs',
+      MonthlyPlan:     'monthly-plan',
+      // Fix #4: AdminPanel2 was a legacy linking entry that pointed to a screen
+      // name that does not exist in the Stack Navigator, causing a navigation
+      // error on /admin-panel. Changed to point to the real AdminPanel screen.
+      AdminPanel:      'admin-panel',  // legacy /admin-panel alias → AdminPanel
       // NOTE: "Board" was removed from here — BoardScreen is only registered as
       // a Tab screen inside MainTabs (name "Jobs"), NOT as a named Stack screen.
       // The correct deep-link path for the board is already covered by
@@ -804,10 +811,13 @@ const linking = {
 };
 
 export default function App() {
-  // useOnlineStatus is only meaningful on web (navigator.onLine + events).
-  // On native (APK) we never show the banner — the OS itself shows a
-  // system-level indicator when there is no connectivity.
-  const isOnline = Platform.OS === 'web' ? useOnlineStatus() : true;
+  // Fix #1: useOnlineStatus must be called unconditionally (Rules of Hooks).
+  // Calling it inside a ternary conditional on Platform.OS violated the rule
+  // and could cause hook-count mismatches between renders.
+  // The hook itself already short-circuits to navigator.onLine on web and
+  // pings Cloudflare on native, so calling it unconditionally is safe.
+  // We still only *show* the banner on web — the native OS has its own indicator.
+  const isOnline = useOnlineStatus();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
