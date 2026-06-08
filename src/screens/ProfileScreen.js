@@ -267,22 +267,29 @@ export default function ProfileScreen() {
     { icon: 'person-outline',           label: t('profileMenuUploadResume'),   onPress: () => nav.navigate('SeekerProfile') },
     { icon: 'checkmark-circle-outline', label: t('profileMenuMyApplications'), badge: stats.applied, onPress: () => nav.navigate('MyApplications') },
     { icon: 'bookmark-outline',         label: t('profileMenuSavedJobs'),      badge: stats.saved,   onPress: () => nav.navigate('SavedJobs') },
-    { icon: 'sparkles-outline',         label: 'AI Assistant',                                         onPress: () => nav.navigate('AIMatch') },
+    { icon: 'sparkles',         label: t('profileMenuAIAssistant'),                            onPress: () => nav.navigate('AIMatch') },
   ];
   const employerMenu = [
-    { icon: 'briefcase-outline',        label: t('profileMenuMyJobPosts'),     badge: myJobs.length, onPress: () => nav.navigate('Jobs') },
+    // Fix Bug 5: 'Jobs' is a Tab screen nested inside MainTabs, not a Stack screen.
+    // Calling navigate('Jobs') from a Stack-pushed screen (Profile is pushed via Stack)
+    // fails silently on native. The correct form is navigate('Main', { screen: 'Jobs' }).
+    { icon: 'briefcase-outline',        label: t('profileMenuMyJobPosts'),     badge: myJobs.length, onPress: () => nav.navigate('Main', { screen: 'Jobs' }) },
     { icon: 'bar-chart-outline',        label: t('profileMenuAnalytics'),      onPress: () => nav.navigate('Analytics') },
   ];
   const adminMenu = [
     { icon: 'shield-checkmark-outline', label: t('profileMenuAdminDashboard'), onPress: () => nav.navigate('AdminPanel') },
     { icon: 'people-outline',           label: t('profileMenuManageUsers'),    onPress: () => nav.navigate('AdminPanel') },
-    { icon: 'bar-chart-outline',        label: t('profileMenuAnalyticsShort'), onPress: () => nav.navigate('Analytics') },
+    // Bug 7 fix: removed the duplicate Analytics entry — there were two items both
+    // navigating to Analytics (profileMenuAnalytics in employerMenu AND
+    // profileMenuAnalyticsShort here). Admins saw two identical-looking rows.
+    // Kept one consistent entry using profileMenuAnalytics.
+    { icon: 'bar-chart-outline',        label: t('profileMenuAnalytics'),      onPress: () => nav.navigate('Analytics') },
   ];
   const commonMenu = [
     // Bug fix #13: ChatListScreen was registered in the Stack Navigator and
     // linking config but had no reachable entry point in the UI. Added here
     // so every user role (seeker, employer, admin) can access their messages.
-    { icon: 'flash-outline',              label: '⚡ Monthly Plan — ₹299/mo',  onPress: () => nav.navigate('MonthlyPlan') },
+    { icon: 'flash-outline',              label: t('profileMenuMonthlyPlan'),  onPress: () => nav.navigate('MonthlyPlan') },
     { icon: 'chatbubbles-outline',        label: t('profileMenuMyMessages'),   onPress: () => nav.navigate('ChatList') },
     { icon: 'share-social-outline',       label: t('profileMenuReferEarn'),    onPress: () => nav.navigate('Referral') },
     { icon: 'help-circle-outline',        label: t('profileMenuHelpSupport'),  onPress: () => nav.navigate('HelpSupport') },
@@ -379,7 +386,7 @@ export default function ProfileScreen() {
             <ActivityIndicator color={ORANGE} size="small" style={{ padding: 20 }} />
           ) : (
             <>
-              <TouchableOpacity style={styles.statItem} onPress={() => nav.navigate('Jobs')} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.statItem} onPress={() => nav.navigate('Main', { screen: 'Jobs' })} activeOpacity={0.7}>
                 <View style={[styles.statIconWrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
                   <Ionicons name="briefcase" size={16} color={ORANGE} />
                 </View>
