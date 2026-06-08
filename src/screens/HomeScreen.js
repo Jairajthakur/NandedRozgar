@@ -23,7 +23,8 @@ import { C, CAT_ICONS } from '../utils/constants';
 import { useLang, LANGUAGES } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
 import { timeAgo, http } from '../utils/api';
-import { setItem, getItem } from '../utils/storage';
+import storage from '../utils/storage';
+const { setItem, getItem } = storage;
 
 const JOBS_CACHE_KEY = 'home_jobs_cache_v1';
 
