@@ -483,8 +483,11 @@ export default function JobDetailScreen({ route, navigation }) {
               </View>
               {!!job.poster_verified && (
                 <View style={s.verifiedBadge}>
-                  <Ionicons name="shield-checkmark" size={13} color="#16a34a" />
-                  <Text style={s.verifiedTxt}>{t('verified')}</Text>
+                  <Ionicons name="shield-checkmark" size={15} color="#16a34a" />
+                  <View>
+                    <Text style={s.verifiedTxt}>✓ Verified Employer</Text>
+                    <Text style={s.verifiedSub}>ID & phone confirmed by NandedRozgar</Text>
+                  </View>
                 </View>
               )}
             </View>
@@ -717,11 +720,12 @@ const s = StyleSheet.create({
   companyName: { fontSize: 16, fontWeight: '800', color: '#0f172a' },
   companyLoc:  { fontSize: 12, color: '#64748b' },
   verifiedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#f0fdf4', borderRadius: 10, borderWidth: 1, borderColor: '#86efac',
-    paddingVertical: 5, paddingHorizontal: 9,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#f0fdf4', borderRadius: 12, borderWidth: 1.5, borderColor: '#86efac',
+    paddingVertical: 8, paddingHorizontal: 12,
   },
-  verifiedTxt: { fontSize: 11, color: '#16a34a', fontWeight: '700' },
+  verifiedTxt: { fontSize: 12, color: '#16a34a', fontWeight: '800' },
+  verifiedSub: { fontSize: 10, color: '#4ade80', fontWeight: '500', marginTop: 1 },
 
   /* ── Actions ── */
   actionsBlock: { paddingHorizontal: 14, paddingTop: 16, gap: 10 },
