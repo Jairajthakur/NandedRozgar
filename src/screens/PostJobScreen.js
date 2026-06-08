@@ -16,7 +16,7 @@ import CouponInput from '../components/CouponInput';
 import MonthlyPlanBanner, { useMonthlyPlan } from '../components/MonthlyPlanBanner';
 
 const ORANGE = '#f97316';
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 3;
 
 // ── Static Data ───────────────────────────────────────────────────────────────
 
@@ -308,19 +308,13 @@ export default function PostJobScreen() {
 
   function goNext() {
     if (step === 1) {
-      if (!company.trim()) return Alert.alert('Required', 'Please enter company / employer name.');
-      if (!industry)        return Alert.alert('Required', 'Please select an industry / category.');
-      if (industry === 'Other' && !customIndustry.trim()) return Alert.alert('Required', 'Please type your category name.');
       if (multiplePos) {
         const empty = positions.find(p => !p.title.trim());
         if (empty) return Alert.alert('Required', 'Please enter a job title for every position.');
       } else {
         if (!title.trim()) return Alert.alert('Required', 'Please enter a job title.');
       }
-    }
-    if (step === 3) {
-      if (!description.trim()) return Alert.alert('Required', 'Please add a job description.');
-      if (!whatsapp.trim())    return Alert.alert('Required', 'Please enter a WhatsApp number.');
+      if (!whatsapp.trim()) return Alert.alert('Required', 'Please enter your WhatsApp number.');
     }
     setStep(s => s + 1);
     scrollTop();
@@ -446,8 +440,258 @@ export default function PostJobScreen() {
         contentContainerStyle={{ paddingBottom: 50 }}
       >
 
-        {/* ══════════ STEP 1 – JOB BASICS ══════════ */}
+        {/* ══════════ STEP 1 – ESSENTIALS ══════════ */}
         {step === 1 && <>
+          <StepBanner step={1} title="Job Basics" subtitle="Title, salary & contact — that's it!" onBack={goBack} />
+          <View style={s.card}>
+
+            {/* Multiple positions toggle */}
+            <View style={s.toggleRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.toggleLabel}>Post Multiple Positions?</Text>
+                <Text style={s.toggleHint}>Hire for different roles in one go</Text>
+              </View>
+              <Switch
+                value={multiplePos}
+                onValueChange={handleMultiToggle}
+                trackColor={{ false: '#e0e0e0', true: '#fed7aa' }}
+                thumbColor={multiplePos ? ORANGE : '#ddd'}
+              />
+            </View>
+            <View style={s.divider} />
+
+            {/* Single position */}
+            {!multiplePos && <>
+              <SectionLabel text="JOB TITLE" required />
+              <StyledInput value={title} onChangeText={setTitle} placeholder="e.g. Delivery Executive, Telecaller" maxLength={100} />
+            </>}
+
+            {/* Multiple positions */}
+            {multiplePos && <>
+              <SectionLabel text="POSITIONS (JOB TITLE + VACANCIES)" required />
+              {positions.map((pos, idx) => (
+                <View key={pos.id} style={s.posCard}>
+                  <View style={s.posHeader}>
+                    <Text style={s.posIndex}>Position {idx + 1}</Text>
+                    {positions.length > 1 && (
+                      <TouchableOpacity onPress={() => removePosition(pos.id)} style={s.posRemove}>
+                        <Ionicons name="close-circle" size={20} color="#f87171" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <StyledInput
+                    value={pos.title}
+                    onChangeText={v => updatePosition(pos.id, 'title', v)}
+                    placeholder="e.g. Delivery Executive, Telecaller"
+                    maxLength={100}
+                  />
+                  <View style={{ height: 10 }} />
+                  <Text style={s.posVacLbl}>VACANCIES</Text>
+                  <View style={s.posVacRow}>
+                    {OPENINGS_OPTIONS.map(n => (
+                      <TouchableOpacity
+                        key={n}
+                        style={[s.posVacBtn, pos.vacancies === n && s.posVacBtnOn]}
+                        onPress={() => updatePosition(pos.id, 'vacancies', n)}>
+                        <Text style={[s.posVacTxt, pos.vacancies === n && s.posVacTxtOn]}>{n}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
+              <TouchableOpacity style={s.addPosBtn} onPress={addPosition}>
+                <Ionicons name="add-circle-outline" size={20} color={ORANGE} />
+                <Text style={s.addPosTxt}>Add Another Position</Text>
+              </TouchableOpacity>
+            </>}
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="SALARY (₹ / month, optional)" />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <StyledInput value={salaryMin} onChangeText={setSalaryMin} placeholder="Min e.g. 10000" keyboardType="number-pad" prefix="₹" maxLength={8} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <StyledInput value={salaryMax} onChangeText={setSalaryMax} placeholder="Max e.g. 15000" keyboardType="number-pad" prefix="₹" maxLength={8} />
+              </View>
+            </View>
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="WHATSAPP NUMBER" required />
+            <StyledInput value={whatsapp} onChangeText={setWhatsapp} placeholder="+91 98765 43210" keyboardType="phone-pad" maxLength={15} />
+
+            {/* Hint to next step */}
+            <View style={{ marginTop: 16, padding: 12, backgroundColor: '#fff7ed', borderRadius: 10, borderWidth: 1, borderColor: '#fed7aa', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="information-circle-outline" size={18} color={ORANGE} />
+              <Text style={{ fontSize: 12, color: '#92400e', flex: 1, lineHeight: 18 }}>
+                Next: add more details like location, company & skills (optional but recommended).
+              </Text>
+            </View>
+          </View>
+        </>}
+
+        {/* ══════════ STEP 2 – OPTIONAL DETAILS ══════════ */}
+        {step === 2 && <>
+          <StepBanner step={2} title="More Details" subtitle="Optional — improves your listing quality" onBack={goBack} />
+          <View style={s.card}>
+
+            <SectionLabel text="COMPANY / EMPLOYER NAME" />
+            <StyledInput value={company} onChangeText={setCompany} placeholder="e.g. Sharma & Sons Pvt. Ltd." maxLength={100} />
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="INDUSTRY / CATEGORY" />
+            <Dropdown value={industry} options={INDUSTRIES} placeholder="Select Category" onSelect={v => { setIndustry(v); if (v !== 'Other') setCustomIndustry(''); }} />
+            {industry === 'Other' && (
+              <StyledInput
+                value={customIndustry}
+                onChangeText={setCustomIndustry}
+                placeholder="Type your category (e.g. Photography, Farming…)"
+                maxLength={60}
+                style={{ marginTop: 10 }}
+              />
+            )}
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="WORK LOCATION" />
+            {currentDistrict && (
+              <TouchableOpacity
+                onPress={() => nav.navigate('Home')}
+                activeOpacity={0.75}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 6,
+                  backgroundColor: '#fff7ed', borderRadius: 10,
+                  paddingHorizontal: 12, paddingVertical: 8,
+                  borderWidth: 1, borderColor: '#fed7aa', marginBottom: 10,
+                }}
+              >
+                <Ionicons name="location" size={14} color={ORANGE} />
+                <Text style={{ fontSize: 13, color: '#92400e', fontWeight: '600', flex: 1 }}>
+                  Posting in <Text style={{ color: ORANGE }}>{currentDistrict.name}</Text> district
+                </Text>
+                <Text style={{ fontSize: 11, color: ORANGE }}>Change ›</Text>
+              </TouchableOpacity>
+            )}
+            <Dropdown value={location} options={LOCATIONS} placeholder="Select location" onSelect={setLocation} />
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="JOB TYPE" />
+            {JOB_TYPES.map(jt => (
+              <RadioRow key={jt.id} label={jt.label} sub={jt.sub} active={jobType === jt.id} onPress={() => setJobType(jt.id)} />
+            ))}
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="EXPERIENCE REQUIRED" />
+            <Dropdown value={experience} options={EXPERIENCE_OPTIONS} placeholder="Select experience" onSelect={setExperience} />
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="SKILLS REQUIRED" />
+            <View style={s.chipsWrap}>
+              {SKILLS_LIST.map(skill => {
+                const on = skills.includes(skill);
+                return (
+                  <TouchableOpacity key={skill} style={[s.chip, on && s.chipOn]} onPress={() => toggleSkill(skill)} activeOpacity={0.8}>
+                    <Text style={[s.chipTxt, on && s.chipTxtOn]}>{skill}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="JOB DESCRIPTION" />
+            <StyledInput value={description} onChangeText={setDescription} placeholder="Describe responsibilities, daily tasks, shift timings, perks…" multiline numberOfLines={4} maxLength={1000} />
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="EMAIL ADDRESS (OPTIONAL)" />
+            <StyledInput value={email} onChangeText={setEmail} placeholder="yourname@email.com" keyboardType="email-address" maxLength={100} />
+          </View>
+        </>}
+
+        {/* ══════════ STEP 3 – PLAN + REVIEW ══════════ */}
+        {step === 3 && <>
+          <StepBanner step={3} title="Choose Plan & Post" subtitle="Pick a plan, review & go live" onBack={goBack} />
+          <MonthlyPlanBanner navigation={nav} compact />
+          <View style={s.card}>
+            <Text style={s.planQ}>How long should your listing stay live?</Text>
+            <Text style={s.planHint}>Your listing is automatically removed after the selected period.</Text>
+
+            {PLANS.map(p => (
+              <TouchableOpacity key={p.id} style={[s.planCard, plan === p.id && s.planCardOn]} onPress={() => { setPlan(p.id); setAppliedCoupon(null); }} activeOpacity={0.85}>
+                <View style={s.planLeft}>
+                  <Ionicons name="calendar-outline" size={22} color={plan === p.id ? ORANGE : '#aaa'} />
+                  <View style={{ marginLeft: 12 }}>
+                    <Text style={[s.planDays, plan === p.id && { color: ORANGE }]}>{p.days}</Text>
+                    <Text style={s.planSub}>{p.sub}</Text>
+                  </View>
+                </View>
+                <View style={s.planRight}>
+                  <Text style={[s.planPrice, plan === p.id && { color: ORANGE }]}>{p.price === 0 ? 'Free' : `₹${p.price}`}</Text>
+                  <View style={[s.planRadio, plan === p.id && s.planRadioOn]}>
+                    {plan === p.id && <View style={s.planDot} />}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            {/* Feature strip */}
+            <View style={s.featureStrip}>
+              {[
+                { icon: 'flash-outline',            label: 'INSTANT\nACTIVATION' },
+                { icon: 'shield-checkmark-outline',  label: 'SECURE UPI\n/ CARD' },
+                { icon: 'refresh-outline',           label: 'RENEWABLE\nANYTIME' },
+              ].map((f, i) => (
+                <React.Fragment key={f.label}>
+                  {i > 0 && <View style={s.featureSep} />}
+                  <View style={s.featureItem}>
+                    <Ionicons name={f.icon} size={20} color={ORANGE} />
+                    <Text style={s.featureTxt}>{f.label}</Text>
+                  </View>
+                </React.Fragment>
+              ))}
+            </View>
+
+            {/* Coupon */}
+            <View style={{ marginTop: 16 }}>
+              <Text style={[s.planSub, { fontWeight: '700', color: '#333', marginBottom: 8, fontSize: 13 }]}>
+                Have a coupon code?
+              </Text>
+              <CouponInput
+                listingType="job"
+                originalAmount={PLANS.find(p => p.id === plan)?.price ?? 79}
+                onApplied={c => setAppliedCoupon(c)}
+              />
+              {appliedCoupon && (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, padding: 10, backgroundColor: '#f0fdf4', borderRadius: 8 }}>
+                  <Text style={{ color: '#374151', fontSize: 13 }}>Original: <Text style={{ textDecorationLine: 'line-through' }}>₹{PLANS.find(p => p.id === plan)?.price}</Text></Text>
+                  <Text style={{ color: '#16a34a', fontWeight: '700', fontSize: 13 }}>You pay: ₹{appliedCoupon.finalAmount}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Quick review summary */}
+          <View style={[s.card, { marginTop: 12 }]}>
+            <Text style={s.revHead}>Quick Review</Text>
+            <View style={s.revGroup}>
+              {multiplePos
+                ? positions.map((p, i) => (
+                    <ReviewRow key={p.id} label={`POSITION ${i+1}`} value={`${p.title || 'Untitled'} — ${p.vacancies} opening${p.vacancies === '1' ? '' : 's'}`} />
+                  ))
+                : <ReviewRow label="TITLE" value={title || 'Not set'} />
+              }
+              <ReviewRow label="SALARY"    value={salaryMin ? `₹${salaryMin}${salaryMax ? `–₹${salaryMax}` : ''}/mo` : 'Not specified'} />
+              <ReviewRow label="WHATSAPP"  value={whatsapp || 'Not set'} />
+              {!!company    && <ReviewRow label="COMPANY"  value={company} />}
+              {!!location   && <ReviewRow label="LOCATION" value={location} />}
+              {skills.length > 0 && <ReviewRow label="SKILLS" value={skills.join(', ')} />}
+            </View>
+            <View style={s.planSummaryBox}>
+              <Ionicons name="calendar-outline" size={18} color={ORANGE} />
+              <Text style={s.planSummaryTxt}>
+                {selPlan?.days} plan — ₹{selPlan?.price}
+              </Text>
+            </View>
+          </View>
+        </>}
           <StepBanner step={1} title="Job Basics" subtitle="Tell us about the position(s)" onBack={goBack} />
           <View style={s.card}>
             {/* Multiple positions toggle */}
@@ -551,205 +795,6 @@ export default function PostJobScreen() {
           </View>
         </>}
 
-        {/* ══════════ STEP 2 – LOCATION & PAY ══════════ */}
-        {step === 2 && <>
-          <StepBanner step={2} title="Location & Pay" subtitle="Set location, salary & requirements" onBack={goBack} />
-          <View style={s.card}>
-            <SectionLabel text="WORK LOCATION" required />
-            {currentDistrict && (
-              <TouchableOpacity
-                onPress={() => nav.navigate('Home')}
-                activeOpacity={0.75}
-                style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 6,
-                  backgroundColor: '#fff7ed', borderRadius: 10,
-                  paddingHorizontal: 12, paddingVertical: 8,
-                  borderWidth: 1, borderColor: '#fed7aa', marginBottom: 10,
-                }}
-              >
-                <Ionicons name="location" size={14} color={ORANGE} />
-                <Text style={{ fontSize: 13, color: '#92400e', fontWeight: '600', flex: 1 }}>
-                  Posting in <Text style={{ color: ORANGE }}>{currentDistrict.name}</Text> district
-                </Text>
-                <Text style={{ fontSize: 11, color: ORANGE }}>Change ›</Text>
-              </TouchableOpacity>
-            )}
-            <Dropdown value={location} options={LOCATIONS} placeholder="Select location" onSelect={setLocation} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="MINIMUM MONTHLY SALARY (₹)" />
-            <StyledInput value={salaryMin} onChangeText={setSalaryMin} placeholder="e.g. 10000" keyboardType="number-pad" prefix="₹" maxLength={8} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="MAXIMUM MONTHLY SALARY (₹)" />
-            <StyledInput value={salaryMax} onChangeText={setSalaryMax} placeholder="e.g. 15000" keyboardType="number-pad" prefix="₹" maxLength={8} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="EDUCATION REQUIRED" />
-            {EDUCATION_OPTIONS.map(opt => (
-              <RadioRow key={opt.id} label={opt.label} sub={opt.sub} active={education === opt.id} onPress={() => setEducation(opt.id)} />
-            ))}
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="EXPERIENCE REQUIRED" />
-            <Dropdown value={experience} options={EXPERIENCE_OPTIONS} placeholder="Select experience" onSelect={setExperience} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="WORKING HOURS" />
-            <Dropdown value={workHours} options={WORKING_HOURS_OPTIONS} placeholder="Select hours" onSelect={setWorkHours} />
-          </View>
-        </>}
-
-        {/* ══════════ STEP 3 – SKILLS & INFO ══════════ */}
-        {step === 3 && <>
-          <StepBanner step={3} title="Skills & Info" subtitle="Add required skills and contact" onBack={goBack} />
-          <View style={s.card}>
-            <SectionLabel text="SKILLS REQUIRED" />
-            <View style={s.chipsWrap}>
-              {SKILLS_LIST.map(skill => {
-                const on = skills.includes(skill);
-                return (
-                  <TouchableOpacity key={skill} style={[s.chip, on && s.chipOn]} onPress={() => toggleSkill(skill)} activeOpacity={0.8}>
-                    <Text style={[s.chipTxt, on && s.chipTxtOn]}>{skill}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <View style={{ height: 20 }} />
-            <SectionLabel text="JOB DESCRIPTION" required />
-            <StyledInput value={description} onChangeText={setDescription} placeholder="Describe responsibilities, daily tasks, shift timings, perks, any other requirements..." multiline numberOfLines={5} maxLength={1000} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="REQUIREMENTS (one per line, optional)" />
-            <StyledInput value={requirements} onChangeText={setRequirements} placeholder={"e.g.\nMinimum 10th pass or above\nGood communication skills\nSmartphone required"} multiline numberOfLines={4} maxLength={800} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="WHATSAPP NUMBER" required />
-            <StyledInput value={whatsapp} onChangeText={setWhatsapp} placeholder="+91 98765 43210" keyboardType="phone-pad" maxLength={15} />
-
-            <View style={{ height: 18 }} />
-            <SectionLabel text="EMAIL ADDRESS (OPTIONAL)" />
-            <StyledInput value={email} onChangeText={setEmail} placeholder="yourname@email.com" keyboardType="email-address" maxLength={100} />
-          </View>
-        </>}
-
-        {/* ══════════ STEP 4 – CHOOSE PLAN ══════════ */}
-        {step === 4 && <>
-          <StepBanner step={4} title="Choose Plan" subtitle="How long should your listing stay live?" onBack={goBack} />
-          <MonthlyPlanBanner navigation={nav} compact />
-          <View style={s.card}>
-            <Text style={s.planQ}>How long should your listing stay live?</Text>
-            <Text style={s.planHint}>Your listing is automatically removed after the selected period.</Text>
-
-            {PLANS.map(p => (
-              <TouchableOpacity key={p.id} style={[s.planCard, plan === p.id && s.planCardOn]} onPress={() => { setPlan(p.id); setAppliedCoupon(null); }} activeOpacity={0.85}>
-                <View style={s.planLeft}>
-                  <Ionicons name="calendar-outline" size={22} color={plan === p.id ? ORANGE : '#aaa'} />
-                  <View style={{ marginLeft: 12 }}>
-                    <Text style={[s.planDays, plan === p.id && { color: ORANGE }]}>{p.days}</Text>
-                    <Text style={s.planSub}>{p.sub}</Text>
-                  </View>
-                </View>
-                <View style={s.planRight}>
-                  <Text style={[s.planPrice, plan === p.id && { color: ORANGE }]}>{p.price === 0 ? 'Free' : `₹${p.price}`}</Text>
-                  <View style={[s.planRadio, plan === p.id && s.planRadioOn]}>
-                    {plan === p.id && <View style={s.planDot} />}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-
-            {/* Feature strip */}
-            <View style={s.featureStrip}>
-              {[
-                { icon: 'flash-outline',            label: 'INSTANT\nACTIVATION' },
-                { icon: 'shield-checkmark-outline',  label: 'SECURE UPI\n/ CARD' },
-                { icon: 'refresh-outline',           label: 'RENEWABLE\nANYTIME' },
-              ].map((f, i) => (
-                <React.Fragment key={f.label}>
-                  {i > 0 && <View style={s.featureSep} />}
-                  <View style={s.featureItem}>
-                    <Ionicons name={f.icon} size={20} color={ORANGE} />
-                    <Text style={s.featureTxt}>{f.label}</Text>
-                  </View>
-                </React.Fragment>
-              ))}
-            </View>
-
-            {/* ── Coupon Code ── */}
-            {true && (
-              <View style={{ marginTop: 16 }}>
-                <Text style={[s.planSub, { fontWeight: '700', color: '#333', marginBottom: 8, fontSize: 13 }]}>
-                  Have a coupon code?
-                </Text>
-                <CouponInput
-                  listingType="job"
-                  originalAmount={PLANS.find(p => p.id === plan)?.price ?? 79}
-                  onApplied={c => setAppliedCoupon(c)}
-                />
-                {appliedCoupon && (
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, padding: 10, backgroundColor: '#f0fdf4', borderRadius: 8 }}>
-                    <Text style={{ color: '#374151', fontSize: 13 }}>Original: <Text style={{ textDecorationLine: 'line-through' }}>₹{PLANS.find(p => p.id === plan)?.price}</Text></Text>
-                    <Text style={{ color: '#16a34a', fontWeight: '700', fontSize: 13 }}>You pay: ₹{appliedCoupon.finalAmount}</Text>
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
-        </>}
-
-        {/* ══════════ STEP 5 – REVIEW & POST ══════════ */}
-        {step === 5 && <>
-          <StepBanner step={5} title="Review & Post" subtitle="Confirm your listing before going live" onBack={goBack} />
-          <View style={s.card}>
-            <Text style={s.revHead}>Review your job listing before going live:</Text>
-
-            <View style={s.revGroup}>
-              <ReviewRow label="COMPANY"  value={company  || 'Not set'} />
-              {!!address && <ReviewRow label="ADDRESS" value={address} />}
-              <ReviewRow label="CATEGORY" value={(industry === 'Other' ? customIndustry.trim() : industry) || 'Not set'} />
-              <ReviewRow label="TYPE"     value={jobType} />
-              {multiplePos
-                ? positions.map((p, i) => (
-                    <ReviewRow key={p.id} label={`POSITION ${i+1}`} value={`${p.title || 'Untitled'} — ${p.vacancies} opening${p.vacancies === '1' ? '' : 's'}`} />
-                  ))
-                : <>
-                    <ReviewRow label="TITLE"    value={title    || 'Not set'} />
-                    <ReviewRow label="OPENINGS" value={openings} />
-                  </>
-              }
-            </View>
-
-            <View style={[s.revGroup, { marginTop: 12 }]}>
-              <ReviewRow label="LOCATION"   value={location} />
-              <ReviewRow label="SALARY"     value={salaryMin ? `₹${salaryMin}${salaryMax ? `–₹${salaryMax}` : ''}/mo` : 'Not specified'} />
-              <ReviewRow label="EXPERIENCE" value={experience} />
-              <ReviewRow label="EDUCATION"  value={eduLabel} />
-              <ReviewRow label="HOURS"      value={workHours} />
-            </View>
-
-            <View style={[s.revGroup, { marginTop: 12 }]}>
-              <ReviewRow label="SKILLS"    value={skills.length ? skills.join(', ') : 'None'} />
-              <ReviewRow label="WHATSAPP"  value={whatsapp || 'Not set'} />
-              {!!email && <ReviewRow label="EMAIL" value={email} />}
-            </View>
-
-            {!!description && (
-              <View style={[s.revGroup, { marginTop: 12 }]}>
-                <Text style={[s.revLabel, { padding: 14, paddingBottom: 4 }]}>DESCRIPTION</Text>
-                <Text style={s.revDesc}>{description}</Text>
-              </View>
-            )}
-
-            <View style={s.planSummaryBox}>
-              <Ionicons name="calendar-outline" size={18} color={ORANGE} />
-              <Text style={s.planSummaryTxt}>
-                {selPlan?.days} plan — ₹{selPlan?.price}
-              </Text>
-            </View>
-          </View>
-        </>}
 
         {/* ══════════ BOTTOM BUTTONS ══════════ */}
         <View style={s.btnRow}>
