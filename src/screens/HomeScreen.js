@@ -638,7 +638,7 @@ export default function HomeScreen() {
             <Text style={[ws.sideNavSection, { marginTop: 20 }]}>{t('sideNavAccount')}</Text>
             <SideNavItem icon="add-circle-outline"  label={t('sideNavPostAd')}    onPress={() => nav.navigate('Post')} />
             <SideNavItem icon="person-outline"      label={t('sideNavMyProfile')} onPress={() => nav.navigate('Profile')} />
-            <SideNavItem icon="sparkles-outline"    label={t('sideNavAI')}        onPress={() => nav.navigate('AIMatch')} />
+            <SideNavItem icon="sparkles"    label={t('sideNavAI')}        onPress={() => nav.navigate('AIMatch')} />
             {/* Bug fix #13: Messages was unreachable from the web sidebar */}
             <SideNavItem icon="chatbubbles-outline" label={t('profileMenuMyMessages')} onPress={() => nav.navigate('ChatList')} />
             {isAdmin && <SideNavItem icon="shield-checkmark-outline" label="Admin Dashboard" onPress={() => nav.navigate('AdminPanel')} />}
@@ -847,7 +847,7 @@ export default function HomeScreen() {
                 <QuickAction icon="home-outline"       label={t('qaRooms')}    color={TEAL}    onPress={() => nav.navigate('Rooms')} />
                 <QuickAction icon="car-sport-outline"  label={t('qaVehicles')} color={PURPLE}  onPress={() => nav.navigate('Cars')} />
                 <QuickAction icon="pricetag-outline"   label={t('qaBuySell')}  color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
-                <QuickAction icon="sparkles-outline"   label={t('qaAI')}       color={ORANGE}  onPress={() => nav.navigate('AIMatch')} />
+                <QuickAction icon="sparkles"   label={t('qaAI')}       color={ORANGE}  onPress={() => nav.navigate('AIMatch')} />
               </View>
             </FadeSlide>
 
