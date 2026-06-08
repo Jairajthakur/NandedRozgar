@@ -89,12 +89,15 @@
       document.getElementById('icon').textContent  = '⏳';
       document.getElementById('title').textContent = 'Payment Pending';
       document.getElementById('msg').textContent   = 'Your payment is being verified. Returning to the app…';
-      // For PENDING we still send SUCCESS-like deep link with PENDING status
-      // so the app can call /verify which retries up to 5 times
+      // Bug 9 fix: previously sent payment_status=SUCCESS for unknown/pending status,
+      // which caused the app to resolve the payment promise as successful before the
+      // server confirmed the outcome — showing a false success screen. Now we send
+      // PENDING so the app routes it to the unconfirmed path and /verify is the
+      // source of truth when the user retries or the screen polls.
       deepLink =
         'cityplus://payment/callback' +
         '?order_id='       + encodeURIComponent(orderId) +
-        '&payment_status=SUCCESS';   // Let server-side verify confirm the actual status
+        '&payment_status=PENDING';
     }
 
     var btn = document.getElementById('open-app');
