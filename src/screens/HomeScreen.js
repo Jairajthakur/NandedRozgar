@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Easing, StatusBar, TextInput, Modal,
-  FlatList, Dimensions, Platform, useWindowDimensions,
+  FlatList, Dimensions, Platform, useWindowDimensions, Linking,
 } from 'react-native';
 
 // ScrollVelocity is a web-only component (uses DOM/motion)
@@ -23,6 +23,9 @@ import { C, CAT_ICONS } from '../utils/constants';
 import { useLang, LANGUAGES } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
 import { timeAgo, http } from '../utils/api';
+import { setItem, getItem } from '../utils/storage';
+
+const JOBS_CACHE_KEY = 'home_jobs_cache_v1';
 
 const ORANGE    = '#f97316';
 const TEAL      = '#0d9488';
@@ -440,6 +443,30 @@ export default function HomeScreen() {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showDistrictPicker, setShowDistrictPicker] = useState(false);
   const [searchText, setSearchText]         = useState('');
+  const [isListening, setIsListening]       = useState(false);
+
+  // Voice search handler — uses Web Speech API on web, no-op on native (requires expo-speech-recognition)
+  const startVoiceSearch = useCallback(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SR();
+      recognition.lang = 'mr-IN'; // Marathi first; falls back to en-IN
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      setIsListening(true);
+      recognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        setSearchText(transcript);
+        setIsListening(false);
+      };
+      recognition.onerror  = () => setIsListening(false);
+      recognition.onend    = () => setIsListening(false);
+      recognition.start();
+    } else {
+      // On native, show a prompt-style fallback (expo-speech-recognition can be added)
+      alert('Voice search: Please speak after enabling microphone permission in your device settings.');
+    }
+  }, []);
 
   // Responsive breakpoints (web only)
   const showSidebar    = IS_WEB && winW >= BP_MD;
@@ -449,8 +476,18 @@ export default function HomeScreen() {
   const [rooms,    setRooms]    = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [stats,    setStats]    = useState({ jobs: 0, rooms: 0, vehicles: 0, items: 0 });
+  const [cachedJobs, setCachedJobs] = useState([]);  // instant 2G/3G seed
 
   const { loadJobs } = useAuth();
+
+  // Load cached jobs instantly on mount so the list shows before network responds
+  useEffect(() => {
+    getItem(JOBS_CACHE_KEY).then(raw => {
+      if (raw) {
+        try { setCachedJobs(JSON.parse(raw)); } catch {}
+      }
+    });
+  }, []);
 
   const fetchHomeData = useCallback(async () => {
     try {
@@ -491,7 +528,14 @@ export default function HomeScreen() {
       ((b.featured ? 2 : 0) + (b.urgent ? 1 : 0)) -
       ((a.featured ? 2 : 0) + (a.urgent ? 1 : 0)) ||
       b.timestamp - a.timestamp)
-    .slice(0, 6);
+    .slice(0, 20);
+
+  // Persist fresh jobs to cache (top 20) for instant next-open load
+  useEffect(() => {
+    if (recentJobs.length > 0) {
+      setItem(JOBS_CACHE_KEY, JSON.stringify(recentJobs.slice(0, 20))).catch(() => {});
+    }
+  }, [recentJobs.length]);
 
   const featuredDemoJobs = [
     { id: 'f1', title: t('demoJob1Title'), company: 'Swiggy Instamart',    salary: '₹15k–20k/mo', category: 'Delivery',   status: 'active', location: 'Nanded',               timestamp: Date.now() - 3600000 * 2 },
@@ -510,7 +554,7 @@ export default function HomeScreen() {
     { id: 'r3', title: t('demoRoom3Title'), location: 'Shivaji Nagar', type: t('demoRoom3Type'), rent: '₹4,200/mo',  available: true },
   ];
 
-  const displayJobs     = recentJobs.length > 0  ? recentJobs            : demoJobs;
+  const displayJobs     = recentJobs.length > 0  ? recentJobs : cachedJobs.length > 0 ? cachedJobs : demoJobs;
   const displayFeatured = activeJobs.length > 0  ? activeJobs.slice(0,4) : featuredDemoJobs;
   const displayRooms    = rooms.length > 0        ? rooms.slice(0, 3)     : demoRooms;
 
@@ -596,6 +640,13 @@ export default function HomeScreen() {
                   onSubmitEditing={handleSearch}
                   returnKeyType="search"
                 />
+                <TouchableOpacity
+                  onPress={startVoiceSearch}
+                  style={{ paddingHorizontal: 8, justifyContent: 'center' }}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name={isListening ? 'radio-button-on' : 'mic-outline'} size={16} color={isListening ? '#ef4444' : '#999'} />
+                </TouchableOpacity>
                 <TouchableOpacity style={ws.topSearchBtn} onPress={handleSearch} activeOpacity={0.9}>
                   <Text style={ws.topSearchBtnTxt}>{t('homeSearchBtn')}</Text>
                 </TouchableOpacity>
@@ -1012,6 +1063,13 @@ export default function HomeScreen() {
                 onSubmitEditing={handleSearch}
                 returnKeyType="search"
               />
+              <TouchableOpacity
+                style={s.micBtn}
+                onPress={startVoiceSearch}
+                activeOpacity={0.75}
+              >
+                <Ionicons name={isListening ? 'radio-button-on' : 'mic'} size={18} color={isListening ? '#ef4444' : ORANGE} />
+              </TouchableOpacity>
               <TouchableOpacity style={s.searchBtn} onPress={handleSearch} activeOpacity={0.85}>
                 <Ionicons name="search" size={16} color="#fff" />
               </TouchableOpacity>
@@ -1046,6 +1104,26 @@ export default function HomeScreen() {
         </FadeSlide>
 
         <TickerBanner t={t} districtLocalName={districtLocalName} itemCount={stats.items} />
+
+        {/* ── Job Alerts CTA ── */}
+        <FadeSlide delay={160}>
+          <TouchableOpacity
+            style={s.alertsBanner}
+            onPress={() => nav.navigate('Alerts')}
+            activeOpacity={0.88}
+          >
+            <View style={s.alertsIconWrap}>
+              <Ionicons name="notifications" size={22} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.alertsBannerTitle}>Get notified for new jobs</Text>
+              <Text style={s.alertsBannerSub}>
+                Tell us what you're looking for — we'll alert you the moment a match is posted in {districtLocalName || 'your district'}.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={ORANGE} />
+          </TouchableOpacity>
+        </FadeSlide>
 
         {/* Recent Jobs */}
         <FadeSlide delay={200}>
@@ -1416,6 +1494,7 @@ const s = StyleSheet.create({
   heroSub:    { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginBottom: 18, fontWeight: '500' },
   searchBar:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, height: 48, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
   searchInput:{ flex: 1, height: 48, paddingHorizontal: 10, fontSize: 14, color: '#333' },
+  micBtn:     { width: 36, height: 48, alignItems: 'center', justifyContent: 'center' },
   searchBtn:  { width: 46, height: 48, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
 
   statsRow: { flexDirection: 'row', backgroundColor: '#fff', marginHorizontal: 16, marginTop: 16, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 4, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
@@ -1471,7 +1550,21 @@ const s = StyleSheet.create({
   aiTitle:    { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 3 },
   aiPrompt:   { fontSize: 11, color: '#888', fontStyle: 'italic', lineHeight: 16 },
 
-  jobCard:         { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#ebebeb', marginHorizontal: 16, marginBottom: 10, padding: 14, position: 'relative', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  // Job Alerts Banner
+  alertsBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 14, borderWidth: 1.5, borderColor: ORANGE + '55',
+    marginHorizontal: 16, marginBottom: 10, padding: 14,
+    shadowColor: ORANGE, shadowOpacity: 0.08, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }, elevation: 3,
+  },
+  alertsIconWrap: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center',
+  },
+  alertsBannerTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginBottom: 3 },
+  alertsBannerSub:   { fontSize: 11, color: '#666', lineHeight: 16 },         { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#ebebeb', marginHorizontal: 16, marginBottom: 10, padding: 14, position: 'relative', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   jobCardFeatured: { borderLeftWidth: 3, borderLeftColor: ORANGE },
   jobCardUrgent:   { borderLeftWidth: 3, borderLeftColor: '#ef4444' },
   jobFeatBadge:    { position: 'absolute', top: 0, right: 12, backgroundColor: ORANGE, borderBottomLeftRadius: 5, borderBottomRightRadius: 5, paddingVertical: 2, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 3, zIndex: 10 },
