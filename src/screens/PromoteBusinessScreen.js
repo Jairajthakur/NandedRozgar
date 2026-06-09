@@ -302,7 +302,7 @@ export default function PromoteBusinessScreen() {
   };
 
   // ── Build WhatsApp message ─────────────────────────────────────────────────
-  const openWhatsApp = () => {
+  const openWhatsApp = async () => {
     const plan = PLANS.find(p => p.id === selectedPlan);
     const lines = [
       `🏪 *Business Promotion Request — NandedRozgar*`,
@@ -324,8 +324,27 @@ export default function PromoteBusinessScreen() {
       ``,
       `Please design a promotional banner for my business and confirm the plan. Thank you! 🙏`,
     ];
-    const msg   = encodeURIComponent(lines.join('\n'));
-    const url   = `https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`;
+    const msg = encodeURIComponent(lines.join('\n'));
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`;
+
+    // Save the request to the database before opening WhatsApp
+    try {
+      await http('POST', '/api/promotions/request', {
+        bizName:     form.bizName,
+        tagline:     form.tagline,
+        phone:       form.phone,
+        category:    form.category,
+        location:    form.location,
+        address:     form.address,
+        website:     form.website,
+        description: form.description,
+        plan:        selectedPlan,
+      });
+    } catch (e) {
+      // Non-fatal — still open WhatsApp even if save fails
+      console.warn('Could not save WhatsApp request to DB:', e);
+    }
+
     Linking.openURL(url).catch(() =>
       Alert.alert('WhatsApp not found', 'Please install WhatsApp or contact us directly.')
     );
