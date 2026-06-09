@@ -49,10 +49,10 @@ router.post('/', auth, async (req, res) => {
 
     const { rows } = await pool.query(
       `INSERT INTO business_promotions
-         (user_id, biz_name, tagline, phone, category, location, address,
+         (user_id, business_name, biz_name, tagline, phone, category, location, address,
           website, description, timing, plan, plan_price, plan_days,
           banner_style, accent_color, template_id, status, expires_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'active',$17)
+       VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'active',$17)
        RETURNING *`,
       [
         req.user.id,
@@ -93,10 +93,10 @@ router.post('/request', auth, async (req, res) => {
 
     const { rows } = await pool.query(
       `INSERT INTO business_promotions
-         (user_id, biz_name, tagline, phone, category, location, address,
+         (user_id, business_name, biz_name, tagline, phone, category, location, address,
           website, description, plan, plan_price, plan_days,
           banner_mode, banner_style, accent_color, status, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'whatsapp','clean','#f97316','pending',NOW())
+       VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'whatsapp','clean','#f97316','pending',NOW())
        RETURNING id`,
       [
         req.user.id,
