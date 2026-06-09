@@ -72,6 +72,48 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// ── POST /api/promotions/request ─────────────────────────────────────────────
+// Saves a WhatsApp banner-design request to the DB with status='pending'.
+// Called BEFORE opening WhatsApp so every request is recorded even if the user
+// never sends the message.
+router.post('/request', auth, async (req, res) => {
+  try {
+    const {
+      bizName, tagline, phone, category, location,
+      address, website, description, plan,
+    } = req.body;
+
+    if (!bizName?.trim())  return res.json({ ok: false, error: 'Business name is required.' });
+    if (!phone?.trim())    return res.json({ ok: false, error: 'Contact number is required.' });
+    if (!category?.trim()) return res.json({ ok: false, error: 'Category is required.' });
+    if (!location?.trim()) return res.json({ ok: false, error: 'Location is required.' });
+    if (!PLANS[plan])      return res.json({ ok: false, error: 'Invalid promotion plan.' });
+
+    const { price, days } = PLANS[plan];
+
+    const { rows } = await pool.query(
+      `INSERT INTO business_promotions
+         (user_id, biz_name, tagline, phone, category, location, address,
+          website, description, plan, plan_price, plan_days,
+          banner_mode, banner_style, accent_color, status, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'whatsapp','clean','#f97316','pending',NOW())
+       RETURNING id`,
+      [
+        req.user.id,
+        bizName.trim(), tagline?.trim() || null, phone.trim(),
+        category.trim(), location.trim(), address?.trim() || null,
+        website?.trim() || null, description?.trim() || null,
+        plan, price, days,
+      ]
+    );
+
+    res.json({ ok: true, id: rows[0].id });
+  } catch (err) {
+    console.error('POST /promotions/request error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to save your request. Please try again.' });
+  }
+});
+
 // ── GET /api/promotions/active ────────────────────────────────────────────────
 // Returns ONE random active promotion (legacy — kept for compatibility)
 router.get('/active', async (req, res) => {
