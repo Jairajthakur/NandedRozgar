@@ -616,17 +616,26 @@ router.post('/verify/promotion', auth, async (req, res) => {
     expiresAt.setDate(expiresAt.getDate() + planMeta.days);
     const accentColor = BANNER_COLORS[promotion?.bannerStyle] || '#f97316';
 
+    // Limit banner_image to 2 MB (base64 ~2.7 MB encoded)
+    const bannerImage = promotion.bannerImage || null;
+    if (bannerImage && bannerImage.length > 2_800_000) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: 'Banner image is too large. Please upload an image under 2 MB.' });
+    }
+
     const { rows } = await client.query(
       `INSERT INTO business_promotions
          (user_id,biz_name,tagline,phone,category,location,address,website,description,
-          plan,plan_price,plan_days,banner_style,accent_color,status,expires_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active',$15) RETURNING *`,
+          plan,plan_price,plan_days,banner_style,accent_color,banner_mode,banner_image,status,expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'active',$17) RETURNING *`,
       [req.user.id, promotion.bizName.trim(), promotion.tagline?.trim() || null,
        promotion.phone.trim(), promotion.category.trim(), promotion.location.trim(),
        promotion.address?.trim() || null, promotion.website?.trim() || null,
        promotion.description?.trim() || null,
        planKey, planMeta.price, planMeta.days,
-       promotion.bannerStyle || 'clean', accentColor, expiresAt]
+       promotion.bannerStyle || 'clean', accentColor,
+       promotion.bannerMode || 'upload', bannerImage,
+       expiresAt]
     );
 
     await client.query('COMMIT');
