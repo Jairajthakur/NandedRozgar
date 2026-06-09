@@ -573,6 +573,13 @@ export default function AdminScreen() {
   const [vehicleFilter, setVehicleFilter] = useState('all');
   const [buysellFilter, setBuysellFilter] = useState('all');
   const [bannerFilter, setBannerFilter] = useState('all');
+  const [showBannerForm, setShowBannerForm] = useState(false);
+  const [bannerForm, setBannerForm] = useState({
+    bizName: '', tagline: '', phone: '', category: '',
+    location: '', address: '', website: '', description: '',
+    timing: '', bannerStyle: 'bold', accentColor: '#e82828',
+  });
+  const [bannerPosting, setBannerPosting] = useState(false);
   const [userFilter, setUserFilter] = useState('all');
 
   const [jobSearch, setJobSearch] = useState('');
@@ -789,6 +796,52 @@ export default function AdminScreen() {
     const d = await apiCall('POST', '/api/admin/notifications', { title, body, target });
     if (d.ok) showToast(`Sent to ${d.sent_to} users!`);
     else showToast(d.error || 'Failed to send', true);
+  }
+
+  async function postAdminBanner() {
+    const { bizName, phone, category, location } = bannerForm;
+    if (!bizName.trim()) return showToast('Business name is required.', true);
+    if (!phone.trim())   return showToast('Phone number is required.', true);
+    if (!category.trim()) return showToast('Category is required.', true);
+    if (!location.trim()) return showToast('Location is required.', true);
+
+    setBannerPosting(true);
+    const d = await apiCall('POST', '/api/admin/post/banner', bannerForm);
+    setBannerPosting(false);
+
+    if (d.ok) {
+      showToast('Promotional banner posted!');
+      setBanners(prev => [d.banner, ...prev]);
+      setBannerForm({
+        bizName: '', tagline: '', phone: '', category: '',
+        location: '', address: '', website: '', description: '',
+        timing: '', bannerStyle: 'bold', accentColor: '#e82828',
+      });
+      setShowBannerForm(false);
+    } else {
+      showToast(d.error || 'Failed to post banner.', true);
+    }
+  }
+
+  async function deleteAdminBanner(id) {
+    const d = await apiCall('DELETE', `/api/admin/banners/${id}`);
+    if (d.ok) {
+      setBanners(prev => prev.filter(b => b.id !== id));
+      showToast('Banner deleted.');
+    } else {
+      showToast(d.error || 'Failed to delete banner.', true);
+    }
+  }
+
+  async function toggleBannerStatus(banner) {
+    const next = banner.status === 'active' ? 'paused' : 'active';
+    const d = await apiCall('PATCH', `/api/admin/banners/${banner.id}/status`, { status: next });
+    if (d.ok) {
+      setBanners(prev => prev.map(b => b.id === banner.id ? { ...b, status: next } : b));
+      showToast(`Banner ${next}.`);
+    } else {
+      showToast(d.error || 'Failed to update.', true);
+    }
   }
 
   // ── Revenue calculations ──
@@ -1033,6 +1086,152 @@ export default function AdminScreen() {
         {/* ═══ BANNERS ═══ */}
         {activeTab === 'banners' && (
           <View>
+
+            {/* ── Post Promotional Banner Form ── */}
+            <TouchableOpacity
+              style={[styles.adminPostBtn, { marginBottom: 12 }]}
+              onPress={() => setShowBannerForm(v => !v)}
+            >
+              <Text style={styles.adminPostBtnText}>
+                {showBannerForm ? '✕  Cancel' : '📣  Post Promotional Banner'}
+              </Text>
+            </TouchableOpacity>
+
+            {showBannerForm && (
+              <View style={styles.adminPostForm}>
+                <Text style={styles.adminPostFormTitle}>New Promotional Banner</Text>
+
+                <Text style={styles.fieldLabel}>Business Name *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={bannerForm.bizName}
+                  onChangeText={v => setBannerForm(f => ({ ...f, bizName: v }))}
+                  placeholder="e.g. Sharma Medical Store"
+                  placeholderTextColor={C.text3}
+                />
+
+                <Text style={styles.fieldLabel}>Tagline</Text>
+                <TextInput
+                  style={styles.input}
+                  value={bannerForm.tagline}
+                  onChangeText={v => setBannerForm(f => ({ ...f, tagline: v }))}
+                  placeholder="e.g. Best prices in Nanded"
+                  placeholderTextColor={C.text3}
+                />
+
+                <Text style={styles.fieldLabel}>Phone *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={bannerForm.phone}
+                  onChangeText={v => setBannerForm(f => ({ ...f, phone: v }))}
+                  placeholder="10-digit mobile number"
+                  placeholderTextColor={C.text3}
+                  keyboardType="phone-pad"
+                />
+
+                <Text style={styles.fieldLabel}>Category *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={bannerForm.category}
+                  onChangeText={v => setBannerForm(f => ({ ...f, category: v }))}
+                  placeholder="e.g. Medical, Education, Food"
+                  placeholderTextColor={C.text3}
+                />
+
+                <Text style={styles.fieldLabel}>Location *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={bannerForm.location}
+                  onChangeText={v => setBannerForm(f => ({ ...f, location: v }))}
+                  placeholder="e.g. Nanded, Latur"
+                  placeholderTextColor={C.text3}
+                />
+
+                <Text style={styles.fieldLabel}>Address</Text>
+                <TextInput
+                  style={styles.input}
+                  value={bannerForm.address}
+                  onChangeText={v => setBannerForm(f => ({ ...f, address: v }))}
+                  placeholder="Full address (optional)"
+                  placeholderTextColor={C.text3}
+                />
+
+                <Text style={styles.fieldLabel}>Website</Text>
+                <TextInput
+                  style={styles.input}
+                  value={bannerForm.website}
+                  onChangeText={v => setBannerForm(f => ({ ...f, website: v }))}
+                  placeholder="https://... (optional)"
+                  placeholderTextColor={C.text3}
+                  keyboardType="url"
+                  autoCapitalize="none"
+                />
+
+                <Text style={styles.fieldLabel}>Description</Text>
+                <TextInput
+                  style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                  value={bannerForm.description}
+                  onChangeText={v => setBannerForm(f => ({ ...f, description: v }))}
+                  placeholder="Short description of the business"
+                  placeholderTextColor={C.text3}
+                  multiline
+                />
+
+                <Text style={styles.fieldLabel}>Timing</Text>
+                <TextInput
+                  style={styles.input}
+                  value={bannerForm.timing}
+                  onChangeText={v => setBannerForm(f => ({ ...f, timing: v }))}
+                  placeholder="e.g. Mon–Sat, 9 AM – 8 PM"
+                  placeholderTextColor={C.text3}
+                />
+
+                <Text style={styles.fieldLabel}>Banner Style</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                  {['bold', 'clean', 'vivid'].map(s => (
+                    <TouchableOpacity
+                      key={s}
+                      style={[
+                        styles.styleChip,
+                        bannerForm.bannerStyle === s && styles.styleChipActive,
+                      ]}
+                      onPress={() => setBannerForm(f => ({ ...f, bannerStyle: s }))}
+                    >
+                      <Text style={[styles.styleChipText, bannerForm.bannerStyle === s && { color: '#fff' }]}>
+                        {s.charAt(0).toUpperCase() + s.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.fieldLabel}>Accent Colour</Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                  {['#e82828', '#f97316', '#7c3aed', '#0ea5e9', '#16a34a'].map(clr => (
+                    <TouchableOpacity
+                      key={clr}
+                      style={[
+                        styles.colorDot,
+                        { backgroundColor: clr },
+                        bannerForm.accentColor === clr && styles.colorDotSelected,
+                      ]}
+                      onPress={() => setBannerForm(f => ({ ...f, accentColor: clr }))}
+                    />
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.adminPostSubmitBtn, bannerPosting && { opacity: 0.6 }]}
+                  onPress={postAdminBanner}
+                  disabled={bannerPosting}
+                >
+                  <Text style={styles.adminPostSubmitBtnText}>
+                    {bannerPosting ? 'Posting…' : '📣 Post Banner (Free / Admin)'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ── Banner list ── */}
             <TextInput style={styles.searchBox} value={bannerSearch} onChangeText={setBannerSearch} placeholder="🔍 Search banners…" placeholderTextColor={C.text3} />
             <FilterPills
               filters={[['all', 'All', banners.length], ['active', 'Active', banners.filter(b => b.status === 'active').length], ['pending', 'Pending', banners.filter(b => b.status === 'pending').length], ['expired', 'Expired', banners.filter(b => b.status === 'expired').length], ['premium', 'Premium', banners.filter(b => b.plan === 'premium').length]]}
@@ -1040,7 +1239,7 @@ export default function AdminScreen() {
             />
             <Text style={styles.resultCount}>{filteredBanners.length} promotions</Text>
             {filteredBanners.map(b => {
-              const planColor = { basic: C.blue, popular: C.orange, premium: C.purple }[b.plan] || C.orange;
+              const planColor = { basic: C.blue, popular: C.orange, premium: C.purple, admin: C.green }[b.plan] || C.orange;
               const pm = PROMO_PLANS[b.plan] || { price: 0, days: 0 };
               return (
                 <View key={b.id} style={[styles.promoCard, { borderLeftColor: b.accent_color || C.orange }]}>
@@ -1049,15 +1248,35 @@ export default function AdminScreen() {
                     <Text style={styles.promoTag}>{b.tagline || b.category || ''}</Text>
                     <View style={styles.promoMeta}>
                       <Chip label={b.status} type={b.status === 'active' ? 'green' : b.status === 'pending' ? 'pending' : 'red'} />
-                      <Chip label={b.plan} type="gray" />
+                      <Chip label={b.plan === 'admin' ? '👑 Admin' : b.plan} type={b.plan === 'admin' ? 'green' : 'gray'} />
                       <Chip label={b.category || '—'} type="gray" />
+                    </View>
+                    {/* Admin action buttons */}
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                      <TouchableOpacity
+                        style={[styles.bannerActionBtn, { backgroundColor: b.status === 'active' ? C.orangeLight : C.greenLight }]}
+                        onPress={() => toggleBannerStatus(b)}
+                      >
+                        <Text style={[styles.bannerActionBtnText, { color: b.status === 'active' ? C.orange : C.green }]}>
+                          {b.status === 'active' ? '⏸ Pause' : '▶ Activate'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.bannerActionBtn, { backgroundColor: '#fee2e2' }]}
+                        onPress={() => Alert.alert('Delete Banner', `Delete banner for "${b.biz_name}"?`, [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Delete', style: 'destructive', onPress: () => deleteAdminBanner(b.id) },
+                        ])}
+                      >
+                        <Text style={[styles.bannerActionBtnText, { color: '#dc2626' }]}>🗑 Delete</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={[styles.promoPlanPrice, { color: planColor }]}>
-                      ₹{b.plan_price || pm.price}
+                      {b.plan === 'admin' ? 'Free' : `₹${b.plan_price || pm.price}`}
                     </Text>
-                    <Text style={{ fontSize: 10, color: C.text3 }}>{b.plan_days || pm.days} days</Text>
+                    <Text style={{ fontSize: 10, color: C.text3 }}>{b.plan_days || pm.days || 365} days</Text>
                     <Text style={{ fontSize: 10, color: C.text3, marginTop: 2 }}>
                       Exp: {b.expires_at ? new Date(b.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}
                     </Text>
@@ -1565,6 +1784,27 @@ const styles = StyleSheet.create({
   promoTag: { fontSize: 11, color: C.text2, marginTop: 2 },
   promoMeta: { flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' },
   promoPlanPrice: { fontSize: 15, fontWeight: '800' },
+
+  // Admin post banner button
+  adminPostBtn: { backgroundColor: C.orange, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center' },
+  adminPostBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  // Admin post banner form
+  adminPostForm: { backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 16 },
+  adminPostFormTitle: { fontSize: 16, fontWeight: '700', color: C.text, marginBottom: 14 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: C.text2, marginBottom: 4 },
+  input: { backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: C.text, marginBottom: 12 },
+  styleChip: { borderWidth: 1, borderColor: C.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
+  styleChipActive: { backgroundColor: C.orange, borderColor: C.orange },
+  styleChipText: { fontSize: 13, color: C.text2 },
+  colorDot: { width: 28, height: 28, borderRadius: 14 },
+  colorDotSelected: { borderWidth: 3, borderColor: C.text },
+  adminPostSubmitBtn: { backgroundColor: C.orange, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
+  adminPostSubmitBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  // Banner action buttons
+  bannerActionBtn: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5 },
+  bannerActionBtnText: { fontSize: 12, fontWeight: '600' },
 
   // User row
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.surface, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 12, marginBottom: 8 },
