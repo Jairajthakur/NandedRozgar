@@ -341,6 +341,20 @@ export default function PromoBanner({ data, promo: promoAlias }) {
   const src = data || promoAlias;
   if (!src) return null;
 
+  const bannerImage = src.bannerImage || src.banner_image || null;
+
+  // ── Image banner: admin uploaded a real image — render it directly ──
+  if (bannerImage) {
+    return (
+      <ImageBanner
+        imageUrl={bannerImage}
+        phone={src.phone || src.contact || ''}
+        website={src.website || ''}
+      />
+    );
+  }
+
+  // ── Layout banner: generated from text + colour template ──
   const name     = src.bizName || src.businessName || src.biz_name || src.name || '';
   const offer    = src.tagline || src.offer || '';
   const loc      = src.location || src.city || '';
@@ -363,6 +377,47 @@ export default function PromoBanner({ data, promo: promoAlias }) {
     />
   );
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   IMAGE BANNER — renders an admin-uploaded image directly
+   Tapping opens phone/website if provided.
+═══════════════════════════════════════════════════════════════ */
+import { Image } from 'react-native';
+
+function ImageBanner({ imageUrl, phone, website }) {
+  const handlePress = () => {
+    if (website) {
+      const url = website.startsWith('http') ? website : 'https://' + website;
+      Linking.openURL(url).catch(() => {});
+    } else if (phone) {
+      Linking.openURL('tel:' + phone).catch(() => {});
+    }
+  };
+
+  const tappable = !!(phone || website);
+
+  const inner = (
+    <Image
+      source={{ uri: imageUrl }}
+      style={ib.image}
+      resizeMode="cover"
+    />
+  );
+
+  if (tappable) {
+    return (
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.9} style={ib.wrap}>
+        {inner}
+      </TouchableOpacity>
+    );
+  }
+  return <View style={ib.wrap}>{inner}</View>;
+}
+
+const ib = StyleSheet.create({
+  wrap:  { borderRadius: 14, overflow: 'hidden', width: '100%' },
+  image: { width: '100%', height: 160 },
+});
 
 /* ─── BannerPreview styles ─────────────────────────────────── */
 const pb = StyleSheet.create({
