@@ -474,26 +474,34 @@ router.post('/verify', auth, (req, res) =>
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/room', auth, (req, res) => {
   const { room } = req.body;
-  if (!room?.rent || !room?.area || !room?.whatsapp) {
-    return res.json({ ok: false, error: 'Rent, area, and WhatsApp are required.' });
+  const isSale = room?.listingPurpose === 'sale';
+  if (!isSale && !room?.rent) return res.json({ ok: false, error: 'Rent is required.' });
+  if (isSale && !room?.salePrice) return res.json({ ok: false, error: 'Sale price is required.' });
+  if (!room?.area || !room?.whatsapp) {
+    return res.json({ ok: false, error: 'Area and WhatsApp are required.' });
   }
   return sharedVerify(req, res, 'room', async (client, req, { planDays, expiresAt, expectedAmount }) => {
     const { room, plan } = req.body;
     const { rows } = await client.query(`
       INSERT INTO rooms (posted_by,room_type,for_gender,furnished,floor,total_floors,bhk_size,facing,vacancies,
         rent,deposit,maintenance,broker_free,amenities,rules,available_from,tenant_pref,area,address,landmark,
-        owner_name,whatsapp,description,photos,plan_days,plan_label,plan_price,expires_at,district)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29) RETURNING *`,
+        owner_name,whatsapp,description,photos,plan_days,plan_label,plan_price,expires_at,district,
+        listing_purpose,sale_price,carpet_area,property_age)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33) RETURNING *`,
       [req.user.id, room.roomType || 'PG', room.forGender || 'Any', room.furnished || 'Semi-furnished',
        room.floor || '', room.totalFloors || '', room.bhkSize || '', room.facing || '',
-       parseInt(room.vacancies) || 1, room.rent, room.deposit || '', room.maintenance || '',
+       parseInt(room.vacancies) || 1, room.rent || '0', room.deposit || '', room.maintenance || '',
        room.brokerFree !== false,
        JSON.stringify(room.amenities || []), JSON.stringify(room.rules || []),
        room.availableFrom || 'Immediately', room.tenantPref || 'Any', room.area, room.address || '',
        room.landmark || '', room.ownerName || '', room.whatsapp, room.description || '',
        JSON.stringify(room.photos || []),
        planDays, room.planLabel || plan || '1 Month', expectedAmount, expiresAt,
-       room.district || 'nanded']);
+       room.district || 'nanded',
+       room.listingPurpose || 'rent',
+       room.salePrice ? parseInt(room.salePrice) : null,
+       room.carpetArea || null,
+       room.propertyAge || null]);
     return { room: rows[0] };
   });
 });
