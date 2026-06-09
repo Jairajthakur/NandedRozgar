@@ -760,39 +760,54 @@ router.post('/post/buysell', async (req, res) => {
 
 // ── POST /api/admin/post/banner ───────────────────────────────────────────────
 // Admin can post a free promotional banner directly (bypasses payment).
-// Inserts into business_promotions with plan='admin' and a 365-day expiry.
+// Supports two modes:
+//   1. Image banner: provide bannerImage URL — shown as a full image in the app
+//   2. Layout banner: provide bizName + fields — rendered using a colour template
 router.post('/post/banner', async (req, res) => {
   try {
     const {
+      bannerImage,
       bizName, tagline, phone, category, location,
       address, website, description, timing,
       bannerStyle, accentColor,
     } = req.body;
 
-    if (!bizName?.trim())  return res.json({ ok: false, error: 'Business name is required.' });
-    if (!phone?.trim())    return res.json({ ok: false, error: 'Contact number is required.' });
-    if (!category?.trim()) return res.json({ ok: false, error: 'Category is required.' });
-    if (!location?.trim()) return res.json({ ok: false, error: 'Location is required.' });
+    // Image banner only needs the image URL (+ optional phone/website for tap action)
+    const isImageBanner = !!bannerImage;
+
+    if (!isImageBanner) {
+      if (!bizName?.trim())   return res.json({ ok: false, error: 'Business name is required.' });
+      if (!phone?.trim())     return res.json({ ok: false, error: 'Contact number is required.' });
+      if (!category?.trim())  return res.json({ ok: false, error: 'Category is required.' });
+      if (!location?.trim())  return res.json({ ok: false, error: 'Location is required.' });
+    }
 
     const BANNER_COLORS = { bold: '#e82828', clean: '#f97316', vivid: '#f97316' };
-    const style      = bannerStyle || 'bold';
-    const color      = accentColor || BANNER_COLORS[style] || '#f97316';
-    const expiresAt  = adminExpiry();
+    const style     = bannerStyle || 'bold';
+    const color     = accentColor || BANNER_COLORS[style] || '#f97316';
+    const expiresAt = adminExpiry();
 
     const { rows } = await pool.query(
       `INSERT INTO business_promotions
          (user_id, biz_name, tagline, phone, category, location, address,
           website, description, timing, plan, plan_price, plan_days,
-          banner_style, accent_color, status, expires_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'admin',0,${ADMIN_EXPIRY_DAYS},$11,$12,'active',$13)
+          banner_style, accent_color, banner_image, status, expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'admin',0,${ADMIN_EXPIRY_DAYS},$11,$12,$13,'active',$14)
        RETURNING *`,
       [
         req.user.id,
-        bizName.trim(), tagline?.trim() || null, phone.trim(),
-        category.trim(), location.trim(), address?.trim() || null,
-        website?.trim() || null, description?.trim() || null,
+        (bizName || '').trim() || null,
+        tagline?.trim() || null,
+        (phone || '').trim() || null,
+        (category || '').trim() || null,
+        (location || '').trim() || null,
+        address?.trim() || null,
+        website?.trim() || null,
+        description?.trim() || null,
         timing?.trim() || null,
-        style, color, expiresAt,
+        style, color,
+        bannerImage || null,
+        expiresAt,
       ]
     );
 
