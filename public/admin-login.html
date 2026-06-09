@@ -979,39 +979,58 @@ function buildPostForm(service) {
       </form>`,
 
     banner: `
-      <form id="admin-post-form" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+      <div style="display:flex;flex-direction:column;gap:20px;max-width:640px">
         <div style="background:var(--orange-bg);border:1px solid var(--orange);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:var(--orange)">
-          📣 Admin promotional banners are posted <strong>free of charge</strong> and appear across all app screens for <strong>365 days</strong>.
+          📣 Upload a banner image — it will display exactly as-is across all app screens for <strong>365 days</strong>, free of charge.
         </div>
-        ${field('Business Name *', inp('bizName','e.g. Sharma Medical Store','text',true))}
-        ${field('Tagline', inp('tagline','e.g. Best prices in Nanded — short catchy line'))}
-        ${row(field('Phone *', inp('phone','10-digit mobile number','text',true)), field('Category *', inp('category','e.g. Medical, Food, Education','text',true)))}
-        ${row(field('Location *', inp('location','e.g. Nanded, Latur','text',true)), field('Address', inp('address','Full address (optional)')))}
-        ${row(field('Website', inp('website','https://… (optional)')), field('Timing', inp('timing','e.g. Mon–Sat 9 AM – 8 PM')))}
-        ${field('Description', ta('description','Short description of the business (optional)',3))}
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <label style="font-size:12px;color:var(--text3);display:block">Banner Style</label>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            ${['bold','clean','vivid'].map(s => `
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text2)">
-                <input type="radio" name="bannerStyle" value="${s}" ${s==='bold'?'checked':''} style="accent-color:var(--orange)">
-                ${s.charAt(0).toUpperCase()+s.slice(1)}
-              </label>`).join('')}
+
+        <!-- Image upload area -->
+        <div id="banner-drop-zone"
+          onclick="document.getElementById('banner-file-input').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--orange)'"
+          ondragleave="this.style.borderColor='var(--border)'"
+          ondrop="event.preventDefault();this.style.borderColor='var(--border)';handleBannerDrop(event)"
+          style="border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:border-color 0.2s;background:var(--surface2)">
+          <div style="font-size:36px;margin-bottom:10px">🖼️</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Click or drag & drop your banner image</div>
+          <div style="font-size:12px;color:var(--text3)">Recommended: 1200×400 px · JPG or PNG · max 5 MB</div>
+          <input type="file" id="banner-file-input" accept="image/*" style="display:none" onchange="handleBannerFileSelect(this)">
+        </div>
+
+        <!-- Preview -->
+        <div id="banner-preview-wrap" style="display:none;flex-direction:column;gap:10px">
+          <div style="font-size:12px;color:var(--text3)">Preview</div>
+          <img id="banner-preview-img" src="" alt="Banner preview"
+            style="width:100%;border-radius:10px;border:1px solid var(--border);max-height:220px;object-fit:cover">
+          <button onclick="clearBannerImage()"
+            style="align-self:flex-start;padding:6px 14px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:6px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif">
+            ✕ Remove image
+          </button>
+        </div>
+
+        <!-- Optional tap action -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:13px;font-weight:600;color:var(--text2)">When user taps the banner (optional)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:12px;color:var(--text3)">Phone number</label>
+              <input id="banner-phone" type="tel" placeholder="10-digit number"
+                style="padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:12px;color:var(--text3)">Website URL</label>
+              <input id="banner-website" type="url" placeholder="https://…"
+                style="padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif">
+            </div>
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <label style="font-size:12px;color:var(--text3);display:block">Accent Colour</label>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            ${[['#e82828','Red'],['#f97316','Orange'],['#7c3aed','Purple'],['#0ea5e9','Blue'],['#16a34a','Green']].map(([clr,lbl]) => `
-              <label title="${lbl}" style="cursor:pointer">
-                <input type="radio" name="accentColor" value="${clr}" ${clr==='#e82828'?'checked':''} style="display:none">
-                <span style="display:inline-block;width:26px;height:26px;border-radius:50%;background:${clr};border:2px solid transparent;transition:border 0.15s"
-                  onclick="this.style.border='2px solid var(--text)';document.querySelectorAll('[name=accentColor]').forEach(r=>{r.parentElement.querySelector('span').style.border='2px solid transparent'});this.style.border='3px solid var(--text)'"></span>
-              </label>`).join('')}
-          </div>
-        </div>
-        ${submitBtn}
-      </form>`,
+
+        <div id="banner-post-result" style="font-size:13px;min-height:20px"></div>
+        <button onclick="submitAdminBanner()"
+          style="padding:11px 32px;background:var(--orange);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
+          📣 Post Banner (No Payment)
+        </button>
+      </div>`,
   };
   return forms[service] || '';
 }
@@ -1101,6 +1120,88 @@ function removeAdminPhoto(url, el) {
   const status = document.getElementById('photo-upload-status');
   if (status) status.innerHTML = `<span style="color:var(--green)">${window._adminPhotos.length} photo(s) uploaded</span>`;
 }
+
+// ── Banner image upload helpers ───────────────────────────────────────────────
+window._bannerImageUrl = null;
+
+function handleBannerFileSelect(input) {
+  const file = input.files[0];
+  if (file) processBannerFile(file);
+}
+
+function handleBannerDrop(event) {
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) processBannerFile(file);
+}
+
+async function processBannerFile(file) {
+  const result = document.getElementById('banner-post-result');
+  result.innerHTML = `<span style="color:var(--text3)">Uploading image…</span>`;
+
+  // Compress
+  const base64 = await new Promise((res, rej) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1400;
+      let { width: w, height: h } = img;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      res(c.toDataURL('image/jpeg', 0.88));
+    };
+    img.onerror = rej;
+    img.src = url;
+  });
+
+  const d = await api('POST', '/api/upload/image', { image: base64, folder: 'cityplus/banners' });
+  if (d.ok && d.url) {
+    window._bannerImageUrl = d.url;
+    document.getElementById('banner-preview-img').src = d.url;
+    document.getElementById('banner-preview-wrap').style.display = 'flex';
+    document.getElementById('banner-drop-zone').style.display = 'none';
+    result.innerHTML = `<span style="color:var(--green)">✅ Image uploaded</span>`;
+  } else {
+    result.innerHTML = `<span style="color:var(--red)">⚠ Upload failed: ${d.error || 'Unknown error'}</span>`;
+  }
+}
+
+function clearBannerImage() {
+  window._bannerImageUrl = null;
+  document.getElementById('banner-preview-wrap').style.display = 'none';
+  document.getElementById('banner-drop-zone').style.display = 'block';
+  document.getElementById('banner-file-input').value = '';
+  document.getElementById('banner-post-result').innerHTML = '';
+}
+
+async function submitAdminBanner() {
+  const result = document.getElementById('banner-post-result');
+  if (!window._bannerImageUrl) {
+    result.innerHTML = `<span style="color:var(--red)">⚠ Please upload a banner image first.</span>`;
+    return;
+  }
+  const phone   = (document.getElementById('banner-phone')?.value   || '').trim();
+  const website = (document.getElementById('banner-website')?.value || '').trim();
+
+  result.innerHTML = `<span style="color:var(--text3)">Posting…</span>`;
+  const d = await api('POST', '/api/admin/post/banner', {
+    bannerImage: window._bannerImageUrl,
+    phone:   phone   || undefined,
+    website: website || undefined,
+  });
+  if (d.ok) {
+    result.innerHTML = `<span style="color:var(--green)">✅ Banner posted! It will appear across all app screens.</span>`;
+    clearBannerImage();
+    document.getElementById('banner-phone').value   = '';
+    document.getElementById('banner-website').value = '';
+  } else {
+    result.innerHTML = `<span style="color:var(--red)">⚠ ${d.error || 'Failed to post banner.'}</span>`;
+  }
+}
+
+
 
 async function submitAdminPost() {
   const form = document.getElementById('admin-post-form');
