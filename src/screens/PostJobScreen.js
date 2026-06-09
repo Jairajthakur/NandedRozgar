@@ -832,6 +832,31 @@ export default function PostJobScreen() {
             <Dropdown value={experience} options={EXPERIENCE_OPTIONS} placeholder="Select experience" onSelect={setExperience} />
 
             <View style={{ height: 18 }} />
+            <SectionLabel text="EDUCATION REQUIRED" />
+            {EDUCATION_OPTIONS.map(opt => (
+              <RadioRow
+                key={opt.id}
+                label={opt.label}
+                sub={opt.sub || null}
+                active={education === opt.id}
+                onPress={() => setEducation(opt.id)}
+              />
+            ))}
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="WORKING HOURS" />
+            <View style={s.chipsWrap}>
+              {WORKING_HOURS_OPTIONS.map(wh => {
+                const on = workHours === wh;
+                return (
+                  <TouchableOpacity key={wh} style={[s.chip, on && s.chipOn]} onPress={() => setWorkHours(wh)} activeOpacity={0.8}>
+                    <Text style={[s.chipTxt, on && s.chipTxtOn]}>{wh}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={{ height: 18 }} />
             <SectionLabel text="SKILLS REQUIRED" />
             <View style={s.chipsWrap}>
               {SKILLS_LIST.map(skill => {
@@ -843,6 +868,17 @@ export default function PostJobScreen() {
                 );
               })}
             </View>
+
+            <View style={{ height: 18 }} />
+            <SectionLabel text="REQUIREMENTS / ELIGIBILITY" />
+            <StyledInput
+              value={requirements}
+              onChangeText={setRequirements}
+              placeholder="e.g. Must have own bike, Age 18–35, Local candidate preferred…"
+              multiline
+              numberOfLines={3}
+              maxLength={500}
+            />
 
             <View style={{ height: 18 }} />
             <SectionLabel text="JOB DESCRIPTION" />
@@ -932,7 +968,10 @@ export default function PostJobScreen() {
               <ReviewRow label="WHATSAPP"  value={whatsapp || 'Not set'} />
               {!!company    && <ReviewRow label="COMPANY"  value={company} />}
               {!!location   && <ReviewRow label="LOCATION" value={location} />}
-              {skills.length > 0 && <ReviewRow label="SKILLS" value={skills.join(', ')} />}
+              {skills.length > 0      && <ReviewRow label="SKILLS"       value={skills.join(', ')} />}
+              {!!education && education !== 'none' && <ReviewRow label="EDUCATION"    value={eduLabel} />}
+              {!!workHours               && <ReviewRow label="WORK HOURS"   value={workHours} />}
+              {!!requirements            && <ReviewRow label="REQUIREMENTS" value={requirements} />}
             </View>
             <View style={s.planSummaryBox}>
               <Ionicons name="calendar-outline" size={18} color={ORANGE} />
