@@ -20,24 +20,141 @@ const TOTAL_STEPS = 3;
 
 // ── Static Data ───────────────────────────────────────────────────────────────
 
-const INDUSTRIES = [
-  'Delivery & Logistics', 'Driver', 'Security', 'Construction',
-  'Domestic Help', 'TeleCaller', 'Shop Assistant', 'Data Entry',
-  'Teaching', 'Other',
+// ── Grouped job categories for Tier-2/3 cities ───────────────────────────────
+// Each sector has an emoji icon + label + array of specific job roles.
+// Users tap a role chip; the sector name is stored as the category.
+const JOB_SECTORS = [
+  {
+    sector: 'Food & Hospitality',
+    icon: '🍽️',
+    roles: [
+      'Cafe / Tea Stall Boy', 'Hotel Waiter', 'Cook / Chef', 'Kitchen Helper',
+      'Dhaba Worker', 'Bakery Staff', 'Sweet Shop Worker', 'Tiffin Service',
+      'Canteen Staff', 'Bar / Restaurant Staff',
+    ],
+  },
+  {
+    sector: 'Security & Facility',
+    icon: '🛡️',
+    roles: [
+      'Security Guard', 'Night Watchman', 'Bouncer', 'Parking Attendant',
+      'Housekeeping / Cleaner', 'Sweeper', 'Gardener / Mali', 'Pest Control',
+    ],
+  },
+  {
+    sector: 'Delivery & Logistics',
+    icon: '🚚',
+    roles: [
+      'Delivery Boy (2-Wheeler)', 'Courier Executive', 'Loader / Unloader',
+      'Warehouse Helper', 'Packing Staff', 'Godown Worker', 'Supply Boy',
+    ],
+  },
+  {
+    sector: 'Driver & Transport',
+    icon: '🚗',
+    roles: [
+      'Auto Driver', 'Car Driver', 'Truck Driver', 'Bus / Tempo Driver',
+      'Cab Driver (Ola/Uber)', 'School Van Driver', 'Tractor Operator',
+    ],
+  },
+  {
+    sector: 'Shop & Retail',
+    icon: '🏪',
+    roles: [
+      'Shop Assistant / Helper', 'Salesman', 'Cashier', 'Billing Operator',
+      'Showroom Staff', 'Medical Shop Assistant', 'Kiryana Store Helper',
+      'Cloth / Garment Shop', 'Mobile Shop Assistant', 'Furniture Shop',
+    ],
+  },
+  {
+    sector: 'Construction & Labour',
+    icon: '🏗️',
+    roles: [
+      'Mason / Contractor', 'Painter', 'Electrician', 'Plumber',
+      'Carpenter', 'Welder / Fabricator', 'Helper / Mazdoor',
+      'Tile Fitter', 'AC Technician', 'Civil Site Worker',
+    ],
+  },
+  {
+    sector: 'Beauty & Salon',
+    icon: '💇',
+    roles: [
+      'Hair Stylist', 'Barber / Naai', 'Beautician', 'Mehendi Artist',
+      'Nail Art Technician', 'Spa / Massage Therapist', 'Makeup Artist',
+    ],
+  },
+  {
+    sector: 'Healthcare & Pharma',
+    icon: '🏥',
+    roles: [
+      'Hospital Ward Boy / Attender', 'Nursing Assistant', 'Compounder',
+      'Medical Shop Staff', 'Lab Technician', 'Ambulance Driver',
+      'Physiotherapy Assistant', 'Dental Assistant',
+    ],
+  },
+  {
+    sector: 'Office & Admin',
+    icon: '💼',
+    roles: [
+      'Data Entry Operator', 'Office Boy / Peon', 'Receptionist',
+      'Accountant', 'Computer Operator', 'Clerk', 'Tally Operator',
+      'Office Helper', 'HR Assistant', 'Back Office Executive',
+    ],
+  },
+  {
+    sector: 'Sales & Marketing',
+    icon: '📢',
+    roles: [
+      'Field Sales Executive', 'TeleCaller', 'Marketing Agent',
+      'Insurance Agent', 'Loan Agent', 'Real Estate Agent',
+      'MR / Medical Rep', 'Door-to-Door Sales',
+    ],
+  },
+  {
+    sector: 'Teaching & Coaching',
+    icon: '📚',
+    roles: [
+      'School Teacher', 'Home Tutor', 'Coaching Class Faculty',
+      'Anganwadi Worker', 'Computer Trainer', 'Spoken English Trainer',
+    ],
+  },
+  {
+    sector: 'Domestic & Household',
+    icon: '🏠',
+    roles: [
+      'Maid / Househelp', 'Cook (Home)', 'Baby Sitter / Nanny',
+      'Watchman (Residential)', 'Driver (Personal)', 'Elder Care / Patient Care',
+    ],
+  },
+  {
+    sector: 'Agriculture & Farming',
+    icon: '🌾',
+    roles: [
+      'Farm Worker / Shetkari Kamgar', 'Tractor Driver', 'Irrigation Worker',
+      'Nursery Worker', 'Pesticide Sprayer', 'Dairy / Milk Collection',
+    ],
+  },
+  {
+    sector: 'IT & Digital',
+    icon: '💻',
+    roles: [
+      'Computer Repair Technician', 'Mobile Repair Technician',
+      'Graphic Designer', 'Social Media Manager', 'Video Editor',
+      'DTP Operator', 'Software Developer',
+    ],
+  },
+  {
+    sector: 'Other',
+    icon: '🔧',
+    roles: ['Other / Custom'],
+  },
 ];
 
-const INDUSTRY_TO_CAT = {
-  'Delivery & Logistics': 'Delivery',
-  'Driver': 'Driver',
-  'Security': 'Security',
-  'Construction': 'Construction',
-  'Domestic Help': 'Domestic Help',
-  'TeleCaller': 'TeleCaller',
-  'Shop Assistant': 'Shop Assistant',
-  'Data Entry': 'Data Entry',
-  'Teaching': 'Teaching',
-  'Other': 'Other',
-};
+// Flat list of all roles for backward compat (used in dropdowns elsewhere)
+const INDUSTRIES = JOB_SECTORS.flatMap(s => s.roles);
+const INDUSTRY_TO_CAT = Object.fromEntries(
+  JOB_SECTORS.flatMap(s => s.roles.map(r => [r, s.sector]))
+);
 
 const JOB_TYPES = [
   { id: 'Full-time',        label: 'Full-time',       sub: 'Regular fixed hours, 5–6 days/week' },
@@ -92,9 +209,16 @@ const WORKING_HOURS_OPTIONS = [
 ];
 
 const SKILLS_LIST = [
-  'Marathi', 'Hindi', 'English', 'MS Excel', 'Typing',
-  'Driving Licence', '2-Wheeler', '4-Wheeler', 'Computer Basics',
+  // Languages
+  'Marathi', 'Hindi', 'English',
+  // Tech / Computer
+  'MS Excel', 'Tally', 'Typing', 'Computer Basics', 'DTP',
+  // Driving
+  'Driving Licence', '2-Wheeler', '4-Wheeler', 'Heavy Vehicle',
+  // Work skills
   'Customer Service', 'Billing / POS', 'Cooking', 'First Aid',
+  'Cash Handling', 'Unarmed Security', 'Stitching / Tailoring',
+  'Welding', 'Electrical Work', 'Plumbing',
 ];
 
 const PLANS = [
@@ -102,6 +226,95 @@ const PLANS = [
   { id: '15days', days: '15 Days', price: 79,  sub: 'featured listing – pay once' },
   { id: '30days', days: '30 Days', price: 119, sub: 'featured listing – pay once' },
 ];
+
+// ── CategoryPicker: grouped sector → role chips ──────────────────────────────
+function CategoryPicker({ selected, onSelect }) {
+  const [expanded, setExpanded] = React.useState(
+    selected
+      ? (JOB_SECTORS.find(s => s.roles.includes(selected))?.sector || null)
+      : null
+  );
+
+  return (
+    <View style={{ gap: 6 }}>
+      {JOB_SECTORS.map(({ sector, icon, roles }) => {
+        const isOpen     = expanded === sector;
+        const hasActive  = roles.includes(selected);
+        return (
+          <View key={sector}
+            style={{
+              borderWidth: 1.5,
+              borderColor: hasActive ? ORANGE : '#e5e7eb',
+              borderRadius: 12,
+              overflow: 'hidden',
+              backgroundColor: hasActive ? '#fff7ed' : '#fff',
+            }}
+          >
+            {/* Sector header row */}
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 10,
+                paddingHorizontal: 14, paddingVertical: 12,
+              }}
+              onPress={() => setExpanded(isOpen ? null : sector)}
+              activeOpacity={0.75}
+            >
+              <Text style={{ fontSize: 20 }}>{icon}</Text>
+              <Text style={{
+                flex: 1, fontSize: 14, fontWeight: '700',
+                color: hasActive ? ORANGE : '#1f2937',
+              }}>
+                {sector}
+              </Text>
+              {hasActive && (
+                <Text style={{ fontSize: 11, color: ORANGE, fontWeight: '600', marginRight: 4 }}>
+                  {selected}
+                </Text>
+              )}
+              <Ionicons
+                name={isOpen ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={hasActive ? ORANGE : '#9ca3af'}
+              />
+            </TouchableOpacity>
+
+            {/* Role chips — shown when expanded */}
+            {isOpen && (
+              <View style={{
+                flexDirection: 'row', flexWrap: 'wrap', gap: 8,
+                paddingHorizontal: 12, paddingBottom: 14,
+              }}>
+                {roles.map(role => {
+                  const active = selected === role;
+                  return (
+                    <TouchableOpacity
+                      key={role}
+                      style={{
+                        paddingVertical: 7, paddingHorizontal: 13,
+                        borderRadius: 20, borderWidth: 1.5,
+                        borderColor: active ? ORANGE : '#d1d5db',
+                        backgroundColor: active ? ORANGE + '15' : '#f9fafb',
+                      }}
+                      onPress={() => { onSelect(role); setExpanded(null); }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={{
+                        fontSize: 13, fontWeight: active ? '700' : '500',
+                        color: active ? ORANGE : '#374151',
+                      }}>
+                        {role}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
 
 // ── Reusable: Section Label ───────────────────────────────────────────────────
 
@@ -571,9 +784,12 @@ export default function PostJobScreen() {
             <StyledInput value={company} onChangeText={setCompany} placeholder="e.g. Sharma & Sons Pvt. Ltd." maxLength={100} />
 
             <View style={{ height: 18 }} />
-            <SectionLabel text="INDUSTRY / CATEGORY" />
-            <Dropdown value={industry} options={INDUSTRIES} placeholder="Select Category" onSelect={v => { setIndustry(v); if (v !== 'Other') setCustomIndustry(''); }} />
-            {industry === 'Other' && (
+            <SectionLabel text="JOB CATEGORY" />
+            <CategoryPicker
+              selected={industry}
+              onSelect={v => { setIndustry(v); if (v !== 'Other / Custom') setCustomIndustry(''); }}
+            />
+            {(industry === 'Other / Custom' || industry === 'Other') && (
               <StyledInput
                 value={customIndustry}
                 onChangeText={setCustomIndustry}
