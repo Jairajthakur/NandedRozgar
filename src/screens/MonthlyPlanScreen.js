@@ -22,6 +22,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
+import { http as apiHttp } from '../utils/api';
 import { RazorpayModal } from '../utils/cashfree';
 
 const ORANGE = '#f97316';
@@ -39,7 +40,7 @@ const FEATURES = [
 ];
 
 export default function MonthlyPlanScreen({ navigation }) {
-  const { token } = useAuth();
+  const { user } = useAuth();
 
   const [loading,   setLoading]   = useState(false);
   const [checking,  setChecking]  = useState(true);
@@ -65,37 +66,25 @@ export default function MonthlyPlanScreen({ navigation }) {
   useEffect(() => {
     (async () => {
       try {
-        const API = process.env.EXPO_PUBLIC_API_URL || 'https://thecityplus.in';
-        const res  = await fetch(`${API}/api/payments/monthly-plan/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
+        const data = await apiHttp('GET', '/api/payments/monthly-plan/status');
         setActive(data.active === true);
         setExpiresAt(data.expiresAt || null);
         await AsyncStorage.setItem('monthly_plan_active', data.active ? 'true' : 'false');
       } catch {}
       setChecking(false);
     })();
-  }, [token]);
+  }, [user]);
 
-  async function http(method, path, body) {
-    const API = process.env.EXPO_PUBLIC_API_URL || 'https://thecityplus.in';
-    const res = await fetch(`${API}${path}`, {
-      method,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return res.json();
-  }
+  // Use apiHttp from utils/api.js which auto-loads the token from SecureStore
 
   async function handleBuyPlan() {
-    if (!token) {
+    if (!user) {
       Alert.alert('Login Required', 'Please log in to buy the monthly plan.');
       return;
     }
     setLoading(true);
     try {
-      const orderRes = await http('POST', '/api/payments/order/monthly-plan', {});
+      const orderRes = await apiHttp('POST', '/api/payments/order/monthly-plan', {});
       if (!orderRes?.ok) {
         Alert.alert('Error', orderRes?.error || 'Could not create payment order.');
         setLoading(false);
@@ -137,7 +126,7 @@ export default function MonthlyPlanScreen({ navigation }) {
     // Verify
     setLoading(true);
     try {
-      const verifyRes = await http('POST', '/api/payments/verify/monthly-plan', {
+      const verifyRes = await apiHttp('POST', '/api/payments/verify/monthly-plan', {
         cashfree_order_id: result.cashfree_order_id,
       });
       if (verifyRes?.ok) {
