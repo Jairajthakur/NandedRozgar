@@ -63,15 +63,46 @@ export default function MonthlyPlanScreen({ navigation }) {
   }, []);
 
   // Check current plan status
+  // Step 1: read AsyncStorage cache immediately so the screen renders without
+  //         waiting for the network (fixes the "stuck on spinner" issue on slow
+  //         connections / Railway cold-starts).
+  // Step 2: refresh from the API in the background and update state if it differs.
   useEffect(() => {
     (async () => {
+      // ── Fast path: show cached value immediately ──────────────────────────
+      try {
+        const [cachedActive, cachedExpiry] = await Promise.all([
+          AsyncStorage.getItem('monthly_plan_active'),
+          AsyncStorage.getItem('monthly_plan_expires_at'),
+        ]);
+        if (cachedActive !== null) {
+          setActive(cachedActive === 'true');
+          if (cachedExpiry) setExpiresAt(cachedExpiry);
+          setChecking(false); // show the screen right away with cached data
+        }
+      } catch {}
+
+      // ── Slow path: verify with server in background ───────────────────────
+      // Only call the API when the user is known (token exists); if user is
+      // null the request will fail with 401 and is pointless.
+      if (!user) {
+        setChecking(false); // ensure spinner stops even with no user
+        return;
+      }
       try {
         const data = await apiHttp('GET', '/api/payments/monthly-plan/status');
-        setActive(data.active === true);
-        setExpiresAt(data.expiresAt || null);
-        await AsyncStorage.setItem('monthly_plan_active', data.active ? 'true' : 'false');
+        const serverActive  = data.active === true;
+        const serverExpiry  = data.expiresAt || null;
+        setActive(serverActive);
+        setExpiresAt(serverExpiry);
+        await AsyncStorage.setItem('monthly_plan_active', serverActive ? 'true' : 'false');
+        if (serverExpiry) {
+          await AsyncStorage.setItem('monthly_plan_expires_at', serverExpiry);
+        } else {
+          await AsyncStorage.removeItem('monthly_plan_expires_at');
+        }
       } catch {}
-      setChecking(false);
+      setChecking(false); // ensure spinner stops even if API failed
     })();
   }, [user]);
 
@@ -131,6 +162,9 @@ export default function MonthlyPlanScreen({ navigation }) {
       });
       if (verifyRes?.ok) {
         await AsyncStorage.setItem('monthly_plan_active', 'true');
+        if (verifyRes.expiresAt) {
+          await AsyncStorage.setItem('monthly_plan_expires_at', verifyRes.expiresAt);
+        }
         setActive(true);
         setExpiresAt(verifyRes.expiresAt);
         Alert.alert(
