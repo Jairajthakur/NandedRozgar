@@ -4,7 +4,9 @@
  * ✅ Web  (sticky topBar, centred max-width, card layout)
  * ✅ Mobile / APK  (SafeArea, KeyboardAvoidingView, step form)
  *
- * Place at:  src/screens/PromoteBusinessScreen.js
+ * Banner options:
+ *   1. Request banner design via WhatsApp (we design for them)
+ *   2. Upload their own ready-made banner image
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -12,22 +14,24 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, StatusBar, Alert, ActivityIndicator,
   KeyboardAvoidingView, Platform, Animated, Easing,
+  Image, Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { BannerStylePicker } from '../components/PromoBanner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useRazorpayCheckout } from '../utils/cashfree';
+import * as ImagePicker from 'expo-image-picker';
 
 const ORANGE  = '#f97316';
 const PURPLE  = '#7c3aed';
+const GREEN   = '#16a34a';
 const IS_WEB  = Platform.OS === 'web';
 
+const WHATSAPP_NUMBER = '919834308805';
+
 // ─── Plans ────────────────────────────────────────────────────────────────────
-// NOTE: Prices here MUST match the server-authoritative PROMOTION_PLANS table
-// in src/routes/payments.js (basic=₹49, popular=₹79, premium=₹99).
 const PLANS = [
   {
     id: 'basic',
@@ -73,6 +77,31 @@ const CATEGORIES = [
 const LOCATIONS = [
   'Nanded City', 'Vazirabad', 'Shivajinagar', 'Vishnupuri', 'Taroda Naka',
   'Cidco', 'Gangapur', 'Naigaon', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Other',
+];
+
+// ─── Banner mode ──────────────────────────────────────────────────────────────
+// 'whatsapp' = request us to design, 'upload' = user has their own banner
+const BANNER_MODES = [
+  {
+    id: 'whatsapp',
+    icon: 'logo-whatsapp',
+    color: '#25D366',
+    bg: '#f0fdf4',
+    border: '#86efac',
+    title: 'Request Banner Design',
+    desc: 'Fill your details & we\'ll create a beautiful banner for you via WhatsApp',
+    tag: '✦ FREE design help',
+  },
+  {
+    id: 'upload',
+    icon: 'image-outline',
+    color: ORANGE,
+    bg: '#fff7ed',
+    border: '#fed7aa',
+    title: 'Upload Your Own Banner',
+    desc: 'Already have a ready banner? Upload it directly (JPG / PNG)',
+    tag: '✦ Instant upload',
+  },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -176,7 +205,43 @@ function PlanCard({ plan, selected, onSelect }) {
   );
 }
 
-// ─── Preview Banner ───────────────────────────────────────────────────────────
+// ─── Banner Mode Card ─────────────────────────────────────────────────────────
+function BannerModeCard({ mode, selected, onSelect }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const onPressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: !IS_WEB, speed: 40, bounciness: 0 }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: !IS_WEB, speed: 22, bounciness: 8 }).start();
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={() => onSelect(mode.id)}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={[
+          s.modeCard,
+          { backgroundColor: mode.bg, borderColor: selected ? mode.color : '#e5e7eb' },
+          selected && { shadowColor: mode.color, shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 },
+        ]}
+      >
+        <View style={[s.modeIconWrap, { backgroundColor: mode.color + '18' }]}>
+          <Ionicons name={mode.icon} size={26} color={mode.color} />
+        </View>
+        <View style={s.modeText}>
+          <View style={s.modeTitleRow}>
+            <Text style={[s.modeTitle, { color: mode.color }]}>{mode.title}</Text>
+            {selected && <Ionicons name="checkmark-circle" size={16} color={mode.color} />}
+          </View>
+          <Text style={s.modeDesc}>{mode.desc}</Text>
+          <View style={[s.modeTag, { backgroundColor: mode.color + '15', borderColor: mode.border }]}>
+            <Text style={[s.modeTagTxt, { color: mode.color }]}>{mode.tag}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function PromoteBusinessScreen() {
   const nav    = useNavigation();
@@ -187,7 +252,6 @@ export default function PromoteBusinessScreen() {
   // Redirect to Login if not authenticated
   useEffect(() => {
     if (!user) {
-      // On web Alert is often blocked; navigate directly instead
       if (IS_WEB) {
         nav.navigate('Login');
       } else {
@@ -204,28 +268,88 @@ export default function PromoteBusinessScreen() {
     bizName: '', tagline: '', phone: '', category: '', location: '',
     address: '', website: '', description: '',
   });
-  const [selectedPlan, setSelectedPlan] = useState('popular');
-  const [selectedBannerStyle, setSelectedBannerStyle] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg,   setErrorMsg]   = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [selectedPlan,       setSelectedPlan]       = useState('popular');
+  const [bannerMode,         setBannerMode]         = useState(null);   // 'whatsapp' | 'upload'
+  const [uploadedBanner,     setUploadedBanner]     = useState(null);   // { uri, base64, type }
+  const [submitting,         setSubmitting]         = useState(false);
+  const [errorMsg,           setErrorMsg]           = useState('');
+  const [successMsg,         setSuccessMsg]         = useState('');
 
   const set = (key, val) => { setErrorMsg(''); setForm(prev => ({ ...prev, [key]: val })); };
 
+  // ── Pick image from gallery ─────────────────────────────────────────────────
+  const pickBanner = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permission required', 'Please allow photo access to upload your banner.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.85,
+        base64: true,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        setUploadedBanner({ uri: asset.uri, base64: asset.base64, type: asset.mimeType || 'image/jpeg' });
+        setErrorMsg('');
+      }
+    } catch (e) {
+      setErrorMsg('Could not open image picker. Please try again.');
+    }
+  };
+
+  // ── Build WhatsApp message ─────────────────────────────────────────────────
+  const openWhatsApp = () => {
+    const plan = PLANS.find(p => p.id === selectedPlan);
+    const lines = [
+      `🏪 *Business Promotion Request — NandedRozgar*`,
+      `━━━━━━━━━━━━━━━━━━━━━━`,
+      ``,
+      `*📌 Business Name:* ${form.bizName || '—'}`,
+      `*💬 Tagline / Offer:* ${form.tagline || '—'}`,
+      `*📞 Contact Number:* ${form.phone || '—'}`,
+      `*🏷️ Category:* ${form.category || '—'}`,
+      `*📍 Location:* ${form.location || '—'}`,
+      `*🏠 Address:* ${form.address || '—'}`,
+      `*🌐 Website / Social:* ${form.website || '—'}`,
+      ``,
+      `*📝 About Business:*`,
+      form.description || '—',
+      ``,
+      `━━━━━━━━━━━━━━━━━━━━━━`,
+      `*🚀 Selected Plan:* ${plan?.name || selectedPlan} — ₹${plan?.price} / ${plan?.days} days`,
+      ``,
+      `Please design a promotional banner for my business and confirm the plan. Thank you! 🙏`,
+    ];
+    const msg   = encodeURIComponent(lines.join('\n'));
+    const url   = `https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`;
+    Linking.openURL(url).catch(() =>
+      Alert.alert('WhatsApp not found', 'Please install WhatsApp or contact us directly.')
+    );
+  };
+
+  // ── Validate ───────────────────────────────────────────────────────────────
   const validate = () => {
-    if (!form.bizName.trim())  { setErrorMsg('Please enter your business name.');       return false; }
-    if (!form.phone.trim())    { setErrorMsg('Please enter a contact number.');         return false; }
-    if (!form.category)        { setErrorMsg('Please select a business category.');     return false; }
-    if (!form.location)        { setErrorMsg('Please select your location.');           return false; }
-    if (!selectedPlan)         { setErrorMsg('Please select a promotion plan.');        return false; }
-    if (!selectedBannerStyle)   { setErrorMsg('Please select a banner style.');             return false; }
+    if (!form.bizName.trim())  { setErrorMsg('Please enter your business name.');    return false; }
+    if (!form.phone.trim())    { setErrorMsg('Please enter a contact number.');      return false; }
+    if (!form.category)        { setErrorMsg('Please select a business category.');  return false; }
+    if (!form.location)        { setErrorMsg('Please select your location.');        return false; }
+    if (!selectedPlan)         { setErrorMsg('Please select a promotion plan.');     return false; }
+    if (!bannerMode)           { setErrorMsg('Please choose a banner option.');      return false; }
+    if (bannerMode === 'upload' && !uploadedBanner) {
+      setErrorMsg('Please upload your banner image.');
+      return false;
+    }
     return true;
   };
 
+  // ── Submit (payment + API) ──────────────────────────────────────────────────
   const handleSubmit = async () => {
     setErrorMsg('');
     setSuccessMsg('');
-
     if (!user) {
       setErrorMsg('You must be logged in to promote your business.');
       setTimeout(() => nav.navigate('Login'), 1800);
@@ -233,17 +357,19 @@ export default function PromoteBusinessScreen() {
     }
     if (!validate()) return;
 
+    // WhatsApp mode: just open WhatsApp — no payment here, team handles manually
+    if (bannerMode === 'whatsapp') {
+      openWhatsApp();
+      return;
+    }
+
+    // Upload mode: pay then submit
     const planObj     = PLANS.find(p => p.id === selectedPlan);
     const planPrice   = planObj?.price ?? 0;
     const amountPaise = planPrice * 100;
 
     setSubmitting(true);
     try {
-      // ── Step 1: Razorpay payment ───────────────────────────────────────────
-      // FIX: pass listingType + plan so the backend /api/payments/order can
-      // look up the server-authoritative price. Without these the server
-      // returns { ok: false, error: 'listingType and plan are required.' }
-      // which caused the Razorpay WebView to crash with "Payment Failed".
       const payResult = await initiatePayment({
         amount:      amountPaise,
         description: `Business Promotion – ${planObj?.name || selectedPlan} Plan`,
@@ -258,7 +384,6 @@ export default function PromoteBusinessScreen() {
         return;
       }
 
-      // ── Step 2: Verify payment & create promotion ──────────────────────────
       const res = await http('POST', '/api/payments/verify/promotion', {
         cashfree_order_id: payResult.free ? undefined : payResult.cashfree_order_id,
         amount: amountPaise,
@@ -272,7 +397,10 @@ export default function PromoteBusinessScreen() {
           website:     form.website,
           description: form.description,
           plan:        selectedPlan,
-          bannerStyle: selectedBannerStyle,
+          bannerMode:  'upload',
+          bannerImage: uploadedBanner?.base64
+            ? `data:${uploadedBanner.type};base64,${uploadedBanner.base64}`
+            : null,
         },
       });
 
@@ -283,7 +411,6 @@ export default function PromoteBusinessScreen() {
           res.error?.toLowerCase().includes('invalid token') ||
           res.error?.toLowerCase().includes('no token') ||
           res.error?.toLowerCase().includes('not authenticated');
-
         if (isAuth) {
           setErrorMsg('Session expired. Redirecting to login…');
           setTimeout(() => nav.navigate('Login'), 1800);
@@ -293,16 +420,13 @@ export default function PromoteBusinessScreen() {
         return;
       }
 
-      // ── Success ─────────────────────────────────────────────────────────────
-      setSuccessMsg(
-        `🎉 Your business "${form.bizName}" is now live on Jobs, Rooms, Cars & Buy-Sell pages!`
-      );
+      setSuccessMsg(`🎉 Your business "${form.bizName}" is now live!`);
       Alert.alert(
         '🎉 Promotion is Live!',
         `Your business "${form.bizName}" is now posted across all pages!`,
         [{ text: 'Done', onPress: () => nav.navigate('Main', { screen: 'Board' }) }]
       );
-    } catch (err) {
+    } catch {
       setErrorMsg('Unable to connect. Please check your internet connection.');
     } finally {
       setSubmitting(false);
@@ -310,6 +434,13 @@ export default function PromoteBusinessScreen() {
   };
 
   const selectedPlanObj = PLANS.find(p => p.id === selectedPlan);
+
+  // ── Submit button label ────────────────────────────────────────────────────
+  const submitLabel = bannerMode === 'whatsapp'
+    ? '💬 Send Request via WhatsApp'
+    : `Submit & Pay  ₹${selectedPlanObj?.price ?? '—'}`;
+
+  const submitColor = bannerMode === 'whatsapp' ? '#25D366' : ORANGE;
 
   return (
     <KeyboardAvoidingView
@@ -368,7 +499,7 @@ export default function PromoteBusinessScreen() {
                 maxLength={80}
               />
 
-              <SectionLabel text="Tagline / Offer (shown on banner)" />
+              <SectionLabel text="Tagline / Offer" />
               <StyledInput
                 value={form.tagline}
                 onChangeText={v => set('tagline', v)}
@@ -440,12 +571,56 @@ export default function PromoteBusinessScreen() {
               />
             </View>
 
-            {/* ── Banner Style Picker ── */}
-            <BannerStylePicker
-              form={form}
-              selected={selectedBannerStyle}
-              onSelect={setSelectedBannerStyle}
-            />
+            {/* ── Banner Option ── */}
+            <View style={s.section}>
+              <View style={s.sectionHead}>
+                <Ionicons name="image-outline" size={17} color={ORANGE} />
+                <Text style={s.sectionTitle}>Banner Option</Text>
+              </View>
+              <Text style={s.sectionSub}>How would you like your promotional banner?</Text>
+
+              <View style={s.modeList}>
+                {BANNER_MODES.map(mode => (
+                  <BannerModeCard
+                    key={mode.id}
+                    mode={mode}
+                    selected={bannerMode === mode.id}
+                    onSelect={setBannerMode}
+                  />
+                ))}
+              </View>
+
+              {/* WhatsApp info box */}
+              {bannerMode === 'whatsapp' && (
+                <View style={s.waInfoBox}>
+                  <Ionicons name="information-circle-outline" size={16} color="#15803d" />
+                  <Text style={s.waInfoTxt}>
+                    After tapping the button below, WhatsApp will open with your details pre-filled. Our team will design your banner and confirm your plan via WhatsApp within a few hours.
+                  </Text>
+                </View>
+              )}
+
+              {/* Upload section */}
+              {bannerMode === 'upload' && (
+                <View style={s.uploadArea}>
+                  {uploadedBanner ? (
+                    <View style={s.uploadPreviewWrap}>
+                      <Image source={{ uri: uploadedBanner.uri }} style={s.uploadPreview} resizeMode="contain" />
+                      <TouchableOpacity style={s.reuploadBtn} onPress={pickBanner} activeOpacity={0.8}>
+                        <Ionicons name="refresh-outline" size={14} color={ORANGE} />
+                        <Text style={s.reuploadTxt}>Change Image</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={s.uploadBtn} onPress={pickBanner} activeOpacity={0.8}>
+                      <Ionicons name="cloud-upload-outline" size={28} color={ORANGE} />
+                      <Text style={s.uploadBtnTitle}>Tap to Upload Banner</Text>
+                      <Text style={s.uploadBtnSub}>JPG or PNG · Recommended: 800×300 px</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
 
             {/* ── Plans ── */}
             <View style={s.section}>
@@ -466,15 +641,17 @@ export default function PromoteBusinessScreen() {
               </View>
             </View>
 
-            {/* ── Payment info note ── */}
-            <View style={s.paymentNote}>
-              <Ionicons name="information-circle-outline" size={16} color="#6b7280" />
-              <Text style={s.paymentNoteTxt}>
-                Secure payment via Razorpay (UPI, Card, Net Banking). Your promotion goes live within 24 hours of payment.
-              </Text>
-            </View>
+            {/* ── Payment note ── */}
+            {bannerMode !== 'whatsapp' && (
+              <View style={s.paymentNote}>
+                <Ionicons name="information-circle-outline" size={16} color="#6b7280" />
+                <Text style={s.paymentNoteTxt}>
+                  Secure payment via Razorpay (UPI, Card, Net Banking). Your promotion goes live within 24 hours of payment.
+                </Text>
+              </View>
+            )}
 
-            {/* ── Inline Error Banner ── */}
+            {/* ── Inline Error ── */}
             {!!errorMsg && (
               <View style={s.inlineError}>
                 <Ionicons name="alert-circle-outline" size={16} color="#dc2626" />
@@ -482,7 +659,7 @@ export default function PromoteBusinessScreen() {
               </View>
             )}
 
-            {/* ── Inline Success Banner ── */}
+            {/* ── Inline Success ── */}
             {!!successMsg && (
               <View style={s.inlineSuccess}>
                 <Ionicons name="checkmark-circle-outline" size={16} color="#16a34a" />
@@ -492,7 +669,7 @@ export default function PromoteBusinessScreen() {
 
             {/* ── Submit ── */}
             <TouchableOpacity
-              style={[s.submitBtn, submitting && { opacity: 0.7 }]}
+              style={[s.submitBtn, { backgroundColor: submitColor }, submitting && { opacity: 0.7 }]}
               onPress={handleSubmit}
               activeOpacity={0.85}
               disabled={submitting}
@@ -501,17 +678,19 @@ export default function PromoteBusinessScreen() {
                 ? <ActivityIndicator color="#fff" size="small" />
                 : (
                   <View style={s.submitInner}>
-                    <Ionicons name="megaphone-outline" size={18} color="#fff" />
-                    <Text style={s.submitTxt}>
-                      Submit Promotion · ₹{selectedPlanObj?.price ?? '—'}
-                    </Text>
+                    <Ionicons
+                      name={bannerMode === 'whatsapp' ? 'logo-whatsapp' : 'megaphone-outline'}
+                      size={18}
+                      color="#fff"
+                    />
+                    <Text style={s.submitTxt}>{submitLabel}</Text>
                   </View>
                 )
               }
             </TouchableOpacity>
 
             <Text style={s.tosNote}>
-              By submitting, you agree to our community guidelines. Your promotion goes live instantly on all pages.
+              By submitting, you agree to our community guidelines. Promotions go live within 24 hours.
             </Text>
 
           </View>
@@ -524,8 +703,8 @@ export default function PromoteBusinessScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
 
-  root:   { flex: 1, backgroundColor: '#f7f7f7' },
-  scroll: { paddingBottom: 40 },
+  root:      { flex: 1, backgroundColor: '#f7f7f7' },
+  scroll:    { paddingBottom: 40 },
   scrollWeb: { maxWidth: 680, alignSelf: 'center', width: '100%' },
 
   // Top bar
@@ -561,10 +740,10 @@ const s = StyleSheet.create({
     backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center',
     marginBottom: 14, borderWidth: 1, borderColor: '#fed7aa',
   },
-  heroTitle: { fontSize: 26, fontWeight: '900', color: '#111', lineHeight: 32, letterSpacing: -0.3 },
+  heroTitle:  { fontSize: 26, fontWeight: '900', color: '#111', lineHeight: 32, letterSpacing: -0.3 },
   heroAccent: { color: ORANGE },
-  heroSub: { fontSize: 13, color: '#888', marginTop: 6, lineHeight: 18 },
-  heroPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  heroSub:    { fontSize: 13, color: '#888', marginTop: 6, lineHeight: 18 },
+  heroPills:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   heroPill: {
     paddingVertical: 5, paddingHorizontal: 11,
     backgroundColor: '#f9fafb', borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb',
@@ -576,22 +755,20 @@ const s = StyleSheet.create({
   // Sections
   section: {
     backgroundColor: '#fff', borderRadius: 18,
-    borderWidth: 1, borderColor: '#ebebeb',
-    padding: 16, gap: 10,
+    borderWidth: 1, borderColor: '#ebebeb', padding: 16, gap: 10,
     shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 }, elevation: 1,
   },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  sectionHead:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   sectionTitle: { fontSize: 14, fontWeight: '800', color: '#111', letterSpacing: -0.1 },
-  sectionSub: { fontSize: 12, color: '#888', marginTop: -4, marginBottom: 4 },
+  sectionSub:   { fontSize: 12, color: '#888', marginTop: -4, marginBottom: 4 },
   sectionLabel: { fontSize: 12, fontWeight: '700', color: '#555', letterSpacing: 0.1, marginTop: 2 },
 
   // Input
   inputWrap: {
     height: 50, backgroundColor: '#f9f9f9', borderRadius: 12,
     borderWidth: 1.5, borderColor: '#e8e8e8',
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14,
   },
   inputText: { flex: 1, fontSize: 14, color: '#111', fontWeight: '500' },
 
@@ -599,78 +776,62 @@ const s = StyleSheet.create({
   pillGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pill: {
     paddingVertical: 7, paddingHorizontal: 13,
-    backgroundColor: '#f3f4f6', borderRadius: 20,
-    borderWidth: 1.5, borderColor: '#e5e7eb',
+    backgroundColor: '#f3f4f6', borderRadius: 20, borderWidth: 1.5, borderColor: '#e5e7eb',
   },
-  pillActive: { backgroundColor: '#fff7ed', borderColor: ORANGE },
-  pillTxt: { fontSize: 12, fontWeight: '600', color: '#555' },
+  pillActive:    { backgroundColor: '#fff7ed', borderColor: ORANGE },
+  pillTxt:       { fontSize: 12, fontWeight: '600', color: '#555' },
   pillTxtActive: { color: ORANGE },
 
-  // Banner Style Picker
-  bannerPickerWrap: {
-    backgroundColor: '#fff', borderRadius: 18,
-    borderWidth: 1, borderColor: '#ebebeb', padding: 16, gap: 10,
-    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 }, elevation: 1,
+  // Banner mode cards
+  modeList: { gap: 12 },
+  modeCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
+    borderRadius: 16, borderWidth: 2, padding: 14,
   },
-  bannerOptions: { gap: 12 },
-  bannerCardWrap: {
-    borderRadius: 14, borderWidth: 1.5, borderColor: '#e5e7eb', overflow: 'hidden',
+  modeIconWrap: {
+    width: 50, height: 50, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  bannerCanvas: {
-    height: 110, flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10, overflow: 'hidden',
+  modeText:     { flex: 1, gap: 4 },
+  modeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  modeTitle:    { fontSize: 14, fontWeight: '900', letterSpacing: -0.1 },
+  modeDesc:     { fontSize: 12, color: '#666', lineHeight: 17 },
+  modeTag: {
+    alignSelf: 'flex-start', marginTop: 4,
+    paddingVertical: 3, paddingHorizontal: 10,
+    borderRadius: 20, borderWidth: 1,
   },
-  bannerStripe: {
-    position: 'absolute', left: 0, top: 16, bottom: 16, width: 4, borderRadius: 2,
-  },
-  bannerLeft: { flex: 1, paddingLeft: 8, justifyContent: 'center', gap: 3 },
-  bannerRight: { width: 100, alignItems: 'center', gap: 8 },
-  bannerLogoBox: {
-    backgroundColor: '#e82828', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4,
-    alignSelf: 'flex-start', marginBottom: 4,
-  },
-  bannerLogoTxt: { fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 1 },
-  bannerBizBold: { fontSize: 14, fontWeight: '900', letterSpacing: -0.3 },
-  bannerOfferBold: { fontSize: 11, fontWeight: '700' },
-  bannerLocBold: { fontSize: 9, color: '#aaa', marginTop: 2 },
-  bannerOfferBox: {
-    width: 90, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
-  },
-  bannerOfferBoxLabel: { fontSize: 8, color: '#ffcccc', fontWeight: '700', letterSpacing: 1 },
-  bannerOfferBoxVal: { fontSize: 12, color: '#fff', fontWeight: '800' },
-  bannerCTA: {
-    paddingVertical: 5, paddingHorizontal: 10, borderRadius: 20,
-  },
-  bannerCTATxt: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  modeTagTxt: { fontSize: 10, fontWeight: '700', letterSpacing: 0.2 },
 
-  // Clean style
-  bannerCleanLeft: { width: 110, justifyContent: 'center', gap: 3 },
-  bannerCleanLogo: {
-    width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  // WhatsApp info box
+  waInfoBox: {
+    flexDirection: 'row', gap: 8, alignItems: 'flex-start',
+    backgroundColor: '#f0fdf4', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: '#86efac', marginTop: 4,
   },
-  bannerBizClean: { fontSize: 13, fontWeight: '800' },
-  bannerUnderline: { height: 2, width: 60, borderRadius: 1, marginVertical: 2 },
-  bannerLocClean: { fontSize: 9, color: '#888' },
-  bannerDivider: { width: 1, height: 80, marginHorizontal: 4 },
-  bannerCleanRight: { flex: 1, justifyContent: 'center', gap: 2 },
-  bannerLimitedTxt: { fontSize: 8, color: '#aaa', fontWeight: '700', letterSpacing: 1.5 },
-  bannerOfferClean: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
+  waInfoTxt: { flex: 1, fontSize: 12, color: '#166534', lineHeight: 17, fontWeight: '500' },
 
-  // Vivid style
-  bannerVividLeft: { width: 110, padding: 8, justifyContent: 'center', gap: 3 },
-  bannerLocVivid: { fontSize: 9, color: '#fff7ed', marginTop: 2 },
-  bannerVividRight: { flex: 1, alignItems: 'flex-end', justifyContent: 'center', gap: 3 },
-  bannerMegaTxt: { fontSize: 8, color: '#fff7ed', fontWeight: '700', letterSpacing: 1.5 },
-  bannerOfferVivid: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
-
-  bannerCheck: {
-    position: 'absolute', top: 8, right: 8,
-    backgroundColor: '#fff', borderRadius: 12,
+  // Upload area
+  uploadArea: { marginTop: 4 },
+  uploadBtn: {
+    borderWidth: 2, borderColor: ORANGE + '55', borderStyle: 'dashed',
+    borderRadius: 14, padding: 24, alignItems: 'center', gap: 8,
+    backgroundColor: '#fff7ed',
   },
-  bannerStyleLabel: {
-    fontSize: 11, fontWeight: '700', color: '#555', textAlign: 'center',
-    backgroundColor: '#f9f9f9', paddingVertical: 5, borderTopWidth: 1, borderTopColor: '#f0f0f0',
+  uploadBtnTitle: { fontSize: 14, fontWeight: '800', color: '#111' },
+  uploadBtnSub:   { fontSize: 11, color: '#888' },
+  uploadPreviewWrap: { gap: 10 },
+  uploadPreview: {
+    width: '100%', height: 160, borderRadius: 12,
+    borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb',
   },
+  reuploadBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 14,
+    borderRadius: 20, borderWidth: 1.5, borderColor: ORANGE,
+    backgroundColor: '#fff7ed',
+  },
+  reuploadTxt: { fontSize: 12, fontWeight: '700', color: ORANGE },
 
   // Plans
   plansWrap: { gap: 12 },
@@ -685,20 +846,20 @@ const s = StyleSheet.create({
     alignSelf: 'flex-start', paddingVertical: 3, paddingHorizontal: 10,
     borderRadius: 20, borderWidth: 1, marginBottom: 2,
   },
-  planBadgeTxt: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
-  planRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  planBadgeTxt:  { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+  planRow:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
   planDot: {
     width: 24, height: 24, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  planName: { fontSize: 16, fontWeight: '900', letterSpacing: -0.2 },
-  planDuration: { fontSize: 12, color: '#888', marginTop: 1 },
+  planName:      { fontSize: 16, fontWeight: '900', letterSpacing: -0.2 },
+  planDuration:  { fontSize: 12, color: '#888', marginTop: 1 },
   planPriceWrap: { marginLeft: 'auto', alignItems: 'flex-end' },
-  planPrice: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-  planPriceSub: { fontSize: 10, color: '#aaa', fontWeight: '500' },
-  planPerks: { gap: 6, paddingLeft: 36 },
-  perkRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  perkTxt: { fontSize: 12, color: '#444', fontWeight: '500' },
+  planPrice:     { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  planPriceSub:  { fontSize: 10, color: '#aaa', fontWeight: '500' },
+  planPerks:     { gap: 6, paddingLeft: 36 },
+  perkRow:       { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  perkTxt:       { fontSize: 12, color: '#444', fontWeight: '500' },
 
   // Payment note
   paymentNote: {
@@ -710,18 +871,17 @@ const s = StyleSheet.create({
 
   // Submit
   submitBtn: {
-    backgroundColor: ORANGE, borderRadius: 16, paddingVertical: 16,
+    borderRadius: 16, paddingVertical: 16,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 }, elevation: 4,
-    marginTop: 4,
+    shadowOpacity: 0.3, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 }, elevation: 4, marginTop: 4,
   },
   submitInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  submitTxt: { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
+  submitTxt:   { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
 
   tosNote: { fontSize: 10, color: '#bbb', textAlign: 'center', lineHeight: 14 },
 
-  // Inline feedback banners (web-safe alternative to Alert)
+  // Feedback banners
   inlineError: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     backgroundColor: '#fef2f2', borderRadius: 12, padding: 12,
