@@ -568,6 +568,16 @@ async function runMigrations() {
       );
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS uploaded_images (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        data       TEXT NOT NULL,
+        mime_type  TEXT NOT NULL DEFAULT 'image/jpeg',
+        folder     TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     // ── Indexes — covering indexes for every hot query path ───────────────────
     const indexes = [
       // users
