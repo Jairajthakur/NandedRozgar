@@ -262,10 +262,24 @@ export default function BoardScreen({ route }) {
     })();
   }, []);
 
-  // ── Jobs-only feed (promos shown in ListHeader, not interleaved) ────────────
+  // ── Chronologically interleaved feed (jobs + promos by post date) ────────────
   const interleavedFeed = useMemo(() => {
-    return filtered.map(j => ({ type: 'job', data: j, id: 'job_' + j.id }));
-  }, [filtered]);
+    const jobItems = filtered.map(j => ({
+      type: 'job',
+      data: j,
+      id:   'job_' + j.id,
+      ts:   j.timestamp || 0,
+    }));
+
+    const promoItems = livePromos.map(p => ({
+      type: 'promo',
+      data: p,
+      id:   'promo_' + p.id,
+      ts:   p.createdAt ? new Date(p.createdAt).getTime() : 0,
+    }));
+
+    return [...jobItems, ...promoItems].sort((a, b) => b.ts - a.ts);
+  }, [filtered, livePromos]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -415,21 +429,12 @@ export default function BoardScreen({ route }) {
       <FadeIn delay={180}>
         <HiringBanner onPress={() => {}} />
       </FadeIn>
-      <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
-        {livePromos.length > 0
-          ? livePromos.map(p => (
-              <View key={p.id} style={{ marginBottom: 10 }}>
-                <SponsoredLabel />
-                <BannerCard promo={p} />
-              </View>
-            ))
-          : (
-              <>
-                <SponsoredLabel />
-                <PromoBanner data={defaultJobPromo} />
-              </>
-            )}
-      </View>
+      {livePromos.length === 0 && (
+        <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+          <SponsoredLabel />
+          <PromoBanner data={defaultJobPromo} />
+        </View>
+      )}
     </>
   );
 
