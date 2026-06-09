@@ -786,17 +786,19 @@ router.post('/post/banner', async (req, res) => {
     const style     = bannerStyle || 'bold';
     const color     = accentColor || BANNER_COLORS[style] || '#f97316';
     const expiresAt = adminExpiry();
+    // business_name is the original NOT NULL column; biz_name is the newer alias added via ALTER
+    const safeBizName = (bizName || '').trim() || 'Admin Banner';
 
     const { rows } = await pool.query(
       `INSERT INTO business_promotions
-         (user_id, biz_name, tagline, phone, category, location, address,
+         (user_id, business_name, biz_name, tagline, phone, category, location, address,
           website, description, timing, plan, plan_price, plan_days,
           banner_style, accent_color, banner_image, status, expires_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'admin',0,${ADMIN_EXPIRY_DAYS},$11,$12,$13,'active',$14)
+       VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$8,$9,$10,'admin',0,${ADMIN_EXPIRY_DAYS},$11,$12,$13,'active',$14)
        RETURNING *`,
       [
         req.user.id,
-        (bizName || '').trim() || null,
+        safeBizName,
         tagline?.trim() || null,
         (phone || '').trim() || null,
         (category || '').trim() || null,
