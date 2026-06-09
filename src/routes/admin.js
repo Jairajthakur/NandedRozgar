@@ -758,4 +758,83 @@ router.post('/post/buysell', async (req, res) => {
   }
 });
 
+// ── POST /api/admin/post/banner ───────────────────────────────────────────────
+// Admin can post a free promotional banner directly (bypasses payment).
+// Inserts into business_promotions with plan='admin' and a 365-day expiry.
+router.post('/post/banner', async (req, res) => {
+  try {
+    const {
+      bizName, tagline, phone, category, location,
+      address, website, description, timing,
+      bannerStyle, accentColor,
+    } = req.body;
+
+    if (!bizName?.trim())  return res.json({ ok: false, error: 'Business name is required.' });
+    if (!phone?.trim())    return res.json({ ok: false, error: 'Contact number is required.' });
+    if (!category?.trim()) return res.json({ ok: false, error: 'Category is required.' });
+    if (!location?.trim()) return res.json({ ok: false, error: 'Location is required.' });
+
+    const BANNER_COLORS = { bold: '#e82828', clean: '#f97316', vivid: '#f97316' };
+    const style      = bannerStyle || 'bold';
+    const color      = accentColor || BANNER_COLORS[style] || '#f97316';
+    const expiresAt  = adminExpiry();
+
+    const { rows } = await pool.query(
+      `INSERT INTO business_promotions
+         (user_id, biz_name, tagline, phone, category, location, address,
+          website, description, timing, plan, plan_price, plan_days,
+          banner_style, accent_color, status, expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'admin',0,${ADMIN_EXPIRY_DAYS},$11,$12,'active',$13)
+       RETURNING *`,
+      [
+        req.user.id,
+        bizName.trim(), tagline?.trim() || null, phone.trim(),
+        category.trim(), location.trim(), address?.trim() || null,
+        website?.trim() || null, description?.trim() || null,
+        timing?.trim() || null,
+        style, color, expiresAt,
+      ]
+    );
+
+    res.json({ ok: true, banner: rows[0] });
+  } catch (err) {
+    console.error('POST /admin/post/banner error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to post banner. Please try again.' });
+  }
+});
+
+// ── DELETE /api/admin/banners/:id ─────────────────────────────────────────────
+// Admin can delete any promotional banner.
+router.delete('/banners/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM business_promotions WHERE id = $1', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /admin/banners/:id error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to delete banner.' });
+  }
+});
+
+// ── PATCH /api/admin/banners/:id/status ───────────────────────────────────────
+// Admin can toggle a banner's status (active / paused / expired).
+router.patch('/banners/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!['active', 'paused', 'expired'].includes(status))
+      return res.json({ ok: false, error: 'Invalid status value.' });
+
+    const { rows } = await pool.query(
+      'UPDATE business_promotions SET status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+    if (!rows.length) return res.json({ ok: false, error: 'Banner not found.' });
+    res.json({ ok: true, banner: rows[0] });
+  } catch (err) {
+    console.error('PATCH /admin/banners/:id/status error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to update banner status.' });
+  }
+});
+
 module.exports = router;
