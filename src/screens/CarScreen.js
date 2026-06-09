@@ -413,6 +413,25 @@ export default function CarsScreen({ route }) {
     priceRange.label !== 'Any' ? priceRange.label : null,
   ].filter(Boolean);
 
+  // ── Chronologically interleaved feed (cars + promos by post date) ─────────
+  const interleavedFeed = useMemo(() => {
+    const carItems = filtered.map(c => ({
+      type: 'car',
+      data: c,
+      id:   'car_' + c.id,
+      ts:   c.postedAt || 0,
+    }));
+
+    const promoItems = promos.map(p => ({
+      type: 'promo',
+      data: p,
+      id:   'promo_' + p.id,
+      ts:   p.createdAt ? new Date(p.createdAt).getTime() : 0,
+    }));
+
+    return [...carItems, ...promoItems].sort((a, b) => b.ts - a.ts);
+  }, [filtered, promos]);
+
   const Header = (
     <View style={IS_WEB ? ws.header : s.header}>
       {/* Title row */}
@@ -513,21 +532,12 @@ export default function CarsScreen({ route }) {
   const ListHeader = (
     <>
       <FadeIn delay={180}><TopVehiclesBanner /></FadeIn>
-      <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
-        {promos.length > 0
-          ? promos.map(p => (
-              <View key={p.id} style={{ marginBottom: 10 }}>
-                <SponsoredLabel />
-                <BannerCard promo={p} />
-              </View>
-            ))
-          : (
-              <>
-                <SponsoredLabel />
-                <PromoBanner data={defaultPromo} />
-              </>
-            )}
-      </View>
+      {promos.length === 0 && (
+        <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+          <SponsoredLabel />
+          <PromoBanner data={defaultPromo} />
+        </View>
+      )}
     </>
   );
 
@@ -675,8 +685,8 @@ export default function CarsScreen({ route }) {
 
           <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
             <FlatList
-              data={filtered}
-              keyExtractor={c => c.id}
+              data={interleavedFeed}
+              keyExtractor={item => item.id}
               contentContainerStyle={ws.list}
               showsVerticalScrollIndicator={false}
               onScroll={Animated.event(
@@ -687,9 +697,20 @@ export default function CarsScreen({ route }) {
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchCars(true)} tintColor={ORANGE} colors={[ORANGE]} />}
               ListHeaderComponent={<>{Header}{ListHeader}</>}
               ListEmptyComponent={Empty}
-              renderItem={({ item, index }) => (
-                <VehicleCard item={item} index={index} onPress={() => nav.navigate('CarDetail', { car: item })} />
-              )}
+              renderItem={({ item, index }) => {
+                if (item.type === 'promo') {
+                  return (
+                    <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+                      <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>SPONSORED</Text>
+                      </View>
+                      <BannerCard promo={item.data} />
+                    </View>
+                  );
+                }
+                return <VehicleCard item={item.data} index={index} onPress={() => nav.navigate('CarDetail', { car: item.data })} />;
+              }}
             />
           </View>
 
@@ -740,8 +761,8 @@ export default function CarsScreen({ route }) {
       <StatusBar barStyle="dark-content" backgroundColor="#f7f7f7" />
       {StickyHeader}
       <FlatList
-        data={filtered}
-        keyExtractor={c => c.id}
+        data={interleavedFeed}
+        keyExtractor={item => item.id}
         ListHeaderComponent={<>{Header}{ListHeader}</>}
         contentContainerStyle={s.list}
         ListEmptyComponent={Empty}
@@ -756,9 +777,20 @@ export default function CarsScreen({ route }) {
         )}
         scrollEventThrottle={16}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchCars(true)} tintColor={ORANGE} colors={[ORANGE]} />}
-        renderItem={({ item, index }) => (
-          <VehicleCard item={item} index={index} onPress={() => nav.navigate('CarDetail', { car: item })} />
-        )}
+        renderItem={({ item, index }) => {
+          if (item.type === 'promo') {
+            return (
+              <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
+                <View style={{ marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE }} />
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#bbb', letterSpacing: 1 }}>SPONSORED</Text>
+                </View>
+                <BannerCard promo={item.data} />
+              </View>
+            );
+          }
+          return <VehicleCard item={item.data} index={index} onPress={() => nav.navigate('CarDetail', { car: item.data })} />;
+        }}
       />
       {FilterModal}
     </View>
