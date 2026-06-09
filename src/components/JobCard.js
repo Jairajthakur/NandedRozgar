@@ -10,7 +10,7 @@ function shareJobOnWhatsApp(job) {
   const title = job.title || 'Job Opportunity';
   const company = job.company ? ` at ${job.company}` : '';
   const location = job.location ? `, ${job.location}` : '';
-  const salary = job.salary ? `\n💰 Salary: ₹${job.salary}` : '';
+  const salary = job.salary ? `\n💰 Salary: ${job.salary}` : '';
   const msg = `🔔 *Job Alert – ${title}${company}*${location}${salary}\n\n📲 Apply on NandedRozgar app!`;
   const url = `whatsapp://send?text=${encodeURIComponent(msg)}`;
   Linking.openURL(url).catch(() => {
@@ -85,7 +85,7 @@ export default function JobCard({ job, onPress, index = 0 }) {
             {/* Title + Salary */}
             <View style={s.titleRow}>
               <AutoTranslate text={job.title} lang={lang} style={s.title} numberOfLines={2} />
-              {!!job.salary && <Text style={s.salary}>₹{job.salary}</Text>}
+              {!!job.salary && <Text style={s.salary}>{job.salary}</Text>}
             </View>
 
             {/* Company · Location · Verified badge */}
