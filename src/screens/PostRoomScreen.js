@@ -22,12 +22,23 @@ const TEAL   = '#0d9488';
 const ORANGE = '#f97316';
 const TOTAL  = 5;
 
+// Property types for RENT listings
 const ROOM_TYPES = [
   { label: 'Single Room',  sub: '1 room, shared or private bathroom' },
   { label: '1 BHK Flat',   sub: '1 Bedroom + Hall + Kitchen' },
   { label: '2 BHK Flat',   sub: '2 Bedrooms + Hall + Kitchen' },
   { label: '3 BHK Flat',   sub: '3 Bedrooms + Hall + Kitchen' },
   { label: 'PG / Hostel',  sub: 'Shared accommodation with meals' },
+];
+
+// Property types for SALE listings
+const SALE_PROPERTY_TYPES = [
+  { label: 'Flat / Apartment',         sub: 'Ready-to-move or under-construction flat' },
+  { label: 'Independent House',        sub: 'Bungalow or standalone house' },
+  { label: 'Plot / Land',              sub: 'Residential or commercial plot' },
+  { label: 'Villa',                    sub: 'Luxury independent villa' },
+  { label: 'Shop / Office',            sub: 'Commercial space for sale' },
+  { label: 'Farm / Agricultural Land', sub: 'Farm land or agricultural plot' },
 ];
 const FURNISHING_OPTS = [
   { label: 'Fully Furnished',  sub: 'Bed, wardrobe, fridge, TV included' },
@@ -83,12 +94,19 @@ const PLANS = [
   { days:60,  label:'2 Months', price:169, popular:false },
   { days:90,  label:'3 Months', price:229, popular:false },
 ];
-const STEP_META = [
-  { title:'Room Details',       sub:'Tell us about the room type' },
-  { title:'Location & Rent',    sub:'Set area, rent and availability' },
-  { title:'Amenities & Photos', sub:'Add amenities, photos and contact' },
-  { title:'Choose Plan',        sub:'How long should your listing stay live?' },
-  { title:'Review & Post',      sub:'Confirm your listing before going live' },
+const STEP_META_RENT = [
+  { title:'Room Details',        sub:'Tell us about the room type' },
+  { title:'Location & Rent',     sub:'Set area, rent and availability' },
+  { title:'Amenities & Photos',  sub:'Add amenities, photos and contact' },
+  { title:'Choose Plan',         sub:'How long should your listing stay live?' },
+  { title:'Review & Post',       sub:'Confirm your listing before going live' },
+];
+const STEP_META_SALE = [
+  { title:'Property Details',    sub:'Tell us about the property' },
+  { title:'Location & Price',    sub:'Set area, sale price and possession' },
+  { title:'Features & Photos',   sub:'Add features, photos and contact' },
+  { title:'Choose Plan',         sub:'How long should your listing stay live?' },
+  { title:'Review & Post',       sub:'Confirm your listing before going live' },
 ];
 
 // ── Modal-based Picker (fixes all z-index/overlap bugs) ─────────────────────
@@ -178,17 +196,27 @@ export default function PostRoomScreen() {
   const AREAS = AREAS_BY_DISTRICT[currentDistrict?.id] || AREAS_BY_DISTRICT.nanded;
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
   const { active: hasMonthlyPlan } = useMonthlyPlan();
+  // ── Listing purpose: 'rent' | 'sale' ─────────────────────────────────────
+  const [listingPurpose, setListingPurpose] = useState('rent');
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim  = useRef(new Animated.Value(1)).current;
 
   const [form, setForm] = useState({
+    // shared
     roomType:'1 BHK Flat', furnishing:'Fully Furnished', floor:'Ground',
-    bathrooms:'1', suitableFor:'Anyone', area:(AREAS_BY_DISTRICT[currentDistrict?.id] || AREAS_BY_DISTRICT.nanded)[0],
-    landmark:'', rent:'', deposit:'', availableFrom:'Immediately',
-    amenities:[], notes:'', whatsapp:'', plan:PLANS[1],
+    bathrooms:'1', suitableFor:'Anyone',
+    area:(AREAS_BY_DISTRICT[currentDistrict?.id] || AREAS_BY_DISTRICT.nanded)[0],
+    landmark:'', amenities:[], notes:'', whatsapp:'', plan:PLANS[1],
+    // rent fields
+    rent:'', deposit:'', availableFrom:'Immediately',
+    // sale fields
+    salePropertyType:'Flat / Apartment', salePrice:'', salePossession:'Immediate',
+    saleCarpetArea:'', saleAge:'New / Under Construction',
   });
+
+  const STEP_META = listingPurpose === 'sale' ? STEP_META_SALE : STEP_META_RENT;
   // Photos stored separately (array of URIs, max 8)
   const [photos, setPhotos] = useState([null, null, null, null]);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -288,8 +316,10 @@ export default function PostRoomScreen() {
   }
 
   function next() {
-    if (step===1 && !form.roomType){ Alert.alert('Required','Select room type'); return; }
-    if (step===2 && !form.rent)    { Alert.alert('Required','Enter monthly rent'); return; }
+    if (step===1 && listingPurpose==='rent'  && !form.roomType)        { Alert.alert('Required','Select room type'); return; }
+    if (step===1 && listingPurpose==='sale'  && !form.salePropertyType){ Alert.alert('Required','Select property type'); return; }
+    if (step===2 && listingPurpose==='rent'  && !form.rent)            { Alert.alert('Required','Enter monthly rent'); return; }
+    if (step===2 && listingPurpose==='sale'  && !form.salePrice)       { Alert.alert('Required','Enter sale price'); return; }
     if (step===3 && !form.whatsapp){ Alert.alert('Required','Enter WhatsApp number'); return; }
     if (step<TOTAL) animateStep('next',()=>setStep(s=>s+1));
   }
@@ -298,8 +328,11 @@ export default function PostRoomScreen() {
   }
 
   async function submit() {
-    if (!form.rent||!form.area||!form.whatsapp){
-      Alert.alert('Missing Info','Rent, area and WhatsApp are required'); return;
+    const isSale = listingPurpose === 'sale';
+    if (isSale && !form.salePrice){ Alert.alert('Missing Info','Sale price is required'); return; }
+    if (!isSale && !form.rent)    { Alert.alert('Missing Info','Rent is required'); return; }
+    if (!form.area || !form.whatsapp){
+      Alert.alert('Missing Info','Area and WhatsApp are required'); return;
     }
     if (form.area==='Other'&&!customArea.trim()){
       Alert.alert('Missing Info','Please type your area / locality name'); return;
@@ -334,6 +367,7 @@ export default function PostRoomScreen() {
       // ── Step 2: Post listing ───────────────────────────────────────────────
       // Convert local file:// URIs → base64 data URIs so they display on all devices
       const validPhotos = await urisToBase64DataUris(photos);
+      const finalArea = form.area === 'Other' ? customArea.trim() : form.area;
       const r = await http('POST','/api/payments/verify/room',{
         cashfree_order_id: payResult.free ? undefined : payResult.cashfree_order_id,
         amount: amountPaise,
@@ -341,15 +375,27 @@ export default function PostRoomScreen() {
         days:   form.plan?.days  || 30,
         couponId: appliedCoupon?.id || null,
         room: {
-          roomType:form.roomType, furnished:form.furnishing, floor:form.floor,
-          forGender:form.suitableFor, vacancies:1, rent:form.rent,
-          deposit:form.deposit, amenities:form.amenities,
-          availableFrom:form.availableFrom, tenantPref:form.suitableFor,
-          area:form.area==='Other'?customArea.trim():form.area, landmark:form.landmark, whatsapp:form.whatsapp,
-          description:form.notes, planDays:form.plan?.days || 30,
-          planLabel:form.plan?.label || '1 Month', planPrice: planPrice,
-          photos: validPhotos,
-          district: district || 'nanded',
+          listingPurpose,
+          // rent fields
+          roomType:     listingPurpose === 'rent' ? form.roomType : form.salePropertyType,
+          furnished:    form.furnishing, floor: form.floor,
+          forGender:    form.suitableFor, vacancies: 1,
+          rent:         listingPurpose === 'rent' ? form.rent : '0',
+          deposit:      listingPurpose === 'rent' ? form.deposit : '',
+          availableFrom: listingPurpose === 'rent' ? form.availableFrom : form.salePossession,
+          tenantPref:   form.suitableFor,
+          // sale fields
+          salePrice:    listingPurpose === 'sale' ? form.salePrice : null,
+          carpetArea:   form.saleCarpetArea || null,
+          propertyAge:  form.saleAge || null,
+          // common
+          amenities:    form.amenities,
+          area:         finalArea,
+          landmark:     form.landmark, whatsapp: form.whatsapp,
+          description:  form.notes, planDays: form.plan?.days || 30,
+          planLabel:    form.plan?.label || '1 Month', planPrice: planPrice,
+          photos:       validPhotos,
+          district:     district || 'nanded',
         },
       });
       if (r.ok) {
@@ -401,14 +447,47 @@ export default function PostRoomScreen() {
           keyboardShouldPersistTaps="handled"
         >
 
-          {/* ── STEP 1: Room Details ── */}
+          {/* ── STEP 1: Room / Property Details ── */}
           {step===1&&<>
-            <Lbl>ROOM / ACCOMMODATION TYPE *</Lbl>
-            {ROOM_TYPES.map(t=>(
-              <RadioCard key={t.label} label={t.label} sub={t.sub}
-                selected={form.roomType===t.label}
-                onPress={()=>set('roomType',t.label)} color={TEAL}/>
-            ))}
+
+            {/* ── Listing Purpose Toggle ────────────────────────────────── */}
+            <Lbl>WHAT DO YOU WANT TO DO? *</Lbl>
+            <View style={s.purposeRow}>
+              <TouchableOpacity
+                style={[s.purposeBtn, listingPurpose==='rent' && s.purposeBtnActive]}
+                onPress={()=>{ setListingPurpose('rent'); set('salePropertyType','Flat / Apartment'); }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="home-outline" size={20} color={listingPurpose==='rent'?'#fff':'#555'} />
+                <Text style={[s.purposeTxt, listingPurpose==='rent'&&{color:'#fff'}]}>Rent / PG</Text>
+                <Text style={[s.purposeSub, listingPurpose==='rent'&&{color:'rgba(255,255,255,0.8)'}]}>Monthly rental</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.purposeBtn, listingPurpose==='sale' && { ...s.purposeBtnActive, backgroundColor:'#f97316', borderColor:'#f97316' }]}
+                onPress={()=>{ setListingPurpose('sale'); }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="pricetag-outline" size={20} color={listingPurpose==='sale'?'#fff':'#555'} />
+                <Text style={[s.purposeTxt, listingPurpose==='sale'&&{color:'#fff'}]}>Sell Property</Text>
+                <Text style={[s.purposeSub, listingPurpose==='sale'&&{color:'rgba(255,255,255,0.8)'}]}>Home · Flat · Plot</Text>
+              </TouchableOpacity>
+            </View>
+
+            {listingPurpose==='rent' ? <>
+              <Lbl style={{marginTop:18}}>ROOM / ACCOMMODATION TYPE *</Lbl>
+              {ROOM_TYPES.map(t=>(
+                <RadioCard key={t.label} label={t.label} sub={t.sub}
+                  selected={form.roomType===t.label}
+                  onPress={()=>set('roomType',t.label)} color={TEAL}/>
+              ))}
+            </> : <>
+              <Lbl style={{marginTop:18}}>PROPERTY TYPE *</Lbl>
+              {SALE_PROPERTY_TYPES.map(t=>(
+                <RadioCard key={t.label} label={t.label} sub={t.sub}
+                  selected={form.salePropertyType===t.label}
+                  onPress={()=>set('salePropertyType',t.label)} color={'#f97316'}/>
+              ))}
+            </>}
 
             <Lbl style={{marginTop:18}}>FURNISHING</Lbl>
             {FURNISHING_OPTS.map(f=>(
@@ -471,28 +550,63 @@ export default function PostRoomScreen() {
               placeholder="e.g. Near Bus Stand, Behind HDFC Bank"
               value={form.landmark} onChangeText={v=>set('landmark',v)}/>
 
-            <Lbl style={{marginTop:16}}>MONTHLY RENT (₹) *</Lbl>
-            <View style={s.prefixRow}>
-              <Text style={s.prefix}>₹</Text>
-              <TextInput style={s.prefixField} placeholder="e.g. 5500"
-                keyboardType="numeric" value={form.rent}
-                onChangeText={v=>set('rent',v)}/>
-            </View>
+            {listingPurpose==='rent' ? <>
+              <Lbl style={{marginTop:16}}>MONTHLY RENT (₹) *</Lbl>
+              <View style={s.prefixRow}>
+                <Text style={s.prefix}>₹</Text>
+                <TextInput style={s.prefixField} placeholder="e.g. 5500"
+                  keyboardType="numeric" value={form.rent}
+                  onChangeText={v=>set('rent',v)}/>
+              </View>
 
-            <Lbl style={{marginTop:16}}>SECURITY DEPOSIT (₹)</Lbl>
-            <View style={s.prefixRow}>
-              <Text style={s.prefix}>₹</Text>
-              <TextInput style={s.prefixField} placeholder="e.g. 11000 (2 months)"
-                keyboardType="numeric" value={form.deposit}
-                onChangeText={v=>set('deposit',v)}/>
-            </View>
+              <Lbl style={{marginTop:16}}>SECURITY DEPOSIT (₹)</Lbl>
+              <View style={s.prefixRow}>
+                <Text style={s.prefix}>₹</Text>
+                <TextInput style={s.prefixField} placeholder="e.g. 11000 (2 months)"
+                  keyboardType="numeric" value={form.deposit}
+                  onChangeText={v=>set('deposit',v)}/>
+              </View>
 
-            <Lbl style={{marginTop:16}}>AVAILABLE FROM</Lbl>
-            {AVAILABLE_FROM.map(a=>(
-              <RadioCard key={a.label} label={a.label} sub={a.sub}
-                selected={form.availableFrom===a.label}
-                onPress={()=>set('availableFrom',a.label)} color={ORANGE}/>
-            ))}
+              <Lbl style={{marginTop:16}}>AVAILABLE FROM</Lbl>
+              {AVAILABLE_FROM.map(a=>(
+                <RadioCard key={a.label} label={a.label} sub={a.sub}
+                  selected={form.availableFrom===a.label}
+                  onPress={()=>set('availableFrom',a.label)} color={ORANGE}/>
+              ))}
+            </> : <>
+              <Lbl style={{marginTop:16}}>SALE PRICE (₹) *</Lbl>
+              <View style={s.prefixRow}>
+                <Text style={s.prefix}>₹</Text>
+                <TextInput style={s.prefixField} placeholder="e.g. 4500000 (45 Lakh)"
+                  keyboardType="numeric" value={form.salePrice}
+                  onChangeText={v=>set('salePrice',v)}/>
+              </View>
+              <Text style={{fontSize:11,color:'#aaa',marginTop:4}}>
+                💡 Tip: ₹45,00,000 = 45 Lakh · ₹1,00,00,000 = 1 Crore
+              </Text>
+
+              <Lbl style={{marginTop:16}}>CARPET AREA (sq ft)</Lbl>
+              <View style={s.prefixRow}>
+                <TextInput style={s.prefixField} placeholder="e.g. 850"
+                  keyboardType="numeric" value={form.saleCarpetArea}
+                  onChangeText={v=>set('saleCarpetArea',v)}/>
+                <Text style={[s.prefix,{marginLeft:0,marginRight:6}]}>sq ft</Text>
+              </View>
+
+              <Lbl style={{marginTop:16}}>PROPERTY AGE</Lbl>
+              {['New / Under Construction','Less than 5 years','5–10 years','10+ years'].map(a=>(
+                <RadioCard key={a} label={a} sub={null}
+                  selected={form.saleAge===a}
+                  onPress={()=>set('saleAge',a)} color={ORANGE}/>
+              ))}
+
+              <Lbl style={{marginTop:16}}>POSSESSION / HANDOVER</Lbl>
+              {['Immediate','Within 3 Months','Within 6 Months','1 Year+'].map(a=>(
+                <RadioCard key={a} label={a} sub={null}
+                  selected={form.salePossession===a}
+                  onPress={()=>set('salePossession',a)} color={ORANGE}/>
+              ))}
+            </>}
           </>}
 
           {/* ── STEP 3: Amenities & Photos ── */}
@@ -611,18 +725,31 @@ export default function PostRoomScreen() {
 
           {/* ── STEP 5: Review & Post ── */}
           {step===5&&<>
-            <Text style={s.reviewH}>Review your room listing:</Text>
+            <Text style={s.reviewH}>Review your {listingPurpose==='sale'?'property sale':'room'} listing:</Text>
             <View style={s.revCard}>
-              {[['TYPE',form.roomType],['FURNISHING',form.furnishing],['FLOOR',form.floor],
-                ['BATHROOMS',form.bathrooms],['FOR',form.suitableFor]].map(([k,v])=>(
+              {(listingPurpose==='rent'
+                ? [['TYPE',form.roomType],['FURNISHING',form.furnishing],['FLOOR',form.floor],
+                   ['BATHROOMS',form.bathrooms],['FOR',form.suitableFor]]
+                : [['PURPOSE','For Sale'],['PROPERTY',form.salePropertyType],
+                   ['FURNISHING',form.furnishing],['FLOOR',form.floor]]
+              ).map(([k,v])=>(
                 <RevRow key={k} label={k} value={v}/>
               ))}
             </View>
             <View style={[s.revCard,{marginTop:12}]}>
-              {[['AREA',form.area==='Other'?(customArea.trim()||'Other'):form.area],['LANDMARK',form.landmark||'—'],
-                ['RENT',form.rent?`₹${form.rent}/mo`:'Not set'],
-                ['DEPOSIT',form.deposit?`₹${form.deposit}`:'—'],
-                ['AVAILABLE',form.availableFrom]].map(([k,v])=>(
+              {(listingPurpose==='rent'
+                ? [['AREA',form.area==='Other'?(customArea.trim()||'Other'):form.area],
+                   ['LANDMARK',form.landmark||'—'],
+                   ['RENT',form.rent?('₹'+form.rent+'/mo'):'Not set'],
+                   ['DEPOSIT',form.deposit?('₹'+form.deposit):'—'],
+                   ['AVAILABLE',form.availableFrom]]
+                : [['AREA',form.area==='Other'?(customArea.trim()||'Other'):form.area],
+                   ['LANDMARK',form.landmark||'—'],
+                   ['SALE PRICE',form.salePrice?('₹'+Number(form.salePrice).toLocaleString('en-IN')):'Not set'],
+                   ['CARPET AREA',form.saleCarpetArea?(form.saleCarpetArea+' sq ft'):'—'],
+                   ['POSSESSION',form.salePossession||'—'],
+                   ['PROPERTY AGE',form.saleAge||'—']]
+              ).map(([k,v])=>(
                 <RevRow key={k} label={k} value={v}/>
               ))}
             </View>
@@ -821,6 +948,13 @@ const s = StyleSheet.create({
   revValue:    { fontSize:13, fontWeight:'600', color:'#333',
                  maxWidth:'60%', textAlign:'right' },
   reviewPhoto: { width:100, height:75, borderRadius:10 },
+
+  purposeRow:  { flexDirection:'row', gap:10, marginBottom:4 },
+  purposeBtn:  { flex:1, alignItems:'center', gap:4, padding:14, borderRadius:14,
+                 borderWidth:2, borderColor:'#e5e5e5', backgroundColor:'#fff' },
+  purposeBtnActive: { backgroundColor:TEAL, borderColor:TEAL },
+  purposeTxt:  { fontSize:13, fontWeight:'800', color:'#333' },
+  purposeSub:  { fontSize:11, color:'#888', fontWeight:'500' },
 
   bottomBar:   { flexDirection:'row', gap:12, padding:16, backgroundColor:'#fff',
                  borderTopWidth:1, borderTopColor:'#f0f0f0' },
