@@ -257,6 +257,12 @@ async function runMigrations() {
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS expires_at   TIMESTAMPTZ`,
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS timing       VARCHAR(100)`,
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS template_id  INTEGER`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS biz_name     VARCHAR(200)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS location     VARCHAR(200)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS plan         VARCHAR(30)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS banner_mode  VARCHAR(20) DEFAULT 'whatsapp'`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS banner_image TEXT`,
 
       `ALTER TABLE seeker_profiles ADD COLUMN IF NOT EXISTS resume_url TEXT`,
 
