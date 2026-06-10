@@ -829,7 +829,13 @@ router.get('/banners', async (req, res) => {
        FROM business_promotions
        ORDER BY created_at DESC`
     );
-    res.json({ ok: true, banners: rows });
+    const banners = rows.map(b => ({
+      ...b,
+      banner_image: b.banner_image
+        ? (b.banner_image.startsWith('http') ? b.banner_image : 'https://thecityplus.in' + b.banner_image)
+        : null,
+    }));
+    res.json({ ok: true, banners });
   } catch (err) {
     console.error('GET /admin/banners error:', err);
     res.status(500).json({ ok: false, error: 'Failed to load banners.' });
