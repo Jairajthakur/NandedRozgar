@@ -152,7 +152,7 @@ router.get('/active', async (req, res) => {
         bannerStyle: p.banner_style,
         accentColor: p.accent_color || '#f97316',
         templateId:  p.template_id || null,
-        bannerImage: p.banner_image || null,
+        bannerImage: p.banner_image ? (p.banner_image.startsWith('http') ? p.banner_image : 'https://thecityplus.in' + p.banner_image) : null,
         createdAt:   p.created_at,
       },
     });
@@ -196,7 +196,7 @@ router.get('/all', async (req, res) => {
       bannerStyle: p.banner_style,
       accentColor: p.accent_color || '#f97316',
       templateId:  p.template_id || null,
-      bannerImage: p.banner_image || null,
+      bannerImage: p.banner_image ? (p.banner_image.startsWith('http') ? p.banner_image : 'https://thecityplus.in' + p.banner_image) : null,
       expiresAt:   p.expires_at,
       createdAt:   p.created_at,
     }));
