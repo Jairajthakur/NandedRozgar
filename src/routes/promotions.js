@@ -13,9 +13,9 @@ const { auth } = require('../middleware/auth');
 
 // Plan config — source of truth on the server
 const PLANS = {
-  basic:   { price: 49, days: 7  },
-  popular: { price: 79, days: 15 },
-  premium: { price: 99, days: 30 },
+  basic:   { price: 99,  days: 7  },
+  popular: { price: 149, days: 15 },
+  premium: { price: 199, days: 30 },
 };
 
 // Accent colour per banner style (used by the banner component)
