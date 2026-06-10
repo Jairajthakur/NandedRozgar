@@ -52,8 +52,9 @@ router.post('/image', auth, async (req, res) => {
             `INSERT INTO uploaded_images (data, mime_type, folder) VALUES ($1, $2, $3) RETURNING id`,
             [base64Data, mimeType, folder || null]
           );
-          const url = `/api/upload/image/${result.rows[0].id}`;
-          return res.json({ ok: true, url, publicId: result.rows[0].id });
+          const imgId = result.rows[0].id;
+          const url = `https://thecityplus.in/api/upload/image/${imgId}`;
+          return res.json({ ok: true, url, publicId: imgId });
         } catch (err) {
           console.error('[upload] DB insert error (multipart):', err.message);
           return res.json({ ok: false, error: 'Image upload failed. Please try again.' });
@@ -97,8 +98,9 @@ router.post('/image', auth, async (req, res) => {
       `INSERT INTO uploaded_images (data, mime_type, folder) VALUES ($1, $2, $3) RETURNING id`,
       [base64Data, mimeType, folder || null]
     );
-    const url = `/api/upload/image/${result.rows[0].id}`;
-    return res.json({ ok: true, url, publicId: result.rows[0].id });
+    const imgId = result.rows[0].id;
+    const url = `https://thecityplus.in/api/upload/image/${imgId}`;
+    return res.json({ ok: true, url, publicId: imgId });
   } catch (err) {
     console.error('[upload] DB insert error (json):', err.message);
     return res.json({ ok: false, error: 'Image upload failed. Please try again.' });
