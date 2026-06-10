@@ -1158,7 +1158,14 @@ async function processBannerFile(file) {
     });
 
     // Upload as multipart/form-data — avoids Railway proxy JSON body-size limit
-    const blob     = await fetch(base64).then(r => r.blob());
+    // NOTE: fetch(dataURL) can be blocked by ad-blockers; use atob() instead
+    const [meta, b64data] = base64.split(',');
+    const mimeMatch = meta.match(/:(.*?);/);
+    const mimeType  = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const byteChars = atob(b64data);
+    const byteArr   = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+    const blob      = new Blob([byteArr], { type: mimeType });
     const formData = new FormData();
     formData.append('image', blob, 'banner.jpg');
     formData.append('folder', 'cityplus/banners');
@@ -1175,6 +1182,7 @@ async function processBannerFile(file) {
       document.getElementById('banner-preview-img').src = base64; // show local preview
       document.getElementById('banner-preview-wrap').style.display = 'flex';
       document.getElementById('banner-drop-zone').style.display = 'none';
+      document.getElementById('banner-drop-zone').style.borderColor = 'var(--border)';
       result.innerHTML = `<span style="color:var(--green)">✅ Image uploaded</span>`;
     } else {
       result.innerHTML = `<span style="color:var(--red)">⚠ Upload failed: ${d.error || 'Unknown error'}</span>`;
@@ -1188,6 +1196,7 @@ function clearBannerImage() {
   window._bannerImageUrl = null;
   document.getElementById('banner-preview-wrap').style.display = 'none';
   document.getElementById('banner-drop-zone').style.display = 'block';
+  document.getElementById('banner-drop-zone').style.borderColor = 'var(--border)';
   document.getElementById('banner-file-input').value = '';
   document.getElementById('banner-post-result').innerHTML = '';
 }
@@ -1195,7 +1204,8 @@ function clearBannerImage() {
 async function submitAdminBanner() {
   const result = document.getElementById('banner-post-result');
   if (!window._bannerImageUrl) {
-    result.innerHTML = `<span style="color:var(--red)">⚠ Please upload a banner image first.</span>`;
+    result.innerHTML = `<div style="background:#fff1f1;border:1px solid var(--red);border-radius:8px;padding:10px 14px;color:var(--red);font-weight:600;font-size:13px">⚠️ Please upload a banner image first — click the upload area above.</div>`;
+    document.getElementById('banner-drop-zone').style.borderColor = 'var(--red)';
     return;
   }
   const phone   = (document.getElementById('banner-phone')?.value   || '').trim();
