@@ -793,8 +793,8 @@ router.post('/post/banner', async (req, res) => {
       `INSERT INTO business_promotions
          (user_id, biz_name, tagline, phone, category, location, address,
           website, description, timing, plan, plan_price, plan_days,
-          banner_style, accent_color, banner_image, expires_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'admin',0,${ADMIN_EXPIRY_DAYS},$11,$12,$13,$14)
+          banner_style, accent_color, banner_image, status, expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'admin',0,${ADMIN_EXPIRY_DAYS},$11,$12,$13,'active',$14)
        RETURNING *`,
       [
         req.user.id,
