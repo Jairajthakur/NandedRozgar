@@ -19,6 +19,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { loadToken, clearToken, saveToken } from '../utils/api';
 import { useNavigation } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -579,7 +581,10 @@ export default function AdminScreen() {
     location: '', address: '', website: '', description: '',
     timing: '', bannerStyle: 'bold', accentColor: '#e82828',
   });
-  const [bannerPosting, setBannerPosting] = useState(false);
+  const [bannerImageUri, setBannerImageUri]   = useState(null); // local preview URI
+  const [bannerImageUrl, setBannerImageUrl]   = useState(null); // uploaded CDN URL
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [bannerPosting, setBannerPosting]     = useState(false);
   const [userFilter, setUserFilter] = useState('all');
 
   const [jobSearch, setJobSearch] = useState('');
@@ -798,7 +803,71 @@ export default function AdminScreen() {
     else showToast(d.error || 'Failed to send', true);
   }
 
+  // ── Pick & upload a banner image from the admin's device ─────────────────
+  async function pickBannerImage() {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showToast('Photo access is required to upload a banner.', true);
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.85,
+        base64: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const asset = result.assets[0];
+      setBannerImageUri(asset.uri);
+      setBannerImageUrl(null); // reset previous upload
+
+      setBannerUploading(true);
+      const mimeType = asset.mimeType || 'image/jpeg';
+      const base64Data = `data:${mimeType};base64,${asset.base64}`;
+      const d = await apiCall('POST', '/api/upload/image', { image: base64Data, folder: 'cityplus/banners' });
+      setBannerUploading(false);
+
+      if (d.ok && d.url) {
+        setBannerImageUrl(d.url);
+        showToast('Image uploaded ✅');
+      } else {
+        setBannerImageUri(null);
+        showToast(d.error || 'Image upload failed.', true);
+      }
+    } catch (e) {
+      setBannerUploading(false);
+      showToast('Could not open image picker.', true);
+    }
+  }
+
   async function postAdminBanner() {
+    // ── Image banner path: only needs the uploaded URL ──────────────────────
+    if (bannerImageUrl) {
+      setBannerPosting(true);
+      const d = await apiCall('POST', '/api/admin/post/banner', {
+        bannerImage: bannerImageUrl,
+        phone:   bannerForm.phone   || undefined,
+        website: bannerForm.website || undefined,
+      });
+      setBannerPosting(false);
+      if (d.ok) {
+        showToast('Promotional banner posted!');
+        setBanners(prev => [d.banner, ...prev]);
+        setBannerImageUri(null);
+        setBannerImageUrl(null);
+        setBannerForm({ bizName: '', tagline: '', phone: '', category: '',
+          location: '', address: '', website: '', description: '',
+          timing: '', bannerStyle: 'bold', accentColor: '#e82828' });
+        setShowBannerForm(false);
+      } else {
+        showToast(d.error || 'Failed to post banner.', true);
+      }
+      return;
+    }
+
+    // ── Layout banner path: requires text fields ─────────────────────────────
     const { bizName, phone, category, location } = bannerForm;
     if (!bizName.trim()) return showToast('Business name is required.', true);
     if (!phone.trim())   return showToast('Phone number is required.', true);
@@ -1090,7 +1159,12 @@ export default function AdminScreen() {
             {/* ── Post Promotional Banner Form ── */}
             <TouchableOpacity
               style={[styles.adminPostBtn, { marginBottom: 12 }]}
-              onPress={() => setShowBannerForm(v => !v)}
+              onPress={() => {
+                setShowBannerForm(v => {
+                  if (v) { setBannerImageUri(null); setBannerImageUrl(null); }
+                  return !v;
+                });
+              }}
             >
               <Text style={styles.adminPostBtnText}>
                 {showBannerForm ? '✕  Cancel' : '📣  Post Promotional Banner'}
@@ -1100,6 +1174,60 @@ export default function AdminScreen() {
             {showBannerForm && (
               <View style={styles.adminPostForm}>
                 <Text style={styles.adminPostFormTitle}>New Promotional Banner</Text>
+
+                {/* ── Image Banner Upload (recommended) ── */}
+                <Text style={styles.fieldLabel}>Upload Banner Image (Recommended)</Text>
+                <Text style={{ fontSize: 12, color: C.text3, marginBottom: 8 }}>
+                  Upload your own designed banner image — it shows exactly as-is in the app. If you skip this, a colour template is used instead.
+                </Text>
+
+                {bannerImageUri ? (
+                  <View style={{ marginBottom: 12 }}>
+                    <Image
+                      source={{ uri: bannerImageUri }}
+                      style={{ width: '100%', height: 140, borderRadius: 10, resizeMode: 'cover' }}
+                    />
+                    {bannerUploading && (
+                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 10,
+                        alignItems: 'center', justifyContent: 'center' }}>
+                        <ActivityIndicator color="#fff" />
+                        <Text style={{ color: '#fff', fontSize: 12, marginTop: 6 }}>Uploading…</Text>
+                      </View>
+                    )}
+                    {!bannerUploading && (
+                      <TouchableOpacity
+                        onPress={() => { setBannerImageUri(null); setBannerImageUrl(null); }}
+                        style={{ marginTop: 6, alignSelf: 'flex-start', backgroundColor: '#fee2e2',
+                          borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 }}
+                      >
+                        <Text style={{ color: '#dc2626', fontSize: 12, fontWeight: '700' }}>✕ Remove image</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    onPress={pickBannerImage}
+                    style={{ borderWidth: 1.5, borderColor: C.orange, borderStyle: 'dashed',
+                      borderRadius: 10, paddingVertical: 20, alignItems: 'center',
+                      backgroundColor: '#fff7ed', marginBottom: 12 }}
+                  >
+                    <Text style={{ fontSize: 28 }}>🖼️</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: C.orange, marginTop: 4 }}>
+                      Tap to upload banner image
+                    </Text>
+                    <Text style={{ fontSize: 11, color: C.text3, marginTop: 2 }}>JPG, PNG supported</Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Separator */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+                  <View style={{ flex: 1, height: 1, backgroundColor: C.border }} />
+                  <Text style={{ marginHorizontal: 10, fontSize: 11, color: C.text3, fontWeight: '600' }}>
+                    {bannerImageUrl ? '✅ Image banner ready — fields below optional' : 'OR use colour template below'}
+                  </Text>
+                  <View style={{ flex: 1, height: 1, backgroundColor: C.border }} />
+                </View>
 
                 <Text style={styles.fieldLabel}>Business Name *</Text>
                 <TextInput
@@ -1220,12 +1348,12 @@ export default function AdminScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.adminPostSubmitBtn, bannerPosting && { opacity: 0.6 }]}
+                  style={[styles.adminPostSubmitBtn, (bannerPosting || bannerUploading) && { opacity: 0.6 }]}
                   onPress={postAdminBanner}
-                  disabled={bannerPosting}
+                  disabled={bannerPosting || bannerUploading}
                 >
                   <Text style={styles.adminPostSubmitBtnText}>
-                    {bannerPosting ? 'Posting…' : '📣 Post Banner (Free / Admin)'}
+                    {bannerPosting ? 'Posting…' : bannerImageUrl ? '🖼️ Post Image Banner (Free / Admin)' : '📣 Post Colour Banner (Free / Admin)'}
                   </Text>
                 </TouchableOpacity>
               </View>
