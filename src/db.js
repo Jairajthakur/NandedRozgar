@@ -267,6 +267,11 @@ async function runMigrations() {
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS plan         VARCHAR(30)`,
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS banner_mode  VARCHAR(20) DEFAULT 'whatsapp'`,
       `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS banner_image TEXT`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS business_name VARCHAR(200)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS phone        VARCHAR(15)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS category     VARCHAR(100)`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS status       VARCHAR(20) DEFAULT 'active'`,
+      `ALTER TABLE business_promotions ADD COLUMN IF NOT EXISTS views        INTEGER DEFAULT 0`,
 
       `ALTER TABLE seeker_profiles ADD COLUMN IF NOT EXISTS resume_url TEXT`,
 
