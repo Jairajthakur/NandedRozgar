@@ -110,12 +110,10 @@ app.use('/api/payments/cashfree-webhook', express.raw({ type: 'application/json'
   next();
 });
 // FIX (Bug #7): Reduce the global JSON body limit from 15 MB to 1 MB.
-// A 15 MB limit on every route means any unauthenticated caller (e.g. the
-// public /api/jobs GET) can POST 15 MB of JSON and pin server CPU/memory
-// parsing it — a trivial application-layer DoS.  1 MB is more than enough
-// for every route except image upload, which receives a base64-encoded photo.
-// That single route gets its own 15 MB limit applied below (after routes are
-// registered) so the large-body parser never runs on any other path.
+// The image upload route gets its own 15 MB parser applied FIRST (before the
+// global 1 MB parser), so large base64 image bodies are accepted only on that
+// path. All other routes are capped at 1 MB to prevent DoS.
+app.use('/api/upload/image', express.json({ limit: '15mb' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
@@ -154,11 +152,6 @@ app.use('/api/', globalLimiter);
 
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-// The image upload endpoint receives a base64-encoded photo (up to ~13.5 MB
-// encoded for a 10 MB image).  Apply the large-body parser ONLY on that path
-// so the DoS-friendly 15 MB budget never applies to any other route.
-app.use('/api/upload/image', express.json({ limit: '15mb' }));
-
 app.use('/api/auth',       require('./routes/auth'));
 app.use('/api/jobs',       require('./routes/jobs'));
 app.use('/api/payments',   require('./routes/payments'));
