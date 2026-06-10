@@ -791,15 +791,17 @@ router.post('/post/banner', async (req, res) => {
 
     const { rows } = await pool.query(
       `INSERT INTO business_promotions
-         (user_id, biz_name, tagline, location, address,
+         (user_id, business_name, biz_name, tagline, phone, category, location, address,
           website, description, timing, plan, plan_price, plan_days,
           banner_style, accent_color, banner_image, expires_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'admin',0,${ADMIN_EXPIRY_DAYS},$9,$10,$11,$12)
+       VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$8,$9,$10,'admin',0,${ADMIN_EXPIRY_DAYS},$11,$12,$13,$14)
        RETURNING *`,
       [
         req.user.id,
         safeBizName,
         tagline?.trim() || null,
+        (phone || '').trim() || '',
+        (category || '').trim() || 'General',
         (location || '').trim() || null,
         address?.trim() || null,
         website?.trim() || null,
