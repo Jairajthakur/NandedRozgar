@@ -1122,10 +1122,7 @@ function removeAdminPhoto(url, el) {
 }
 
 // ── Banner image upload helpers ───────────────────────────────────────────────
-// We store the compressed base64 data URL locally and send it directly to
-// the banner POST endpoint — no separate upload step, no 502 from a proxy
-// body-size limit on the pre-upload call.
-window._bannerImageUrl = null;   // will hold a base64 data URL
+window._bannerImageUrl = null;
 
 function handleBannerFileSelect(input) {
   const file = input.files[0];
@@ -1139,10 +1136,10 @@ function handleBannerDrop(event) {
 
 async function processBannerFile(file) {
   const result = document.getElementById('banner-post-result');
-  result.innerHTML = `<span style="color:var(--text3)">Processing image…</span>`;
+  result.innerHTML = `<span style="color:var(--text3)">Uploading image…</span>`;
 
   try {
-    // Compress & resize in-browser to ≤1400 px wide, JPEG 88%
+    // Compress & resize in-browser to ≤1400 px wide, JPEG 82% — keeps body well under 1 MB
     const base64 = await new Promise((res, rej) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
@@ -1154,18 +1151,23 @@ async function processBannerFile(file) {
         const c = document.createElement('canvas');
         c.width = w; c.height = h;
         c.getContext('2d').drawImage(img, 0, 0, w, h);
-        res(c.toDataURL('image/jpeg', 0.88));
+        res(c.toDataURL('image/jpeg', 0.82));
       };
       img.onerror = () => rej(new Error('Could not read image'));
       img.src = url;
     });
 
-    // Store the data URL — it will be sent directly when posting the banner
-    window._bannerImageUrl = base64;
-    document.getElementById('banner-preview-img').src = base64;
-    document.getElementById('banner-preview-wrap').style.display = 'flex';
-    document.getElementById('banner-drop-zone').style.display = 'none';
-    result.innerHTML = `<span style="color:var(--green)">✅ Image ready</span>`;
+    // Upload to server — get back a permanent /api/upload/image/<id> URL
+    const d = await api('POST', '/api/upload/image', { image: base64, folder: 'cityplus/banners' });
+    if (d.ok && d.url) {
+      window._bannerImageUrl = d.url;
+      document.getElementById('banner-preview-img').src = base64; // show local preview
+      document.getElementById('banner-preview-wrap').style.display = 'flex';
+      document.getElementById('banner-drop-zone').style.display = 'none';
+      result.innerHTML = `<span style="color:var(--green)">✅ Image uploaded</span>`;
+    } else {
+      result.innerHTML = `<span style="color:var(--red)">⚠ Upload failed: ${d.error || 'Unknown error'}</span>`;
+    }
   } catch (err) {
     result.innerHTML = `<span style="color:var(--red)">⚠ Could not process image: ${err.message}</span>`;
   }
