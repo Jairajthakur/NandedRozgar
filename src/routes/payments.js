@@ -134,7 +134,7 @@ const PLAN_PRICES = {
   room:      { free: 0, featured: 99, '15 days': 49, '1 month': 79, '2 months': 109, '3 months': 149 },
   vehicle:   { free: 0, featured: 99, '15 days': 49, '1 month': 79, '2 months': 109, '3 months': 149 },
   buysell:   { free: 0, featured: 49, '7 days': 49, '15 days': 79, '30 days': 99 },
-  promotion:    { basic: 49, popular: 79, premium: 99 },
+  promotion:    { basic: 99, popular: 149, premium: 199 },
   monthly_plan: { monthly: 299 },
 };
 
@@ -566,9 +566,9 @@ router.post('/verify/buysell', auth, (req, res) => {
 // POST /api/payments/verify/promotion
 // ══════════════════════════════════════════════════════════════════════════════
 const PROMOTION_PLANS = {
-  basic:   { price: 49, days: 7  },
-  popular: { price: 79, days: 15 },
-  premium: { price: 99, days: 30 },
+  basic:   { price: 99,  days: 7  },
+  popular: { price: 149, days: 15 },
+  premium: { price: 199, days: 30 },
 };
 const BANNER_COLORS = { bold: '#e82828', clean: '#f97316', vivid: '#f97316' };
 
