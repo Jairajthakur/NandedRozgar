@@ -4,11 +4,11 @@
  * Same structural layout as screenshots — only colors & style change
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   Platform,
   Animated, Linking, ScrollView, StyleSheet,
-  Text, TouchableOpacity, View,
+  Text, TouchableOpacity, View, Dimensions, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -379,10 +379,17 @@ export default function PromoBanner({ data, promo: promoAlias }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   IMAGE BANNER — renders an admin-uploaded image directly
+   IMAGE BANNER — renders an admin-uploaded image directly.
    Tapping opens phone/website if provided.
+   Automatically adapts height to the image’s real aspect ratio so
+   portrait/vertical banners display fully without cropping.
 ═══════════════════════════════════════════════════════════════ */
-import { Image } from 'react-native';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+// Card occupies full width minus 24 px horizontal margin (12 each side in BoardScreen)
+const BANNER_WIDTH = SCREEN_WIDTH - 24;
+const MIN_HEIGHT   = 120;   // never shorter than this
+const MAX_HEIGHT   = 600;   // never taller than this (stops huge portrait images)
 
 function ImageBanner({ imageUrl, phone, website }) {
   const handlePress = () => {
@@ -396,27 +403,51 @@ function ImageBanner({ imageUrl, phone, website }) {
 
   const tappable = !!(phone || website);
 
-  const inner = (
+  // ── Dynamic height — measure real image dimensions on load ──────────────────
+  // Default to a 16:9 landscape placeholder height while the image loads.
+  const [imgHeight, setImgHeight] = useState(Math.round(BANNER_WIDTH * (9 / 16)));
+
+  useEffect(() => {
+    if (!imageUrl) return;
+    if (imageUrl.startsWith('data:')) {
+      // Base64 data URI: Image.getSize does not support data: URIs in all RN
+      // versions. Use react-native Image.getSize only for http(s) URLs.
+      // For data URIs we keep the default height and let `contain` show it fully.
+      return;
+    }
+    Image.getSize(
+      imageUrl,
+      (w, h) => {
+        if (!w || !h) return;
+        // Compute natural height for the banner's display width, then clamp.
+        const natural = Math.round(BANNER_WIDTH * (h / w));
+        setImgHeight(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, natural)));
+      },
+      () => { /* keep default height on error */ }
+    );
+  }, [imageUrl]);
+
+  const imageEl = (
     <Image
       source={{ uri: imageUrl }}
-      style={ib.image}
-      resizeMode="cover"
+      style={[ib.image, { height: imgHeight }]}
+      resizeMode="contain"
     />
   );
 
   if (tappable) {
     return (
       <TouchableOpacity onPress={handlePress} activeOpacity={0.9} style={ib.wrap}>
-        {inner}
+        {imageEl}
       </TouchableOpacity>
     );
   }
-  return <View style={ib.wrap}>{inner}</View>;
+  return <View style={ib.wrap}>{imageEl}</View>;
 }
 
 const ib = StyleSheet.create({
-  wrap:  { borderRadius: 14, overflow: 'hidden', width: '100%' },
-  image: { width: '100%', height: 160 },
+  wrap:  { borderRadius: 14, overflow: 'hidden', width: '100%', backgroundColor: '#f9f9f9' },
+  image: { width: '100%' }, // height is set dynamically via inline style
 });
 
 /* ─── BannerPreview styles ─────────────────────────────────── */
