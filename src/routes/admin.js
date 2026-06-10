@@ -820,6 +820,22 @@ router.post('/post/banner', async (req, res) => {
   }
 });
 
+// ── GET /api/admin/banners ─────────────────────────────────────────────────────
+// List all banners (all statuses) for admin management.
+router.get('/banners', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, biz_name, plan, status, banner_image, banner_style, expires_at, created_at
+       FROM business_promotions
+       ORDER BY created_at DESC`
+    );
+    res.json({ ok: true, banners: rows });
+  } catch (err) {
+    console.error('GET /admin/banners error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to load banners.' });
+  }
+});
+
 // ── DELETE /api/admin/banners/:id ─────────────────────────────────────────────
 // Admin can delete any promotional banner.
 router.delete('/banners/:id', async (req, res) => {
