@@ -832,7 +832,9 @@ router.get('/banners', async (req, res) => {
     const banners = rows.map(b => ({
       ...b,
       banner_image: b.banner_image
-        ? (b.banner_image.startsWith('http') ? b.banner_image : 'https://thecityplus.in' + b.banner_image)
+        ? (b.banner_image.startsWith('http') || b.banner_image.startsWith('data:')
+            ? b.banner_image
+            : 'https://thecityplus.in' + b.banner_image)
         : null,
     }));
     res.json({ ok: true, banners });
