@@ -124,6 +124,10 @@ router.get('/active', async (req, res) => {
        FROM business_promotions
        WHERE status = 'active'
          AND (expires_at IS NULL OR expires_at > NOW())
+         AND (
+           banner_image IS NOT NULL
+           OR (biz_name IS NOT NULL AND biz_name NOT IN ('Admin Banner', 'Advertise Your Business Here') AND LENGTH(TRIM(biz_name)) > 0)
+         )
        ORDER BY RANDOM()
        LIMIT 1`
     );
@@ -170,6 +174,10 @@ router.get('/all', async (req, res) => {
        FROM business_promotions
        WHERE status = 'active'
          AND (expires_at IS NULL OR expires_at > NOW())
+         AND (
+           banner_image IS NOT NULL
+           OR (biz_name IS NOT NULL AND biz_name NOT IN ('Admin Banner', 'Advertise Your Business Here') AND LENGTH(TRIM(biz_name)) > 0)
+         )
        ORDER BY created_at DESC`
     );
 
