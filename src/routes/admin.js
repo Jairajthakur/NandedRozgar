@@ -791,10 +791,10 @@ router.post('/post/banner', async (req, res) => {
 
     const { rows } = await pool.query(
       `INSERT INTO business_promotions
-         (user_id, business_name, biz_name, tagline, phone, category, location, address,
+         (posted_by, user_id, business_name, biz_name, tagline, phone, category, location, address,
           website, description, timing, plan, plan_price, plan_days,
           banner_style, accent_color, banner_image, status, expires_at)
-       VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$8,$9,$10,'admin',0,${ADMIN_EXPIRY_DAYS},$11,$12,$13,'active',$14)
+       VALUES ($1,$1,$2,$2,$3,$4,$5,$6,$7,$8,$9,$10,'admin',0,${ADMIN_EXPIRY_DAYS},$11,$12,$13,'active',$14)
        RETURNING *`,
       [
         req.user.id,
@@ -816,7 +816,7 @@ router.post('/post/banner', async (req, res) => {
     res.json({ ok: true, banner: rows[0] });
   } catch (err) {
     console.error('POST /admin/post/banner error:', err);
-    res.status(500).json({ ok: false, error: 'Failed to post banner. Please try again.' });
+    res.status(500).json({ ok: false, error: err.message || 'Failed to post banner. Please try again.' });
   }
 });
 
