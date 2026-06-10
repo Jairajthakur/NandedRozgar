@@ -114,6 +114,7 @@ app.use('/api/payments/cashfree-webhook', express.raw({ type: 'application/json'
 // global 1 MB parser), so large base64 image bodies are accepted only on that
 // path. All other routes are capped at 1 MB to prevent DoS.
 app.use('/api/upload/image', express.json({ limit: '15mb' }));
+app.use('/api/admin/post/banner', express.json({ limit: '10mb' })); // banner payload includes image URL only but be safe
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
