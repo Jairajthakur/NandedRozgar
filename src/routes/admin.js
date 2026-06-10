@@ -789,6 +789,27 @@ router.post('/post/banner', async (req, res) => {
     // business_name is the original NOT NULL column; biz_name is the newer alias added via ALTER
     const safeBizName = (bizName || '').trim() || 'Admin Banner';
 
+    // If bannerImage is a base64 data URL (sent directly from the browser
+    // without a separate upload step), save it to uploaded_images now and
+    // replace it with the served URL so the app can load it normally.
+    let resolvedBannerImage = bannerImage || null;
+    if (resolvedBannerImage && resolvedBannerImage.startsWith('data:')) {
+      const match = resolvedBannerImage.match(/^data:(image\/[a-z+]+);base64,(.+)$/s);
+      if (match) {
+        const mimeType   = match[1];
+        const base64Data = match[2];
+        const approxBytes = (base64Data.length * 3) / 4;
+        if (approxBytes > 10 * 1024 * 1024) {
+          return res.json({ ok: false, error: 'Image too large. Maximum size is 10 MB.' });
+        }
+        const imgRow = await pool.query(
+          `INSERT INTO uploaded_images (data, mime_type, folder) VALUES ($1, $2, $3) RETURNING id`,
+          [base64Data, mimeType, 'cityplus/banners']
+        );
+        resolvedBannerImage = `/api/upload/image/${imgRow.rows[0].id}`;
+      }
+    }
+
     const { rows } = await pool.query(
       `INSERT INTO business_promotions
          (posted_by, user_id, business_name, biz_name, tagline, phone, category, location, address,
@@ -808,7 +829,7 @@ router.post('/post/banner', async (req, res) => {
         description?.trim() || null,
         timing?.trim() || null,
         style, color,
-        bannerImage || null,
+        resolvedBannerImage,
         expiresAt,
       ]
     );
