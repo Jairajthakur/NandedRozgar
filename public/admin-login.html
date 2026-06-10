@@ -200,6 +200,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <script>
 const API = '';
 let TOKEN = localStorage.getItem('admin_token') || '';
+
+// ── Global error catchers (debug) ──────────────────────────────────────────────
+window.addEventListener('unhandledrejection', e => {
+  console.error('[UNHANDLED REJECTION]', e.reason);
+});
+window.addEventListener('error', e => {
+  console.error('[GLOBAL ERROR]', e.message, e.filename, e.lineno);
+});
 let currentTab = 'overview';
 let allUsers = [], allJobs = [], allPayments = [];
 
@@ -1201,27 +1209,41 @@ function clearBannerImage() {
 }
 
 async function submitAdminBanner() {
+  console.log('[banner] submitAdminBanner() called');
+
   const result = document.getElementById('banner-post-result');
+  console.log('[banner] result el:', result);
+
   if (!window._bannerImageUrl) {
-    result.innerHTML = `<div style="background:#fff1f1;border:1px solid var(--red);border-radius:8px;padding:10px 14px;color:var(--red);font-weight:600;font-size:13px">⚠️ Please upload a banner image first — click the upload area above.</div>`;
-    document.getElementById('banner-drop-zone').style.borderColor = 'var(--red)';
+    console.log('[banner] no image URL set — aborting');
+    if (result) result.innerHTML = `<div style="background:#fff1f1;border:1px solid var(--red);border-radius:8px;padding:10px 14px;color:var(--red);font-weight:600;font-size:13px">⚠️ Please upload a banner image first — click the upload area above.</div>`;
+    const dz = document.getElementById('banner-drop-zone');
+    if (dz) dz.style.borderColor = 'var(--red)';
     return;
   }
+
+  console.log('[banner] imageUrl:', window._bannerImageUrl);
+
   const phone   = (document.getElementById('banner-phone')?.value   || '').trim();
   const website = (document.getElementById('banner-website')?.value || '').trim();
+  console.log('[banner] phone:', phone, 'website:', website);
+  console.log('[banner] TOKEN present:', !!TOKEN);
 
-  result.innerHTML = `<span style="color:var(--text3)">Posting…</span>`;
+  if (result) result.innerHTML = `<span style="color:var(--text3)">Posting…</span>`;
 
   try {
+    console.log('[banner] calling api POST /api/admin/post/banner');
     const d = await api('POST', '/api/admin/post/banner', {
       bannerImage: window._bannerImageUrl,
       phone:   phone   || undefined,
       website: website || undefined,
     });
+    console.log('[banner] api response:', JSON.stringify(d));
 
     // Re-query after await in case DOM was touched
     const r2 = document.getElementById('banner-post-result');
-    if (!r2) return; // tab was switched away
+    console.log('[banner] r2 after await:', r2);
+    if (!r2) { console.warn('[banner] result div gone after await!'); return; }
 
     if (d.ok) {
       r2.innerHTML = `<div style="background:#f0fff4;border:1px solid var(--green);border-radius:8px;padding:10px 14px;color:var(--green);font-weight:600;font-size:13px">✅ Banner posted! It will appear across all app screens.</div>`;
@@ -1231,12 +1253,16 @@ async function submitAdminBanner() {
       if (ph) ph.value = '';
       if (ws) ws.value = '';
     } else {
+      console.warn('[banner] server returned error:', d.error);
       r2.innerHTML = `<div style="background:#fff1f1;border:1px solid var(--red);border-radius:8px;padding:10px 14px;color:var(--red);font-weight:600;font-size:13px">⚠️ ${d.error || 'Failed to post banner. Please try again.'}</div>`;
     }
   } catch (err) {
+    console.error('[banner] CAUGHT exception:', err);
     const r2 = document.getElementById('banner-post-result');
     if (r2) r2.innerHTML = `<div style="background:#fff1f1;border:1px solid var(--red);border-radius:8px;padding:10px 14px;color:var(--red);font-weight:600;font-size:13px">⚠️ Unexpected error: ${err.message}</div>`;
   }
+
+  console.log('[banner] submitAdminBanner() finished');
 }
 
 
