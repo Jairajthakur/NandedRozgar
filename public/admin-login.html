@@ -205,19 +205,19 @@ let allUsers = [], allJobs = [], allPayments = [];
 
 // ── AUTH ─────────────────────────────────────────────────────────────────────
 async function api(method, path, body) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
-  const r = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  // Bug 10 fix: previously called r.json() unconditionally, swallowing HTTP
-  // error responses (4xx/5xx) and throwing an unhandled exception on non-JSON
-  // bodies. Now we check r.ok first and surface a consistent error shape so
-  // callers can always check d.ok without guessing.
-  if (!r.ok) {
-    let errMsg = 'Server error (' + r.status + ')';
-    try { const e = await r.json(); errMsg = e.error || e.message || errMsg; } catch {}
-    return { ok: false, error: errMsg };
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+    const r = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    if (!r.ok) {
+      let errMsg = 'Server error (' + r.status + ')';
+      try { const e = await r.json(); errMsg = e.error || e.message || errMsg; } catch {}
+      return { ok: false, error: errMsg };
+    }
+    return r.json();
+  } catch (e) {
+    return { ok: false, error: 'Network error — check your connection and try again.' };
   }
-  return r.json();
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLogin(); });
@@ -1182,7 +1182,6 @@ async function processBannerFile(file) {
       document.getElementById('banner-preview-img').src = base64; // show local preview
       document.getElementById('banner-preview-wrap').style.display = 'flex';
       document.getElementById('banner-drop-zone').style.display = 'none';
-      document.getElementById('banner-drop-zone').style.borderColor = 'var(--border)';
       result.innerHTML = `<span style="color:var(--green)">✅ Image uploaded</span>`;
     } else {
       result.innerHTML = `<span style="color:var(--red)">⚠ Upload failed: ${d.error || 'Unknown error'}</span>`;
@@ -1212,18 +1211,31 @@ async function submitAdminBanner() {
   const website = (document.getElementById('banner-website')?.value || '').trim();
 
   result.innerHTML = `<span style="color:var(--text3)">Posting…</span>`;
-  const d = await api('POST', '/api/admin/post/banner', {
-    bannerImage: window._bannerImageUrl,
-    phone:   phone   || undefined,
-    website: website || undefined,
-  });
-  if (d.ok) {
-    result.innerHTML = `<span style="color:var(--green)">✅ Banner posted! It will appear across all app screens.</span>`;
-    clearBannerImage();
-    document.getElementById('banner-phone').value   = '';
-    document.getElementById('banner-website').value = '';
-  } else {
-    result.innerHTML = `<span style="color:var(--red)">⚠ ${d.error || 'Failed to post banner.'}</span>`;
+
+  try {
+    const d = await api('POST', '/api/admin/post/banner', {
+      bannerImage: window._bannerImageUrl,
+      phone:   phone   || undefined,
+      website: website || undefined,
+    });
+
+    // Re-query after await in case DOM was touched
+    const r2 = document.getElementById('banner-post-result');
+    if (!r2) return; // tab was switched away
+
+    if (d.ok) {
+      r2.innerHTML = `<div style="background:#f0fff4;border:1px solid var(--green);border-radius:8px;padding:10px 14px;color:var(--green);font-weight:600;font-size:13px">✅ Banner posted! It will appear across all app screens.</div>`;
+      clearBannerImage();
+      const ph = document.getElementById('banner-phone');
+      const ws = document.getElementById('banner-website');
+      if (ph) ph.value = '';
+      if (ws) ws.value = '';
+    } else {
+      r2.innerHTML = `<div style="background:#fff1f1;border:1px solid var(--red);border-radius:8px;padding:10px 14px;color:var(--red);font-weight:600;font-size:13px">⚠️ ${d.error || 'Failed to post banner. Please try again.'}</div>`;
+    }
+  } catch (err) {
+    const r2 = document.getElementById('banner-post-result');
+    if (r2) r2.innerHTML = `<div style="background:#fff1f1;border:1px solid var(--red);border-radius:8px;padding:10px 14px;color:var(--red);font-weight:600;font-size:13px">⚠️ Unexpected error: ${err.message}</div>`;
   }
 }
 
