@@ -182,6 +182,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         Post Listing
       </div>
+      <div class="nav-item" onclick="showTab('banners')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        Banners
+      </div>
       <div class="nav-item" onclick="showTab('notify')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         Notifications
@@ -290,7 +294,7 @@ function toast(msg, type = 'success') {
 function showTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  const idx = ['overview','users','jobs','payments','vehicles','rooms','buysell','analytics','logs','post','notify'].indexOf(tab);
+  const idx = ['overview','users','jobs','payments','vehicles','rooms','buysell','analytics','logs','post','banners','notify'].indexOf(tab);
   document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
   const m = document.getElementById('main-content');
   m.innerHTML = '<div class="tab-spinner">Loading…</div>';
@@ -305,6 +309,7 @@ function showTab(tab) {
   if (tab === 'logs')       { logsPage=1; logsAction=''; logsStatus=''; logsSearch=''; loadLogs(); startLogsPolling(); }
   else                       { stopLogsPolling(); }
   if (tab === 'post')       renderPostTab();
+  if (tab === 'banners')    loadBanners();
   if (tab === 'notify')     renderNotify();
 }
 
@@ -1210,6 +1215,74 @@ function clearBannerImage() {
   // NOTE: intentionally does NOT clear banner-post-result — caller sets it after
 }
 
+// ── BANNERS TAB ───────────────────────────────────────────────────────────────
+async function loadBanners() {
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-title">Active Banners</div>
+    <div class="table-wrap" style="padding:20px">
+      <div id="banners-list"><div style="color:var(--text3);font-size:13px">Loading…</div></div>
+    </div>`;
+
+  const d = await api('GET', '/api/admin/banners');
+  const el = document.getElementById('banners-list');
+  if (!el) return;
+
+  if (!d.ok || !d.banners?.length) {
+    el.innerHTML = `<div style="color:var(--text3);font-size:13px;padding:20px 0">No active banners found.</div>`;
+    return;
+  }
+
+  el.innerHTML = d.banners.map(b => {
+    const isImage = !!b.banner_image;
+    const preview = isImage
+      ? `<img src="${esc(b.banner_image)}" style="width:180px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">`
+      : `<div style="width:180px;height:60px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text3)">Layout: ${esc(b.biz_name||'—')}</div>`;
+    const expires = b.expires_at ? new Date(b.expires_at).toLocaleDateString('en-IN') : 'No expiry';
+    const status  = b.status || 'active';
+    const statusColor = status === 'active' ? 'var(--green)' : 'var(--text3)';
+    return `
+      <div style="display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--border)">
+        ${preview}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${esc(b.biz_name||'Admin Banner')}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${isImage ? '🖼 Image banner' : '📐 Layout banner'} · Plan: ${esc(b.plan||'admin')}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Expires: ${expires} · <span style="color:${statusColor};font-weight:600">${status}</span></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <button onclick="toggleBannerStatus(${b.id},'${status === 'active' ? 'paused' : 'active'}')"
+            style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;
+                   background:transparent;border:1px solid var(--border);color:var(--text2)">
+            ${status === 'active' ? '⏸ Pause' : '▶ Activate'}
+          </button>
+          <button onclick="deleteBanner(${b.id})"
+            style="padding:6px 14px;font-size:12px;font-weight:600;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;
+                   background:transparent;border:1px solid var(--red);color:var(--red)">
+            🗑 Delete
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function deleteBanner(id) {
+  if (!confirm('Delete this banner? It will stop showing in the app immediately.')) return;
+  const d = await api('DELETE', `/api/admin/banners/${id}`);
+  if (d.ok) {
+    loadBanners();
+  } else {
+    alert('Failed to delete: ' + (d.error || 'Unknown error'));
+  }
+}
+
+async function toggleBannerStatus(id, newStatus) {
+  const d = await api('PATCH', `/api/admin/banners/${id}/status`, { status: newStatus });
+  if (d.ok) {
+    loadBanners();
+  } else {
+    alert('Failed to update: ' + (d.error || 'Unknown error'));
+  }
+}
+
 async function submitAdminBanner() {
 
   const result = document.getElementById('banner-post-result');
@@ -1244,6 +1317,8 @@ async function submitAdminBanner() {
       const ws = document.getElementById('banner-website');
       if (ph) ph.value = '';
       if (ws) ws.value = '';
+      // Switch to Banners tab after 1.5s so admin can see/manage it
+      setTimeout(() => showTab('banners'), 1500);
     } else {
       r2.innerHTML = `<div style="background:#fff1f1;border:1px solid var(--red);border-radius:8px;padding:10px 14px;color:var(--red);font-weight:600;font-size:13px">⚠️ ${d.error || 'Failed to post banner. Please try again.'}</div>`;
     }
