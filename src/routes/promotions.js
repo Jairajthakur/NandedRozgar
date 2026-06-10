@@ -25,7 +25,16 @@ const BANNER_COLORS = {
   vivid: '#f97316',
 };
 
-// ── POST /api/promotions ──────────────────────────────────────────────────────
+// Helper: normalise a banner_image value from the DB into a usable URL/URI.
+// Three cases:
+//   1. Full URL  (starts with 'http')  → return as-is
+//   2. Relative path (e.g. '/api/...') → prepend base domain
+//   3. Base64 data URI (starts with 'data:') → return as-is (React Native Image handles it)
+function normaliseBannerImage(raw) {
+  if (!raw) return null;
+  if (raw.startsWith('http') || raw.startsWith('data:')) return raw;
+  return 'https://thecityplus.in' + raw;
+}
 router.post('/', auth, async (req, res) => {
   try {
     const {
@@ -152,7 +161,7 @@ router.get('/active', async (req, res) => {
         bannerStyle: p.banner_style,
         accentColor: p.accent_color || '#f97316',
         templateId:  p.template_id || null,
-        bannerImage: p.banner_image ? (p.banner_image.startsWith('http') ? p.banner_image : 'https://thecityplus.in' + p.banner_image) : null,
+        bannerImage: normaliseBannerImage(p.banner_image),
         createdAt:   p.created_at,
       },
     });
@@ -196,7 +205,7 @@ router.get('/all', async (req, res) => {
       bannerStyle: p.banner_style,
       accentColor: p.accent_color || '#f97316',
       templateId:  p.template_id || null,
-      bannerImage: p.banner_image ? (p.banner_image.startsWith('http') ? p.banner_image : 'https://thecityplus.in' + p.banner_image) : null,
+      bannerImage: normaliseBannerImage(p.banner_image),
       expiresAt:   p.expires_at,
       createdAt:   p.created_at,
     }));
