@@ -17,7 +17,7 @@ export default ({ config }) => ({
 
   android: {
     package: "com.cityplus.app",
-    versionCode: parseInt(process.env.ANDROID_VERSION_CODE) || 71,
+    versionCode: parseInt(process.env.ANDROID_VERSION_CODE) || 72,
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#ffffff",
