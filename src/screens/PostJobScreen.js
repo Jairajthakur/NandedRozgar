@@ -14,6 +14,7 @@ import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/cashfree';
 import CouponInput from '../components/CouponInput';
 import MonthlyPlanBanner, { useMonthlyPlan } from '../components/MonthlyPlanBanner';
+import VoicePostAssistant from '../components/VoicePostAssistant';
 
 const ORANGE = '#f97316';
 const TOTAL_STEPS = 3;
@@ -664,6 +665,30 @@ export default function PostJobScreen() {
         {step === 1 && <>
           <StepBanner step={1} title="Job Basics" subtitle="Title, salary & contact — that's it!" onBack={goBack} />
           <View style={s.card}>
+
+            {/* ── Voice Post Assistant ── */}
+            <VoicePostAssistant
+              screenType="job"
+              onFill={({ title: t, company: co, salaryMin: smin, salaryMax: smax,
+                         industry: ind, jobType: jt, experience: exp,
+                         workHours: wh, education: edu, skills: sk,
+                         description: desc, requirements: req, address: addr }) => {
+                if (t)    setTitle(t);
+                if (co)   setCompany(co);
+                if (smin) setSalaryMin(smin);
+                if (smax) setSalaryMax(smax);
+                if (ind)  setIndustry(ind);
+                if (jt)   setJobType(jt);
+                if (exp)  setExperience(exp);
+                if (wh)   setWorkHours(wh);
+                if (edu)  setEducation(edu);
+                if (sk?.length) setSkills(sk);
+                if (desc) setDescription(desc);
+                if (req)  setRequirements(req);
+                if (addr) setAddress(addr);
+                Toast.show({ type: 'success', text1: '✅ Form filled by voice!', text2: 'Check karo aur edit kar sakte ho' });
+              }}
+            />
 
             {/* Multiple positions toggle */}
             <View style={s.toggleRow}>
