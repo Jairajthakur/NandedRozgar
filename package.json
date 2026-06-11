@@ -45,6 +45,7 @@
     "expo-location": "~18.1.5",
     "expo-notifications": "~0.31.5",
     "expo-secure-store": "~14.2.4",
+    "expo-speech-recognition": "~56.0.1",
     "expo-web-browser": "~14.2.0",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.1",
