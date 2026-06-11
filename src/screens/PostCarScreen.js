@@ -16,6 +16,7 @@ import MonthlyPlanBanner, { useMonthlyPlan } from '../components/MonthlyPlanBann
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
 import CouponInput from '../components/CouponInput';
+import VoicePostAssistant from '../components/VoicePostAssistant';
 
 const { width: SW } = Dimensions.get('window');
 const PURPLE = '#7c3aed';
@@ -371,6 +372,17 @@ export default function PostCarScreen() {
 
           {/* ── STEP 1: Vehicle Info ── */}
           {step===1&&<>
+            {/* ── Voice Post Assistant ── */}
+            <VoicePostAssistant
+              screenType="vehicle"
+              onFill={({ title: name, salaryMin: dailyRate, description: notes, address: pickupLocation, whatsapp: wa }) => {
+                if (name)         set('name', name);
+                if (dailyRate)    set('dailyRate', dailyRate);
+                if (notes)        set('notes', notes);
+                if (wa)           set('whatsapp', wa);
+                Toast.show({ type: 'success', text1: '\u2705 Form filled by voice!', text2: 'Check karo aur edit kar sakte ho' });
+              }}
+            />
             <Lbl>VEHICLE TYPE *</Lbl>
             {VEHICLE_TYPES.map(t=>(
               <RadioCard key={t.label} label={t.label} sub={t.sub}
