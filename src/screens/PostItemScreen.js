@@ -12,6 +12,7 @@ import { urisToBase64DataUris } from '../utils/imageUtils';
 import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/cashfree';
 import MonthlyPlanBanner, { useMonthlyPlan } from '../components/MonthlyPlanBanner';
+import VoicePostAssistant from '../components/VoicePostAssistant';
 import CouponInput from '../components/CouponInput';
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
@@ -186,9 +187,22 @@ function HeroHeader({ step, total, title, sub, onBack }) {
 //  re-render (fixes single-character input bug)
 // ═══════════════════════════════════════════
 
-function Step1({ form, set, customCategory, setCustomCategory }) {
+function Step1({ form, set, customCategory, setCustomCategory, onVoiceFill }) {
   return (
     <ScrollView contentContainerStyle={styles.stepBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      {/* ── Voice Post Assistant ── */}
+      {onVoiceFill && (
+        <VoicePostAssistant
+          screenType="item"
+          onFill={({ title, description, price, address: area }) => {
+            if (title)       set('title', title);
+            if (description) set('description', description);
+            if (price)       set('price', price);
+            if (area)        set('area', area);
+            onVoiceFill();
+          }}
+        />
+      )}
       <Label text="AD TITLE" required />
       <TextInput
         style={styles.input}
@@ -749,7 +763,8 @@ export default function PostItemScreen() {
   // Render the current step — passing form + set as props (no inline definitions)
   function renderStep() {
     switch (step) {
-      case 1: return <Step1 form={form} set={set} customCategory={customCategory} setCustomCategory={setCustomCategory} />;
+      case 1: return <Step1 form={form} set={set} customCategory={customCategory} setCustomCategory={setCustomCategory}
+                          onVoiceFill={() => Toast.show({ type: 'success', text1: '✅ Form filled by voice!', text2: 'Check karo aur edit kar sakte ho' })} />;
       case 2: return <Step2 form={form} set={set} areas={AREAS} districtName={currentDistrict?.name} onChangeDistrict={() => nav.navigate('Home')} />;
       case 3: return <Step3 form={form} set={set} setForm={setForm} />;
       case 4: return <Step4 form={form} set={set} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} />;
