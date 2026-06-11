@@ -8,7 +8,23 @@
  *   screenType  — 'job' | 'room' | 'item' | 'vehicle'
  *   onFill(fields) — called with extracted field values
  *
- * Install:   npx expo install expo-speech-recognition
+ * Speech recognition: uses expo-speech-recognition when installed.
+ * If the package is not present the mic button shows a friendly
+ * "install required" message instead of crashing.
+ *
+ * IMPORTANT – Metro bundler note:
+ * Neither `await import()` nor `require()` inside try/catch work for
+ * optional native packages in a Metro bundle:
+ *   • `await import()` → Metro can't build the chunk graph → build crash
+ *   • `require()` in try/catch → Metro still registers the module ID at
+ *     bundle time; at runtime the ID resolves to undefined and throws
+ *     "Requiring unknown module N" — bypassing the catch block.
+ *
+ * The only safe pattern is: never reference an uninstalled package
+ * anywhere in the JS bundle.  Speech capability is therefore detected
+ * at runtime via a sentinel constant (SPEECH_AVAILABLE) that is set to
+ * `false` here and must be manually flipped to `true` after running:
+ *   npx expo install expo-speech-recognition
  * ─────────────────────────────────────────────────────────────────
  */
 
@@ -21,6 +37,18 @@ import { Ionicons } from '@expo/vector-icons';
 
 const ORANGE = '#f97316';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPEECH_AVAILABLE – flip this to `true` only after you have run:
+//   npx expo install expo-speech-recognition
+// and rebuilt the app.  Keeping it `false` prevents Metro from trying to
+// bundle the (missing) native module and crashing with
+// "Requiring unknown module N".
+// ─────────────────────────────────────────────────────────────────────────────
+const SPEECH_AVAILABLE = false;
+
+// When SPEECH_AVAILABLE is true, uncomment this import:
+// import * as ExpoSpeech from 'expo-speech-recognition';
 
 const LANG_OPTIONS = [
   { code: 'hi-IN', label: 'हिंदी',  flag: '🇮🇳' },
@@ -103,25 +131,6 @@ function usePulse() {
   return { anim, start, stop };
 }
 
-// ── Get speech module (expo-speech-recognition preferred) ────────────────────
-// FIX: replaced `await import()` with `require()` — Metro bundler does not
-// support ES dynamic imports and throws "Chunk containing module not found".
-// Using require() inside try/catch achieves the same optional-dependency
-// pattern that Metro can handle correctly.
-async function getSpeechModule() {
-  try {
-    const expo = require('expo-speech-recognition');
-    return { type: 'expo', module: expo };
-  } catch (_) {
-    try {
-      const voice = require('@react-native-voice/voice');
-      return { type: 'voice', module: voice.default || voice };
-    } catch (_2) {
-      return null;
-    }
-  }
-}
-
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function VoicePostAssistant({ onFill, screenType = 'job', style }) {
   const config = SCREEN_CONFIG[screenType] || SCREEN_CONFIG.job;
@@ -133,53 +142,47 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
   const [errorMsg, setErrorMsg]         = useState('');
   const [filledFields, setFilledFields] = useState(null);
 
-  const speechRef = useRef(null);
   const { anim, start: startPulse, stop: stopPulse } = usePulse();
 
   const langLabel = lang === 'hi-IN' ? 'Hindi' : lang === 'mr-IN' ? 'Marathi' : 'English';
 
   // ── Start listening ──────────────────────────────────────────────────────────
   async function startListening() {
+    // Guard: if expo-speech-recognition is not installed, show a clear message
+    // instead of crashing.  See SPEECH_AVAILABLE constant at top of file.
+    if (!SPEECH_AVAILABLE) {
+      setStatus('error');
+      setErrorMsg(
+        'Speech recognition abhi install nahi hai.\n' +
+        'Developer se kahein:\n' +
+        'npx expo install expo-speech-recognition\n\n' +
+        'स्पीच रेकग्निशन install नाही. Developer ला सांगा.'
+      );
+      return;
+    }
+
     setStatus('listening');
     setTranscript('');
     setErrorMsg('');
     setFilledFields(null);
     startPulse();
 
-    const mod = await getSpeechModule();
-    if (!mod) {
-      stopPulse();
-      setStatus('error');
-      setErrorMsg('Speech recognition available nahi hai.\nPlease install expo-speech-recognition.');
-      return;
-    }
-    speechRef.current = mod;
-
-    if (mod.type === 'expo') {
-      const { ExpoSpeechRecognitionModule } = mod.module;
-      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    // ── expo-speech-recognition path ──────────────────────────────────────────
+    // This block only runs when SPEECH_AVAILABLE = true and the import above
+    // is uncommented.  At that point ExpoSpeech is a real module in scope.
+    try {
+      const { granted } = await ExpoSpeech.ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!granted) {
         stopPulse();
         setStatus('error');
         setErrorMsg('Microphone permission denied. Please allow in settings.');
         return;
       }
-      ExpoSpeechRecognitionModule.start({ lang, interimResults: false, continuous: false });
-    } else {
-      const Voice = mod.module;
-      Voice.onSpeechResults = e => handleSpeechResult(e.value?.[0] || '');
-      Voice.onSpeechError   = e => {
-        stopPulse();
-        setStatus('error');
-        setErrorMsg('Speech error: ' + (e.error?.message || 'unknown'));
-      };
-      try {
-        await Voice.start(lang);
-      } catch (err) {
-        stopPulse();
-        setStatus('error');
-        setErrorMsg(err?.message || 'Microphone start nahi hua.');
-      }
+      ExpoSpeech.ExpoSpeechRecognitionModule.start({ lang, interimResults: false, continuous: false });
+    } catch (err) {
+      stopPulse();
+      setStatus('error');
+      setErrorMsg(err?.message || 'Microphone start nahi hua.');
     }
   }
 
@@ -407,10 +410,10 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
         </View>
       </Modal>
 
-      {/* Expo Speech Recognition event bridge */}
-      {status === 'listening' && speechRef.current?.type === 'expo' && (
+      {/* Expo Speech Recognition event bridge — only rendered when speech is
+          available and the module is actually imported (SPEECH_AVAILABLE=true) */}
+      {SPEECH_AVAILABLE && status === 'listening' && (
         <ExpoVoiceListener
-          module={speechRef.current.module}
           onResult={handleSpeechResult}
           onError={msg => { stopPulse(); setStatus('error'); setErrorMsg(msg); }}
         />
@@ -420,13 +423,23 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
 }
 
 // ── Expo Speech event bridge (hooks require a component) ────────────────────
-function ExpoVoiceListener({ module, onResult, onError }) {
-  const { useSpeechRecognitionEvent } = module;
-  useSpeechRecognitionEvent('result', e => {
+// Only functional when SPEECH_AVAILABLE = true and ExpoSpeech is imported.
+function ExpoVoiceListener({ onResult, onError }) {
+  // When SPEECH_AVAILABLE is false this component is never rendered, so
+  // referencing ExpoSpeech here is safe — Metro will tree-shake it away
+  // because the conditional above is always false.
+  //
+  // When you flip SPEECH_AVAILABLE to true, uncomment the import at the
+  // top of the file and this hook will work correctly.
+  if (!SPEECH_AVAILABLE) return null;
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  ExpoSpeech.useSpeechRecognitionEvent('result', e => {
     const text = e.results?.[0]?.transcript || '';
     if (text) onResult(text);
   });
-  useSpeechRecognitionEvent('error', e => {
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  ExpoSpeech.useSpeechRecognitionEvent('error', e => {
     onError('Speech error: ' + (e.message || 'unknown'));
   });
   return null;
