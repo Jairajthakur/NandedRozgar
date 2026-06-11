@@ -17,7 +17,7 @@ export default ({ config }) => ({
 
   android: {
     package: "com.cityplus.app",
-    versionCode: parseInt(process.env.ANDROID_VERSION_CODE) || 76,
+    versionCode: parseInt(process.env.ANDROID_VERSION_CODE) || 74,
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#ffffff",
@@ -49,8 +49,6 @@ export default ({ config }) => ({
       },
 
       // ── Android App Links — enables Google to index app content ─────────
-      // Google Search can show "Open in CityPlus" for thecityplus.in URLs
-      // Requires /.well-known/assetlinks.json on your server (handled by seo.js)
       {
         action: "VIEW",
         autoVerify: true,
@@ -132,6 +130,9 @@ export default ({ config }) => ({
         },
       },
     ],
+    // expo-speech-recognition — voice-to-form feature
+    // Adds RECORD_AUDIO permission and SpeechRecognitionService to AndroidManifest
+    "expo-speech-recognition",
     // @react-native-firebase/app is included only when google-services.json exists
     // This prevents expo config from failing during CI before the file is written
     ...(require('fs').existsSync('./google-services.json') ? ["@react-native-firebase/app"] : []),
