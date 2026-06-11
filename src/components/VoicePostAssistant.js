@@ -45,10 +45,9 @@ const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 // bundle the (missing) native module and crashing with
 // "Requiring unknown module N".
 // ─────────────────────────────────────────────────────────────────────────────
-const SPEECH_AVAILABLE = false;
+const SPEECH_AVAILABLE = true;
 
-// When SPEECH_AVAILABLE is true, uncomment this import:
-// import * as ExpoSpeech from 'expo-speech-recognition';
+import * as ExpoSpeech from 'expo-speech-recognition';
 
 const LANG_OPTIONS = [
   { code: 'hi-IN', label: 'हिंदी',  flag: '🇮🇳' },
