@@ -14,6 +14,7 @@ import { http } from '../utils/api';
 import { useRazorpayCheckout } from '../utils/cashfree';
 import CouponInput from '../components/CouponInput';
 import MonthlyPlanBanner, { useMonthlyPlan } from '../components/MonthlyPlanBanner';
+import VoicePostAssistant from '../components/VoicePostAssistant';
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
 
@@ -449,6 +450,20 @@ export default function PostRoomScreen() {
 
           {/* ── STEP 1: Room / Property Details ── */}
           {step===1&&<>
+
+            {/* ── Voice Post Assistant ── */}
+            <VoicePostAssistant
+              screenType="room"
+              onFill={({ title, rent, deposit, salePrice, description: notes, address: landmark, whatsapp: wa }) => {
+                if (rent)       set('rent', rent);
+                if (deposit)    set('deposit', deposit);
+                if (salePrice)  set('salePrice', salePrice);
+                if (notes)      set('notes', notes);
+                if (landmark)   set('landmark', landmark);
+                if (wa)         set('whatsapp', wa);
+                Toast.show({ type: 'success', text1: '✅ Form filled by voice!', text2: 'Check karo aur edit kar sakte ho' });
+              }}
+            />
 
             {/* ── Listing Purpose Toggle ────────────────────────────────── */}
             <Lbl>WHAT DO YOU WANT TO DO? *</Lbl>
