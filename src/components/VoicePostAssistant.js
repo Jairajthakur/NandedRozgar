@@ -49,52 +49,17 @@ const SCREEN_CONFIG = {
       'hi-IN': '"Mujhe delivery boy ki naukri post karni hai. Salary 8 se 12 hazar, full time, bike hona zaruri, fresher chalega."',
       'en-IN': '"I want to post for a delivery boy. Salary 8 to 12 thousand, full time shift, own bike required, freshers welcome."',
     },
-    systemPrompt: (langLabel) => `You are a form-filling assistant for a job posting app used in tier-2 cities in Maharashtra.
-
-User spoke in ${langLabel}. Extract job details and return ONLY a valid JSON object (no markdown, no extra text):
-
-{
-  "title": "Job title in English",
-  "company": "Company name if mentioned",
-  "industry": "Closest match from: Cafe/Tea Stall Boy, Hotel Waiter, Cook/Chef, Kitchen Helper, Delivery Boy (2-Wheeler), Courier Executive, Auto Driver, Car Driver, Shop Assistant/Helper, Salesman, Mason/Contractor, Electrician, Plumber, Hair Stylist, Data Entry Operator, Receptionist, Field Sales Executive, TeleCaller, School Teacher, Maid/Househelp, Security Guard, Software Developer, Other/Custom",
-  "jobType": "One of: Full-time, Part-time, Contract, Freshers Welcome",
-  "salaryMin": "number string only e.g. 8000",
-  "salaryMax": "number string only e.g. 12000",
-  "experience": "One of: Fresher (0 yr), 6 Months, 1 Year, 2 Years, 3 Years, 5+ Years",
-  "workHours": "One of: 9 AM – 6 PM, 10 AM – 7 PM, 8 AM – 5 PM, 6 AM – 2 PM, 2 PM – 10 PM, Night Shift, Flexible",
-  "education": "One of: none, 10th, 12th, graduate, diploma",
-  "skills": ["pick only from: Marathi, Hindi, English, MS Excel, Tally, Typing, Driving Licence, 2-Wheeler, 4-Wheeler, Customer Service, Cooking, Welding, Electrical Work, Plumbing"],
-  "description": "2-3 sentence job description in English",
-  "requirements": "Requirements in English (age, bike, local candidate, etc.)",
-  "address": "Area or locality if mentioned"
-}
-
-Rules: JSON only. Omit fields you are unsure about. Translate everything to English.
-Salary: "8 se 12 hazar" → salaryMin:"8000", salaryMax:"12000". "10 hazar" → salaryMin:"10000".`,
+    systemPrompt: (langLabel) => `You are a form-filling assistant for a job posting app used in tier-2 cities in Maharashtra.\n\nUser spoke in ${langLabel}. Extract job details and return ONLY a valid JSON object (no markdown, no extra text):\n\n{\n  "title": "Job title in English",\n  "company": "Company name if mentioned",\n  "industry": "Closest match from: Cafe/Tea Stall Boy, Hotel Waiter, Cook/Chef, Kitchen Helper, Delivery Boy (2-Wheeler), Courier Executive, Auto Driver, Car Driver, Shop Assistant/Helper, Salesman, Mason/Contractor, Electrician, Plumber, Hair Stylist, Data Entry Operator, Receptionist, Field Sales Executive, TeleCaller, School Teacher, Maid/Househelp, Security Guard, Software Developer, Other/Custom",\n  "jobType": "One of: Full-time, Part-time, Contract, Freshers Welcome",\n  "salaryMin": "number string only e.g. 8000",\n  "salaryMax": "number string only e.g. 12000",\n  "experience": "One of: Fresher (0 yr), 6 Months, 1 Year, 2 Years, 3 Years, 5+ Years",\n  "workHours": "One of: 9 AM – 6 PM, 10 AM – 7 PM, 8 AM – 5 PM, 6 AM – 2 PM, 2 PM – 10 PM, Night Shift, Flexible",\n  "education": "One of: none, 10th, 12th, graduate, diploma",\n  "skills": ["pick only from: Marathi, Hindi, English, MS Excel, Tally, Typing, Driving Licence, 2-Wheeler, 4-Wheeler, Customer Service, Cooking, Welding, Electrical Work, Plumbing"],\n  "description": "2-3 sentence job description in English",\n  "requirements": "Requirements in English (age, bike, local candidate, etc.)",\n  "address": "Area or locality if mentioned"\n}\n\nRules: JSON only. Omit fields you are unsure about. Translate everything to English.\nSalary: "8 se 12 hazar" → salaryMin:"8000", salaryMax:"12000". "10 hazar" → salaryMin:"10000".`,
   },
 
   room: {
     title: 'Room / Property',
     hints: {
-      'mr-IN': '"1 BHK flat bhad्यावर द्यायचा आहे. भाडे 5500 महिना, deposit 11000. Cidco area मध्ये, near bus stand."',
+      'mr-IN': '"1 BHK flat भाड्यावर द्यायचा आहे. भाडे 5500 महिना, deposit 11000. Cidco area मध्ये, near bus stand."',
       'hi-IN': '"1 BHK flat kiraye pe dena hai. Kiraya 5500 mahina, deposit 11000. Cidco area mein, bus stand ke paas."',
       'en-IN': '"Want to rent out 1 BHK flat. Rent 5500 per month, deposit 11000. Located in Cidco area near bus stand."',
     },
-    systemPrompt: (langLabel) => `You are a form-filling assistant for a room/property listing app in Maharashtra.
-
-User spoke in ${langLabel}. Extract property details and return ONLY a valid JSON object:
-
-{
-  "rent": "monthly rent as number string e.g. 5500",
-  "deposit": "deposit as number string e.g. 11000",
-  "salePrice": "sale price if sale listing, e.g. 4500000",
-  "saleCarpetArea": "carpet area in sqft if mentioned",
-  "landmark": "landmark or address details",
-  "notes": "any extra rules, facilities, or description in English",
-  "whatsapp": "phone number if mentioned"
-}
-
-Rules: JSON only. Omit fields you are unsure about. Translate to English. Numbers only for amounts.`,
+    systemPrompt: (langLabel) => `You are a form-filling assistant for a room/property listing app in Maharashtra.\n\nUser spoke in ${langLabel}. Extract property details and return ONLY a valid JSON object:\n\n{\n  "rent": "monthly rent as number string e.g. 5500",\n  "deposit": "deposit as number string e.g. 11000",\n  "salePrice": "sale price if sale listing, e.g. 4500000",\n  "saleCarpetArea": "carpet area in sqft if mentioned",\n  "landmark": "landmark or address details",\n  "notes": "any extra rules, facilities, or description in English",\n  "whatsapp": "phone number if mentioned"\n}\n\nRules: JSON only. Omit fields you are unsure about. Translate to English. Numbers only for amounts.`,
   },
 
   item: {
@@ -104,18 +69,7 @@ Rules: JSON only. Omit fields you are unsure about. Translate to English. Number
       'hi-IN': '"Samsung 42 inch TV bechna hai. Daam 8000 rupaye. 2 saal purana, achchi condition mein."',
       'en-IN': '"Want to sell Samsung 42 inch TV. Price 8000 rupees. 2 years old, good condition."',
     },
-    systemPrompt: (langLabel) => `You are a form-filling assistant for a buy/sell listing app in Maharashtra.
-
-User spoke in ${langLabel}. Extract item details and return ONLY a valid JSON object:
-
-{
-  "title": "Item title in English e.g. Samsung 42 inch TV",
-  "price": "price as number string e.g. 8000",
-  "description": "item description in English (brand, model, condition, reason for selling)",
-  "area": "area or locality if mentioned"
-}
-
-Rules: JSON only. Omit fields you are unsure about. Translate to English.`,
+    systemPrompt: (langLabel) => `You are a form-filling assistant for a buy/sell listing app in Maharashtra.\n\nUser spoke in ${langLabel}. Extract item details and return ONLY a valid JSON object:\n\n{\n  "title": "Item title in English e.g. Samsung 42 inch TV",\n  "price": "price as number string e.g. 8000",\n  "description": "item description in English (brand, model, condition, reason for selling)",\n  "area": "area or locality if mentioned"\n}\n\nRules: JSON only. Omit fields you are unsure about. Translate to English.`,
   },
 
   vehicle: {
@@ -125,19 +79,7 @@ Rules: JSON only. Omit fields you are unsure about. Translate to English.`,
       'hi-IN': '"Meri Maruti Swift kiraye pe deni hai. Roz ka 800 rupaye. Cidco area se pickup. AC, music system hai."',
       'en-IN': '"Want to rent out my Maruti Swift. 800 rupees per day. Pickup from Cidco area. Has AC and music system."',
     },
-    systemPrompt: (langLabel) => `You are a form-filling assistant for a vehicle rental listing app in Maharashtra.
-
-User spoke in ${langLabel}. Extract vehicle details and return ONLY a valid JSON object:
-
-{
-  "title": "Vehicle name/model in English e.g. Maruti Swift",
-  "salaryMin": "daily rental rate as number string e.g. 800",
-  "deposit": "security deposit if mentioned",
-  "description": "vehicle features and notes in English",
-  "whatsapp": "phone number if mentioned"
-}
-
-Rules: JSON only. Omit fields you are unsure about. Translate to English.`,
+    systemPrompt: (langLabel) => `You are a form-filling assistant for a vehicle rental listing app in Maharashtra.\n\nUser spoke in ${langLabel}. Extract vehicle details and return ONLY a valid JSON object:\n\n{\n  "title": "Vehicle name/model in English e.g. Maruti Swift",\n  "salaryMin": "daily rental rate as number string e.g. 800",\n  "deposit": "security deposit if mentioned",\n  "description": "vehicle features and notes in English",\n  "whatsapp": "phone number if mentioned"\n}\n\nRules: JSON only. Omit fields you are unsure about. Translate to English.`,
   },
 };
 
@@ -162,13 +104,17 @@ function usePulse() {
 }
 
 // ── Get speech module (expo-speech-recognition preferred) ────────────────────
+// FIX: replaced `await import()` with `require()` — Metro bundler does not
+// support ES dynamic imports and throws "Chunk containing module not found".
+// Using require() inside try/catch achieves the same optional-dependency
+// pattern that Metro can handle correctly.
 async function getSpeechModule() {
   try {
-    const expo = await import('expo-speech-recognition');
+    const expo = require('expo-speech-recognition');
     return { type: 'expo', module: expo };
   } catch (_) {
     try {
-      const voice = await import('@react-native-voice/voice');
+      const voice = require('@react-native-voice/voice');
       return { type: 'voice', module: voice.default || voice };
     } catch (_2) {
       return null;
