@@ -5,7 +5,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { http } from '../utils/api';
+// FIX: getToken and BASE_URL are now imported statically at the top of the file.
+// Previously they were loaded via `await import()` inside an async function,
+// which Metro bundler cannot handle — it threw:
+//   AssertionError [ERR_ASSERTION]: Chunk containing module not found: undefined
+// Static imports are resolved at bundle time and work correctly with Metro.
+import { http, getToken } from '../utils/api';
+import { BASE_URL } from '../utils/constants';
 
 const ORANGE = '#f97316';
 
@@ -61,8 +67,9 @@ export default function ChatScreen({ route, navigation }) {
       // directly here with the abort signal.  The rest of the app can keep
       // using http() unchanged.
       try {
-        const token = await import('../utils/api').then(m => m.getToken());
-        const { BASE_URL } = await import('../utils/constants');
+        // FIX: getToken and BASE_URL are now resolved from static imports above
+        // instead of via `await import()`, which Metro cannot bundle correctly.
+        const token = await getToken();
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
