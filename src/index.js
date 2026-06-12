@@ -70,13 +70,30 @@ const staticOrigins = [
   ...explicitOrigins,
 ];
 
+// ── BUG FIX: CORS private-IP allowlist restricted to non-production ──────────
+// The original code allowed ALL RFC-1918 private IP ranges (192.168.x.x,
+// 10.x.x.x, 172.16-31.x.x) in every environment, including production.
+// In production this is a security risk: any machine on the same private
+// network as the server (shared hosting, cloud VPC, corporate LAN) can make
+// credentialed cross-origin requests to the API with no restriction.
+//
+// Fix: private-IP origins are only permitted when NODE_ENV !== 'production'.
+// In production only the explicit static origin allowlist is accepted.
+// localhost/127.0.0.1 is still allowed in production for health-check tooling
+// running on the same machine (Railway health probes, etc.).
+const isProduction = process.env.NODE_ENV === 'production';
+
 function isAllowedOrigin(origin) {
   if (!origin) return true;
   if (staticOrigins.includes(origin)) return true;
+  // localhost always allowed — used by health probes and same-machine tooling
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
-  if (/^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
-  if (/^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
-  if (/^https?:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
+  // RFC-1918 private ranges only permitted outside production
+  if (!isProduction) {
+    if (/^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
+    if (/^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
+    if (/^https?:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
+  }
   return false;
 }
 
