@@ -292,6 +292,8 @@ router.get('/stats', async (req, res) => {
 });
 
 // GET /api/admin/debug — raw table counts for troubleshooting
+// FIX (High): Raw Postgres error messages leaked table structure, column names, and
+// constraint details. Now sanitised to a generic message; full detail is server-side only.
 router.get('/debug', async (req, res) => {
   try {
     const tables = ['users','jobs','applications','payments','vehicles','rooms','buysell_items'];
@@ -301,12 +303,14 @@ router.get('/debug', async (req, res) => {
         const r = await pool.query(`SELECT COUNT(*) AS n FROM ${t}`);
         counts[t] = parseInt(r.rows[0].n);
       } catch(e) {
-        counts[t] = `ERROR: ${e.message}`;
+        console.error(`[admin/debug] query failed for table "${t}":`, e.message);
+        counts[t] = 'query failed'; // FIX: never expose raw DB error to client
       }
     }
     res.json({ ok: true, counts });
   } catch(err) {
-    res.json({ ok: false, error: err.message });
+    console.error('[admin/debug] unexpected error:', err.message);
+    res.json({ ok: false, error: 'Debug query failed' }); // FIX: sanitised
   }
 });
 
