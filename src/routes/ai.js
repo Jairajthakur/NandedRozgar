@@ -113,3 +113,139 @@ router.post('/chat', auth, aiLimiter, async (req, res) => {
 });
 
 module.exports = router;
+
+// ── POST /api/ai/voice-fill ────────────────────────────────────────────────────
+// Converts a spoken job/room/item/vehicle description into structured form fields.
+// Called from VoicePostAssistant.js in the React Native app.
+// Uses Groq (same key as /chat) so no extra credentials needed.
+//
+// Rate limit: 10 requests per user per 10 minutes (tighter than /chat because
+// each call involves a longer structured prompt).
+const voiceFillLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => `voice_fill_${req.user?.id || req.ip}`,
+  message: { ok: false, error: 'Too many voice requests. Please wait a few minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const VOICE_FILL_PROMPTS = {
+  job: (langLabel) => `You are a form-filling assistant for a job posting app in Nanded, Maharashtra.
+User spoke in ${langLabel}. Extract job details and return ONLY a valid JSON object (no markdown, no extra text):
+{
+  "title": "Job title in English",
+  "company": "Company name if mentioned",
+  "industry": "Closest match from: Cafe/Tea Stall Boy, Hotel Waiter, Cook/Chef, Kitchen Helper, Delivery Boy (2-Wheeler), Courier Executive, Auto Driver, Car Driver, Shop Assistant/Helper, Salesman, Mason/Contractor, Electrician, Plumber, Hair Stylist, Data Entry Operator, Receptionist, Field Sales Executive, TeleCaller, School Teacher, Maid/Househelp, Security Guard, Software Developer, Other/Custom",
+  "jobType": "One of: Full-time, Part-time, Contract, Freshers Welcome",
+  "salaryMin": "number string only e.g. 8000",
+  "salaryMax": "number string only e.g. 12000",
+  "experience": "One of: Fresher (0 yr), 6 Months, 1 Year, 2 Years, 3 Years, 5+ Years",
+  "workHours": "One of: 9 AM - 6 PM, 10 AM - 7 PM, 8 AM - 5 PM, 6 AM - 2 PM, 2 PM - 10 PM, Night Shift, Flexible",
+  "education": "One of: none, 10th, 12th, graduate, diploma",
+  "skills": ["pick only from: Marathi, Hindi, English, MS Excel, Tally, Typing, Driving Licence, 2-Wheeler, 4-Wheeler, Customer Service, Cooking, Welding, Electrical Work, Plumbing"],
+  "description": "2-3 sentence job description in English",
+  "requirements": "Requirements in English",
+  "address": "Area or locality if mentioned"
+}
+Rules: JSON only. Omit fields you are unsure about. Translate everything to English.
+Salary: "8 se 12 hazar" means salaryMin 8000 salaryMax 12000.`,
+
+  room: (langLabel) => `You are a form-filling assistant for a room/property listing app in Maharashtra.
+User spoke in ${langLabel}. Return ONLY valid JSON:
+{
+  "rent": "monthly rent as number string",
+  "deposit": "deposit as number string",
+  "salePrice": "sale price if sale listing",
+  "saleCarpetArea": "carpet area in sqft if mentioned",
+  "landmark": "landmark or address details",
+  "notes": "extra rules, facilities, or description in English",
+  "whatsapp": "phone number if mentioned"
+}
+Rules: JSON only. Omit unsure fields. Translate to English.`,
+
+  item: (langLabel) => `You are a form-filling assistant for a buy/sell listing app in Maharashtra.
+User spoke in ${langLabel}. Return ONLY valid JSON:
+{
+  "title": "Item title in English",
+  "price": "price as number string",
+  "description": "item description in English",
+  "area": "area or locality if mentioned"
+}
+Rules: JSON only. Omit unsure fields. Translate to English.`,
+
+  vehicle: (langLabel) => `You are a form-filling assistant for a vehicle rental listing app in Maharashtra.
+User spoke in ${langLabel}. Return ONLY valid JSON:
+{
+  "title": "Vehicle name/model in English",
+  "salaryMin": "daily rental rate as number string",
+  "deposit": "security deposit if mentioned",
+  "description": "vehicle features and notes in English",
+  "whatsapp": "phone number if mentioned"
+}
+Rules: JSON only. Omit unsure fields. Translate to English.`,
+};
+
+router.post('/voice-fill', auth, voiceFillLimiter, async (req, res) => {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return res.json({
+      ok: false,
+      error: 'GROQ_API_KEY not configured. Add it in Railway variables.',
+    });
+  }
+
+  const { transcript, screenType = 'job', lang = 'mr-IN' } = req.body;
+  if (!transcript || !transcript.trim()) {
+    return res.json({ ok: false, error: 'Transcript is required.' });
+  }
+  if (transcript.trim().length > 1000) {
+    return res.json({ ok: false, error: 'Transcript too long (max 1000 characters).' });
+  }
+
+  const validScreenTypes = ['job', 'room', 'item', 'vehicle'];
+  if (!validScreenTypes.includes(screenType)) {
+    return res.json({ ok: false, error: 'Invalid screenType.' });
+  }
+
+  const langLabel = lang === 'hi-IN' ? 'Hindi' : lang === 'mr-IN' ? 'Marathi' : 'English';
+  const systemPrompt = VOICE_FILL_PROMPTS[screenType](langLabel);
+
+  try {
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `User said: "${transcript.trim()}"` },
+        ],
+        max_tokens: 600,
+        temperature: 0.2, // Low temp for structured extraction — less hallucination
+      }),
+    });
+
+    const data = await groqRes.json();
+    const raw = data?.choices?.[0]?.message?.content || '';
+
+    // Strip any accidental markdown fences Groq sometimes adds
+    const clean = raw.replace(/```json|```/g, '').trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(clean);
+    } catch (_) {
+      console.error('[voice-fill] JSON parse failed. Raw:', raw.slice(0, 200));
+      return res.json({ ok: false, error: 'AI returned invalid data. Please try again.' });
+    }
+
+    return res.json({ ok: true, fields: parsed });
+  } catch (err) {
+    console.error('[voice-fill] error:', err.message);
+    return res.json({ ok: false, error: 'AI service error. Please try again.' });
+  }
+});
