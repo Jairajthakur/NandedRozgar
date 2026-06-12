@@ -4,6 +4,14 @@ const { auth } = require('../middleware/auth');
 const { logActivity, getIP, getUA } = require('../utils/logActivity');
 
 const LIST_TTL   = 15_000;
+
+// FIX (Critical): Server-side plan duration lookup — never trust client-supplied planDays.
+const PAID_PLANS = {
+  basic:    7,
+  standard: 15,
+  featured: 30,
+  premium:  30,
+};
 const DETAIL_TTL = 30_000;
 
 // GET /api/buysell
@@ -112,7 +120,7 @@ router.get('/:id', async (req, res) => {
 // Free plan: 7 days, only on the user's very first buy-sell post ever.
 router.post('/', auth, async (req, res) => {
   try {
-    const { title, category, condition, age, price, negotiable, area, description, whatsapp, photos, planDays, plan, district } = req.body;
+    const { title, category, condition, age, price, negotiable, area, description, whatsapp, photos, plan, district } = req.body; // planDays intentionally not accepted from client
     if (!title || !price || !whatsapp)
       return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
 
@@ -122,6 +130,15 @@ router.post('/', auth, async (req, res) => {
 
     const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
     const planKey = (plan || 'free').toLowerCase().trim();
+
+    // FIX (Medium): Per-user active listing cap to prevent resource exhaustion.
+    const { rows: capRows } = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM buysell_items WHERE posted_by = $1 AND status = 'active'`,
+      [req.user.id]
+    );
+    if (parseInt(capRows[0].cnt) >= 20) {
+      return res.json({ ok: false, error: 'You have reached the maximum of 20 active buy/sell listings. Please delete an old one before posting a new one.' });
+    }
 
     // ── First-post-free check ─────────────────────────────────────────────────
     if (planKey === 'free') {
@@ -138,7 +155,8 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
-    const days = planKey === 'free' ? 7 : Math.max(1, parseInt(planDays) || 7);
+    // FIX (Critical): Use server-side plan duration; ignore client-supplied planDays.
+    const days = planKey === 'free' ? 7 : (PAID_PLANS[planKey] || 7);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
