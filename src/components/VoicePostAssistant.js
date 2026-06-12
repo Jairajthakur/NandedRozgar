@@ -36,7 +36,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 const ORANGE = '#f97316';
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+// API is called through your own backend — never directly from the app.
+// Direct calls to api.anthropic.com from a mobile app are blocked (CORS/auth)
+// and would expose your API key. The backend proxies to Groq (free, fast).
+import { BASE_URL } from '../utils/constants';
+import { getToken } from '../utils/api';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SPEECH_AVAILABLE – flip this to `true` only after you have run:
@@ -198,27 +202,37 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
     await callClaude(text);
   }
 
-  // ── Claude API call ───────────────────────────────────────────────────────────
+  // ── Backend AI call ───────────────────────────────────────────────────────────
+  // Calls YOUR server at /api/ai/voice-fill which proxies to Groq.
+  // This avoids exposing any API key in the app bundle and bypasses CORS blocks
+  // that prevent mobile apps from calling api.anthropic.com directly.
   async function callClaude(text) {
     try {
-      const res = await fetch(ANTHROPIC_API_URL, {
+      const token = await getToken();
+      const res = await fetch(`${BASE_URL}/api/ai/voice-fill`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{
-            role: 'user',
-            content: config.systemPrompt(langLabel) + '\n\nUser said: "' + text + '"',
-          }],
+          transcript: text,
+          screenType,
+          lang,
         }),
       });
-      const data = await res.json();
-      const raw   = data?.content?.[0]?.text || '';
-      const clean = raw.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
 
-      // Sanitise job-specific fields
+      const data = await res.json();
+
+      if (!data?.ok) {
+        setStatus('error');
+        setErrorMsg(data?.error || 'AI connect nahi hua. Phir try karein.');
+        return;
+      }
+
+      const parsed = data.fields;
+
+      // Sanitise job-specific fields against known-valid values
       if (screenType === 'job') {
         if (parsed.jobType    && !VALID_JOB_TYPES.includes(parsed.jobType))    delete parsed.jobType;
         if (parsed.experience && !VALID_EXPERIENCE.includes(parsed.experience)) delete parsed.experience;
