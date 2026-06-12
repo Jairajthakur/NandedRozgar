@@ -2,6 +2,20 @@ const router = require('express').Router();
 const { pool } = require('../db');
 const { auth } = require('../middleware/auth');
 
+// FIX (High): Deduplicate view increments — track last-view timestamp per user+job in memory.
+// Prevents view count inflation via looped POSTs.
+// key: `${userId}:${jobId}` → timestamp (ms)
+const viewCooldownMs = 30 * 60 * 1000; // 30 minutes
+const lastViewedMap  = new Map();
+
+// Prune stale entries every 10 minutes to avoid unbounded memory growth.
+setInterval(() => {
+  const cutoff = Date.now() - viewCooldownMs;
+  for (const [key, ts] of lastViewedMap) {
+    if (ts < cutoff) lastViewedMap.delete(key);
+  }
+}, 10 * 60 * 1000);
+
 // GET /api/analytics/employer — stats for the logged-in employer's job posts
 router.get('/employer', auth, async (req, res) => {
   try {
@@ -97,11 +111,20 @@ router.get('/stats', async (req, res) => {
 });
 
 // POST /api/analytics/job/:id/view — increment view count
+// FIX (High): Rate-limit to 1 view per user per job per 30 minutes to prevent inflation.
 router.post('/job/:id/view', auth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (!Number.isFinite(id) || id <= 0)
       return res.json({ ok: false, error: 'Invalid job ID' });
+
+    const dedupKey = `${req.user.id}:${id}`;
+    const lastViewed = lastViewedMap.get(dedupKey) || 0;
+    if (Date.now() - lastViewed < viewCooldownMs) {
+      return res.json({ ok: true, deduped: true }); // silently ignore; client doesn't need to know
+    }
+    lastViewedMap.set(dedupKey, Date.now());
+
     await pool.query('UPDATE jobs SET views = views + 1 WHERE id=$1', [id]);
     res.json({ ok: true });
   } catch (err) {
