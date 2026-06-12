@@ -8,9 +8,17 @@ const { pool, cache } = require('../db');
 //      on every authenticated request (the single biggest latency driver)
 //   3. Cache is keyed by user id from the JWT payload
 //
+// JWT revocation via token_version:
+//   The JWT payload contains a `tv` (token version) claim. The users table has
+//   a `token_version` column. On every auth check we compare the claim against
+//   the DB value (via cache). Increment `token_version` to instantly revoke all
+//   tokens for a user — used by logout and admin ban routes.
+//   See routes/auth.js makeToken() and POST /logout for details.
+//
 // Cache coherence: the 60 s TTL means a banned/deleted user keeps access for
-// up to 60 s after deactivation — acceptable trade-off for a jobs app.
-// Call cache.del(`auth:${userId}`) from admin routes to force immediate eviction.
+// up to 60 s after deactivation — BUT logout and ban routes call
+// cache.del(`auth:${userId}`) to force immediate eviction, reducing that
+// window to ~0 s in practice.
 
 const USER_CACHE_TTL = 60_000; // 60 seconds
 
@@ -20,7 +28,7 @@ async function auth(req, res, next) {
     return res.status(401).json({ ok: false, error: 'Not authenticated' });
   }
 
-  // Step 1: verify JWT (pure crypto, no I/O)
+  // Step 1: verify JWT signature and expiry (pure crypto, no I/O)
   let payload;
   try {
     payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
@@ -32,6 +40,16 @@ async function auth(req, res, next) {
   const cacheKey = `auth:${payload.id}`;
   const cached   = await cache.get(cacheKey);
   if (cached) {
+    // ── BUG FIX: Token revocation check (cache path) ──────────────────────────
+    // Compare the `tv` (token version) claim from the JWT against the cached
+    // token_version. Mismatch means this token was revoked after it was cached
+    // (logout or admin ban). Evict the cache entry so the next request re-reads
+    // the DB; reject this request immediately.
+    const tokenVersion = payload.tv ?? 0;
+    if ((cached.token_version ?? 0) !== tokenVersion) {
+      await cache.del(cacheKey);
+      return res.status(401).json({ ok: false, error: 'Token has been revoked. Please log in again.' });
+    }
     req.user = cached;
     return next();
   }
@@ -39,12 +57,21 @@ async function auth(req, res, next) {
   // Step 3: DB lookup (only on cache miss — once per 60 s per user)
   try {
     const { rows } = await pool.query(
-      'SELECT id, name, email, phone, role, active, avatar_url, company FROM users WHERE id = $1 AND active = true',
+      'SELECT id, name, email, phone, role, active, avatar_url, company, token_version FROM users WHERE id = $1 AND active = true',
       [payload.id]
     );
     if (!rows[0]) {
       return res.status(401).json({ ok: false, error: 'User not found or deactivated' });
     }
+
+    // ── BUG FIX: Token revocation check (DB path) ─────────────────────────────
+    // Compare the `tv` claim from the JWT against the freshly-loaded DB value.
+    // Mismatch means this token was issued before the last logout/ban — reject it.
+    const tokenVersion = payload.tv ?? 0;
+    if ((rows[0].token_version ?? 0) !== tokenVersion) {
+      return res.status(401).json({ ok: false, error: 'Token has been revoked. Please log in again.' });
+    }
+
     await cache.set(cacheKey, rows[0], USER_CACHE_TTL);
     req.user = rows[0];
     next();
