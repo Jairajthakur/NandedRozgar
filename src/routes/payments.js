@@ -145,6 +145,41 @@ const PLAN_DAYS = {
   buysell: { free: 7, featured: 15, '7 days': 7, '15 days': 15, '30 days': 30 },
 };
 
+// ── Phone sanitisation ────────────────────────────────────────────────────────
+// All listing routes accept a phone/whatsapp number supplied by the client and
+// store it in a public-facing DB column that is rendered in the app UI.
+// Without validation:
+//   • Garbage strings (or XSS payloads) end up in public listings.
+//   • WhatsApp deep-link buttons break for malformed numbers.
+//
+// sanitisePhone() strips whitespace/formatting, rejects anything that is not a
+// valid 10-digit Indian mobile number (starting 6–9), and returns null for
+// empty/missing input so the caller can decide whether to error-out or accept
+// a NULL DB value.
+//
+// IMPORTANT: call this for EVERY phone/whatsapp field before INSERT.
+function sanitisePhone(raw) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  // Strip common formatting characters: spaces, dashes, dots, parentheses,
+  // leading +91 or 0 country/trunk prefix.
+  const cleaned = String(raw)
+    .trim()
+    .replace(/[\s\-().+]/g, '')
+    .replace(/^91(\d{10})$/, '$1')  // strip +91 / 91 prefix
+    .replace(/^0(\d{10})$/, '$1');  // strip leading 0
+  if (!/^[6-9]\d{9}$/.test(cleaned)) return false; // sentinel: invalid
+  return cleaned;
+}
+
+// requirePhone(raw, fieldName) — use in route guards where a number is mandatory.
+// Returns { ok: true, value } or { ok: false, error }.
+function requirePhone(raw, fieldName = 'Phone') {
+  const result = sanitisePhone(raw);
+  if (result === null)  return { ok: false, error: `${fieldName} is required.` };
+  if (result === false) return { ok: false, error: `${fieldName}: enter a valid 10-digit Indian mobile number.` };
+  return { ok: true, value: result };
+}
+
 function resolveExpectedAmount(listingType, planKey, coupon) {
   const prices = PLAN_PRICES[listingType];
   if (!prices) return null;
@@ -437,6 +472,9 @@ async function sharedVerify(req, res, listingType, insertFn) {
     return res.json({ ok: true, ...result });
   } catch (err) {
     await client.query('ROLLBACK');
+    // userError = true means the error came from input validation inside insertFn
+    // (e.g. invalid phone). Return the message directly instead of a generic 500.
+    if (err.userError) return res.json({ ok: false, error: err.message });
     console.error(`verify/${listingType} error:`, err);
     return res.json({ ok: false, error: `Failed to create ${listingType} listing after payment.` });
   } finally {
@@ -450,6 +488,14 @@ async function sharedVerify(req, res, listingType, insertFn) {
 router.post('/verify', auth, (req, res) =>
   sharedVerify(req, res, 'job', async (client, req, { planDays, expiresAt }) => {
     const { job, plan } = req.body;
+
+    // ── Phone validation ───────────────────────────────────────────────────────
+    const phoneResult   = requirePhone(job?.phone,            'Phone');
+    const whatsappRaw   = job?.whatsapp || job?.phone;
+    const whatsappResult = requirePhone(whatsappRaw,          'WhatsApp');
+    if (!phoneResult.ok)   throw Object.assign(new Error(phoneResult.error),   { userError: true });
+    if (!whatsappResult.ok) throw Object.assign(new Error(whatsappResult.error), { userError: true });
+
     const isFeatured = plan === 'featured', isUrgent = plan === 'urgent';
     const skillsArr = Array.isArray(job.skills) ? job.skills
       : typeof job.skills === 'string' && job.skills.trim()
@@ -462,7 +508,7 @@ router.post('/verify', auth, (req, res) =>
         skills,requirements,education,experience,hours,openings,featured,urgent,expires_at,district)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING *`,
       [req.user.id, job.title, job.company, job.address || '', job.category, job.type || 'Full-time', job.location, job.salary || '',
-       job.phone, job.whatsapp || job.phone, job.description, skillsArr, reqArr,
+       phoneResult.value, whatsappResult.value, job.description, skillsArr, reqArr,
        job.education || '', job.experience || '', job.hours || '', job.openings || '1',
        isFeatured, isUrgent, expiresAt, job.district || 'nanded']);
     return { job: rows[0] };
@@ -477,11 +523,16 @@ router.post('/verify/room', auth, (req, res) => {
   const isSale = room?.listingPurpose === 'sale';
   if (!isSale && !room?.rent) return res.json({ ok: false, error: 'Rent is required.' });
   if (isSale && !room?.salePrice) return res.json({ ok: false, error: 'Sale price is required.' });
-  if (!room?.area || !room?.whatsapp) {
-    return res.json({ ok: false, error: 'Area and WhatsApp are required.' });
-  }
+  if (!room?.area) return res.json({ ok: false, error: 'Area is required.' });
+
+  // ── Phone validation ─────────────────────────────────────────────────────────
+  const waResult = requirePhone(room?.whatsapp, 'WhatsApp');
+  if (!waResult.ok) return res.json({ ok: false, error: waResult.error });
+
   return sharedVerify(req, res, 'room', async (client, req, { planDays, expiresAt, expectedAmount }) => {
     const { room, plan } = req.body;
+    const waClean = requirePhone(room?.whatsapp, 'WhatsApp');
+    if (!waClean.ok) throw Object.assign(new Error(waClean.error), { userError: true });
     const { rows } = await client.query(`
       INSERT INTO rooms (posted_by,room_type,for_gender,furnished,floor,total_floors,bhk_size,facing,vacancies,
         rent,deposit,maintenance,broker_free,amenities,rules,available_from,tenant_pref,area,address,landmark,
@@ -494,7 +545,7 @@ router.post('/verify/room', auth, (req, res) => {
        room.brokerFree !== false,
        JSON.stringify(room.amenities || []), JSON.stringify(room.rules || []),
        room.availableFrom || 'Immediately', room.tenantPref || 'Any', room.area, room.address || '',
-       room.landmark || '', room.ownerName || '', room.whatsapp, room.description || '',
+       room.landmark || '', room.ownerName || '', waClean.value, room.description || '',
        JSON.stringify(room.photos || []),
        planDays, room.planLabel || plan || '1 Month', expectedAmount, expiresAt,
        room.district || 'nanded',
@@ -511,11 +562,17 @@ router.post('/verify/room', auth, (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/vehicle', auth, (req, res) => {
   const { vehicle } = req.body;
-  if (!vehicle?.dailyRate || !vehicle?.area || !vehicle?.whatsapp) {
-    return res.json({ ok: false, error: 'Daily rate, area, and WhatsApp are required.' });
+  if (!vehicle?.dailyRate || !vehicle?.area) {
+    return res.json({ ok: false, error: 'Daily rate and area are required.' });
   }
+  // ── Phone validation ─────────────────────────────────────────────────────────
+  const waResult = requirePhone(vehicle?.whatsapp, 'WhatsApp');
+  if (!waResult.ok) return res.json({ ok: false, error: waResult.error });
+
   return sharedVerify(req, res, 'vehicle', async (client, req, { planDays, expiresAt, expectedAmount }) => {
     const { vehicle, plan } = req.body;
+    const waClean = requirePhone(vehicle?.whatsapp, 'WhatsApp');
+    if (!waClean.ok) throw Object.assign(new Error(waClean.error), { userError: true });
     const { rows } = await client.query(`
       INSERT INTO vehicles (posted_by,vehicle_type,name,year,color,fuel_type,transmission,ac_type,seats,
         daily_rate,hourly_rate,km_limit,extra_km_rate,min_booking,advance_amt,purpose,includes,availability,
@@ -529,7 +586,7 @@ router.post('/verify/vehicle', auth, (req, res) => {
        vehicle.extraKmRate || '', vehicle.minBooking || '1', vehicle.advanceAmt || '',
        vehicle.purpose || '', JSON.stringify(vehicle.includes || []),
        JSON.stringify(vehicle.availability || []),
-       vehicle.area, vehicle.address || '', vehicle.ownerName || '', vehicle.whatsapp,
+       vehicle.area, vehicle.address || '', vehicle.ownerName || '', waClean.value,
        vehicle.description || '', JSON.stringify(vehicle.photos || []),
        planDays, vehicle.planLabel || plan || '1 Month', expectedAmount, expiresAt,
        vehicle.district || 'nanded']);
@@ -542,11 +599,17 @@ router.post('/verify/vehicle', auth, (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/buysell', auth, (req, res) => {
   const { item } = req.body;
-  if (!item?.title || !item?.price || !item?.whatsapp) {
-    return res.json({ ok: false, error: 'Title, price, and WhatsApp are required.' });
+  if (!item?.title || !item?.price) {
+    return res.json({ ok: false, error: 'Title and price are required.' });
   }
+  // ── Phone validation ─────────────────────────────────────────────────────────
+  const waResult = requirePhone(item?.whatsapp, 'WhatsApp');
+  if (!waResult.ok) return res.json({ ok: false, error: waResult.error });
+
   return sharedVerify(req, res, 'buysell', async (client, req, { planDays, expiresAt, expectedAmount }) => {
     const { item, plan } = req.body;
+    const waClean = requirePhone(item?.whatsapp, 'WhatsApp');
+    if (!waClean.ok) throw Object.assign(new Error(waClean.error), { userError: true });
     const { rows } = await client.query(`
       INSERT INTO buysell_items (posted_by,title,category,condition,age,price,negotiable,area,description,
         whatsapp,photos,plan_days,plan_label,plan_price,expires_at,district)
@@ -554,7 +617,7 @@ router.post('/verify/buysell', auth, (req, res) => {
       [req.user.id, item.title.trim(), item.category || 'Other',
        item.condition || 'Good', item.age || 'Unknown',
        parseInt(item.price) || 0, item.negotiable !== false, item.area || '',
-       item.description || '', item.whatsapp.trim(),
+       item.description || '', waClean.value,
        JSON.stringify(item.photos || []),
        planDays, item.planLabel || plan || '15 Days', expectedAmount, expiresAt,
        item.district || 'nanded']);
@@ -575,9 +638,12 @@ const BANNER_COLORS = { bold: '#e82828', clean: '#f97316', vivid: '#f97316' };
 router.post('/verify/promotion', auth, async (req, res) => {
   const { promotion, cashfree_order_id } = req.body;
   if (!promotion?.bizName?.trim())  return res.json({ ok: false, error: 'Business name is required.' });
-  if (!promotion?.phone?.trim())    return res.json({ ok: false, error: 'Contact number is required.' });
   if (!promotion?.category?.trim()) return res.json({ ok: false, error: 'Category is required.' });
   if (!promotion?.location?.trim()) return res.json({ ok: false, error: 'Location is required.' });
+
+  // ── Phone validation ─────────────────────────────────────────────────────────
+  const phoneResult = requirePhone(promotion?.phone, 'Contact number');
+  if (!phoneResult.ok) return res.json({ ok: false, error: phoneResult.error });
 
   const client = await pool.connect();
   try {
@@ -609,6 +675,15 @@ router.post('/verify/promotion', auth, async (req, res) => {
         return res.json({ ok: false, error: verification.error });
       }
 
+      // ── BUG FIX: Verify paid amount matches the selected plan price ──────────
+      // Without this check a client could pay ₹1 (or any amount) and receive a
+      // higher-value plan (e.g. pay ₹1, get the ₹199 premium plan).
+      // `remaining` is what was actually due after credits; allow ₹1 rounding tolerance.
+      if (verification.amount < remaining - 1) {
+        await client.query('ROLLBACK');
+        return res.json({ ok: false, error: 'Payment amount mismatch. Please contact support.' });
+      }
+
       cfPaymentId = verification.paymentId;
     }
 
@@ -637,7 +712,7 @@ router.post('/verify/promotion', auth, async (req, res) => {
           plan,plan_price,plan_days,banner_style,accent_color,banner_mode,banner_image,status,expires_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'active',$17) RETURNING *`,
       [req.user.id, promotion.bizName.trim(), promotion.tagline?.trim() || null,
-       promotion.phone.trim(), promotion.category.trim(), promotion.location.trim(),
+       phoneResult.value, promotion.category.trim(), promotion.location.trim(),
        promotion.address?.trim() || null, promotion.website?.trim() || null,
        promotion.description?.trim() || null,
        planKey, planMeta.price, planMeta.days,
