@@ -1,7 +1,7 @@
 /**
  * promotions.js — Business promotion routes
  *
- * POST /api/promotions        — submit a new promotion (auth required)
+ * POST /api/promotions        — submit a new promotion (auth required, requires verified payment)
  * GET  /api/promotions/active — get a random active promotion banner (public)
  * GET  /api/promotions/all    — get ALL active promotions ordered by created_at (public)
  * GET  /api/promotions/mine   — get the current user's promotions (auth required)
@@ -26,21 +26,21 @@ const BANNER_COLORS = {
 };
 
 // Helper: normalise a banner_image value from the DB into a usable URL/URI.
-// Three cases:
-//   1. Full URL  (starts with 'http')  → return as-is
-//   2. Relative path (e.g. '/api/...') → prepend base domain
-//   3. Base64 data URI (starts with 'data:') → return as-is (React Native Image handles it)
 function normaliseBannerImage(raw) {
   if (!raw) return null;
   if (raw.startsWith('http') || raw.startsWith('data:')) return raw;
   return 'https://thecityplus.in' + raw;
 }
+
+// ── POST /api/promotions ──────────────────────────────────────────────────────
+// FIX (Critical): Requires a verified cashfree_order_id before inserting an
+// active promotion. Without this check, anyone could POST and get a free listing.
 router.post('/', auth, async (req, res) => {
   try {
     const {
       bizName, tagline, phone, category, location,
       address, website, description, timing, plan,
-      bannerStyle, templateId,
+      bannerStyle, templateId, cashfree_order_id,
     } = req.body;
 
     if (!bizName?.trim())  return res.json({ ok: false, error: 'Business name is required.' });
@@ -48,6 +48,34 @@ router.post('/', auth, async (req, res) => {
     if (!category?.trim()) return res.json({ ok: false, error: 'Category is required.' });
     if (!location?.trim()) return res.json({ ok: false, error: 'Location is required.' });
     if (!PLANS[plan])      return res.json({ ok: false, error: 'Invalid promotion plan.' });
+
+    // FIX: Require a verified payment order before creating an active promotion.
+    if (!cashfree_order_id || typeof cashfree_order_id !== 'string') {
+      return res.json({ ok: false, error: 'A verified payment order is required to create a promotion.' });
+    }
+
+    // Verify the order exists in payments table and belongs to this user
+    const { rows: payRows } = await pool.query(
+      `SELECT id FROM payments
+       WHERE cashfree_order_id = $1
+         AND user_id = $2
+         AND status = 'paid'
+         AND purpose = 'promotion'
+       LIMIT 1`,
+      [cashfree_order_id.trim(), req.user.id]
+    );
+    if (!payRows.length) {
+      return res.json({ ok: false, error: 'Payment not verified. Please complete payment before submitting a promotion.' });
+    }
+
+    // Prevent reuse of the same order for multiple promotions
+    const { rows: dupRows } = await pool.query(
+      `SELECT id FROM business_promotions WHERE cashfree_order_id = $1 LIMIT 1`,
+      [cashfree_order_id.trim()]
+    );
+    if (dupRows.length) {
+      return res.json({ ok: false, error: 'This payment order has already been used for a promotion.' });
+    }
 
     const { price, days } = PLANS[plan];
     const accentColor = BANNER_COLORS[bannerStyle] || '#f97316';
@@ -60,8 +88,8 @@ router.post('/', auth, async (req, res) => {
       `INSERT INTO business_promotions
          (user_id, business_name, biz_name, tagline, phone, category, location, address,
           website, description, timing, plan, plan_price, plan_days,
-          banner_style, accent_color, template_id, status, expires_at)
-       VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'active',$17)
+          banner_style, accent_color, template_id, status, expires_at, cashfree_order_id)
+       VALUES ($1,$2,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'active',$17,$18)
        RETURNING *`,
       [
         req.user.id,
@@ -70,7 +98,7 @@ router.post('/', auth, async (req, res) => {
         website?.trim() || null, description?.trim() || null,
         timing?.trim() || null,
         plan, price, days, bannerStyle || 'bold', accentColor, tid,
-        expiresAt,
+        expiresAt, cashfree_order_id.trim(),
       ]
     );
 
@@ -83,8 +111,6 @@ router.post('/', auth, async (req, res) => {
 
 // ── POST /api/promotions/request ─────────────────────────────────────────────
 // Saves a WhatsApp banner-design request to the DB with status='pending'.
-// Called BEFORE opening WhatsApp so every request is recorded even if the user
-// never sends the message.
 router.post('/request', auth, async (req, res) => {
   try {
     const {
@@ -119,12 +145,11 @@ router.post('/request', auth, async (req, res) => {
     res.json({ ok: true, id: rows[0].id });
   } catch (err) {
     console.error('POST /promotions/request error:', err);
-    res.status(500).json({ ok: false, error: 'Failed to save your request. Please try again.' });
+    res.json({ ok: false, error: 'Failed to save your request. Please try again.' });
   }
 });
 
 // ── GET /api/promotions/active ────────────────────────────────────────────────
-// Returns ONE random active promotion (legacy — kept for compatibility)
 router.get('/active', async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -172,8 +197,6 @@ router.get('/active', async (req, res) => {
 });
 
 // ── GET /api/promotions/all ───────────────────────────────────────────────────
-// Returns ALL active promotions ordered by created_at DESC.
-// Used by screens to interleave banners with posts chronologically.
 router.get('/all', async (req, res) => {
   try {
     const { rows } = await pool.query(
