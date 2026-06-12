@@ -8,6 +8,14 @@ const DETAIL_TTL = 30_000;
 // Free plan: 7 days, only on the user's very first room post ever.
 const FREE_PLAN_MAX_DAYS = 7;
 
+// FIX (Critical): Server-side plan duration lookup — never trust client-supplied planDays.
+const PAID_PLANS = {
+  basic:    7,
+  standard: 15,
+  featured: 30,
+  premium:  30,
+};
+
 // GET /api/rooms
 router.get('/', async (req, res) => {
   try {
@@ -92,7 +100,7 @@ router.post('/', auth, async (req, res) => {
     const {
       title, type, bhk, rent, furnished, area, address,
       landmark, ownerName, whatsapp, description, photos,
-      planDays, plan, district,
+      plan, district, // planDays intentionally not accepted from client
     } = req.body;
     if (!title || !rent || !whatsapp)
       return res.json({ ok: false, error: 'Title, rent and WhatsApp are required' });
@@ -103,6 +111,15 @@ router.post('/', auth, async (req, res) => {
 
     const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
     const planKey = (plan || 'free').toLowerCase().trim();
+
+    // FIX (Medium): Per-user active listing cap to prevent resource exhaustion.
+    const { rows: capRows } = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM rooms WHERE posted_by = $1 AND status = 'active'`,
+      [req.user.id]
+    );
+    if (parseInt(capRows[0].cnt) >= 10) {
+      return res.json({ ok: false, error: 'You have reached the maximum of 10 active room listings. Please delete an old one before posting a new one.' });
+    }
 
     // ── First-post-free check ─────────────────────────────────────────────────
     if (planKey === 'free') {
@@ -119,9 +136,10 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
+    // FIX (Critical): Use server-side plan duration; ignore client-supplied planDays.
     const days = planKey === 'free'
       ? FREE_PLAN_MAX_DAYS
-      : Math.max(1, parseInt(planDays) || FREE_PLAN_MAX_DAYS);
+      : (PAID_PLANS[planKey] || FREE_PLAN_MAX_DAYS);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
