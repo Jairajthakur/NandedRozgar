@@ -681,7 +681,12 @@ router.post('/change-password', changePasswordLimiter, auth, async (req, res) =>
     if (!match) return res.status(401).json({ ok: false, error: 'Current password is incorrect' });
 
     const hash = await bcrypt.hash(newPassword, 12);
-    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hash, user.id]);
+    // FIX (Medium): Increment token_version so all existing JWTs (including any
+    // captured by an attacker) are immediately invalidated after a password change.
+    await pool.query(
+      'UPDATE users SET password = $1, token_version = COALESCE(token_version, 0) + 1 WHERE id = $2',
+      [hash, user.id]
+    );
     return res.json({ ok: true, message: 'Password changed successfully' });
   } catch (err) {
     console.error('change-password error:', err.message);
