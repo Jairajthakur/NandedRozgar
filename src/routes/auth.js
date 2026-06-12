@@ -82,8 +82,26 @@ const changePasswordLimiter = rateLimit({
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+// ── BUG FIX: JWT revocation via token_version ──────────────────────────────
+// Standard JWTs are stateless — once issued they remain valid until expiry.
+// A banned user or a user whose account is compromised keeps access for up to
+// 30 days. To fix this without a full token blacklist (expensive DB lookup on
+// every request), we store a monotonic `token_version` integer in the users
+// table and embed it in the JWT. The auth middleware compares the value in the
+// JWT against the current DB value; a mismatch means the token was revoked.
+//
+// Revocation is O(1): just increment `token_version` for that user row.
+// Call this from any admin/ban route or from the logout route.
+//
+// DB migration required (run once):
+//   ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+//
 function makeToken(user) {
-  return jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
+  return jwt.sign(
+    { id: user.id, role: user.role, tv: user.token_version ?? 0 },
+    process.env.JWT_SECRET,
+    { expiresIn: '30d' }
+  );
 }
 
 function safeUser(u) {
@@ -217,9 +235,16 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     const user = rows[0];
+
+    // ── BUG FIX: User enumeration — always return the same error for both
+    // "no account found" and "wrong password" so an attacker cannot probe which
+    // email addresses are registered by comparing error messages.
+    // The specific reason is still written to the activity log for support use.
+    const INVALID_CREDENTIALS_MSG = 'Incorrect email or password';
+
     if (!user) {
       await log('login_failed', { status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Unknown email: ${email}` });
-      return res.status(401).json({ ok: false, error: 'No account found with this email' });
+      return res.status(401).json({ ok: false, error: INVALID_CREDENTIALS_MSG });
     }
     if (!user.active) {
       await log('login_blocked', { userId: user.id, status: 'blocked', ip: getIP(req), userAgent: getUA(req), detail: `Banned user tried to login: ${email}` });
@@ -230,7 +255,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       await log('login_failed', { userId: user.id, status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Wrong password for ${email}` });
-      return res.status(401).json({ ok: false, error: 'Incorrect password' });
+      return res.status(401).json({ ok: false, error: INVALID_CREDENTIALS_MSG });
     }
 
     await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(() => {});
@@ -665,6 +690,8 @@ router.post('/change-password', changePasswordLimiter, auth, async (req, res) =>
 });
 
 // ── POST /api/auth/logout ──────────────────────────────────────────────────────
+// Increments token_version so the current token (and any other active tokens
+// for this user) are immediately rejected by the auth middleware.
 // No auth middleware — we decode the JWT ourselves so logout is logged even if
 // the token is expired or the cache has already been cleared on the client.
 router.post('/logout', async (req, res) => {
@@ -681,7 +708,13 @@ router.post('/logout', async (req, res) => {
       }
     }
     if (userId) {
-      await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]).catch(() => {});
+      // ── BUG FIX: Revoke all tokens for this user by bumping token_version.
+      // The auth middleware checks the `tv` claim in the JWT against this column;
+      // any token issued before this increment is immediately invalid.
+      await pool.query(
+        'UPDATE users SET last_seen = NOW(), token_version = COALESCE(token_version, 0) + 1 WHERE id = $1',
+        [userId]
+      ).catch(() => {});
     }
     await log('logout', { userId, ip: getIP(req), userAgent: getUA(req) });
     return res.json({ ok: true });
