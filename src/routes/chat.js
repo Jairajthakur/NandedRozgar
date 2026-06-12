@@ -1,6 +1,25 @@
-const router = require('express').Router();
-const { pool } = require('../db');
-const { auth } = require('../middleware/auth');
+const router    = require('express').Router();
+const rateLimit = require('express-rate-limit');
+const { pool }  = require('../db');
+const { auth }  = require('../middleware/auth');
+
+// ── BUG FIX: Rate limit on message sending ───────────────────────────────────
+// Without a rate limit, any authenticated user can POST messages in a tight
+// loop, flooding another user's inbox (harassment) and hammering the DB (DoS).
+// The global 300 req/15 min limiter in index.js is too coarse: a single chat
+// loop at 1 msg/s only hits it after ~5 hours.
+//
+// Keyed by user ID (not IP) so IPv6 rotation or shared NAT doesn't defeat it.
+// 30 messages/minute is generous for real conversations but blocks spam loops.
+const messageLimiter = rateLimit({
+  windowMs: 60 * 1000,  // 1-minute sliding window
+  max: 30,              // 30 messages per user per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `chat_msg:${req.user?.id ?? req.ip}`,
+  message: { ok: false, error: 'Too many messages. Please slow down.' },
+  skipFailedRequests: true,  // don't burn quota on validation failures
+});
 
 // GET /api/chat/conversations
 router.get('/conversations', auth, async (req, res) => {
@@ -73,7 +92,8 @@ router.get('/:userId/:jobId', auth, async (req, res) => {
 });
 
 // POST /api/chat/:userId/:jobId — send a message
-router.post('/:userId/:jobId', auth, async (req, res) => {
+// messageLimiter runs after auth so keyGenerator has req.user.id available
+router.post('/:userId/:jobId', auth, messageLimiter, async (req, res) => {
   try {
     const receiver = parseInt(req.params.userId);
     const jobId    = req.params.jobId === 'null' ? null : parseInt(req.params.jobId);
