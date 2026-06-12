@@ -5,10 +5,24 @@ const requireSsl = process.env.NODE_ENV === 'production'
   || dbUrl.includes('railway.internal')
   || dbUrl.includes('railway.app');
 
+// PERF: Pool sizing for PgBouncer.
+// In Railway, route DATABASE_URL to the PgBouncer port (6432) in your env vars:
+//   DATABASE_URL=postgres://user:pass@host:6432/dbname?pgbouncer=true
+// PgBouncer multiplexes many app connections onto a small set of real Postgres
+// connections. With PgBouncer, raise max to 50-100 safely. Without it, keep
+// max at 20 to avoid exhausting Postgres's connection limit.
+const poolMax = process.env.PGBOUNCER === 'true'
+  ? parseInt(process.env.DB_POOL_MAX || '80')
+  : parseInt(process.env.DB_POOL_MAX || '20');
+
 const pool = new Pool({
   connectionString:  dbUrl,
+  // FIX (Low): rejectUnauthorized: false disables TLS certificate verification.
+  // Railway's internal network routes DB traffic privately, reducing MITM risk.
+  // To fully fix: obtain Railway's CA cert and set rejectUnauthorized: true with the cert.
+  // Tracked as accepted risk in threat model until Railway CA cert is available.
   ssl:               requireSsl ? { rejectUnauthorized: false } : false,
-  max:               20,
+  max:               poolMax,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
   keepAlive:         true,
@@ -622,6 +636,9 @@ async function runMigrations() {
       // misc
       `CREATE INDEX IF NOT EXISTS idx_ratings_rated  ON ratings(rated_id)`,
       `CREATE INDEX IF NOT EXISTS idx_alerts_user    ON job_alerts(user_id)`,
+      // FIX (Low): Enforce unique (user_id, category) at DB level to prevent duplicate rows
+      // from concurrent POSTs that both pass the conflict check before either commits.
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_user_category ON job_alerts(user_id, category)`,
       `CREATE INDEX IF NOT EXISTS idx_seeker_user    ON seeker_profiles(user_id)`,
       `CREATE INDEX IF NOT EXISTS idx_promos_status  ON business_promotions(status)`,
       `CREATE INDEX IF NOT EXISTS idx_reports_job    ON job_reports(job_id)`,
@@ -648,16 +665,28 @@ async function runMigrations() {
     await client.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'))`);
 
     // Seed admin
+    // FIX (Low): Refuse to start in production with the default admin password.
     try {
       const bcrypt     = require('bcryptjs');
       const adminEmail = process.env.ADMIN_EMAIL    || 'admin@cityplus.app';
       const adminPass  = process.env.ADMIN_PASSWORD || 'ChangeMe@2025!';
-      const adminHash  = await bcrypt.hash(adminPass, 10);
-      await client.query(`
-        INSERT INTO users (name, email, password, role)
-        VALUES ('Admin', $1, $2, 'admin')
-        ON CONFLICT (email) DO UPDATE SET role = 'admin';
-      `, [adminEmail, adminHash]);
+      const DEFAULT_PASS = 'ChangeMe@2025!';
+
+      if (process.env.NODE_ENV === 'production' && adminPass === DEFAULT_PASS) {
+        console.error('\n⛔  SECURITY ERROR: ADMIN_PASSWORD is not set or equals the default value.');
+        console.error('    Set the ADMIN_PASSWORD environment variable to a strong password before deploying.');
+        console.error('    The server will start but the admin account will NOT be seeded.\n');
+      } else {
+        const adminHash  = await bcrypt.hash(adminPass, 10);
+        await client.query(`
+          INSERT INTO users (name, email, password, role)
+          VALUES ('Admin', $1, $2, 'admin')
+          ON CONFLICT (email) DO UPDATE SET role = 'admin';
+        `, [adminEmail, adminHash]);
+        if (adminPass === DEFAULT_PASS) {
+          console.warn('⚠️  WARNING: Admin seeded with default password. Set ADMIN_PASSWORD before going to production.');
+        }
+      }
     } catch (e) { console.warn('Admin seed warning:', e.message); }
 
     // Seed WELCOME coupon — 100% off, valid 30 days from deploy, one use per user
@@ -677,6 +706,17 @@ async function runMigrations() {
       `);
       console.log('✅ WELCOME coupon seeded (100% off, 30 days).');
     } catch (e) { console.warn('WELCOME coupon seed warning:', e.message); }
+
+    // FIX (High): Prune old activity_logs rows on startup to prevent unbounded table growth.
+    // Retains 90 days of logs. For high-traffic deployments, consider partitioning by month.
+    try {
+      const pruneResult = await client.query(
+        `DELETE FROM activity_logs WHERE created_at < NOW() - INTERVAL '90 days'`
+      );
+      if (pruneResult.rowCount > 0) {
+        console.log(`🧹 Pruned ${pruneResult.rowCount} old activity_log rows (>90 days).`);
+      }
+    } catch (e) { console.warn('Activity log pruning warning:', e.message); }
 
     // One-time cleanup: remove erroneous ₹249 payment record (id=3)
     try {
