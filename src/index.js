@@ -1,33 +1,58 @@
+'use strict';
 require('dotenv').config();
-const express  = require('express');
-const cors     = require('cors');
-const path     = require('path');
-const fs       = require('fs');
+
+// ── PERF: Node.js cluster — one worker per CPU core ───────────────────────────
+// With JWT-based (stateless) auth and Redis as shared cache, horizontal scaling
+// is already coherent. Cluster mode uses all available cores on a single Railway
+// instance. For 20-device deployments, set CLUSTER_WORKERS in Railway env vars.
+//
+// To disable clustering (e.g. during debugging): set DISABLE_CLUSTER=true
+const cluster = require('cluster');
+const os      = require('os');
+
+const WORKERS = parseInt(process.env.CLUSTER_WORKERS || os.cpus().length, 10);
+const DISABLE_CLUSTER = process.env.DISABLE_CLUSTER === 'true' || process.env.NODE_ENV !== 'production';
+
+if (cluster.isPrimary && !DISABLE_CLUSTER) {
+  console.log(`🔀 Cluster primary PID ${process.pid} — forking ${WORKERS} workers`);
+
+  for (let i = 0; i < WORKERS; i++) cluster.fork();
+
+  cluster.on('exit', (worker, code, signal) => {
+    console.warn(`⚠️  Worker ${worker.process.pid} died (code=${code}, signal=${signal}) — restarting`);
+    cluster.fork(); // auto-restart dead workers
+  });
+
+  // Primary only runs the cron jobs (expiry cleanup + log pruning)
+  // Workers handle HTTP. This prevents N duplicate cron runs.
+  _startPrimaryCrons();
+  return; // primary doesn't run Express
+}
+
+// ── Worker (or single process in dev) ─────────────────────────────────────────
+const express   = require('express');
+const cors      = require('cors');
+const path      = require('path');
+const fs        = require('fs');
 const rateLimit = require('express-rate-limit');
 const { runMigrations, pool, cache } = require('./db');
 
-// Security headers — blocks XSS, clickjacking, MIME sniffing
-// npm i helmet  (if not already installed)
+// Security headers
 let helmet;
 try { helmet = require('helmet'); } catch { helmet = null; }
 if (!helmet) console.warn('[startup] helmet not installed — run: npm i helmet');
 
-// ── Gzip compression — dramatically reduces payload size on slow networks ──────
+// Gzip compression
 let compression;
 try { compression = require('compression'); } catch { compression = null; }
 
 const app = express();
 app.set('trust proxy', 1);
 
-// Apply security headers (helmet) as early as possible
 if (helmet) app.use(helmet({ contentSecurityPolicy: false }));
+if (compression) app.use(compression({ level: 6, threshold: 1024 }));
 
-// Enable gzip for all responses
-if (compression) {
-  app.use(compression({ level: 6, threshold: 1024 }));
-}
-
-// ── Response-time header (visible in Railway logs & dev tools) ────────────────
+// ── Response-time header ──────────────────────────────────────────────────────
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
@@ -37,10 +62,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── HTTP Cache-Control for read-only API endpoints ────────────────────────────
-// Public GET endpoints (jobs list, rooms list) get a short public cache.
-// Authenticated requests (Authorization header present) are always private
-// so CDNs never serve one user's data to another.
+// ── HTTP Cache-Control ────────────────────────────────────────────────────────
 app.use('/api/', (req, res, next) => {
   const hasAuth = !!req.headers['authorization'];
   if (req.method === 'GET' && !hasAuth) {
@@ -70,25 +92,12 @@ const staticOrigins = [
   ...explicitOrigins,
 ];
 
-// ── BUG FIX: CORS private-IP allowlist restricted to non-production ──────────
-// The original code allowed ALL RFC-1918 private IP ranges (192.168.x.x,
-// 10.x.x.x, 172.16-31.x.x) in every environment, including production.
-// In production this is a security risk: any machine on the same private
-// network as the server (shared hosting, cloud VPC, corporate LAN) can make
-// credentialed cross-origin requests to the API with no restriction.
-//
-// Fix: private-IP origins are only permitted when NODE_ENV !== 'production'.
-// In production only the explicit static origin allowlist is accepted.
-// localhost/127.0.0.1 is still allowed in production for health-check tooling
-// running on the same machine (Railway health probes, etc.).
 const isProduction = process.env.NODE_ENV === 'production';
 
 function isAllowedOrigin(origin) {
   if (!origin) return true;
   if (staticOrigins.includes(origin)) return true;
-  // localhost always allowed — used by health probes and same-machine tooling
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
-  // RFC-1918 private ranges only permitted outside production
   if (!isProduction) {
     if (/^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
     if (/^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
@@ -108,29 +117,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Raw body parser for Cashfree webhook (must come before express.json)
-// Cashfree signature is computed over the raw request body; parsing as JSON
-// first would change whitespace and break HMAC verification.
-//
-// FIX (Bug #1 — companion to payments.js fix):
-// After reading the raw bytes into req.body (a Buffer), we save a copy as
-// req.rawBody BEFORE calling JSON.parse.  The webhook route in payments.js
-// reads req.rawBody to reconstruct the exact bytes that Cashfree signed.
-// Without this, payments.js would have to call JSON.stringify(req.body) which
-// re-serialises the already-parsed object — different whitespace, possibly
-// different key order — making the HMAC check always fail.
+// ── Body parsers ──────────────────────────────────────────────────────────────
+// Raw body for Cashfree webhook HMAC verification (must come before express.json)
 app.use('/api/payments/cashfree-webhook', express.raw({ type: 'application/json', limit: '1mb' }), (req, _res, next) => {
   if (Buffer.isBuffer(req.body)) {
-    req.rawBody = req.body; // ← preserve raw bytes for HMAC verification
+    req.rawBody = req.body;
     try { req.body = JSON.parse(req.body.toString()); } catch { req.body = {}; }
   }
   next();
 });
-// FIX (Bug #7): Reduce the global JSON body limit from 15 MB to 1 MB.
-// The image upload route gets its own 15 MB parser applied FIRST (before the
-// global 1 MB parser), so large base64 image bodies are accepted only on that
-// path. All other routes are capped at 1 MB to prevent DoS.
-// image upload uses multipart/form-data (parsed by busboy in upload.js) — no large JSON limit needed here
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
@@ -145,7 +140,7 @@ app.use((_req, res, next) => {
 });
 
 // ── Force HTTPS in production ─────────────────────────────────────────────────
-if (process.env.NODE_ENV === 'production') {
+if (isProduction) {
   app.use((req, res, next) => {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     const proto = req.headers['x-forwarded-proto'];
@@ -165,8 +160,6 @@ const globalLimiter = rateLimit({
   message: { ok: false, error: 'Too many requests. Please slow down.' },
 });
 app.use('/api/', globalLimiter);
-
-
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',       require('./routes/auth'));
@@ -188,10 +181,7 @@ app.use('/api/upload',     require('./routes/upload'));
 const { router: seoRouter } = require('./routes/seo');
 app.use('/', seoRouter);
 
-
 // ── ISO 27001 Audit Logging Middleware ────────────────────────────────────────
-// IMPORTANT: registered AFTER all routes so req.user is always populated
-// by the auth() middleware before our res.json wrapper fires.
 (function installAuditMiddleware(app) {
   const { pool } = require('./db');
 
@@ -241,8 +231,6 @@ app.use('/', seoRouter);
     ['PATCH',  /^\/api\/admin\/rooms\/\d+\/status/,     'admin_room_status_changed'],
     ['DELETE', /^\/api\/admin\/rooms\/\d+/,              'admin_room_deleted'],
     ['POST',   /^\/api\/admin\/notifications/,             'admin_notification_sent'],
-
-    // ── View / Browse actions (GET) ──────────────────────────────────────────
     ['GET',    /^\/api\/jobs\/\d+(?:\?|$)/,                  'job_viewed'],
     ['GET',    /^\/api\/jobs\/my-applications/,               'applications_viewed'],
     ['GET',    /^\/api\/jobs\/saved/,                         'saved_jobs_viewed'],
@@ -260,9 +248,9 @@ app.use('/', seoRouter);
   ];
 
   function deriveAction(method, url) {
-    const path = url.split('?')[0];
+    const p = url.split('?')[0];
     for (const [m, re, action] of RULES) {
-      if (m === method && re.test(path)) return action;
+      if (m === method && re.test(p)) return action;
     }
     return null;
   }
@@ -278,14 +266,12 @@ app.use('/', seoRouter);
     return parts.join(' | ') || null;
   }
 
-  // Register AFTER routes — this way auth() has already run and set req.user
   app.use(function auditLogger(req, res, next) {
     const action = deriveAction(req.method, req.originalUrl || req.url);
-    if (!action) return next(); // fast path — skip non-audited routes
+    if (!action) return next();
 
     const _json = res.json.bind(res);
     res.json = function(body) {
-      // req.user is set by auth() middleware which ran before this point
       const userId = req.user && req.user.id ? req.user.id : null;
       if (userId && body && body.ok !== false) {
         const ip        = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
@@ -295,7 +281,7 @@ app.use('/', seoRouter);
         pool.query(
           'INSERT INTO activity_logs (user_id, action, status, ip, user_agent, detail) VALUES ($1,$2,$3,$4,$5,$6)',
           [userId, action, 'success', ip, userAgent, detail]
-        ).catch(function(e) { console.warn('[audit] insert failed:', e.message); });
+        ).catch(e => console.warn('[audit] insert failed:', e.message));
       }
       return _json(body);
     };
@@ -305,9 +291,7 @@ app.use('/', seoRouter);
   console.log('[audit] ISO 27001 audit middleware installed ✅');
 })(app);
 
-// ── App version check — used by useAppUpdate.js for in-app update prompts ─────
-// Bump versionCode here every time you publish to Play Store.
-// Set forceUpdate: true to block users on old versions.
+// ── App version check ──────────────────────────────────────────────────────────
 app.get('/api/app/version', (_req, res) => {
   res.json({
     ok: true,
@@ -321,75 +305,44 @@ app.get('/api/app/version', (_req, res) => {
   });
 });
 
-// Health check
-app.get('/health', (_req, res) => res.json({ ok: true, status: 'CityPlus API running 🚀' }));
+// Health check — also reports worker PID so load-balancer logs show which worker served
+app.get('/health', (_req, res) => res.json({
+  ok:     true,
+  status: 'CityPlus API running 🚀',
+  pid:    process.pid,
+  worker: cluster.worker ? cluster.worker.id : 'primary',
+}));
 
-// ── Cashfree payment start — native APK opens this in the system browser ──────
-// The browser visits this page via GET with ?session_id=...&order_id=...
-// The page auto-submits a POST form to Cashfree's hosted checkout endpoint,
-// which is the only way to initiate a Cashfree hosted session from a browser
-// (Cashfree requires a POST, not a GET redirect).
+// ── Cashfree payment start ─────────────────────────────────────────────────────
 const CF_CHECKOUT_ENDPOINT = (process.env.CASHFREE_ENV || process.env.NODE_ENV) === 'production'
   ? 'https://api.cashfree.com/pg/view/sessions/checkout'
   : 'https://sandbox.cashfree.com/pg/view/sessions/checkout';
 
 app.get('/payment/start', (req, res) => {
   const { session_id, order_id } = req.query;
-  if (!session_id) {
-    return res.status(400).send('Missing session_id');
-  }
-  // Escape values for safe inline HTML injection
+  if (!session_id) return res.status(400).send('Missing session_id');
   const safeSession = String(session_id).replace(/[<>"'&]/g, c =>
-    ({ '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":"&#39;", '&':'&amp;' }[c]));
+    ({ '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;', '&':'&amp;' }[c]));
   const safeOrder = String(order_id || '').replace(/[<>"'&]/g, c =>
-    ({ '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":"&#39;", '&':'&amp;' }[c]));
+    ({ '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;', '&':'&amp;' }[c]));
 
-  res.send(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  res.send(`<!DOCTYPE html><html><head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Opening payment…</title>
-  <style>
-    body { font-family: sans-serif; display: flex; align-items: center;
-           justify-content: center; min-height: 100vh; margin: 0;
-           background: #fff8f5; flex-direction: column; gap: 16px; }
-    .spinner { width: 44px; height: 44px; border: 4px solid #fed7aa;
-               border-top-color: #f97316; border-radius: 50%;
-               animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    p { color: #f97316; font-weight: 600; font-size: 15px; }
-    small { color: #aaa; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <div class="spinner"></div>
-  <p>Opening payment page…</p>
-  <small>Secured by Cashfree Payments</small>
+  <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;
+  min-height:100vh;margin:0;background:#fff8f5;flex-direction:column;gap:16px;}
+  .spinner{width:44px;height:44px;border:4px solid #fed7aa;border-top-color:#f97316;
+  border-radius:50%;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}</style></head>
+  <body><div class="spinner"></div><p style="color:#f97316;font-weight:600">Opening payment page…</p>
   <form id="cf" method="POST" action="${CF_CHECKOUT_ENDPOINT}" style="display:none">
     <input type="hidden" name="payment_session_id" value="${safeSession}">
   </form>
-  <script>
-    // Auto-submit on load; tiny delay so the loading spinner is visible
-    window.addEventListener('load', function () {
-      setTimeout(function () { document.getElementById('cf').submit(); }, 300);
-    });
-  </script>
-</body>
-</html>`);
+  <script>window.addEventListener('load',function(){setTimeout(function(){document.getElementById('cf').submit();},300);});</script>
+  </body></html>`);
 });
 
-// ── Cashfree payment callback ──────────────────────────────────────────────────
-// Cashfree redirects here after payment with ?order_id=XXX&payment_status=SUCCESS|FAILED
-//
-// Native (APK) flow — browser-redirect + deep link:
-//   This page (public/payment-callback.html) immediately redirects the system
-//   browser to  cityplus://payment/callback?order_id=...&payment_status=...
-//   App.js picks that up via its Linking listener → emitPaymentResult().
-//
-// Web (browser) flow:
-//   The Cashfree Drop-in handles success/failure via its own JS callbacks.
-//   This endpoint is never reached for web users; it is only a safety net.
+// ── Static pages ──────────────────────────────────────────────────────────────
 const CALLBACK_HTML    = path.join(__dirname, '..', 'public', 'payment-callback.html');
 const ADMIN_LOGIN_HTML = path.join(__dirname, '..', 'public', 'admin-login.html');
 const ADMIN_PANEL_HTML = path.join(__dirname, '..', 'public', 'admin-panel.html');
@@ -397,57 +350,57 @@ const PRIVACY_HTML     = path.join(__dirname, '..', 'public', 'privacy-policy.ht
 const TERMS_HTML       = path.join(__dirname, '..', 'public', 'terms-and-conditions.html');
 const REFUND_HTML      = path.join(__dirname, '..', 'public', 'refund-policy.html');
 
-// ── Admin panel — standalone dashboard, no Expo dependency ───────────────────
-// /admin serves the full self-contained admin panel (login + dashboard in one).
-// Must be registered BEFORE the Expo web build catch-all (app.get('*')).
 app.get('/admin',       (_req, res) => res.sendFile(ADMIN_PANEL_HTML));
 app.get('/admin-login', (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
-
-// ── Legal / Policy pages (required for Play Store listing) ───────────────────
 app.get('/privacy-policy',       (_req, res) => res.sendFile(PRIVACY_HTML));
 app.get('/terms-and-conditions', (_req, res) => res.sendFile(TERMS_HTML));
 app.get('/refund-policy',        (_req, res) => res.sendFile(REFUND_HTML));
+
 app.get('/payment/callback', (req, res) => {
   if (fs.existsSync(CALLBACK_HTML)) {
-    // Serve the custom HTML that fires the cityplus:// deep link
     res.sendFile(CALLBACK_HTML);
   } else {
-    // Inline fallback — redirects to the deep link directly from the server response
     const { order_id = '', payment_status = '' } = req.query;
-    const deepLink =
-      `cityplus://payment/callback` +
-      `?order_id=${encodeURIComponent(order_id)}` +
-      `&payment_status=${encodeURIComponent(payment_status)}`;
-    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width,initial-scale=1">
-      <title>Returning to app…</title>
-      <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;
-      min-height:100vh;margin:0;background:#fff8f5;flex-direction:column;gap:12px;padding:24px}
-      p{color:#f97316;font-weight:600;font-size:15px;text-align:center}
-      a{color:#f97316;font-size:14px}</style></head>
-      <body>
-        <p>${payment_status.toUpperCase() === 'SUCCESS' ? '✅ Payment Successful!' : payment_status.toUpperCase() === 'FAILED' ? '❌ Payment Failed' : '⏳ Processing…'}</p>
-        <p>Returning to the app…</p>
-        <a href="${deepLink}">Tap here if the app does not open</a>
-      <script>
-        setTimeout(function(){ window.location.href = ${JSON.stringify(deepLink)}; }, 400);
-      </script></body></html>`);
+    const deepLink = `cityplus://payment/callback?order_id=${encodeURIComponent(order_id)}&payment_status=${encodeURIComponent(payment_status)}`;
+    res.send(`<!DOCTYPE html><html><body>
+      <script>setTimeout(function(){window.location.href=${JSON.stringify(deepLink)};},400);</script>
+      <p>Returning to app… <a href="${deepLink}">Tap here if it doesn't open</a></p>
+      </body></html>`);
   }
 });
 
-// ── Serve Expo web build ───────────────────────────────────────────────────────
+// ── Expo web build ─────────────────────────────────────────────────────────────
 const WEB_BUILD = path.join(__dirname, '..', 'dist');
 if (fs.existsSync(WEB_BUILD)) {
   app.use(express.static(WEB_BUILD));
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(WEB_BUILD, 'index.html'));
-  });
+  app.get('*', (_req, res) => res.sendFile(path.join(WEB_BUILD, 'index.html')));
 } else {
   app.use((_req, res) => res.status(404).json({ ok: false, error: 'Route not found' }));
 }
 
-// ── Expiry cleanup cron ────────────────────────────────────────────────────────
-function startExpiryCleanup() {
+// ── Worker startup ─────────────────────────────────────────────────────────────
+const PORT = process.env.PORT || 3000;
+
+runMigrations()
+  .then(() => {
+    app.listen(PORT, () => {
+      const workerLabel = cluster.worker ? `worker #${cluster.worker.id} PID ${process.pid}` : `PID ${process.pid}`;
+      console.log(`🚀 Server running on port ${PORT} [${workerLabel}]`);
+      // In cluster mode, only primary runs crons (see _startPrimaryCrons below).
+      // In single-process (dev) mode, start them here.
+      if (DISABLE_CLUSTER) _startPrimaryCrons();
+    });
+  })
+  .catch(err => {
+    console.error('❌ Failed to start server — migration error:', err.message);
+    process.exit(1);
+  });
+
+// ── Cron jobs — run only in primary process (or single-process dev mode) ──────
+// PERF: Activity log pruning runs weekly, expiry cleanup runs hourly.
+// Both are defined here so they only run once regardless of worker count.
+function _startPrimaryCrons() {
+  // ── Expiry cleanup — every hour ───────────────────────────────────────────
   async function deleteExpired() {
     try {
       const now = new Date();
@@ -461,8 +414,7 @@ function startExpiryCleanup() {
       const [jobs, vehicles, rooms, items, promos] = results;
       const total = jobs.rowCount + vehicles.rowCount + rooms.rowCount + items.rowCount + promos.rowCount;
       if (total > 0) {
-        console.log(`🗑️  Expiry cleanup: ${jobs.rowCount} jobs, ${vehicles.rowCount} vehicles, ${rooms.rowCount} rooms, ${items.rowCount} items | ${promos.rowCount} promotions expired`);
-        // Bust all list caches so expired items disappear immediately
+        console.log(`🗑️  Expiry cleanup: ${jobs.rowCount} jobs, ${vehicles.rowCount} vehicles, ${rooms.rowCount} rooms, ${items.rowCount} items | ${promos.rowCount} promotions`);
         await cache.delPrefix('jobs:');
         await cache.delPrefix('rooms:');
         await cache.delPrefix('vehicles:');
@@ -473,19 +425,26 @@ function startExpiryCleanup() {
     }
   }
   deleteExpired();
-  setInterval(deleteExpired, 60 * 60 * 1000);
+  setInterval(deleteExpired, 60 * 60 * 1000); // hourly
+
+  // ── PERF: Activity log pruning — weekly ───────────────────────────────────
+  // At 200k rows/day without pruning the table hits millions of rows within weeks,
+  // degrading all write performance. Keep 90 days; prune the rest every Sunday.
+  async function pruneActivityLogs() {
+    try {
+      const result = await pool.query(
+        `DELETE FROM activity_logs WHERE created_at < NOW() - INTERVAL '90 days'`
+      );
+      if (result.rowCount > 0) {
+        console.log(`🧹 Pruned ${result.rowCount} old activity_log rows (>90 days)`);
+      }
+    } catch (err) {
+      console.error('❌ Activity log pruning error:', err.message);
+    }
+  }
+  // Run once at startup, then weekly
+  pruneActivityLogs();
+  setInterval(pruneActivityLogs, 7 * 24 * 60 * 60 * 1000);
+
+  console.log('⏰ Cron jobs started (expiry hourly, log pruning weekly)');
 }
-
-const PORT = process.env.PORT || 3000;
-
-runMigrations()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      startExpiryCleanup();
-    });
-  })
-  .catch(err => {
-    console.error('❌ Failed to start server — migration error:', err.message);
-    process.exit(1);
-  });
