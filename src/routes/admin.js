@@ -397,6 +397,7 @@ router.get('/buysell', async (req, res) => {
       `SELECT b.*, u.name AS seller_name, u.email AS seller_email
        FROM buysell_items b
        LEFT JOIN users u ON b.posted_by = u.id
+       WHERE b.status != 'deleted'
        ORDER BY b.created_at DESC`
     );
     res.json({ ok: true, buysell: rows });
@@ -425,9 +426,15 @@ router.patch('/buysell/:id/status', async (req, res) => {
 });
 
 // DELETE /api/admin/buysell/:id
+// BUG FIX: Changed from hard DELETE to soft-delete (status = 'deleted').
+// Hard deletes are unrecoverable — a misclick by an admin permanently destroys
+// a paid listing and its payment record association. Soft-delete matches the
+// jobs pattern, allows audit-trail recovery, and keeps FK integrity intact.
 router.delete('/buysell/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM buysell_items WHERE id = $1', [req.params.id]);
+    await pool.query("UPDATE buysell_items SET status = 'deleted' WHERE id = $1", [req.params.id]);
+    await cache.delPrefix('buysell:');
+    await cache.delPrefix('buysell_count:');
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -444,6 +451,7 @@ router.get('/vehicles', async (req, res) => {
       `SELECT v.*, u.name AS poster_name, u.email AS poster_email
        FROM vehicles v
        LEFT JOIN users u ON v.posted_by = u.id
+       WHERE v.status != 'deleted'
        ORDER BY v.created_at DESC`
     );
     res.json({ ok: true, vehicles: rows });
@@ -469,9 +477,12 @@ router.patch('/vehicles/:id/status', async (req, res) => {
 });
 
 // DELETE /api/admin/vehicles/:id
+// BUG FIX: Changed from hard DELETE to soft-delete (status = 'deleted').
+// Same reasoning as buysell: hard deletes are unrecoverable, break audit
+// trails, and are inconsistent with the jobs soft-delete pattern.
 router.delete('/vehicles/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM vehicles WHERE id = $1', [req.params.id]);
+    await pool.query("UPDATE vehicles SET status = 'deleted' WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -488,6 +499,7 @@ router.get('/rooms', async (req, res) => {
       `SELECT r.*, u.name AS poster_name, u.email AS poster_email
        FROM rooms r
        LEFT JOIN users u ON r.posted_by = u.id
+       WHERE r.status != 'deleted'
        ORDER BY r.created_at DESC`
     );
     res.json({ ok: true, rooms: rows });
@@ -513,9 +525,11 @@ router.patch('/rooms/:id/status', async (req, res) => {
 });
 
 // DELETE /api/admin/rooms/:id
+// BUG FIX: Changed from hard DELETE to soft-delete (status = 'deleted').
+// Same reasoning as buysell and vehicles above.
 router.delete('/rooms/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM rooms WHERE id = $1', [req.params.id]);
+    await pool.query("UPDATE rooms SET status = 'deleted' WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
