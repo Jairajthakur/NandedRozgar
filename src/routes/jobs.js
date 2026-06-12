@@ -175,6 +175,18 @@ router.post('/', auth, async (req, res) => {
 
     const planKey = (plan || 'free').toLowerCase().trim();
 
+    // ── BUG FIX: Reject paid plan keys on the free route ─────────────────────
+    // A client could send plan='30 days' (or any paid plan key) to this route
+    // and bypass the payment flow entirely. Only 'free' is accepted here;
+    // all paid plans must go through POST /api/payments/verify.
+    if (planKey !== 'free') {
+      return res.json({
+        ok: false,
+        error: 'Paid plans must be posted through the payment flow.',
+        requiresPayment: true,
+      });
+    }
+
     // ── First-post-free check ─────────────────────────────────────────────────
     if (planKey === 'free') {
       const { rows: prior } = await pool.query(
@@ -191,8 +203,12 @@ router.post('/', auth, async (req, res) => {
     }
 
     const days = planKey === 'free'
-      ? FREE_PLAN_MAX_DAYS
-      : Math.max(1, parseInt(planDays) || FREE_PLAN_MAX_DAYS);
+      ? FREE_PLAN_MAX_DAYS   // BUG FIX: always 7 days for free plan — ignore any
+                             // client-supplied planDays so a free post cannot receive
+                             // a paid duration (e.g. 30 days) without payment.
+      : FREE_PLAN_MAX_DAYS;  // Non-free plans must go through /api/payments/verify,
+                             // not this free route. If somehow reached, fall back to
+                             // FREE_PLAN_MAX_DAYS rather than trusting the client.
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
