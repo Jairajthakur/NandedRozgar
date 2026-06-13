@@ -180,6 +180,11 @@ async function runMigrations() {
       `ALTER TABLE payments ADD COLUMN IF NOT EXISTS category            VARCHAR(20)  DEFAULT 'job'`,
       `ALTER TABLE payments ADD COLUMN IF NOT EXISTS plan                VARCHAR(30)`,
       `ALTER TABLE payments ADD COLUMN IF NOT EXISTS ref_id              INTEGER`,
+      // FIX: cashfree_order_id + purpose needed for promotion payment verification
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS cashfree_order_id   VARCHAR(100)`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS cashfree_payment_id VARCHAR(100)`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS purpose             VARCHAR(30) DEFAULT 'job'`,
+      `CREATE INDEX IF NOT EXISTS idx_payments_cashfree ON payments(cashfree_order_id) WHERE cashfree_order_id IS NOT NULL`,
 
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS title         VARCHAR(200)`,
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS type          VARCHAR(50)`,
