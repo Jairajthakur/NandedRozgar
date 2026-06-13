@@ -1,17 +1,15 @@
 'use strict';
 require('dotenv').config();
 
+// ── isProduction — declared early, used throughout ────────────────────────────
+const isProduction = process.env.NODE_ENV === 'production';
+
 // ── PERF: Node.js cluster — one worker per CPU core ───────────────────────────
-// With JWT-based (stateless) auth and Redis as shared cache, horizontal scaling
-// is already coherent. Cluster mode uses all available cores on a single Railway
-// instance. For 20-device deployments, set CLUSTER_WORKERS in Railway env vars.
-//
-// To disable clustering (e.g. during debugging): set DISABLE_CLUSTER=true
 const cluster = require('cluster');
 const os      = require('os');
 
 const WORKERS = parseInt(process.env.CLUSTER_WORKERS || os.cpus().length, 10);
-const DISABLE_CLUSTER = process.env.DISABLE_CLUSTER === 'true' || process.env.NODE_ENV !== 'production';
+const DISABLE_CLUSTER = process.env.DISABLE_CLUSTER === 'true' || !isProduction;
 
 if (cluster.isPrimary && !DISABLE_CLUSTER) {
   console.log(`🔀 Cluster primary PID ${process.pid} — forking ${WORKERS} workers`);
@@ -20,13 +18,11 @@ if (cluster.isPrimary && !DISABLE_CLUSTER) {
 
   cluster.on('exit', (worker, code, signal) => {
     console.warn(`⚠️  Worker ${worker.process.pid} died (code=${code}, signal=${signal}) — restarting`);
-    cluster.fork(); // auto-restart dead workers
+    cluster.fork();
   });
 
-  // Primary only runs the cron jobs (expiry cleanup + log pruning)
-  // Workers handle HTTP. This prevents N duplicate cron runs.
   _startPrimaryCrons();
-  return; // primary doesn't run Express
+  return;
 }
 
 // ── Worker (or single process in dev) ─────────────────────────────────────────
@@ -49,26 +45,6 @@ try { compression = require('compression'); } catch { compression = null; }
 const app = express();
 app.set('trust proxy', 1);
 
-// FIX (Critical): Content Security Policy is now ENABLED.
-// The previous config used `contentSecurityPolicy: false`, leaving the app
-// with no CSP at all. A stored XSS payload in any user-supplied field (job
-// title, company name, etc.) could steal the admin JWT from localStorage and
-// make arbitrary admin API calls.
-//
-// Policy rationale:
-//   default-src 'self'       — baseline: only same-origin resources
-//   script-src 'self' 'unsafe-inline'
-//     'unsafe-inline' is retained because the admin panel and payment-start
-//     page embed inline <script> blocks. Migrate those to external .js files
-//     and remove 'unsafe-inline' to reach a stricter policy.
-//   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com
-//   font-src 'self' https://fonts.gstatic.com
-//   img-src 'self' data: https:
-//     Permits Cloudinary CDN images (https:) and base64 data-URIs for previews.
-//   connect-src 'self'       — XHR/fetch only to same origin (blocks data exfil)
-//   frame-ancestors 'none'   — equivalent to X-Frame-Options: DENY
-//   form-action 'self' https://api.cashfree.com https://sandbox.cashfree.com
-//     Restricts where <form> POSTs may go (prevents form-hijacking).
 if (helmet) {
   const appUrl = process.env.APP_URL || 'https://thecityplus.in';
   app.use(helmet({
@@ -117,11 +93,6 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
-// FIX (Critical): Refuse to start if ADMIN_PASSWORD is set but is NOT a bcrypt hash.
-// A plain-text password would be compared with === in the login route, making
-// the admin account trivially brute-forceable and leaking the password in logs.
-// Generate a hash with:
-//   node -e "const b=require('bcryptjs');b.hash('yourpassword',12).then(console.log)"
 if (process.env.ADMIN_PASSWORD && !process.env.ADMIN_PASSWORD.startsWith('$2')) {
   console.error('❌ FATAL: ADMIN_PASSWORD must be a bcrypt hash (starting with $2a$ or $2b$).');
   console.error('   Generate one: node -e "const b=require(\'bcryptjs\');b.hash(\'yourpassword\',12).then(console.log)"');
@@ -141,8 +112,6 @@ const staticOrigins = [
   ...(process.env.APP_URL ? [process.env.APP_URL] : []),
   ...explicitOrigins,
 ];
-
-const isProduction = process.env.NODE_ENV === 'production';
 
 function isAllowedOrigin(origin) {
   if (!origin) return true;
@@ -168,7 +137,6 @@ app.use(cors({
 }));
 
 // ── Body parsers ──────────────────────────────────────────────────────────────
-// Raw body for Cashfree webhook HMAC verification (must come before express.json)
 app.use('/api/payments/cashfree-webhook', express.raw({ type: 'application/json', limit: '1mb' }), (req, _res, next) => {
   if (Buffer.isBuffer(req.body)) {
     req.rawBody = req.body;
@@ -355,7 +323,7 @@ app.get('/api/app/version', (_req, res) => {
   });
 });
 
-// Health check — also reports worker PID so load-balancer logs show which worker served
+// Health check
 app.get('/health', (_req, res) => res.json({
   ok:     true,
   status: 'CityPlus API running 🚀',
@@ -400,9 +368,6 @@ const PRIVACY_HTML     = path.join(__dirname, '..', 'public', 'privacy-policy.ht
 const TERMS_HTML       = path.join(__dirname, '..', 'public', 'terms-and-conditions.html');
 const REFUND_HTML      = path.join(__dirname, '..', 'public', 'refund-policy.html');
 
-// FIX: /admin and /admin-login both serve admin-login.html (the full self-contained panel).
-// admin-panel.html does not exist in this project; admin-login.html contains both
-// the login form and the full dashboard (login/dashboard toggled via JS).
 app.get('/admin',       (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
 app.get('/admin-login', (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
 app.get('/privacy-policy',       (_req, res) => res.sendFile(PRIVACY_HTML));
@@ -439,8 +404,6 @@ runMigrations()
     app.listen(PORT, () => {
       const workerLabel = cluster.worker ? `worker #${cluster.worker.id} PID ${process.pid}` : `PID ${process.pid}`;
       console.log(`🚀 Server running on port ${PORT} [${workerLabel}]`);
-      // In cluster mode, only primary runs crons (see _startPrimaryCrons below).
-      // In single-process (dev) mode, start them here.
       if (DISABLE_CLUSTER) _startPrimaryCrons();
     });
   })
@@ -449,11 +412,8 @@ runMigrations()
     process.exit(1);
   });
 
-// ── Cron jobs — run only in primary process (or single-process dev mode) ──────
-// PERF: Activity log pruning runs weekly, expiry cleanup runs hourly.
-// Both are defined here so they only run once regardless of worker count.
+// ── Cron jobs ──────────────────────────────────────────────────────────────────
 function _startPrimaryCrons() {
-  // ── Expiry cleanup — every hour ───────────────────────────────────────────
   async function deleteExpired() {
     try {
       const now = new Date();
@@ -478,11 +438,8 @@ function _startPrimaryCrons() {
     }
   }
   deleteExpired();
-  setInterval(deleteExpired, 60 * 60 * 1000); // hourly
+  setInterval(deleteExpired, 60 * 60 * 1000);
 
-  // ── PERF: Activity log pruning — weekly ───────────────────────────────────
-  // At 200k rows/day without pruning the table hits millions of rows within weeks,
-  // degrading all write performance. Keep 90 days; prune the rest every Sunday.
   async function pruneActivityLogs() {
     try {
       const result = await pool.query(
@@ -495,7 +452,6 @@ function _startPrimaryCrons() {
       console.error('❌ Activity log pruning error:', err.message);
     }
   }
-  // Run once at startup, then weekly
   pruneActivityLogs();
   setInterval(pruneActivityLogs, 7 * 24 * 60 * 60 * 1000);
 
