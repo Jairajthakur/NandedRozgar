@@ -211,7 +211,7 @@ export function AuthProvider({ children }) {
 
   // ── Sign out ──────────────────────────────────────────────────────────────
   async function signOut() {
-    try { await http('POST', '/auth/logout'); } catch {}
+    try { await http('POST', '/api/auth/logout'); } catch {}
     try { await clearToken(); } catch {}
     try {
       await SecureStore.deleteItemAsync(BIOMETRIC_EMAIL_KEY);
