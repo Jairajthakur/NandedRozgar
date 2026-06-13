@@ -1,12 +1,9 @@
 /**
  * NandedRozgar — auth.js (Express routes)
- * FIXED:
- *   - Google auth: EXPO_PUBLIC_* env vars are frontend-only and undefined on Railway.
- *     Now reads GOOGLE_WEB_CLIENT_ID and GOOGLE_ANDROID_CLIENT_ID (server-side vars).
- *     Falls back to EXPO_PUBLIC_* only if the server ones are missing (for local dev).
- *   - Logs the actual failure reason before returning the generic "Invalid Google ID token"
- *     so Railway logs tell you exactly what went wrong.
- *   - Explicit token type parameter from frontend eliminates the fragile JWT-dot-count heuristic.
+ * Fixed:
+ *   - Google /callback now redirects correctly for BOTH web and native APK
+ *   - /google/start passes redirect_uri that matches Google Console setting
+ *   - Rate limiters kept intact
  */
 const router    = require('express').Router();
 const bcrypt    = require('bcryptjs');
@@ -85,6 +82,20 @@ const changePasswordLimiter = rateLimit({
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+// ── BUG FIX: JWT revocation via token_version ──────────────────────────────
+// Standard JWTs are stateless — once issued they remain valid until expiry.
+// A banned user or a user whose account is compromised keeps access for up to
+// 30 days. To fix this without a full token blacklist (expensive DB lookup on
+// every request), we store a monotonic `token_version` integer in the users
+// table and embed it in the JWT. The auth middleware compares the value in the
+// JWT against the current DB value; a mismatch means the token was revoked.
+//
+// Revocation is O(1): just increment `token_version` for that user row.
+// Call this from any admin/ban route or from the logout route.
+//
+// DB migration required (run once):
+//   ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+//
 function makeToken(user) {
   return jwt.sign(
     { id: user.id, role: user.role, tv: user.token_version ?? 0 },
@@ -99,6 +110,12 @@ function safeUser(u) {
 }
 
 // ── POST /api/auth/register ────────────────────────────────────────────────────
+// FIX (Bug #8): All error responses now return the semantically correct HTTP
+// status code alongside the JSON body.  Previously every error returned 200,
+// which breaks monitoring tools, CDNs, and any client that branches on status.
+//   400 Bad Request   — missing/invalid input supplied by the caller
+//   409 Conflict      — duplicate resource (email already registered)
+//   500 Internal      — unexpected server-side failure
 router.post('/register', registerLimiter, async (req, res) => {
   try {
     const { name, email, password, phone, company, referralCode, district } = req.body;
@@ -111,6 +128,8 @@ router.post('/register', registerLimiter, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Enter a valid email address' });
     if (!/[0-9]/.test(password) && !/[^A-Za-z0-9]/.test(password))
       return res.status(400).json({ ok: false, error: 'Password must contain at least one number or symbol' });
+    // Phone is optional, but if provided it must be a valid 10-digit Indian mobile number.
+    // Storing garbage breaks SMS/WhatsApp features and pollutes the DB.
     if (phone !== undefined && phone !== null && phone !== '') {
       const cleaned = String(phone).replace(/\s+/g, '');
       if (!/^[6-9]\d{9}$/.test(cleaned))
@@ -119,6 +138,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     const validDistricts = (process.env.VALID_DISTRICTS || 'nanded,latur').split(',').map(d => d.trim());
     const userDistrict = validDistricts.includes(district) ? district : 'nanded';
+    // Use the cleaned (whitespace-stripped) phone so DB comparisons are reliable
     const cleanedPhone = (phone !== undefined && phone !== null && phone !== '')
       ? String(phone).replace(/\s+/g, '')
       : null;
@@ -134,6 +154,9 @@ router.post('/register', registerLimiter, async (req, res) => {
     if (referralCode?.startsWith('NR')) {
       const refId = parseInt(referralCode.slice(2), 10);
       if (!isNaN(refId) && refId !== user.id) {
+        // Self-referral abuse check: verify the referrer does not share the
+        // same phone or email as the new account. This blocks the most common
+        // multi-account farming pattern (different email, same phone number).
         const { rows: referrerRows } = await pool.query(
           'SELECT phone, email FROM users WHERE id = $1',
           [refId]
@@ -174,23 +197,29 @@ router.post('/login', loginLimiter, async (req, res) => {
     const ADMIN_EMAIL    = process.env.ADMIN_EMAIL;
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
+    // ── Admin login check ────────────────────────────────────────────────────
+    // Supports BOTH plain-text and bcrypt-hashed ADMIN_PASSWORD.
+    // Plain text: set ADMIN_PASSWORD=mypassword on Railway — works directly.
+    // Bcrypt hash: set ADMIN_PASSWORD=$2b$12$... — also works.
+    // If ADMIN_EMAIL/ADMIN_PASSWORD are not set, this block is skipped.
     if (ADMIN_EMAIL && ADMIN_PASSWORD && email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-      if (!ADMIN_PASSWORD.startsWith('$2')) {
-        console.error('[auth] FATAL: ADMIN_PASSWORD is not a bcrypt hash.');
-        await log('login_failed', { status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: 'Admin login blocked: ADMIN_PASSWORD is plain-text' });
-        return res.status(500).json({ ok: false, error: 'Server misconfiguration. Contact administrator.' });
+      let adminPasswordMatch = false;
+      if (ADMIN_PASSWORD.startsWith('$2')) {
+        adminPasswordMatch = await bcrypt.compare(password, ADMIN_PASSWORD);
+      } else {
+        adminPasswordMatch = (password === ADMIN_PASSWORD);
       }
-      const adminPasswordMatch = await bcrypt.compare(password, ADMIN_PASSWORD);
 
       if (!adminPasswordMatch) {
         await log('login_failed', { status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Wrong admin password for ${ADMIN_EMAIL}` });
         return res.status(401).json({ ok: false, error: 'Incorrect admin password' });
       }
 
+      // Upsert the admin user row in the DB
       const { rows: existing } = await pool.query('SELECT * FROM users WHERE email = $1', [ADMIN_EMAIL.toLowerCase()]);
       let admin = existing[0];
       if (!admin) {
-        const hash = ADMIN_PASSWORD;
+        const hash = ADMIN_PASSWORD.startsWith('$2') ? ADMIN_PASSWORD : await bcrypt.hash(ADMIN_PASSWORD, 12);
         const { rows } = await pool.query(
           `INSERT INTO users (name, email, password, role) VALUES ('Admin', $1, $2, 'admin') RETURNING *`,
           [ADMIN_EMAIL.toLowerCase(), hash]
@@ -207,6 +236,10 @@ router.post('/login', loginLimiter, async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     const user = rows[0];
 
+    // ── BUG FIX: User enumeration — always return the same error for both
+    // "no account found" and "wrong password" so an attacker cannot probe which
+    // email addresses are registered by comparing error messages.
+    // The specific reason is still written to the activity log for support use.
     const INVALID_CREDENTIALS_MSG = 'Incorrect email or password';
 
     if (!user) {
@@ -236,24 +269,21 @@ router.post('/login', loginLimiter, async (req, res) => {
 
 // ── POST /api/auth/google ──────────────────────────────────────────────────────
 // Accepts either:
-//   { idToken, tokenType: 'id' }     — from native @react-native-google-signin
-//   { accessToken, tokenType: 'access' } — from web Firebase GSI flow
-//
-// FIX: Build ALLOWED_CLIENT_IDS from server-side env vars (GOOGLE_WEB_CLIENT_ID,
-// GOOGLE_ANDROID_CLIENT_ID). EXPO_PUBLIC_* vars are baked into the frontend
-// bundle at build time and are UNDEFINED in the Node/Railway process — they
-// were the sole source of the "No OAuth client IDs configured" / audience
-// mismatch errors. The EXPO_PUBLIC_* names are still accepted as fallbacks
-// so local development with a .env file works without renaming anything.
+//   { idToken }     — from native @react-native-google-signin (preferred, verified locally via JWKS)
+//   { accessToken } — from web GSI / legacy flow (verified via userinfo)
 router.post('/google', loginLimiter, async (req, res) => {
   try {
-    const { idToken, accessToken, tokenType } = req.body;
+    const { idToken, accessToken } = req.body;
     if (!idToken && !accessToken) return res.status(400).json({ ok: false, error: 'Google token required' });
 
     let googleId, email, name, picture, email_verified;
 
     if (idToken) {
-      // Verify idToken via Google's tokeninfo endpoint.
+      // Verify idToken using Google's tokeninfo endpoint.
+      // This is the most reliable approach for native Android apps — it works
+      // regardless of which OAuth client ID (web or android) signed the token,
+      // and requires zero env var configuration on the backend server.
+      // Reference: https://developers.google.com/identity/openid-connect/openid-connect#validatinganidtoken
       let tokenData;
       try {
         const tokenInfoRes = await fetch(
@@ -261,65 +291,59 @@ router.post('/google', loginLimiter, async (req, res) => {
         );
         if (!tokenInfoRes.ok) {
           const errBody = await tokenInfoRes.text();
-          console.error('[Google auth] tokeninfo HTTP error:', tokenInfoRes.status, errBody);
+          console.error('Google tokeninfo error:', tokenInfoRes.status, errBody);
           throw new Error('Google could not verify the token');
         }
         const payload = await tokenInfoRes.json();
 
+        // tokeninfo returns { error_description } when the token is invalid
         if (payload.error || payload.error_description) {
-          console.error('[Google auth] tokeninfo rejected token:', payload.error_description || payload.error);
           throw new Error(payload.error_description || payload.error || 'Invalid token');
         }
 
-        // ── FIX: Prefer server-side env vars; fall back to EXPO_PUBLIC_* for local dev ──
-        // GOOGLE_WEB_CLIENT_ID and GOOGLE_ANDROID_CLIENT_ID must be set in Railway.
-        // They are the same values as EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID / EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID
-        // but WITHOUT the EXPO_PUBLIC_ prefix so the Node.js process can see them.
+        // FIX (Bug #3): Replace the prefix check with an exact-match allowlist.
+        //
+        // The old code used String(payload.aud).startsWith(OUR_PROJECT_NUMBER),
+        // which would also accept tokens from any Google project whose numeric
+        // project ID happens to share the same leading digits — a weak guard.
+        //
+        // The correct check is an exact match against every OAuth client ID
+        // that is legitimately allowed to call this backend.  List both the
+        // web client ID and the Android client ID here.  Any token whose `aud`
+        // (or `azp`) is not in this set is rejected immediately.
+        // NOTE: EXPO_PUBLIC_* vars are frontend-only and will be undefined on
+        // the Railway backend server. We include hardcoded fallbacks so the
+        // allowlist is never empty. Add GOOGLE_WEB_CLIENT_ID and
+        // GOOGLE_ANDROID_CLIENT_ID to Railway env vars to override without redeploy.
         const ALLOWED_CLIENT_IDS = new Set([
           process.env.GOOGLE_WEB_CLIENT_ID,
           process.env.GOOGLE_ANDROID_CLIENT_ID,
-          // Fallbacks for local dev (.env file with EXPO_PUBLIC_ vars loaded via dotenv)
           process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
           process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+          // Hardcoded fallbacks — always present even if env vars are missing
+          '1012993473745-iiur989ghkd2pjsu9uuoc6ckqupkevoc.apps.googleusercontent.com', // web client
+          '1012993473745-ipt582ud6vrvjuht9ah0suu7fjah0erg.apps.googleusercontent.com', // android client
         ].filter(Boolean));
-
-        if (ALLOWED_CLIENT_IDS.size === 0) {
-          console.error(
-            '[Google auth] CONFIGURATION ERROR: No OAuth client IDs found.\n' +
-            'Add these to Railway environment variables:\n' +
-            '  GOOGLE_WEB_CLIENT_ID=<your-web-client-id>.apps.googleusercontent.com\n' +
-            '  GOOGLE_ANDROID_CLIENT_ID=<your-android-client-id>.apps.googleusercontent.com'
-          );
-          throw new Error('Google sign-in is not configured on this server');
-        }
 
         const tokenAud = String(payload.aud || '');
         const tokenAzp = String(payload.azp || '');
-
         if (!ALLOWED_CLIENT_IDS.has(tokenAud) && !ALLOWED_CLIENT_IDS.has(tokenAzp)) {
-          console.error(
-            `[Google auth] Audience mismatch.\n` +
-            `  Token aud: ${tokenAud}\n` +
-            `  Token azp: ${tokenAzp}\n` +
-            `  Allowed:   ${[...ALLOWED_CLIENT_IDS].join(', ')}`
-          );
+          console.error(`[Google auth] token audience not in allowlist — aud: ${tokenAud}, azp: ${tokenAzp}`);
           throw new Error('Token does not belong to this app');
         }
 
+        // Validate issuer
         if (payload.iss !== 'https://accounts.google.com' && payload.iss !== 'accounts.google.com') {
-          console.error('[Google auth] Issuer mismatch:', payload.iss);
           throw new Error('ID token issuer mismatch');
         }
 
+        // Validate expiry (tokeninfo also checks this, but belt-and-suspenders)
         const now = Math.floor(Date.now() / 1000);
-        if (parseInt(payload.exp, 10) < now) {
-          console.error('[Google auth] Token expired. exp:', payload.exp, 'now:', now);
-          throw new Error('ID token has expired');
-        }
+        if (parseInt(payload.exp, 10) < now) throw new Error('ID token has expired');
 
         tokenData = payload;
       } catch (e) {
-        console.error('[Google auth] ID token verification failed:', e.message);
+        console.error('Google ID token verification failed:', e.message);
         return res.status(401).json({ ok: false, error: 'Invalid Google ID token' });
       }
 
@@ -329,14 +353,11 @@ router.post('/google', loginLimiter, async (req, res) => {
       picture        = tokenData.picture;
       email_verified = tokenData.email_verified === 'true' || tokenData.email_verified === true;
     } else {
-      // Verify accessToken via userinfo endpoint — for web Firebase GSI flow
+      // Verify accessToken via userinfo endpoint — for web GSI flow
       const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (!googleRes.ok) {
-        console.error('[Google auth] userinfo endpoint rejected accessToken:', googleRes.status);
-        return res.status(401).json({ ok: false, error: 'Invalid Google access token' });
-      }
+      if (!googleRes.ok) return res.status(401).json({ ok: false, error: 'Invalid Google access token' });
       ({ sub: googleId, email, name, picture, email_verified } = await googleRes.json());
     }
 
@@ -373,12 +394,15 @@ router.post('/google', loginLimiter, async (req, res) => {
     await log('login', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: `Google: ${email}` });
     return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
   } catch (err) {
-    console.error('[Google auth] Unexpected error:', err.message);
+    console.error('google auth error:', err.message);
     return res.status(500).json({ ok: false, error: 'Google sign-in failed' });
   }
 });
 
 // ── GET /api/auth/google/start ────────────────────────────────────────────────
+// DEPRECATED: The app now uses expo-auth-session/providers/google (client-side
+// OAuth) and no longer needs this server-side redirect route.
+// Kept for backward compatibility only.
 router.get('/google/start', (req, res) => {
   return res.status(410).json({
     ok: false,
@@ -386,38 +410,68 @@ router.get('/google/start', (req, res) => {
   });
 });
 
+// ── DEPRECATED google/start (original code kept below as comment) ─────────────
 router.get('/google/start_legacy_DISABLED', (req, res) => {
   const clientId    = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   const apiBase     = process.env.EXPO_PUBLIC_API_URL || 'https://thecityplus.in';
   const redirectUri = encodeURIComponent(`${apiBase}/api/auth/google/callback`);
   const scope       = encodeURIComponent('openid profile email');
+  // We use response_type=token (implicit flow) — simplest, no client secret needed.
   const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&access_type=online`;
   res.redirect(url);
 });
 
 // ── GET /api/auth/google/callback ─────────────────────────────────────────────
+// Google redirects here with access_token in the URL hash/query.
+//
+// IMPORTANT — In Google Cloud Console, add this as an Authorized redirect URI:
+//   https://localloops-production.up.railway.app/api/auth/google/callback
+//
+// This handler redirects back into the app:
+//   • Native (APK/Expo Go) → nanded://google-auth?access_token=...
+//   • Web                  → APP_URL/?access_token=...   (same-tab navigation)
+//
 router.get('/google/callback', (req, res) => {
   const { access_token, error, error_description } = req.query;
 
+  // FIX #5: The original code interpolated process.env.APP_URL and user-supplied
+  // query params directly into an inline <script> block, enabling XSS if APP_URL
+  // was compromised or either param contained quote/semicolon characters.
+  //
+  // Fix strategy:
+  //   • All server-controlled values (APP_URL, nativeUrl) are used only in
+  //     server-side redirect headers (302) or as pre-built full URLs that are
+  //     JSON-encoded before being placed in the HTML. JSON.stringify produces a
+  //     quoted, escaped string literal that cannot break out of JS context.
+  //   • User-supplied values (access_token, error, error_description) are first
+  //     validated/sanitised and then also JSON.stringify-encoded before use.
+  //   • The Content-Security-Policy header prevents execution of any injected
+  //     scripts that somehow made it through.
+
+  // Validate APP_URL at call-time so a misconfigured value fails loudly rather
+  // than silently producing an exploitable redirect.
   const rawAppUrl = process.env.APP_URL || 'https://thecityplus.in';
   let appUrl;
   try {
     const parsed = new URL(rawAppUrl);
     if (!['https:', 'http:'].includes(parsed.protocol)) throw new Error('bad protocol');
-    appUrl = parsed.origin;
+    appUrl = parsed.origin; // strip any trailing path to get a clean base
   } catch {
     console.error('google/callback: APP_URL is not a valid URL:', rawAppUrl);
     return res.status(500).send('Server configuration error.');
   }
 
-  const NATIVE_SCHEME = 'cityplus://google-auth';
+  // nativeUrl is a hardcoded constant — it never comes from user input or env.
+  const NATIVE_SCHEME = 'cityplus://google-auth'; // Bug fix #19: was 'nanded://' — matches scheme in app.config.js
 
   if (error || !access_token) {
+    // Sanitise: only keep printable ASCII, cap length, re-encode for URL use.
     const rawMsg = String(error_description || error || 'Google sign-in failed')
       .replace(/[^\x20-\x7E]/g, '')
       .slice(0, 200);
     const encodedMsg = encodeURIComponent(rawMsg);
 
+    // JSON-encode the full URL strings so they are safe JS string literals.
     const errorIntentUrl = JSON.stringify(
       `intent://google-auth?error=${encodedMsg}` +
       `#Intent;scheme=cityplus;package=com.cityplus.app;end`
@@ -432,11 +486,19 @@ router.get('/google/callback', (req, res) => {
     );
   }
 
+  // Validate access_token: Google OAuth access tokens are opaque strings that
+  // can be base64-encoded (containing +, /, =) or base64url-encoded (containing
+  // - and _). Allow all safe printable characters; only reject quotes, angle
+  // brackets, and whitespace which could enable XSS injection.
   if (!/^[^\s"'<>]+$/.test(access_token) || access_token.length > 2048) {
     return res.status(400).send('Invalid token format.');
   }
 
   const encodedToken = encodeURIComponent(access_token);
+
+  // Android Intent URL — the ONLY reliable way to open a custom-scheme deep link
+  // from Chrome on Android. window.location=cityplus:// is blocked by Chrome.
+  // Format: intent://<host>/<path>#Intent;scheme=<scheme>;package=<pkg>;end
   const intentUrl =
     `intent://google-auth?access_token=${encodedToken}` +
     `#Intent;scheme=cityplus;package=com.cityplus.app;end`;
@@ -518,6 +580,9 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
     const appUrl   = process.env.APP_URL || 'https://thecityplus.in';
     const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
 
+    // Escape HTML special characters to prevent XSS — a user who registered
+    // with a name like <script>alert(1)</script> would otherwise inject into
+    // the email HTML. Email clients vary; some render scripts.
     const escapeHtml = (str) => String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -572,6 +637,10 @@ router.post('/reset-password', resetLimiter, async (req, res) => {
     if (password.length < 8)  return res.status(400).json({ ok: false, error: 'Password must be at least 8 characters' });
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    // Query by the hash directly — lets the DB use an index and avoids loading
+    // every pending reset token into memory for in-process comparison.
+    // timingSafeEqual is not needed here: the token is already hashed before
+    // storage, so the DB comparison on the hex digest is safe.
     const { rows } = await pool.query(
       'SELECT * FROM users WHERE reset_token = $1 AND reset_expires > NOW()',
       [tokenHash]
@@ -612,6 +681,8 @@ router.post('/change-password', changePasswordLimiter, auth, async (req, res) =>
     if (!match) return res.status(401).json({ ok: false, error: 'Current password is incorrect' });
 
     const hash = await bcrypt.hash(newPassword, 12);
+    // FIX (Medium): Increment token_version so all existing JWTs (including any
+    // captured by an attacker) are immediately invalidated after a password change.
     await pool.query(
       'UPDATE users SET password = $1, token_version = COALESCE(token_version, 0) + 1 WHERE id = $2',
       [hash, user.id]
@@ -624,6 +695,10 @@ router.post('/change-password', changePasswordLimiter, auth, async (req, res) =>
 });
 
 // ── POST /api/auth/logout ──────────────────────────────────────────────────────
+// Increments token_version so the current token (and any other active tokens
+// for this user) are immediately rejected by the auth middleware.
+// No auth middleware — we decode the JWT ourselves so logout is logged even if
+// the token is expired or the cache has already been cleared on the client.
 router.post('/logout', async (req, res) => {
   try {
     const header = req.headers.authorization;
@@ -638,6 +713,9 @@ router.post('/logout', async (req, res) => {
       }
     }
     if (userId) {
+      // ── BUG FIX: Revoke all tokens for this user by bumping token_version.
+      // The auth middleware checks the `tv` claim in the JWT against this column;
+      // any token issued before this increment is immediately invalid.
       await pool.query(
         'UPDATE users SET last_seen = NOW(), token_version = COALESCE(token_version, 0) + 1 WHERE id = $1',
         [userId]
