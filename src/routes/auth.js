@@ -198,16 +198,21 @@ router.post('/login', loginLimiter, async (req, res) => {
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
     // ── Admin login check ────────────────────────────────────────────────────
-    // Supports BOTH plain-text and bcrypt-hashed ADMIN_PASSWORD.
-    // Plain text: set ADMIN_PASSWORD=mypassword on Railway — works directly.
-    // Bcrypt hash: set ADMIN_PASSWORD=$2b$12$... — also works.
-    // If ADMIN_EMAIL/ADMIN_PASSWORD are not set, this block is skipped.
+    // FIX (Critical): Plain-text ADMIN_PASSWORD is no longer accepted.
+    // ADMIN_PASSWORD MUST be a bcrypt hash (starts with $2a$ or $2b$).
+    // Generate one with:
+    //   node -e "const b=require('bcryptjs');b.hash('yourpassword',12).then(console.log)"
+    // A plain-text value is rejected here so the server never silently falls
+    // back to an insecure comparison.
     if (ADMIN_EMAIL && ADMIN_PASSWORD && email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+      if (!ADMIN_PASSWORD.startsWith('$2')) {
+        console.error('[auth] FATAL: ADMIN_PASSWORD is not a bcrypt hash. Set it to a bcrypt hash (node -e "require(\'bcryptjs\').hash(\'pw\',12).then(console.log)"). Login refused.');
+        await log('login_failed', { status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: 'Admin login blocked: ADMIN_PASSWORD is plain-text' });
+        return res.status(500).json({ ok: false, error: 'Server misconfiguration. Contact administrator.' });
+      }
       let adminPasswordMatch = false;
-      if (ADMIN_PASSWORD.startsWith('$2')) {
+      {
         adminPasswordMatch = await bcrypt.compare(password, ADMIN_PASSWORD);
-      } else {
-        adminPasswordMatch = (password === ADMIN_PASSWORD);
       }
 
       if (!adminPasswordMatch) {
@@ -219,7 +224,9 @@ router.post('/login', loginLimiter, async (req, res) => {
       const { rows: existing } = await pool.query('SELECT * FROM users WHERE email = $1', [ADMIN_EMAIL.toLowerCase()]);
       let admin = existing[0];
       if (!admin) {
-        const hash = ADMIN_PASSWORD.startsWith('$2') ? ADMIN_PASSWORD : await bcrypt.hash(ADMIN_PASSWORD, 12);
+        // ADMIN_PASSWORD is guaranteed to be a bcrypt hash at this point
+        // (plain-text values are rejected above before we reach here).
+        const hash = ADMIN_PASSWORD;
         const { rows } = await pool.query(
           `INSERT INTO users (name, email, password, role) VALUES ('Admin', $1, $2, 'admin') RETURNING *`,
           [ADMIN_EMAIL.toLowerCase(), hash]
@@ -315,15 +322,22 @@ router.post('/google', loginLimiter, async (req, res) => {
         // the Railway backend server. We include hardcoded fallbacks so the
         // allowlist is never empty. Add GOOGLE_WEB_CLIENT_ID and
         // GOOGLE_ANDROID_CLIENT_ID to Railway env vars to override without redeploy.
+        // FIX (Critical): Removed hardcoded OAuth client IDs. They were committed
+        // to the repository and expose the real Google project. All allowed client
+        // IDs must now be supplied exclusively via Railway env vars. The server
+        // will reject Google sign-in requests if neither env var is set, which is
+        // the safe failure mode — far better than silently accepting any audience.
         const ALLOWED_CLIENT_IDS = new Set([
           process.env.GOOGLE_WEB_CLIENT_ID,
           process.env.GOOGLE_ANDROID_CLIENT_ID,
           process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
           process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-          // Hardcoded fallbacks — always present even if env vars are missing
-          '1012993473745-iiur989ghkd2pjsu9uuoc6ckqupkevoc.apps.googleusercontent.com', // web client
-          '1012993473745-ipt582ud6vrvjuht9ah0suu7fjah0erg.apps.googleusercontent.com', // android client
         ].filter(Boolean));
+
+        if (ALLOWED_CLIENT_IDS.size === 0) {
+          console.error('[Google auth] No OAuth client IDs configured. Set GOOGLE_WEB_CLIENT_ID and/or GOOGLE_ANDROID_CLIENT_ID in Railway env vars.');
+          throw new Error('Google sign-in is not configured on this server');
+        }
 
         const tokenAud = String(payload.aud || '');
         const tokenAzp = String(payload.azp || '');
