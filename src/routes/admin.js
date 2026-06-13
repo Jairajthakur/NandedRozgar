@@ -210,11 +210,19 @@ router.get('/payments', async (req, res) => {
 // ─── STATS ────────────────────────────────────────────────────────────────────
 
 // GET /api/admin/stats — aggregate platform stats
+// FIX: Each query is wrapped in safe() so a single table error doesn't zero-out
+// all stats. Errors are logged server-side with the specific query that failed.
 router.get('/stats', async (req, res) => {
-  const safe = async (fn, fallback) => { try { return await fn(); } catch(e) { console.error('stats partial error:', e.message); return fallback; } };
+  const safe = async (label, fn, fallback) => {
+    try { return await fn(); }
+    catch(e) {
+      console.error(`[admin/stats] "${label}" query failed:`, e.message);
+      return fallback;
+    }
+  };
 
   const [jobs, users, payments, apps, vehicles, rooms, buysell, revenue] = await Promise.all([
-    safe(() => pool.query(`
+    safe('jobs', () => pool.query(`
       SELECT
         COUNT(*) FILTER (WHERE status = 'active')   AS active_jobs,
         COUNT(*) FILTER (WHERE status = 'inactive') AS inactive_jobs,
@@ -225,7 +233,7 @@ router.get('/stats', async (req, res) => {
       FROM jobs WHERE status != 'deleted'
     `), { rows: [{ active_jobs:0, inactive_jobs:0, featured_jobs:0, urgent_jobs:0, total_views:0, total_applicants:0 }] }),
 
-    safe(() => pool.query(`
+    safe('users', () => pool.query(`
       SELECT
         COUNT(*)                              AS total_users,
         COUNT(*) FILTER (WHERE premium)       AS pro_users,
@@ -234,13 +242,13 @@ router.get('/stats', async (req, res) => {
       FROM users
     `), { rows: [{ total_users:0, pro_users:0, banned_users:0, admin_users:0 }] }),
 
-    safe(() => pool.query(`SELECT COALESCE(SUM(amount),0) AS total_revenue FROM payments WHERE status='paid'`),
+    safe('payments_total', () => pool.query(`SELECT COALESCE(SUM(amount),0) AS total_revenue FROM payments WHERE status='paid'`),
       { rows: [{ total_revenue: 0 }] }),
 
-    safe(() => pool.query(`SELECT COUNT(*) AS total FROM applications`),
+    safe('applications', () => pool.query(`SELECT COUNT(*) AS total FROM applications`),
       { rows: [{ total: 0 }] }),
 
-    safe(() => pool.query(`
+    safe('vehicles', () => pool.query(`
       SELECT
         COUNT(*)                                    AS total_vehicles,
         COUNT(*) FILTER (WHERE status = 'active')   AS active_vehicles,
@@ -249,7 +257,7 @@ router.get('/stats', async (req, res) => {
       FROM vehicles
     `), { rows: [{ total_vehicles:0, active_vehicles:0, inactive_vehicles:0, paid_vehicle_listings:0 }] }),
 
-    safe(() => pool.query(`
+    safe('rooms', () => pool.query(`
       SELECT
         COUNT(*)                                    AS total_rooms,
         COUNT(*) FILTER (WHERE status = 'active')   AS active_rooms,
@@ -258,7 +266,7 @@ router.get('/stats', async (req, res) => {
       FROM rooms
     `), { rows: [{ total_rooms:0, active_rooms:0, inactive_rooms:0, paid_room_listings:0 }] }),
 
-    safe(() => pool.query(`
+    safe('buysell', () => pool.query(`
       SELECT
         COUNT(*)                                    AS total_buysell,
         COUNT(*) FILTER (WHERE status = 'active')   AS active_buysell,
@@ -266,7 +274,7 @@ router.get('/stats', async (req, res) => {
       FROM buysell_items
     `), { rows: [{ total_buysell:0, active_buysell:0, sold_buysell:0 }] }),
 
-    safe(() => pool.query(`
+    safe('revenue_breakdown', () => pool.query(`
       SELECT
         COALESCE(SUM(amount) FILTER (WHERE category = 'job' OR job_id IS NOT NULL), 0) AS jobs_revenue,
         COALESCE(SUM(amount) FILTER (WHERE category = 'vehicle'), 0)                    AS vehicles_revenue,
@@ -276,19 +284,31 @@ router.get('/stats', async (req, res) => {
     `), { rows: [{ jobs_revenue:0, vehicles_revenue:0, rooms_revenue:0, buysell_revenue:0 }] }),
   ]);
 
-  res.json({
-    ok: true,
-    stats: {
-      ...jobs.rows[0],
-      ...users.rows[0],
-      total_revenue:      payments.rows[0].total_revenue,
-      total_applications: apps.rows[0].total,
-      ...vehicles.rows[0],
-      ...rooms.rows[0],
-      ...buysell.rows[0],
-      ...revenue.rows[0],
-    },
-  });
+  const stats = {
+    ...jobs.rows[0],
+    ...users.rows[0],
+    total_revenue:      payments.rows[0].total_revenue,
+    total_applications: apps.rows[0].total,
+    ...vehicles.rows[0],
+    ...rooms.rows[0],
+    ...buysell.rows[0],
+    ...revenue.rows[0],
+  };
+
+  // Cast all numeric fields from strings (Postgres bigint/numeric comes as string)
+  const numericFields = [
+    'active_jobs','inactive_jobs','featured_jobs','urgent_jobs','total_views','total_applicants',
+    'total_users','pro_users','banned_users','admin_users','total_revenue',
+    'total_applications','total_vehicles','active_vehicles','inactive_vehicles','paid_vehicle_listings',
+    'total_rooms','active_rooms','inactive_rooms','paid_room_listings',
+    'total_buysell','active_buysell','sold_buysell',
+    'jobs_revenue','vehicles_revenue','rooms_revenue','buysell_revenue',
+  ];
+  for (const f of numericFields) {
+    if (stats[f] !== undefined) stats[f] = Number(stats[f]) || 0;
+  }
+
+  res.json({ ok: true, stats });
 });
 
 // GET /api/admin/debug — raw table counts for troubleshooting
