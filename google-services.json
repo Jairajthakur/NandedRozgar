@@ -1,34 +1,41 @@
 {
-  "_comment": "This file is a placeholder. Replace all values with your real Firebase project credentials from Firebase Console → Project settings → Your apps → google-services.json. NEVER commit the real file to version control — add google-services.json to .gitignore.",
   "project_info": {
-    "project_number": "REPLACE_WITH_YOUR_PROJECT_NUMBER",
-    "project_id": "REPLACE_WITH_YOUR_PROJECT_ID",
-    "storage_bucket": "REPLACE_WITH_YOUR_STORAGE_BUCKET"
+    "project_number": "1012993473745",
+    "project_id": "cityplus-7ac75",
+    "storage_bucket": "cityplus-7ac75.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "REPLACE_WITH_YOUR_MOBILESDK_APP_ID",
+        "mobilesdk_app_id": "1:1012993473745:android:988f56c3b4a131310e99f0",
         "android_client_info": {
           "package_name": "com.cityplus.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com",
+          "client_id": "1012993473745-3imk8ukgqh6fhqop7erenr6jqs5eagqi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cityplus.app",
+            "certificate_hash": "225d42874ae8f38b2d807acc5607d0c2ccab2185"
+          }
+        },
+        {
+          "client_id": "1012993473745-iiur989ghkd2pjsu9uuoc6ckqupkevoc.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "REPLACE_WITH_YOUR_FIREBASE_API_KEY"
+          "current_key": "AIzaSyAv4fRCtkOcl1DxbyyRkZO9K9sbAQYHx60"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com",
+              "client_id": "1012993473745-iiur989ghkd2pjsu9uuoc6ckqupkevoc.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
