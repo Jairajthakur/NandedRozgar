@@ -299,6 +299,10 @@ async function runMigrations() {
       // Free-first-post tracking: plan_label on buysell_items was missing
       `ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30) DEFAULT 'free'`,
 
+      // JWT revocation — token_version must exist for auth middleware to work.
+      // Without this column, every /api/auth/me call fails with a DB error → user gets logged out on every app open.
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0`,
+
       // Monthly subscription plan
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS monthly_plan_expires_at TIMESTAMPTZ`,
     ];
