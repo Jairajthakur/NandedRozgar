@@ -14,7 +14,19 @@ const DISABLE_CLUSTER = process.env.DISABLE_CLUSTER === 'true' || !isProduction;
 if (cluster.isPrimary && !DISABLE_CLUSTER) {
   console.log(`🔀 Cluster primary PID ${process.pid} — forking ${WORKERS} workers`);
 
-  for (let i = 0; i < WORKERS; i++) cluster.fork();
+  // FIX: Run migrations ONCE in the primary before spawning workers.
+  // Previously all 48 workers ran migrations simultaneously causing
+  // "constraint already exists" errors and worker crash loops.
+  const { runMigrations: runMigrationsOnce } = require('./db');
+  runMigrationsOnce()
+    .then(() => {
+      console.log('✅ Primary: migrations complete — starting workers');
+      for (let i = 0; i < WORKERS; i++) cluster.fork();
+    })
+    .catch(err => {
+      console.error('❌ Primary: migration failed, aborting:', err.message);
+      process.exit(1);
+    });
 
   cluster.on('exit', (worker, code, signal) => {
     console.warn(`⚠️  Worker ${worker.process.pid} died (code=${code}, signal=${signal}) — restarting`);
@@ -51,11 +63,15 @@ if (helmet) {
     contentSecurityPolicy: {
       directives: {
         defaultSrc:      ["'self'"],
-        scriptSrc:       ["'self'", "'unsafe-inline'"],
+        // FIX: Added 'unsafe-hashes' so onclick= / onerror= inline event handlers
+        // in admin-login.html are permitted. Also added Cloudflare Insights CDN
+        // (static.cloudflareinsights.com) which the admin panel loads.
+        scriptSrc:       ["'self'", "'unsafe-inline'", "'unsafe-hashes'",
+                          'https://static.cloudflareinsights.com'],
         styleSrc:        ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc:         ["'self'", 'https://fonts.gstatic.com'],
         imgSrc:          ["'self'", 'data:', 'https:'],
-        connectSrc:      ["'self'", appUrl],
+        connectSrc:      ["'self'", appUrl, 'https://cloudflareinsights.com'],
         frameAncestors:  ["'none'"],
         formAction:      ["'self'", 'https://api.cashfree.com', 'https://sandbox.cashfree.com'],
         upgradeInsecureRequests: isProduction ? [] : null,
@@ -397,20 +413,30 @@ if (fs.existsSync(WEB_BUILD)) {
 }
 
 // ── Worker startup ─────────────────────────────────────────────────────────────
+// FIX: Workers skip migrations — primary already ran them before forking.
+// In single-process dev mode (DISABLE_CLUSTER=true), still run migrations here.
 const PORT = process.env.PORT || 3000;
 
-runMigrations()
-  .then(() => {
-    app.listen(PORT, () => {
-      const workerLabel = cluster.worker ? `worker #${cluster.worker.id} PID ${process.pid}` : `PID ${process.pid}`;
-      console.log(`🚀 Server running on port ${PORT} [${workerLabel}]`);
-      if (DISABLE_CLUSTER) _startPrimaryCrons();
-    });
-  })
-  .catch(err => {
-    console.error('❌ Failed to start server — migration error:', err.message);
-    process.exit(1);
+const startServer = () => {
+  app.listen(PORT, () => {
+    const workerLabel = cluster.worker ? `worker #${cluster.worker.id} PID ${process.pid}` : `PID ${process.pid}`;
+    console.log(`🚀 Server running on port ${PORT} [${workerLabel}]`);
+    if (DISABLE_CLUSTER) _startPrimaryCrons();
   });
+};
+
+if (DISABLE_CLUSTER) {
+  // Dev/single-process: run migrations then start
+  runMigrations()
+    .then(startServer)
+    .catch(err => {
+      console.error('❌ Failed to start server — migration error:', err.message);
+      process.exit(1);
+    });
+} else {
+  // Cluster worker: migrations already done by primary, just start
+  startServer();
+}
 
 // ── Cron jobs ──────────────────────────────────────────────────────────────────
 function _startPrimaryCrons() {
