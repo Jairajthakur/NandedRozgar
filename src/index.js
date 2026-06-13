@@ -49,7 +49,45 @@ try { compression = require('compression'); } catch { compression = null; }
 const app = express();
 app.set('trust proxy', 1);
 
-if (helmet) app.use(helmet({ contentSecurityPolicy: false }));
+// FIX (Critical): Content Security Policy is now ENABLED.
+// The previous config used `contentSecurityPolicy: false`, leaving the app
+// with no CSP at all. A stored XSS payload in any user-supplied field (job
+// title, company name, etc.) could steal the admin JWT from localStorage and
+// make arbitrary admin API calls.
+//
+// Policy rationale:
+//   default-src 'self'       — baseline: only same-origin resources
+//   script-src 'self' 'unsafe-inline'
+//     'unsafe-inline' is retained because the admin panel and payment-start
+//     page embed inline <script> blocks. Migrate those to external .js files
+//     and remove 'unsafe-inline' to reach a stricter policy.
+//   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com
+//   font-src 'self' https://fonts.gstatic.com
+//   img-src 'self' data: https:
+//     Permits Cloudinary CDN images (https:) and base64 data-URIs for previews.
+//   connect-src 'self'       — XHR/fetch only to same origin (blocks data exfil)
+//   frame-ancestors 'none'   — equivalent to X-Frame-Options: DENY
+//   form-action 'self' https://api.cashfree.com https://sandbox.cashfree.com
+//     Restricts where <form> POSTs may go (prevents form-hijacking).
+if (helmet) {
+  const appUrl = process.env.APP_URL || 'https://thecityplus.in';
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc:      ["'self'"],
+        scriptSrc:       ["'self'", "'unsafe-inline'"],
+        styleSrc:        ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc:         ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc:          ["'self'", 'data:', 'https:'],
+        connectSrc:      ["'self'", appUrl],
+        frameAncestors:  ["'none'"],
+        formAction:      ["'self'", 'https://api.cashfree.com', 'https://sandbox.cashfree.com'],
+        upgradeInsecureRequests: isProduction ? [] : null,
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  }));
+}
 if (compression) app.use(compression({ level: 6, threshold: 1024 }));
 
 // ── Response-time header ──────────────────────────────────────────────────────
@@ -76,6 +114,18 @@ app.use('/api/', (req, res, next) => {
 // ── Startup guards ─────────────────────────────────────────────────────────────
 if (!process.env.JWT_SECRET) {
   console.error('❌ FATAL: JWT_SECRET environment variable is not set. Refusing to start.');
+  process.exit(1);
+}
+
+// FIX (Critical): Refuse to start if ADMIN_PASSWORD is set but is NOT a bcrypt hash.
+// A plain-text password would be compared with === in the login route, making
+// the admin account trivially brute-forceable and leaking the password in logs.
+// Generate a hash with:
+//   node -e "const b=require('bcryptjs');b.hash('yourpassword',12).then(console.log)"
+if (process.env.ADMIN_PASSWORD && !process.env.ADMIN_PASSWORD.startsWith('$2')) {
+  console.error('❌ FATAL: ADMIN_PASSWORD must be a bcrypt hash (starting with $2a$ or $2b$).');
+  console.error('   Generate one: node -e "const b=require(\'bcryptjs\');b.hash(\'yourpassword\',12).then(console.log)"');
+  console.error('   Refusing to start with a plain-text admin password.');
   process.exit(1);
 }
 
