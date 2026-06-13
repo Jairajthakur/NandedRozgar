@@ -1,7 +1,12 @@
 /**
  * CityPlus — AuthContext.js
- * OTP (sendOTP / verifyOTP) removed.
- * Keeps: login, register, loginWithGoogle, loginWithBiometrics, forgotPassword, resetPassword.
+ * FIXED:
+ *   - loginWithGoogle now accepts an explicit `isIdToken` boolean instead of
+ *     guessing by counting dots in the token string. Google access tokens can
+ *     have 3 dot-separated segments, causing them to be misidentified as JWTs
+ *     and sent to the wrong backend verification path.
+ *   - LoginScreen now passes `true` for idToken (native) and `false` for
+ *     accessToken (web Firebase), eliminating the heuristic entirely.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as SecureStore from 'expo-secure-store';
@@ -25,16 +30,9 @@ export function AuthProvider({ children }) {
   const [jobPagination, setJobPagination] = useState(null);
 
   const fetchingRef  = useRef(false);
-  // Stable ref to the latest loadJobs so loadMoreJobs never closes over a
-  // stale copy. loadJobs is redefined on every render (it's a plain async
-  // function, not memoised), so putting it directly in the useCallback dep
-  // array would cause loadMoreJobs to be recreated on every render — worse
-  // than the stale-closure problem. The ref gives us "always latest" for free.
   const loadJobsRef  = useRef(null);
 
   useEffect(() => {
-    // Fallback: if init() takes more than 12s (Railway cold start), stop the
-    // splash. We do NOT clear the token — a slow server != an invalid session.
     const fallback = setTimeout(() => {
       setLoading(false);
       setSessionPending(false);
@@ -45,53 +43,34 @@ export function AuthProvider({ children }) {
   async function init() {
     try {
       const token = await loadToken();
-      if (!token) return; // No token → definitely logged out
+      if (!token) return;
 
       setSessionPending(true);
 
       const r = await http('GET', '/api/auth/me');
 
       if (r?.ok && r.user) {
-        // ✅ Valid session — restore user
         setUser(r.user);
         setSessionPending(false);
         await loadJobs(1);
         if (r.user.role === 'admin') await loadUsers();
       } else if (r?.status === 401 || r?.status === 403) {
-        // ✅ Server explicitly rejected token — clear and go to Login
         await clearToken();
         setSessionPending(false);
         setUser(null);
       } else {
-        // ⚠️  Network error, cold-start 502/503, or non-JSON response.
-        // Do NOT clear the token — the token may still be valid.
-        // Keep user as null for now; next app open (when server is up) will
-        // automatically restore the session via this same init() call.
         console.warn('[AuthContext] init: server unreachable, keeping token for next open:', r?.error);
         setSessionPending(false);
       }
     } catch (e) {
-      // Unexpected JS error — don't log out, just stop the spinner.
       console.warn('[AuthContext] init error:', e.message);
       setSessionPending(false);
     }
   }
 
   async function loadJobs(page = 1, category = null, search = null, district = null) {
-    // Bug fix #18: the old single boolean `fetchingRef` lock was too coarse.
-    // When a category change (page=1) fired while a loadMoreJobs (page>1) was
-    // in-flight, the lock caused the category fetch to be silently dropped,
-    // leaving the screen showing stale results for the previous category.
-    //
-    // Fix: differentiate between "replace" fetches (page === 1, triggered by
-    // filter changes) and "append" fetches (page > 1, triggered by scroll).
-    // A replace fetch always proceeds and cancels any running append fetch.
-    // An append fetch is skipped only if another fetch of any kind is running.
     const isReplace = page === 1;
-    if (!isReplace && fetchingRef.current) return; // scroll append — skip if busy
-    // For replace fetches we proceed even if a stale append is in flight; the
-    // stale result will see fetchingRef already false and write nothing (the
-    // finally block is harmless when called twice).
+    if (!isReplace && fetchingRef.current) return;
     fetchingRef.current = true;
     try {
       let path = `/api/jobs?page=${page}&limit=20`;
@@ -117,7 +96,6 @@ export function AuthProvider({ children }) {
     finally { fetchingRef.current = false; }
   }
 
-  // Keep the ref pointing at the freshest loadJobs after every render.
   loadJobsRef.current = loadJobs;
 
   const loadMoreJobs = useCallback(async () => {
@@ -160,14 +138,22 @@ export function AuthProvider({ children }) {
   }
 
   // ── Google OAuth login ────────────────────────────────────────────────────
-  // Accepts either an idToken (web GSI) or an accessToken (expo-auth-session native)
-  async function loginWithGoogle(tokenValue, isAccessToken = false) {
+  // FIX: Replaced the fragile JWT dot-count heuristic with an explicit
+  // `isIdToken` boolean flag passed from the call site.
+  //
+  // Old (broken):
+  //   const isJwt = tokenValue.split('.').length === 3;  // Google access tokens
+  //   const body = isJwt ? { idToken } : { accessToken }; // can also have 3 parts!
+  //
+  // New (correct):
+  //   Caller passes true  → native @react-native-google-signin idToken
+  //   Caller passes false → web Firebase accessToken
+  async function loginWithGoogle(tokenValue, isIdToken = true) {
     try {
-      // If called from the old web path it passes an idToken string directly;
-      // expo-auth-session passes an accessToken string directly too.
-      // We detect which one to send by checking if it looks like a JWT (has dots).
-      const isJwt = typeof tokenValue === 'string' && tokenValue.split('.').length === 3;
-      const body = isJwt ? { idToken: tokenValue } : { accessToken: tokenValue };
+      const body = isIdToken
+        ? { idToken: tokenValue,     tokenType: 'id' }
+        : { accessToken: tokenValue, tokenType: 'access' };
+
       const r = await http('POST', '/api/auth/google', body);
       if (!r?.ok) return r ?? { ok: false, error: 'Google sign-in failed.' };
       await saveToken(r.token);
@@ -244,8 +230,6 @@ export function AuthProvider({ children }) {
     } catch {}
   }
 
-  // Register device for push notifications and persist the token to the server.
-  // Called after every successful login/register so the token stays current.
   async function _registerAndSavePushToken(authToken) {
     try {
       const pushToken = await registerForPushNotifications();
@@ -254,11 +238,6 @@ export function AuthProvider({ children }) {
   }
 
   // ── Safe public updaters ──────────────────────────────────────────────────
-  // Expose a controlled updater instead of the raw setUser / setJobs state
-  // setters. Raw setters let any screen silently corrupt shared state (e.g.
-  // setUser(null) without clearing the token, or setJobs([]) without resetting
-  // pagination). Screens that need to refresh data should call loadJobs();
-  // screens that need to patch profile fields should use updateUser().
   function updateUser(patch) {
     setUser(prev => (prev ? { ...prev, ...patch } : prev));
   }
