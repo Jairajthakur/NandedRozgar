@@ -1,6 +1,9 @@
 /**
  * CityPlus — LoginScreen.js
  * FIX: Google Sign-In now works on BOTH web (Firebase popup) and native Android/iOS.
+ * FIXED: loginWithGoogle now receives explicit isIdToken flag — no more dot-count heuristic.
+ *   Native path: loginWithGoogle(idToken, true)   → backend uses idToken verification
+ *   Web path:    loginWithGoogle(accessToken, false) → backend uses userinfo verification
  * Root cause: @react-native-google-signin/google-signin requires Google Play Services
  * which is not available in web browsers — replaced with Firebase web signInWithPopup.
  */
@@ -315,9 +318,9 @@ export default function LoginScreen() {
           return;
         }
 
-        // AuthContext.loginWithGoogle detects non-JWT → sends as accessToken
-        // Backend /api/auth/google verifies via Google userinfo endpoint
-        const r = await loginWithGoogle(accessToken);
+        // Explicitly pass false (not an idToken) so AuthContext sends { accessToken } to the backend.
+        // Backend /api/auth/google verifies via Google userinfo endpoint.
+        const r = await loginWithGoogle(accessToken, false);
         setGoogleLoading(false);
         if (!r?.ok) {
           setError(r?.error || 'Google sign-in failed');
@@ -358,8 +361,8 @@ export default function LoginScreen() {
         return;
       }
 
-      // idToken is a JWT (has 3 dots) → AuthContext sends as idToken
-      const r = await loginWithGoogle(idToken);
+      // Explicitly pass true (isIdToken) so AuthContext sends { idToken } to the backend.
+      const r = await loginWithGoogle(idToken, true);
       setGoogleLoading(false);
       if (!r?.ok) {
         setError(r?.error || 'Google sign-in failed');
