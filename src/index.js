@@ -350,7 +350,10 @@ const PRIVACY_HTML     = path.join(__dirname, '..', 'public', 'privacy-policy.ht
 const TERMS_HTML       = path.join(__dirname, '..', 'public', 'terms-and-conditions.html');
 const REFUND_HTML      = path.join(__dirname, '..', 'public', 'refund-policy.html');
 
-app.get('/admin',       (_req, res) => res.sendFile(ADMIN_PANEL_HTML));
+// FIX: /admin and /admin-login both serve admin-login.html (the full self-contained panel).
+// admin-panel.html does not exist in this project; admin-login.html contains both
+// the login form and the full dashboard (login/dashboard toggled via JS).
+app.get('/admin',       (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
 app.get('/admin-login', (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
 app.get('/privacy-policy',       (_req, res) => res.sendFile(PRIVACY_HTML));
 app.get('/terms-and-conditions', (_req, res) => res.sendFile(TERMS_HTML));
