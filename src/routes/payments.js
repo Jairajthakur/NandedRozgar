@@ -4,7 +4,7 @@
  * POST /api/payments/order            — Step 1: create Cashfree order → returns payment_session_id
  * POST /api/payments/verify           — Step 2: verify + create JOB listing
  * POST /api/payments/verify/room      — Step 2: verify + create ROOM listing
- * POST /api/payments/verify/vehicle   — Step 2: verify + create VEHICLE listing
+ * POST /api/payments/verify/vehicle   — Step 2: verify + create VEHICLE listing (rent OR sell)
  * POST /api/payments/verify/buysell   — Step 2: verify + create BUY-SELL listing
  * POST /api/payments/verify/promotion — Step 2: verify + create PROMOTION listing
  *
@@ -132,7 +132,7 @@ async function verifyCashfreePayment(orderId, { retries = 5, delayMs = 3000 } = 
 const PLAN_PRICES = {
   job:       { free: 0, featured: 99, urgent: 49, '7 days': 49, '15 days': 79, '30 days': 99 },
   room:      { free: 0, featured: 99, '15 days': 49, '1 month': 79, '2 months': 109, '3 months': 149 },
-  vehicle:   { free: 0, featured: 99, '15 days': 49, '1 month': 79, '2 months': 109, '3 months': 149 },
+  vehicle:   { free: 0, featured: 99, '15 days': 69, '1 month': 99, '2 months': 169, '3 months': 229 },
   buysell:   { free: 0, featured: 49, '7 days': 49, '15 days': 79, '30 days': 99 },
   promotion:    { basic: 99, popular: 149, premium: 199 },
   monthly_plan: { monthly: 299 },
@@ -558,38 +558,123 @@ router.post('/verify/room', auth, (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// POST /api/payments/verify/vehicle
+// POST /api/payments/verify/vehicle  — RENT or SELL listing
+//
+// FIX: The old handler only accepted rental fields (dailyRate, area) and used
+// wrong column names from a stale schema (vehicle_type, fuel_type, daily_rate,
+// ac_type, km_limit, extra_km_rate, hourly_rate, includes, availability).
+// None of those columns exist in the actual vehicles table. This caused every
+// paid vehicle post to fail with a Postgres "column does not exist" error.
+//
+// Root cause: The INSERT was written against an early schema draft; the actual
+// vehicles table (created in db.js) uses brand, fuel, transmission, km_driven,
+// purpose, photos, plan_days, plan_label, plan_price, listing_purpose, etc.
+//
+// Fix: Rewrite the INSERT to use correct column names, branch on
+// listingPurpose ('rent' | 'sell'), and resolve price from the right field.
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/vehicle', auth, (req, res) => {
   const { vehicle } = req.body;
-  if (!vehicle?.dailyRate || !vehicle?.area) {
-    return res.json({ ok: false, error: 'Daily rate and area are required.' });
+
+  // FIX: Guard now branches on listingPurpose so sell listings aren't blocked
+  // by the old dailyRate check.
+  const isSell = (vehicle?.listingPurpose || 'rent') === 'sell';
+
+  if (isSell) {
+    if (!vehicle?.askingPrice) {
+      return res.json({ ok: false, error: 'Asking price is required for sell listings.' });
+    }
+  } else {
+    if (!vehicle?.dailyRate) {
+      return res.json({ ok: false, error: 'Daily rental rate is required.' });
+    }
   }
+
+  if (!vehicle?.area) {
+    return res.json({ ok: false, error: 'Location / area is required.' });
+  }
+
   // ── Phone validation ─────────────────────────────────────────────────────────
   const waResult = requirePhone(vehicle?.whatsapp, 'WhatsApp');
   if (!waResult.ok) return res.json({ ok: false, error: waResult.error });
 
   return sharedVerify(req, res, 'vehicle', async (client, req, { planDays, expiresAt, expectedAmount }) => {
     const { vehicle, plan } = req.body;
+
     const waClean = requirePhone(vehicle?.whatsapp, 'WhatsApp');
     if (!waClean.ok) throw Object.assign(new Error(waClean.error), { userError: true });
+
+    // FIX: Resolve price based on listing purpose — sell → askingPrice, rent → dailyRate.
+    const isSellInner   = (vehicle?.listingPurpose || 'rent') === 'sell';
+    const resolvedPrice = isSellInner
+      ? parseInt(vehicle.askingPrice) || 0
+      : parseInt(vehicle.dailyRate)   || 0;
+
+    if (!resolvedPrice) {
+      throw Object.assign(
+        new Error(isSellInner ? 'Asking price is required.' : 'Daily rental rate is required.'),
+        { userError: true }
+      );
+    }
+
+    // FIX: INSERT now uses the correct column names that match the actual
+    // vehicles table schema defined in db.js.
     const { rows } = await client.query(`
-      INSERT INTO vehicles (posted_by,vehicle_type,name,year,color,fuel_type,transmission,ac_type,seats,
-        daily_rate,hourly_rate,km_limit,extra_km_rate,min_booking,advance_amt,purpose,includes,availability,
-        area,address,owner_name,whatsapp,description,photos,plan_days,plan_label,plan_price,expires_at,district)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29) RETURNING *`,
-      [req.user.id, vehicle.vehicleType || 'Car',
-       vehicle.name || vehicle.vehicleType || 'Vehicle',
-       vehicle.year || '', vehicle.color || '', vehicle.fuelType || 'Petrol',
-       vehicle.transmission || 'Manual', vehicle.acType || 'AC', vehicle.seats || '5',
-       vehicle.dailyRate, vehicle.hourlyRate || '', vehicle.kmLimit || '',
-       vehicle.extraKmRate || '', vehicle.minBooking || '1', vehicle.advanceAmt || '',
-       vehicle.purpose || '', JSON.stringify(vehicle.includes || []),
-       JSON.stringify(vehicle.availability || []),
-       vehicle.area, vehicle.address || '', vehicle.ownerName || '', waClean.value,
-       vehicle.description || '', JSON.stringify(vehicle.photos || []),
-       planDays, vehicle.planLabel || plan || '1 Month', expectedAmount, expiresAt,
-       vehicle.district || 'nanded']);
+      INSERT INTO vehicles (
+        posted_by, name, title, type, brand, year, fuel, seats, color,
+        transmission, km_driven,
+        price, area, whatsapp, description, purpose, photos,
+        plan, plan_days, plan_label, plan_price,
+        district, status, expires_at,
+        listing_purpose, negotiable, number_of_owners,
+        advance_amt, min_booking
+      ) VALUES (
+        $1,  $2,  $3,  $4,  $5,  $6,  $7,  $8,  $9,
+        $10, $11,
+        $12, $13, $14, $15, $16, $17,
+        $18, $19, $20, $21,
+        $22, 'active', $23,
+        $24, $25, $26,
+        $27, $28
+      ) RETURNING *
+    `, [
+      req.user.id,                                             // $1  posted_by
+      vehicle.name || vehicle.vehicleType || 'Vehicle',        // $2  name
+      vehicle.name || vehicle.vehicleType || 'Vehicle',        // $3  title
+      vehicle.vehicleType  || '',                              // $4  type
+      vehicle.brand        || '',                              // $5  brand
+      vehicle.year         || null,                            // $6  year
+      vehicle.fuelType     || '',                              // $7  fuel
+      vehicle.seats        || null,                            // $8  seats
+      vehicle.color        || null,                            // $9  color
+      vehicle.transmission || null,                            // $10 transmission
+      isSellInner ? (parseInt(vehicle.kmDriven) || null) : null, // $11 km_driven (sell only)
+      resolvedPrice,                                           // $12 price  ← askingPrice OR dailyRate
+      vehicle.area         || '',                              // $13 area
+      waClean.value,                                           // $14 whatsapp
+      vehicle.description  || '',                              // $15 description
+      JSON.stringify(vehicle.purpose  || vehicle.features || []), // $16 purpose (features/amenities)
+      JSON.stringify(vehicle.photos   || []),                  // $17 photos
+      plan || '1 Month',                                       // $18 plan
+      planDays,                                                // $19 plan_days (server-computed)
+      vehicle.planLabel || plan || '1 Month',                  // $20 plan_label
+      expectedAmount || null,                                  // $21 plan_price (what user paid)
+      vehicle.district || 'nanded',                            // $22 district
+      expiresAt,                                               // $23 expires_at
+      isSellInner ? 'sell' : 'rent',                          // $24 listing_purpose
+      isSellInner ? (vehicle.negotiable !== false) : null,     // $25 negotiable  (sell only)
+      isSellInner ? (vehicle.numberOfOwners || null) : null,   // $26 number_of_owners (sell only)
+      isSellInner ? null : (vehicle.advanceAmt  || null),      // $27 advance_amt  (rent only)
+      isSellInner ? null : (vehicle.minBooking  || null),      // $28 min_booking   (rent only)
+    ]);
+
+    await logActivity('vehicle_post_paid', {
+      userId:    req.user.id,
+      ip:        getIP(req),
+      userAgent: getUA(req),
+      detail:    `Vehicle posted: "${vehicle.name}" — ${isSellInner ? 'SELL' : 'RENT'} — ${plan}`,
+    });
+
     return { vehicle: rows[0] };
   });
 });
