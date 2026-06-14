@@ -20,76 +20,80 @@ import VoicePostAssistant from '../components/VoicePostAssistant';
 
 const { width: SW } = Dimensions.get('window');
 const PURPLE = '#7c3aed';
-const ORANGE = '#f97316';
-const TOTAL  = 5;
+const ORANGE  = '#f97316';
+const GREEN   = '#16a34a';
+const TOTAL   = 5;
 
 const VEHICLE_TYPES = [
-  { label:'Car',            sub:'Sedan, Hatchback, etc.' },
-  { label:'Bike / Scooter', sub:'Two-wheeler' },
-  { label:'Auto Rickshaw',  sub:'CNG 3-wheeler' },
-  { label:'SUV / MUV',      sub:'Innova, Scorpio, etc.' },
-  { label:'Tempo / Van',    sub:'Commercial vehicle' },
+  { label: 'Car',            sub: 'Sedan, Hatchback, etc.' },
+  { label: 'Bike / Scooter', sub: 'Two-wheeler' },
+  { label: 'Auto Rickshaw',  sub: 'CNG 3-wheeler' },
+  { label: 'SUV / MUV',      sub: 'Innova, Scorpio, etc.' },
+  { label: 'Tempo / Van',    sub: 'Commercial vehicle' },
 ];
-const BRANDS     = ['Maruti Suzuki','Hyundai','Tata','Honda','Toyota','Mahindra','Bajaj','Hero','TVS','Other'];
-const YEARS      = Array.from({length:15},(_,i)=>String(2025-i));
-const FUEL_TYPES = ['Petrol','Diesel','CNG','Electric','Hybrid'];
-const SEATING    = ['2','4','5','6','7','8','9+'];
-const MIN_RENTAL = [
-  { label:'1 Day minimum',  sub:'Flexible, short trips' },
-  { label:'3 Days minimum', sub:null },
-  { label:'7 Days minimum', sub:'Weekly rentals only' },
-  { label:'Monthly only',   sub:'Long-term rental' },
+const BRANDS        = ['Maruti Suzuki','Hyundai','Tata','Honda','Toyota','Mahindra','Bajaj','Hero','TVS','Other'];
+const YEARS         = Array.from({ length: 20 }, (_, i) => String(2025 - i));
+const FUEL_TYPES    = ['Petrol','Diesel','CNG','Electric','Hybrid'];
+const SEATING       = ['2','4','5','6','7','8','9+'];
+const TRANSMISSIONS = ['Manual','Automatic','CVT','AMT'];
+const NO_OF_OWNERS  = ['1st Owner','2nd Owner','3rd Owner','4th+ Owner'];
+const MIN_RENTAL    = [
+  { label: '1 Day minimum',  sub: 'Flexible, short trips' },
+  { label: '3 Days minimum', sub: null },
+  { label: '7 Days minimum', sub: 'Weekly rentals only' },
+  { label: 'Monthly only',   sub: 'Long-term rental' },
 ];
 const PICKUP_LOCS_BY_DISTRICT = {
   nanded: [
-    // ── Nanded City localities ──
-    'Nanded City', 'Vazirabad', 'Shivaji Nagar', 'Vishnupuri', 'Taroda Naka',
-    'Cidco', 'Old Nanded', 'New Mondha', 'Novena Colony',
-    'Kasturba Nagar', 'Santnagar', 'Padampur', 'Shantinagar',
-    'Guru Nanak Colony', 'Aurangpura', 'Subhash Nagar',
-    'SRTMU Area', 'Station Road',
-    // ── Nanded District Talukas ──
-    'Nanded (Taluka)', 'Ardhapur', 'Mukhed', 'Hadgaon', 'Bhokar',
-    'Kinwat', 'Deglur', 'Biloli', 'Naigaon', 'Loha',
-    'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
-    'Mudkhed', 'Other',
+    'Nanded City','Vazirabad','Shivaji Nagar','Vishnupuri','Taroda Naka',
+    'Cidco','Old Nanded','New Mondha','Novena Colony',
+    'Kasturba Nagar','Santnagar','Padampur','Shantinagar',
+    'Guru Nanak Colony','Aurangpura','Subhash Nagar',
+    'SRTMU Area','Station Road',
+    'Nanded (Taluka)','Ardhapur','Mukhed','Hadgaon','Bhokar',
+    'Kinwat','Deglur','Biloli','Naigaon','Loha',
+    'Kandhar','Umri','Dharmabad','Himayatnagar','Mahur',
+    'Mudkhed','Other',
   ],
   latur: [
-    // ── Latur City localities ──
-    'Latur City', 'Ausa Road', 'Udgir Road', 'Railway Station Area',
-    'Nit Nagar', 'Gandhi Nagar', 'Shivaji Nagar', 'Budhwar Peth',
-    'Sadar Bazar', 'Renuka Nagar',
-    // ── Latur District Talukas ──
-    'Latur (Taluka)', 'Ausa', 'Udgir', 'Nilanga', 'Deoni',
-    'Chakur', 'Renapur', 'Ahmedpur', 'Shirur Anantpal', 'Jalkot',
+    'Latur City','Ausa Road','Udgir Road','Railway Station Area',
+    'Nit Nagar','Gandhi Nagar','Shivaji Nagar','Budhwar Peth',
+    'Sadar Bazar','Renuka Nagar',
+    'Latur (Taluka)','Ausa','Udgir','Nilanga','Deoni',
+    'Chakur','Renapur','Ahmedpur','Shirur Anantpal','Jalkot',
     'Other',
   ],
 };
-const FEATURES    = [
+const FEATURES = [
   'AC','Power Steering','Bluetooth/Music','Fastag',
   'Carrier','Commercial RC','Comprehensive Insurance','Helmets Included',
 ];
+const SELL_FEATURES = [
+  'AC','Power Steering','Bluetooth/Music','Fastag',
+  'Sunroof','Alloy Wheels','Reverse Camera','ABS',
+  'Airbags','Comprehensive Insurance','Original RC',
+];
 const PLANS = [
-  { days:15,  label:'15 Days',  price:69,  popular:false },
-  { days:30,  label:'1 Month',  price:99,  popular:true  },
-  { days:60,  label:'2 Months', price:169, popular:false },
-  { days:90,  label:'3 Months', price:229, popular:false },
+  { days: 15, label: '15 Days',  price: 69,  popular: false },
+  { days: 30, label: '1 Month',  price: 99,  popular: true  },
+  { days: 60, label: '2 Months', price: 169, popular: false },
+  { days: 90, label: '3 Months', price: 229, popular: false },
 ];
 const STEP_META = [
-  { title:'Vehicle Info',         sub:'Describe your vehicle' },
-  { title:'Rental Details',       sub:'Set pricing and availability' },
-  { title:'Photos & Description', sub:'Add photos and contact details' },
-  { title:'Choose Plan',          sub:'How long should your listing stay live?' },
-  { title:'Review & Post',        sub:'Confirm listing before going live' },
+  { title: 'Vehicle Info',         sub: 'Describe your vehicle' },
+  { title: 'Pricing & Details',    sub: 'Set pricing and availability' },
+  { title: 'Photos & Description', sub: 'Add photos and contact details' },
+  { title: 'Choose Plan',          sub: 'How long should your listing stay live?' },
+  { title: 'Review & Post',        sub: 'Confirm listing before going live' },
 ];
 
-// ── Modal-based Picker (no z-index / overlap bugs) ───────────────────────────
+// ── Modal-based Picker ───────────────────────────────────────────────────────
 function Picker({ value, options, onSelect, fullWidth, accent = PURPLE }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <TouchableOpacity
-        style={[s.dd, fullWidth && { width:'100%' }]}
+        style={[s.dd, fullWidth && { width: '100%' }]}
         onPress={() => setOpen(true)}
         activeOpacity={0.8}
       >
@@ -115,7 +119,7 @@ function Picker({ value, options, onSelect, fullWidth, accent = PURPLE }) {
                   onPress={() => { onSelect(o); setOpen(false); }}
                   activeOpacity={0.7}
                 >
-                  <Text style={[s.modalItemTxt, o === value && { color: accent, fontWeight:'700' }]}>
+                  <Text style={[s.modalItemTxt, o === value && { color: accent, fontWeight: '700' }]}>
                     {o}
                   </Text>
                   {o === value && <Ionicons name="checkmark-circle" size={18} color={accent} />}
@@ -151,6 +155,34 @@ function PhotoItem({ uri, label, onPress, onRemove }) {
   );
 }
 
+// ── Listing purpose toggle (Rent / Sell) ─────────────────────────────────────
+function PurposeToggle({ value, onChange }) {
+  return (
+    <View style={s.toggleRow}>
+      <TouchableOpacity
+        style={[s.toggleBtn, value === 'rent' && { backgroundColor: PURPLE, borderColor: PURPLE }]}
+        onPress={() => onChange('rent')}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="car-outline" size={18} color={value === 'rent' ? '#fff' : '#555'} />
+        <Text style={[s.toggleTxt, value === 'rent' && { color: '#fff', fontWeight: '800' }]}>
+          Rent / Hire
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[s.toggleBtn, value === 'sell' && { backgroundColor: GREEN, borderColor: GREEN }]}
+        onPress={() => onChange('sell')}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="pricetag-outline" size={18} color={value === 'sell' ? '#fff' : '#555'} />
+        <Text style={[s.toggleTxt, value === 'sell' && { color: '#fff', fontWeight: '800' }]}>
+          Sell Vehicle
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function PostCarScreen() {
   const nav = useNavigation();
@@ -159,27 +191,51 @@ export default function PostCarScreen() {
   const PICKUP_LOCS = PICKUP_LOCS_BY_DISTRICT[currentDistrict?.id] || PICKUP_LOCS_BY_DISTRICT.nanded;
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http, user });
   const { active: hasMonthlyPlan } = useMonthlyPlan();
-  const [step, setStep]       = useState(1);
+
+  const [step, setStep]   = useState(1);
   const [loading, setLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim  = useRef(new Animated.Value(1)).current;
 
+  // ── listingPurpose: 'rent' | 'sell' ─────────────────────────────────────
+  const [listingPurpose, setListingPurpose] = useState('rent');
+
   const [form, setForm] = useState({
-    vehicleType:'Car', name:'', brand:'Maruti Suzuki', year:'2022',
-    fuelType:'Petrol', seating:'5', color:'',
-    dailyRate:'', deposit:'', minRental:'1 Day minimum',
-    pickupLocation:(PICKUP_LOCS_BY_DISTRICT[currentDistrict?.id] || PICKUP_LOCS_BY_DISTRICT.nanded)[0],
-    features:[], notes:'', whatsapp:'',
-    plan:PLANS[1],
+    vehicleType:    'Car',
+    name:           '',
+    brand:          'Maruti Suzuki',
+    year:           '2022',
+    fuelType:       'Petrol',
+    seating:        '5',
+    color:          '',
+    transmission:   'Manual',
+    kmDriven:       '',
+    numberOfOwners: '1st Owner',
+    // Rent fields
+    dailyRate:      '',
+    deposit:        '',
+    minRental:      '1 Day minimum',
+    pickupLocation: (PICKUP_LOCS_BY_DISTRICT[currentDistrict?.id] || PICKUP_LOCS_BY_DISTRICT.nanded)[0],
+    // Sell fields
+    askingPrice:    '',
+    negotiable:     true,
+    // Shared
+    features:       [],
+    notes:          '',
+    whatsapp:       '',
+    plan:           PLANS[1],
   });
   const [photos, setPhotos] = useState([null, null, null, null]);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [customBrand, setCustomBrand] = useState('');
   const [customPickupLocation, setCustomPickupLocation] = useState('');
 
-  const set = (k,v) => setForm(f=>({...f,[k]:v}));
-  const toggleFeature = f => set('features', form.features.includes(f)
-    ? form.features.filter(x=>x!==f) : [...form.features,f]);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const activeFeatures = listingPurpose === 'sell' ? SELL_FEATURES : FEATURES;
+  const toggleFeature  = f => set('features', form.features.includes(f)
+    ? form.features.filter(x => x !== f) : [...form.features, f]);
+
+  const accentColor = listingPurpose === 'sell' ? GREEN : PURPLE;
 
   // ── Image picking ────────────────────────────────────────────────────────
   async function pickPhoto(index) {
@@ -187,7 +243,7 @@ export default function PostCarScreen() {
       if (Platform.OS !== 'web') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission Required','Please allow access to your photo library in Settings.');
+          Alert.alert('Permission Required', 'Please allow access to your photo library in Settings.');
           return;
         }
       }
@@ -202,7 +258,7 @@ export default function PostCarScreen() {
         setPhotos(prev => { const u = [...prev]; u[index] = uri; return u; });
       }
     } catch {
-      Alert.alert('Error','Could not open photo library. Please try again.');
+      Alert.alert('Error', 'Could not open photo library. Please try again.');
     }
   }
 
@@ -211,7 +267,7 @@ export default function PostCarScreen() {
       if (Platform.OS !== 'web') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission Required','Please allow access to your photo library in Settings.');
+          Alert.alert('Permission Required', 'Please allow access to your photo library in Settings.');
           return;
         }
       }
@@ -231,10 +287,10 @@ export default function PostCarScreen() {
           }
           return merged.slice(0, 8);
         });
-        Toast.show({ type:'success', text1:`✅ ${result.assets.length} photo(s) added` });
+        Toast.show({ type: 'success', text1: `✅ ${result.assets.length} photo(s) added` });
       }
     } catch {
-      Alert.alert('Error','Could not open photo library. Please try again.');
+      Alert.alert('Error', 'Could not open photo library. Please try again.');
     }
   }
 
@@ -245,44 +301,54 @@ export default function PostCarScreen() {
   // ── Step navigation ────────────────────────────────────────────────────────
   function animateStep(dir, cb) {
     Animated.parallel([
-      Animated.timing(slideAnim, { toValue:dir==='next'?-SW:SW, duration:220, useNativeDriver:true }),
-      Animated.timing(fadeAnim,  { toValue:0, duration:150, useNativeDriver:true }),
+      Animated.timing(slideAnim, { toValue: dir === 'next' ? -SW : SW, duration: 220, useNativeDriver: true }),
+      Animated.timing(fadeAnim,  { toValue: 0, duration: 150, useNativeDriver: true }),
     ]).start(() => {
-      slideAnim.setValue(dir==='next'?SW:-SW); cb();
+      slideAnim.setValue(dir === 'next' ? SW : -SW); cb();
       Animated.parallel([
-        Animated.spring(slideAnim, { toValue:0, tension:60, friction:10, useNativeDriver:true }),
-        Animated.timing(fadeAnim,  { toValue:1, duration:200, useNativeDriver:true }),
+        Animated.spring(slideAnim, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 200, useNativeDriver: true }),
       ]).start();
     });
   }
 
   function next() {
-    if (step===1 && !form.vehicleType){ Alert.alert('Required','Select vehicle type'); return; }
-    if (step===2 && !form.dailyRate)  { Alert.alert('Required','Enter daily rental rate'); return; }
-    if (step===3 && !form.whatsapp)   { Alert.alert('Required','Enter WhatsApp number'); return; }
-    if (step<TOTAL) animateStep('next', ()=>setStep(s=>s+1));
+    if (step === 1 && !form.vehicleType) { Alert.alert('Required', 'Select vehicle type'); return; }
+    if (step === 2) {
+      if (listingPurpose === 'rent' && !form.dailyRate) {
+        Alert.alert('Required', 'Enter daily rental rate'); return;
+      }
+      if (listingPurpose === 'sell' && !form.askingPrice) {
+        Alert.alert('Required', 'Enter asking price'); return;
+      }
+    }
+    if (step === 3 && !form.whatsapp) { Alert.alert('Required', 'Enter WhatsApp number'); return; }
+    if (step < TOTAL) animateStep('next', () => setStep(s => s + 1));
   }
   function back() {
-    if (step>1) animateStep('back', ()=>setStep(s=>s-1)); else nav.goBack();
+    if (step > 1) animateStep('back', () => setStep(s => s - 1)); else nav.goBack();
   }
 
   async function submit() {
-    if (!form.dailyRate||!form.pickupLocation||!form.whatsapp){
-      Alert.alert('Missing Info','Daily rate, pickup location and WhatsApp are required'); return;
+    const missingRent = listingPurpose === 'rent' && (!form.dailyRate || !form.pickupLocation);
+    const missingSell = listingPurpose === 'sell' && !form.askingPrice;
+    if (missingRent || missingSell || !form.whatsapp) {
+      Alert.alert('Missing Info', 'Please fill all required fields'); return;
     }
-    if (form.brand==='Other'&&!customBrand.trim()){
-      Alert.alert('Missing Info','Please type the vehicle brand name'); return;
+    if (form.brand === 'Other' && !customBrand.trim()) {
+      Alert.alert('Missing Info', 'Please type the vehicle brand name'); return;
     }
-    if (form.pickupLocation==='Other'&&!customPickupLocation.trim()){
-      Alert.alert('Missing Info','Please type your pickup location'); return;
+    if (listingPurpose === 'rent' && form.pickupLocation === 'Other' && !customPickupLocation.trim()) {
+      Alert.alert('Missing Info', 'Please type your pickup location'); return;
     }
+
     setLoading(true);
     try {
-      const planPrice   = form.plan?.price ?? 0;
+      const planPrice       = form.plan?.price ?? 0;
       const discountedPrice = appliedCoupon ? appliedCoupon.finalAmount : planPrice;
-      const amountPaise = discountedPrice * 100;
+      const amountPaise     = discountedPrice * 100;
 
-      // ── Step 1: Payment (skipped if Monthly Plan is active) ───────────────
+      // ── Payment ───────────────────────────────────────────────────────────
       let payResult;
       if (hasMonthlyPlan) {
         payResult = { success: true, free: true };
@@ -303,75 +369,105 @@ export default function PostCarScreen() {
         return;
       }
 
-      // ── Step 2: Post listing ───────────────────────────────────────────────
-      // Convert local file:// URIs → base64 data URIs so they display on all devices
+      // ── Convert photos to base64 ───────────────────────────────────────────
       const validPhotos = await urisToBase64DataUris(photos);
-      const r = await http('POST','/api/payments/verify/vehicle',{
-        cashfree_order_id: payResult.free ? undefined : payResult.cashfree_order_id,
-        amount: amountPaise,
-        plan:   form.plan?.label || '1 Month',
-        days:   form.plan?.days  || 30,
-        couponId: appliedCoupon?.id || null,
-        vehicle: {
-          vehicleType:form.vehicleType, name:form.name||form.vehicleType,
-          brand: form.brand==='Other' ? customBrand.trim() : form.brand,
-          year:form.year, color:form.color, fuelType:form.fuelType,
-          seats:form.seating, dailyRate:form.dailyRate, advanceAmt:form.deposit,
-          minBooking:form.minRental, area:form.pickupLocation==='Other'?customPickupLocation.trim():form.pickupLocation,
-          purpose:form.features, whatsapp:form.whatsapp,
-          description:form.notes, planDays:form.plan?.days || 30,
-          planLabel:form.plan?.label || '1 Month', planPrice: planPrice,
-          photos: validPhotos,
-          district: district || 'nanded',
-        },
+
+      // ── Build vehicle payload ─────────────────────────────────────────────
+      // NOTE: listingPurpose='sell' sets km_driven, asking_price, transmission,
+      //       number_of_owners and price (mapped to askingPrice on backend).
+      //       listingPurpose='rent' keeps original dailyRate / deposit / minRental fields.
+      const vehiclePayload = {
+        listingPurpose,
+        vehicleType: form.vehicleType,
+        name:        form.name || form.vehicleType,
+        brand:       form.brand === 'Other' ? customBrand.trim() : form.brand,
+        year:        form.year,
+        color:       form.color,
+        fuelType:    form.fuelType,
+        seats:       form.seating,
+        transmission: form.transmission,
+        whatsapp:    form.whatsapp,
+        purpose:     form.features,
+        description: form.notes,
+        planDays:    form.plan?.days  || 30,
+        planLabel:   form.plan?.label || '1 Month',
+        planPrice:   planPrice,
+        photos:      validPhotos,
+        district:    district || 'nanded',
+        // Rent-specific
+        ...(listingPurpose === 'rent' && {
+          dailyRate:  form.dailyRate,
+          advanceAmt: form.deposit,
+          minBooking: form.minRental,
+          area:       form.pickupLocation === 'Other' ? customPickupLocation.trim() : form.pickupLocation,
+        }),
+        // Sell-specific
+        ...(listingPurpose === 'sell' && {
+          askingPrice:    form.askingPrice,
+          negotiable:     form.negotiable,
+          kmDriven:       form.kmDriven,
+          numberOfOwners: form.numberOfOwners,
+          area: form.pickupLocation === 'Other' ? customPickupLocation.trim() : form.pickupLocation,
+        }),
+      };
+
+      const r = await http('POST', '/api/payments/verify/vehicle', {
+        cashfree_order_id:  payResult.free ? undefined : payResult.cashfree_order_id,
+        amount:             amountPaise,
+        plan:               form.plan?.label || '1 Month',
+        days:               form.plan?.days  || 30,
+        couponId:           appliedCoupon?.id || null,
+        vehicle:            vehiclePayload,
       });
+
       if (r.ok) {
-        Toast.show({ type:'success', text1:'✅ Vehicle listed successfully!' });
+        Toast.show({ type: 'success', text1: '✅ Vehicle listed successfully!' });
         nav.navigate('Main', { screen: 'Cars' });
       } else {
-        Alert.alert('Error', r.error||'Failed to post vehicle');
+        Alert.alert('Error', r.error || 'Failed to post vehicle');
       }
     } catch {
-      Alert.alert('Error','Something went wrong');
+      Alert.alert('Error', 'Something went wrong');
     } finally { setLoading(false); }
   }
 
-  const meta        = STEP_META[step-1];
-  const photoLabels = ['Front View','Side View','Interior','Dashboard'];
+  const meta        = STEP_META[step - 1];
+  const photoLabels = ['Front View', 'Side View', 'Interior', 'Dashboard'];
 
   return (
     <KeyboardAvoidingView
-      style={{ flex:1, backgroundColor:'#f5f5f5' }}
-      behavior={Platform.OS==='ios'?'padding':undefined}
+      style={{ flex: 1, backgroundColor: '#f5f5f5' }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {RazorpayCheckout}
+
       {/* Top nav */}
-      <View style={s.topNav}>
+      <View style={[s.topNav, { backgroundColor: accentColor }]}>
         <TouchableOpacity onPress={back} style={s.backBtn}>
-          <Ionicons name="arrow-back" size={18} color="#fff"/>
+          <Ionicons name="arrow-back" size={18} color="#fff" />
         </TouchableOpacity>
         <Text style={s.stepLbl}>Step {step} of {TOTAL}</Text>
       </View>
 
       {/* Progress dots */}
-      <View style={s.dotsRow}>
-        {Array.from({length:TOTAL}).map((_,i)=>(
-          <View key={i} style={[s.dot, i<step&&s.dotDone, i===step-1&&s.dotCur]}/>
+      <View style={[s.dotsRow, { backgroundColor: accentColor }]}>
+        {Array.from({ length: TOTAL }).map((_, i) => (
+          <View key={i} style={[s.dot, i < step && s.dotDone, i === step - 1 && s.dotCur]} />
         ))}
       </View>
 
       {/* Banner */}
-      <View style={s.banner}>
+      <View style={[s.banner, { backgroundColor: accentColor }]}>
         <Text style={s.bannerTitle}>{meta.title}</Text>
         <Text style={s.bannerSub}>{meta.sub}</Text>
       </View>
 
       {/* Animated content */}
-      <Animated.View style={{ flex:1, transform:[{translateX:slideAnim}], opacity:fadeAnim }}>
-        <ScrollView style={{ flex:1 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+      <Animated.View style={{ flex: 1, transform: [{ translateX: slideAnim }], opacity: fadeAnim }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
 
           {/* ── STEP 1: Vehicle Info ── */}
-          {step===1&&<>
+          {step === 1 && <>
             {/* ── Voice Post Assistant ── */}
             <VoicePostAssistant
               screenType="vehicle"
@@ -380,130 +476,196 @@ export default function PostCarScreen() {
                 if (dailyRate)    set('dailyRate', dailyRate);
                 if (notes)        set('notes', notes);
                 if (wa)           set('whatsapp', wa);
-                Toast.show({ type: 'success', text1: '\u2705 Form filled by voice!', text2: 'Check karo aur edit kar sakte ho' });
+                Toast.show({ type: 'success', text1: '✅ Form filled by voice!', text2: 'Check karo aur edit kar sakte ho' });
               }}
             />
-            <Lbl>VEHICLE TYPE *</Lbl>
-            {VEHICLE_TYPES.map(t=>(
+
+            {/* ── Listing purpose toggle ── */}
+            <Lbl>LISTING TYPE *</Lbl>
+            <PurposeToggle value={listingPurpose} onChange={p => {
+              setListingPurpose(p);
+              // Reset purpose-specific fields on switch
+              set('features', []);
+            }} />
+
+            <Lbl style={{ marginTop: 18 }}>VEHICLE TYPE *</Lbl>
+            {VEHICLE_TYPES.map(t => (
               <RadioCard key={t.label} label={t.label} sub={t.sub}
-                selected={form.vehicleType===t.label}
-                onPress={()=>set('vehicleType',t.label)} color={PURPLE}/>
+                selected={form.vehicleType === t.label}
+                onPress={() => set('vehicleType', t.label)} color={accentColor} />
             ))}
 
-            <Lbl style={{marginTop:18}}>VEHICLE NAME / MODEL *</Lbl>
+            <Lbl style={{ marginTop: 18 }}>VEHICLE NAME / MODEL *</Lbl>
             <TextInput style={s.input} placeholder="e.g. Maruti Swift, Honda Activa 6G"
-              value={form.name} onChangeText={v=>set('name',v)}/>
+              value={form.name} onChangeText={v => set('name', v)} />
 
             <View style={s.row}>
-              <View style={{flex:1}}>
+              <View style={{ flex: 1 }}>
                 <Lbl>BRAND</Lbl>
-                <Picker value={form.brand} options={BRANDS} onSelect={v=>{ set('brand',v); if(v!=='Other') setCustomBrand(''); }}/>
-                {form.brand==='Other'&&(
-                  <TextInput style={[s.input,{marginTop:8}]}
+                <Picker value={form.brand} options={BRANDS}
+                  onSelect={v => { set('brand', v); if (v !== 'Other') setCustomBrand(''); }}
+                  accent={accentColor} />
+                {form.brand === 'Other' && (
+                  <TextInput style={[s.input, { marginTop: 8 }]}
                     placeholder="Type brand name"
-                    value={customBrand} onChangeText={setCustomBrand} maxLength={50}/>
+                    value={customBrand} onChangeText={setCustomBrand} maxLength={50} />
                 )}
               </View>
-              <View style={{width:12}}/>
-              <View style={{flex:1}}>
+              <View style={{ width: 12 }} />
+              <View style={{ flex: 1 }}>
                 <Lbl>YEAR</Lbl>
-                <Picker value={form.year} options={YEARS} onSelect={v=>set('year',v)}/>
+                <Picker value={form.year} options={YEARS} onSelect={v => set('year', v)} accent={accentColor} />
               </View>
             </View>
 
-            <View style={[s.row,{marginTop:16}]}>
-              <View style={{flex:1}}>
+            <View style={[s.row, { marginTop: 16 }]}>
+              <View style={{ flex: 1 }}>
                 <Lbl>FUEL TYPE</Lbl>
-                <Picker value={form.fuelType} options={FUEL_TYPES} onSelect={v=>set('fuelType',v)}/>
+                <Picker value={form.fuelType} options={FUEL_TYPES} onSelect={v => set('fuelType', v)} accent={accentColor} />
               </View>
-              <View style={{width:12}}/>
-              <View style={{flex:1}}>
+              <View style={{ width: 12 }} />
+              <View style={{ flex: 1 }}>
                 <Lbl>SEATING</Lbl>
-                <Picker value={form.seating} options={SEATING} onSelect={v=>set('seating',v)}/>
+                <Picker value={form.seating} options={SEATING} onSelect={v => set('seating', v)} accent={accentColor} />
               </View>
             </View>
 
-            <Lbl style={{marginTop:16}}>VEHICLE COLOR</Lbl>
+            {/* Sell-mode extra fields */}
+            {listingPurpose === 'sell' && <>
+              <View style={[s.row, { marginTop: 16 }]}>
+                <View style={{ flex: 1 }}>
+                  <Lbl>TRANSMISSION</Lbl>
+                  <Picker value={form.transmission} options={TRANSMISSIONS}
+                    onSelect={v => set('transmission', v)} accent={accentColor} />
+                </View>
+                <View style={{ width: 12 }} />
+                <View style={{ flex: 1 }}>
+                  <Lbl>NO. OF OWNERS</Lbl>
+                  <Picker value={form.numberOfOwners} options={NO_OF_OWNERS}
+                    onSelect={v => set('numberOfOwners', v)} accent={accentColor} />
+                </View>
+              </View>
+
+              <Lbl style={{ marginTop: 16 }}>KM DRIVEN</Lbl>
+              <View style={s.prefixRow}>
+                <TextInput style={s.prefixField} placeholder="e.g. 45000"
+                  keyboardType="numeric" value={form.kmDriven}
+                  onChangeText={v => set('kmDriven', v)} />
+                <Text style={s.prefix}>km</Text>
+              </View>
+            </>}
+
+            <Lbl style={{ marginTop: 16 }}>VEHICLE COLOR</Lbl>
             <TextInput style={s.input} placeholder="e.g. White, Silver, Red"
-              value={form.color} onChangeText={v=>set('color',v)}/>
+              value={form.color} onChangeText={v => set('color', v)} />
           </>}
 
-          {/* ── STEP 2: Rental Details ── */}
-          {step===2&&<>
-            <Lbl>DAILY RENTAL RATE (₹) *</Lbl>
-            <View style={s.prefixRow}>
-              <Text style={s.prefix}>₹</Text>
-              <TextInput style={s.prefixField} placeholder="e.g. 800 per day"
-                keyboardType="numeric" value={form.dailyRate}
-                onChangeText={v=>set('dailyRate',v)}/>
-            </View>
+          {/* ── STEP 2: Pricing & Details ── */}
+          {step === 2 && <>
+            {listingPurpose === 'rent' ? <>
+              {/* ── RENT fields ── */}
+              <Lbl>DAILY RENTAL RATE (₹) *</Lbl>
+              <View style={s.prefixRow}>
+                <Text style={s.prefix}>₹</Text>
+                <TextInput style={s.prefixField} placeholder="e.g. 800 per day"
+                  keyboardType="numeric" value={form.dailyRate}
+                  onChangeText={v => set('dailyRate', v)} />
+              </View>
 
-            <Lbl style={{marginTop:16}}>SECURITY DEPOSIT (₹)</Lbl>
-            <View style={s.prefixRow}>
-              <Text style={s.prefix}>₹</Text>
-              <TextInput style={s.prefixField} placeholder="e.g. 2000 refundable"
-                keyboardType="numeric" value={form.deposit}
-                onChangeText={v=>set('deposit',v)}/>
-            </View>
+              <Lbl style={{ marginTop: 16 }}>SECURITY DEPOSIT (₹)</Lbl>
+              <View style={s.prefixRow}>
+                <Text style={s.prefix}>₹</Text>
+                <TextInput style={s.prefixField} placeholder="e.g. 2000 refundable"
+                  keyboardType="numeric" value={form.deposit}
+                  onChangeText={v => set('deposit', v)} />
+              </View>
 
-            <Lbl style={{marginTop:18}}>MINIMUM RENTAL PERIOD</Lbl>
-            {MIN_RENTAL.map(r=>(
-              <RadioCard key={r.label} label={r.label} sub={r.sub}
-                selected={form.minRental===r.label}
-                onPress={()=>set('minRental',r.label)} color={ORANGE}/>
-            ))}
+              <Lbl style={{ marginTop: 18 }}>MINIMUM RENTAL PERIOD</Lbl>
+              {MIN_RENTAL.map(r => (
+                <RadioCard key={r.label} label={r.label} sub={r.sub}
+                  selected={form.minRental === r.label}
+                  onPress={() => set('minRental', r.label)} color={ORANGE} />
+              ))}
+            </> : <>
+              {/* ── SELL fields ── */}
+              <Lbl>ASKING PRICE (₹) *</Lbl>
+              <View style={s.prefixRow}>
+                <Text style={s.prefix}>₹</Text>
+                <TextInput style={s.prefixField} placeholder="e.g. 350000"
+                  keyboardType="numeric" value={form.askingPrice}
+                  onChangeText={v => set('askingPrice', v)} />
+              </View>
 
-            <Lbl style={{marginTop:16}}>PICKUP LOCATION</Lbl>
+              {/* Negotiable toggle */}
+              <TouchableOpacity
+                style={[s.negotiableRow, form.negotiable && { borderColor: GREEN, backgroundColor: GREEN + '10' }]}
+                onPress={() => set('negotiable', !form.negotiable)}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name={form.negotiable ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={22} color={form.negotiable ? GREEN : '#aaa'} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.negotiableTxt, form.negotiable && { color: GREEN }]}>Price is Negotiable</Text>
+                  <Text style={s.negotiableSub}>Buyers can make offers</Text>
+                </View>
+              </TouchableOpacity>
+            </>}
+
+            {/* Location (shared) */}
+            <Lbl style={{ marginTop: 16 }}>
+              {listingPurpose === 'rent' ? 'PICKUP LOCATION' : 'VEHICLE LOCATION'}
+            </Lbl>
             {currentDistrict && (
               <TouchableOpacity
-                onPress={()=>nav.navigate('Home')}
+                onPress={() => nav.navigate('Home')}
                 activeOpacity={0.75}
                 style={{
-                  flexDirection:'row', alignItems:'center', gap:6,
-                  backgroundColor:'#fff7ed', borderRadius:10,
-                  paddingHorizontal:12, paddingVertical:8,
-                  borderWidth:1, borderColor:'#fed7aa', marginBottom:10,
+                  flexDirection: 'row', alignItems: 'center', gap: 6,
+                  backgroundColor: '#fff7ed', borderRadius: 10,
+                  paddingHorizontal: 12, paddingVertical: 8,
+                  borderWidth: 1, borderColor: '#fed7aa', marginBottom: 10,
                 }}
               >
                 <Ionicons name="location" size={14} color={ORANGE} />
-                <Text style={{fontSize:13, color:'#92400e', fontWeight:'600', flex:1}}>
-                  Posting in <Text style={{color:ORANGE}}>{currentDistrict.name}</Text> district
+                <Text style={{ fontSize: 13, color: '#92400e', fontWeight: '600', flex: 1 }}>
+                  Posting in <Text style={{ color: ORANGE }}>{currentDistrict.name}</Text> district
                 </Text>
-                <Text style={{fontSize:11, color:ORANGE}}>Change ›</Text>
+                <Text style={{ fontSize: 11, color: ORANGE }}>Change ›</Text>
               </TouchableOpacity>
             )}
             <Picker value={form.pickupLocation} options={PICKUP_LOCS}
-              onSelect={v=>{ set('pickupLocation',v); if(v!=='Other') setCustomPickupLocation(''); }} fullWidth/>
-            {form.pickupLocation==='Other'&&(
-              <TextInput style={[s.input,{marginTop:8}]}
-                placeholder="Type your pickup location"
-                value={customPickupLocation} onChangeText={setCustomPickupLocation} maxLength={80}/>
+              onSelect={v => { set('pickupLocation', v); if (v !== 'Other') setCustomPickupLocation(''); }}
+              fullWidth accent={accentColor} />
+            {form.pickupLocation === 'Other' && (
+              <TextInput style={[s.input, { marginTop: 8 }]}
+                placeholder="Type your location"
+                value={customPickupLocation} onChangeText={setCustomPickupLocation} maxLength={80} />
             )}
           </>}
 
           {/* ── STEP 3: Photos & Description ── */}
-          {step===3&&<>
+          {step === 3 && <>
             <Lbl>FEATURES</Lbl>
             <View style={s.chipWrap}>
-              {FEATURES.map(f=>(
+              {activeFeatures.map(f => (
                 <TouchableOpacity key={f}
-                  style={[s.chip, form.features.includes(f)&&s.chipOn]}
-                  onPress={()=>toggleFeature(f)}
+                  style={[s.chip, form.features.includes(f) && { borderColor: accentColor, backgroundColor: accentColor + '15' }]}
+                  onPress={() => toggleFeature(f)}
                 >
-                  <Text style={[s.chipTxt, form.features.includes(f)&&s.chipTxtOn]}>{f}</Text>
+                  <Text style={[s.chipTxt, form.features.includes(f) && { color: accentColor }]}>{f}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             {/* ── Photo upload ── */}
-            <Lbl style={{marginTop:18}}>VEHICLE PHOTOS</Lbl>
-
+            <Lbl style={{ marginTop: 18 }}>VEHICLE PHOTOS</Lbl>
             <View style={s.photoGrid}>
               {photos.map((uri, idx) => (
                 <PhotoItem
                   key={idx}
                   uri={uri}
-                  label={photoLabels[idx] || `Photo ${idx+1}`}
+                  label={photoLabels[idx] || `Photo ${idx + 1}`}
                   onPress={() => pickPhoto(idx)}
                   onRemove={() => removePhoto(idx)}
                 />
@@ -511,115 +673,142 @@ export default function PostCarScreen() {
             </View>
 
             <View style={s.photoCountRow}>
-              <Ionicons name="images-outline" size={14} color={PURPLE}/>
-              <Text style={[s.photoCountTxt, {color:PURPLE}]}>
+              <Ionicons name="images-outline" size={14} color={accentColor} />
+              <Text style={[s.photoCountTxt, { color: accentColor }]}>
                 {photos.filter(Boolean).length} of {photos.length} slots filled
                 {photos.filter(Boolean).length > 0 ? ' ✓' : ''}
               </Text>
             </View>
 
             <TouchableOpacity style={s.uploadBox} onPress={pickMultiplePhotos} activeOpacity={0.8}>
-              <Ionicons name="cloud-upload-outline" size={28} color={PURPLE}/>
+              <Ionicons name="cloud-upload-outline" size={28} color={accentColor} />
               <Text style={s.uploadTitle}>Upload More Photos</Text>
               <Text style={s.uploadSub}>Select up to 8 photos · Add front, side and interior shots</Text>
             </TouchableOpacity>
 
-            <Lbl style={{marginTop:18}}>TERMS & CONDITIONS / NOTES</Lbl>
+            <Lbl style={{ marginTop: 18 }}>
+              {listingPurpose === 'sell' ? 'VEHICLE CONDITION / NOTES' : 'TERMS & CONDITIONS / NOTES'}
+            </Lbl>
             <TextInput
-              style={[s.input,{height:90,textAlignVertical:'top',paddingTop:12}]}
-              placeholder="e.g. Max 200km per day, fuel not included, driving licence mandatory..."
-              multiline value={form.notes} onChangeText={v=>set('notes',v)}
+              style={[s.input, { height: 90, textAlignVertical: 'top', paddingTop: 12 }]}
+              placeholder={listingPurpose === 'sell'
+                ? 'e.g. Single owner, full service history, minor scratches on bumper...'
+                : 'e.g. Max 200km per day, fuel not included, driving licence mandatory...'}
+              multiline value={form.notes} onChangeText={v => set('notes', v)}
             />
 
-            <Lbl style={{marginTop:16}}>WHATSAPP NUMBER *</Lbl>
+            <Lbl style={{ marginTop: 16 }}>WHATSAPP NUMBER *</Lbl>
             <TextInput style={s.input} placeholder="+91 98765 43210"
               keyboardType="phone-pad" value={form.whatsapp}
-              onChangeText={v=>set('whatsapp',v)}/>
+              onChangeText={v => set('whatsapp', v)} />
           </>}
 
           {/* ── STEP 4: Plan ── */}
-          {step===4&&<>
+          {step === 4 && <>
             <MonthlyPlanBanner navigation={nav} compact />
             <Text style={s.planQ}>How long should your listing stay live?</Text>
             <Text style={s.planNote}>Your listing is automatically removed after the selected period.</Text>
             <View style={s.planGrid}>
-              {PLANS.map(p=>(
+              {PLANS.map(p => (
                 <TouchableOpacity key={p.days}
-                  style={[s.planCard, form.plan.days===p.days&&{backgroundColor:PURPLE,borderColor:PURPLE}]}
-                  onPress={()=>{ set('plan',p); setAppliedCoupon(null); }}
+                  style={[s.planCard, form.plan.days === p.days && { backgroundColor: accentColor, borderColor: accentColor }]}
+                  onPress={() => { set('plan', p); setAppliedCoupon(null); }}
                 >
-                  {p.popular&&<View style={s.popBadge}><Text style={s.popTxt}>★ POPULAR</Text></View>}
-                  <Ionicons name="calendar" size={28} color={form.plan.days===p.days?'#fff':'#6b7280'}/>
-                  <Text style={[s.planLabel, form.plan.days===p.days&&{color:'#fff'}]}>{p.label}</Text>
-                  <Text style={[s.planType,  form.plan.days===p.days&&{color:'rgba(255,255,255,0.75)'}]}>listing</Text>
-                  <Text style={[s.planPrice, form.plan.days===p.days&&{color:'#fff'}]}>₹{p.price}</Text>
+                  {p.popular && <View style={s.popBadge}><Text style={s.popTxt}>★ POPULAR</Text></View>}
+                  <Ionicons name="calendar" size={28} color={form.plan.days === p.days ? '#fff' : '#6b7280'} />
+                  <Text style={[s.planLabel, form.plan.days === p.days && { color: '#fff' }]}>{p.label}</Text>
+                  <Text style={[s.planType,  form.plan.days === p.days && { color: 'rgba(255,255,255,0.75)' }]}>listing</Text>
+                  <Text style={[s.planPrice, form.plan.days === p.days && { color: '#fff' }]}>₹{p.price}</Text>
                 </TouchableOpacity>
               ))}
             </View>
             <View style={s.planFeats}>
               {[['flash-outline','Instant Activation'],
                 ['shield-checkmark-outline','Secure UPI / Card'],
-                ['refresh-outline','Renewable Anytime']].map(([ic,lb])=>(
+                ['refresh-outline','Renewable Anytime']].map(([ic, lb]) => (
                 <View key={lb} style={s.planFeat}>
-                  <Ionicons name={ic} size={18} color={PURPLE}/>
+                  <Ionicons name={ic} size={18} color={accentColor} />
                   <Text style={s.planFeatTxt}>{lb}</Text>
                 </View>
               ))}
             </View>
+
             {/* ── Coupon Code ── */}
             <View style={{ marginTop: 16 }}>
               <Text style={{ fontWeight: '700', color: '#333', marginBottom: 8, fontSize: 13 }}>Have a coupon code?</Text>
               <CouponInput listingType="vehicle" originalAmount={form.plan?.price ?? 69} onApplied={c => setAppliedCoupon(c)} />
               {appliedCoupon && (
-                <View style={{ flexDirection:'row', justifyContent:'space-between', marginTop:10, padding:10, backgroundColor:'#f0fdf4', borderRadius:8 }}>
-                  <Text style={{ color:'#374151', fontSize:13 }}>Original: <Text style={{ textDecorationLine:'line-through' }}>₹{form.plan?.price}</Text></Text>
-                  <Text style={{ color:'#16a34a', fontWeight:'700', fontSize:13 }}>You pay: ₹{appliedCoupon.finalAmount}</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, padding: 10, backgroundColor: '#f0fdf4', borderRadius: 8 }}>
+                  <Text style={{ color: '#374151', fontSize: 13 }}>Original: <Text style={{ textDecorationLine: 'line-through' }}>₹{form.plan?.price}</Text></Text>
+                  <Text style={{ color: '#16a34a', fontWeight: '700', fontSize: 13 }}>You pay: ₹{appliedCoupon.finalAmount}</Text>
                 </View>
               )}
             </View>
           </>}
 
           {/* ── STEP 5: Review ── */}
-          {step===5&&<>
+          {step === 5 && <>
+            {/* Purpose badge */}
+            <View style={[s.purposeBadge, { backgroundColor: accentColor + '15', borderColor: accentColor }]}>
+              <Ionicons name={listingPurpose === 'sell' ? 'pricetag' : 'car'} size={16} color={accentColor} />
+              <Text style={[s.purposeBadgeTxt, { color: accentColor }]}>
+                {listingPurpose === 'sell' ? 'Vehicle for Sale' : 'Vehicle for Rent / Hire'}
+              </Text>
+            </View>
+
             <Text style={s.reviewH}>Review your vehicle listing:</Text>
             <View style={s.revCard}>
-              {[['NAME',  form.name||'Not set'],
+              {[
+                ['NAME',  form.name || 'Not set'],
                 ['TYPE',  form.vehicleType],
-                ['BRAND', form.brand==='Other'?(customBrand.trim()||'Other'):form.brand],
+                ['BRAND', form.brand === 'Other' ? (customBrand.trim() || 'Other') : form.brand],
                 ['YEAR',  form.year],
                 ['SPECS', `${form.fuelType}, ${form.seating} seats`],
-              ].map(([k,v])=><RevRow key={k} label={k} value={v}/>)}
+                ...(listingPurpose === 'sell' ? [
+                  ['TRANSMISSION', form.transmission],
+                  ['KM DRIVEN',    form.kmDriven ? `${form.kmDriven} km` : '—'],
+                  ['OWNERS',       form.numberOfOwners],
+                ] : []),
+              ].map(([k, v]) => <RevRow key={k} label={k} value={v} />)}
             </View>
-            <View style={[s.revCard,{marginTop:12}]}>
-              {[['RENT/DAY', form.dailyRate?`₹${form.dailyRate}`:'Not set'],
-                ['DEPOSIT',  form.deposit?`₹${form.deposit}`:'—'],
+
+            <View style={[s.revCard, { marginTop: 12 }]}>
+              {listingPurpose === 'rent' ? [
+                ['RENT/DAY', form.dailyRate ? `₹${form.dailyRate}` : 'Not set'],
+                ['DEPOSIT',  form.deposit ? `₹${form.deposit}` : '—'],
                 ['MIN DAYS', form.minRental],
-                ['PICKUP',   form.pickupLocation==='Other'?(customPickupLocation.trim()||'Other'):form.pickupLocation],
-              ].map(([k,v])=><RevRow key={k} label={k} value={v}/>)}
+                ['PICKUP',   form.pickupLocation === 'Other' ? (customPickupLocation.trim() || 'Other') : form.pickupLocation],
+              ].map(([k, v]) => <RevRow key={k} label={k} value={v} />) : [
+                ['ASKING PRICE', form.askingPrice ? `₹${Number(form.askingPrice).toLocaleString('en-IN')}` : 'Not set'],
+                ['NEGOTIABLE',   form.negotiable ? 'Yes' : 'No'],
+                ['LOCATION',     form.pickupLocation === 'Other' ? (customPickupLocation.trim() || 'Other') : form.pickupLocation],
+              ].map(([k, v]) => <RevRow key={k} label={k} value={v} />)}
             </View>
-            <View style={[s.revCard,{marginTop:12}]}>
-              {[['FEATURES', form.features.length?form.features.join(', '):'None'],
+
+            <View style={[s.revCard, { marginTop: 12 }]}>
+              {[
+                ['FEATURES', form.features.length ? form.features.join(', ') : 'None'],
                 ['PHOTOS',   `${photos.filter(Boolean).length} added`],
-                ['WHATSAPP', form.whatsapp||'Not set'],
+                ['WHATSAPP', form.whatsapp || 'Not set'],
                 ['PLAN',     `${form.plan.label} – ₹${form.plan.price}`],
-              ].map(([k,v])=><RevRow key={k} label={k} value={v}/>)}
+              ].map(([k, v]) => <RevRow key={k} label={k} value={v} />)}
             </View>
 
             {/* Photo preview strip */}
             {photos.filter(Boolean).length > 0 && (
               <>
-                <Text style={[s.reviewH,{marginTop:16}]}>Photos:</Text>
+                <Text style={[s.reviewH, { marginTop: 16 }]}>Photos:</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{gap:8,paddingBottom:4}}>
-                  {photos.filter(Boolean).map((uri,i)=>(
-                    <Image key={i} source={{uri}} style={s.reviewPhoto}/>
+                  contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                  {photos.filter(Boolean).map((uri, i) => (
+                    <Image key={i} source={{ uri }} style={s.reviewPhoto} />
                   ))}
                 </ScrollView>
               </>
             )}
           </>}
 
-          <View style={{height:24}}/>
+          <View style={{ height: 24 }} />
         </ScrollView>
       </Animated.View>
 
@@ -629,13 +818,13 @@ export default function PostCarScreen() {
           <Text style={s.backBtnTxt}>Back</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[s.continueBtn, loading&&{opacity:0.7}]}
-          onPress={step===TOTAL?submit:next}
+          style={[s.continueBtn, { backgroundColor: accentColor }, loading && { opacity: 0.7 }]}
+          onPress={step === TOTAL ? submit : next}
           disabled={loading}
         >
           {loading
-            ? <ActivityIndicator color="#fff"/>
-            : <Text style={s.continueTxt}>{step===TOTAL?'Post Listing':'Continue'}</Text>
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={s.continueTxt}>{step === TOTAL ? 'Post Listing' : 'Continue'}</Text>
           }
         </TouchableOpacity>
       </View>
@@ -650,15 +839,15 @@ function Lbl({ children, style }) {
 function RadioCard({ label, sub, selected, onPress, color }) {
   return (
     <TouchableOpacity
-      style={[s.radioCard, selected&&{borderColor:color,backgroundColor:color+'14'}]}
+      style={[s.radioCard, selected && { borderColor: color, backgroundColor: color + '14' }]}
       onPress={onPress} activeOpacity={0.7}
     >
-      <View style={[s.radio, selected&&{borderColor:color}]}>
-        {selected&&<View style={[s.radioDot,{backgroundColor:color}]}/>}
+      <View style={[s.radio, selected && { borderColor: color }]}>
+        {selected && <View style={[s.radioDot, { backgroundColor: color }]} />}
       </View>
-      <View style={{flex:1}}>
-        <Text style={[s.radioLbl, selected&&{color:'#111',fontWeight:'700'}]}>{label}</Text>
-        {sub&&<Text style={s.radioSub}>{sub}</Text>}
+      <View style={{ flex: 1 }}>
+        <Text style={[s.radioLbl, selected && { color: '#111', fontWeight: '700' }]}>{label}</Text>
+        {sub && <Text style={s.radioSub}>{sub}</Text>}
       </View>
     </TouchableOpacity>
   );
@@ -673,122 +862,137 @@ function RevRow({ label, value }) {
 }
 
 const s = StyleSheet.create({
-  topNav:      { flexDirection:'row', justifyContent:'space-between', alignItems:'center',
-                 backgroundColor:PURPLE, paddingHorizontal:16,
-                 paddingTop:Platform.OS==='ios'?50:14, paddingBottom:10 },
-  backBtn:     { width:34, height:34, borderRadius:17,
-                 backgroundColor:'rgba(255,255,255,0.25)',
-                 justifyContent:'center', alignItems:'center' },
-  stepLbl:     { fontSize:13, fontWeight:'700', color:'rgba(255,255,255,0.9)' },
-  dotsRow:     { flexDirection:'row', gap:6, paddingHorizontal:16, paddingVertical:8,
-                 backgroundColor:PURPLE },
-  dot:         { flex:1, height:3, borderRadius:2, backgroundColor:'rgba(255,255,255,0.3)' },
-  dotDone:     { backgroundColor:'rgba(255,255,255,0.65)' },
-  dotCur:      { backgroundColor:'#fff' },
-  banner:      { backgroundColor:PURPLE, paddingHorizontal:16, paddingBottom:20 },
-  bannerTitle: { fontSize:22, fontWeight:'800', color:'#fff' },
-  bannerSub:   { fontSize:13, color:'rgba(255,255,255,0.85)', marginTop:2 },
-  body:        { padding:16, paddingBottom:40 },
-  lbl:         { fontSize:11, fontWeight:'700', color:'#888', letterSpacing:0.8,
-                 marginBottom:10, textTransform:'uppercase' },
-  radioCard:   { flexDirection:'row', alignItems:'center', gap:12, borderWidth:1.5,
-                 borderColor:'#e5e5e5', borderRadius:12, padding:14, marginBottom:10,
-                 backgroundColor:'#fff' },
-  radio:       { width:20, height:20, borderRadius:10, borderWidth:2, borderColor:'#ccc',
-                 justifyContent:'center', alignItems:'center' },
-  radioDot:    { width:10, height:10, borderRadius:5 },
-  radioLbl:    { fontSize:14, fontWeight:'600', color:'#555' },
-  radioSub:    { fontSize:12, color:'#999', marginTop:2 },
-  row:         { flexDirection:'row', marginTop:18 },
+  topNav:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                  paddingHorizontal: 16, paddingTop: Platform.OS === 'ios' ? 50 : 14, paddingBottom: 10 },
+  backBtn:      { width: 34, height: 34, borderRadius: 17,
+                  backgroundColor: 'rgba(255,255,255,0.25)',
+                  justifyContent: 'center', alignItems: 'center' },
+  stepLbl:      { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
+  dotsRow:      { flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingVertical: 8 },
+  dot:          { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)' },
+  dotDone:      { backgroundColor: 'rgba(255,255,255,0.65)' },
+  dotCur:       { backgroundColor: '#fff' },
+  banner:       { paddingHorizontal: 16, paddingBottom: 20 },
+  bannerTitle:  { fontSize: 22, fontWeight: '800', color: '#fff' },
+  bannerSub:    { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  body:         { padding: 16, paddingBottom: 40 },
+  lbl:          { fontSize: 11, fontWeight: '700', color: '#888', letterSpacing: 0.8,
+                  marginBottom: 10, textTransform: 'uppercase' },
+
+  // ── Purpose toggle ──
+  toggleRow:    { flexDirection: 'row', gap: 10, marginBottom: 4 },
+  toggleBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: 8, paddingVertical: 14, borderRadius: 12,
+                  borderWidth: 1.5, borderColor: '#e5e5e5', backgroundColor: '#fff' },
+  toggleTxt:    { fontSize: 14, fontWeight: '600', color: '#555' },
+
+  radioCard:    { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1.5,
+                  borderColor: '#e5e5e5', borderRadius: 12, padding: 14, marginBottom: 10,
+                  backgroundColor: '#fff' },
+  radio:        { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#ccc',
+                  justifyContent: 'center', alignItems: 'center' },
+  radioDot:     { width: 10, height: 10, borderRadius: 5 },
+  radioLbl:     { fontSize: 14, fontWeight: '600', color: '#555' },
+  radioSub:     { fontSize: 12, color: '#999', marginTop: 2 },
+  row:          { flexDirection: 'row', marginTop: 18 },
 
   // ── Modal Picker ──
-  dd:           { flexDirection:'row', justifyContent:'space-between', alignItems:'center',
-                  backgroundColor:'#fff', borderWidth:1, borderColor:'#e5e5e5',
-                  borderRadius:10, paddingHorizontal:14, paddingVertical:13 },
-  ddVal:        { fontSize:14, color:'#333', fontWeight:'500' },
-  modalOverlay: { flex:1, backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'flex-end' },
-  modalSheet:   { backgroundColor:'#fff', borderTopLeftRadius:20, borderTopRightRadius:20,
-                  paddingBottom:34, maxHeight:'70%' },
-  modalHeader:  { flexDirection:'row', justifyContent:'space-between', alignItems:'center',
-                  padding:18, borderBottomWidth:1, borderBottomColor:'#f0f0f0' },
-  modalTitle:   { fontSize:16, fontWeight:'800', color:'#111' },
-  modalItem:    { flexDirection:'row', justifyContent:'space-between', alignItems:'center',
-                  paddingHorizontal:20, paddingVertical:15 },
-  modalItemActive: { backgroundColor:'#f5f3ff' },
-  modalItemTxt:    { fontSize:15, color:'#333', fontWeight:'500' },
-  modalSep:        { height:1, backgroundColor:'#f5f5f5', marginHorizontal:16 },
+  dd:             { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                    backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e5e5',
+                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13 },
+  ddVal:          { fontSize: 14, color: '#333', fontWeight: '500' },
+  modalOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalSheet:     { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+                    paddingBottom: 34, maxHeight: '70%' },
+  modalHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                    padding: 18, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  modalTitle:     { fontSize: 16, fontWeight: '800', color: '#111' },
+  modalItem:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                    paddingHorizontal: 20, paddingVertical: 15 },
+  modalItemActive:{ backgroundColor: '#f5f3ff' },
+  modalItemTxt:   { fontSize: 15, color: '#333', fontWeight: '500' },
+  modalSep:       { height: 1, backgroundColor: '#f5f5f5', marginHorizontal: 16 },
 
-  input:       { backgroundColor:'#fff', borderWidth:1, borderColor:'#e5e5e5',
-                 borderRadius:10, paddingHorizontal:14, paddingVertical:13,
-                 fontSize:14, color:'#111' },
-  prefixRow:   { flexDirection:'row', alignItems:'center', backgroundColor:'#fff',
-                 borderWidth:1, borderColor:'#e5e5e5', borderRadius:10,
-                 paddingHorizontal:14 },
-  prefix:      { fontSize:15, color:'#666', marginRight:6 },
-  prefixField: { flex:1, paddingVertical:13, fontSize:14, color:'#111' },
+  input:          { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e5e5',
+                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13,
+                    fontSize: 14, color: '#111' },
+  prefixRow:      { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
+                    borderWidth: 1, borderColor: '#e5e5e5', borderRadius: 10,
+                    paddingHorizontal: 14 },
+  prefix:         { fontSize: 15, color: '#666', marginRight: 6 },
+  prefixField:    { flex: 1, paddingVertical: 13, fontSize: 14, color: '#111' },
 
-  chipWrap:    { flexDirection:'row', flexWrap:'wrap', gap:8 },
-  chip:        { paddingVertical:7, paddingHorizontal:13, borderRadius:20,
-                 backgroundColor:'#fff', borderWidth:1.5, borderColor:'#e5e5e5' },
-  chipOn:      { borderColor:PURPLE, backgroundColor:PURPLE+'15' },
-  chipTxt:     { fontSize:13, fontWeight:'600', color:'#555' },
-  chipTxtOn:   { color:PURPLE },
+  // ── Negotiable toggle ──
+  negotiableRow:  { flexDirection: 'row', alignItems: 'center', gap: 12,
+                    borderWidth: 1.5, borderColor: '#e5e5e5', borderRadius: 12,
+                    padding: 14, marginTop: 14, backgroundColor: '#fff' },
+  negotiableTxt:  { fontSize: 14, fontWeight: '700', color: '#444' },
+  negotiableSub:  { fontSize: 12, color: '#999', marginTop: 2 },
+
+  chipWrap:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:           { paddingVertical: 7, paddingHorizontal: 13, borderRadius: 20,
+                    backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e5e5e5' },
+  chipTxt:        { fontSize: 13, fontWeight: '600', color: '#555' },
 
   // ── Photos ──
-  photoGrid:    { flexDirection:'row', flexWrap:'wrap', gap:10, marginBottom:10 },
-  photoBox:     { width:'47%', height:110, borderWidth:1.5, borderColor:PURPLE+'60',
-                  borderStyle:'dashed', borderRadius:12,
-                  justifyContent:'center', alignItems:'center',
-                  backgroundColor:PURPLE+'08', gap:4, overflow:'hidden' },
-  photoImg:     { width:'100%', height:'100%', borderRadius:10 },
-  photoLbl:     { fontSize:13, fontWeight:'700', color:PURPLE },
-  photoTap:     { fontSize:10, color:PURPLE+'99', fontWeight:'500' },
-  photoRemove:  { position:'absolute', top:5, right:5,
-                  backgroundColor:'rgba(0,0,0,0.55)', borderRadius:12 },
-  photoCountRow:{ flexDirection:'row', alignItems:'center', gap:5, marginBottom:10 },
-  photoCountTxt:{ fontSize:12, fontWeight:'600' },
-  uploadBox:    { borderWidth:1.5, borderColor:'#ccc', borderStyle:'dashed',
-                  borderRadius:12, padding:20, alignItems:'center', gap:6,
-                  backgroundColor:'#fff', marginBottom:4 },
-  uploadTitle:  { fontSize:14, fontWeight:'700', color:'#333' },
-  uploadSub:    { fontSize:12, color:'#888', textAlign:'center' },
+  photoGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 10 },
+  photoBox:       { width: '47%', height: 110, borderWidth: 1.5, borderColor: PURPLE + '60',
+                    borderStyle: 'dashed', borderRadius: 12,
+                    justifyContent: 'center', alignItems: 'center',
+                    backgroundColor: PURPLE + '08', gap: 4, overflow: 'hidden' },
+  photoImg:       { width: '100%', height: '100%', borderRadius: 10 },
+  photoLbl:       { fontSize: 13, fontWeight: '700', color: PURPLE },
+  photoTap:       { fontSize: 10, color: PURPLE + '99', fontWeight: '500' },
+  photoRemove:    { position: 'absolute', top: 5, right: 5,
+                    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12 },
+  photoCountRow:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
+  photoCountTxt:  { fontSize: 12, fontWeight: '600' },
+  uploadBox:      { borderWidth: 1.5, borderColor: '#ccc', borderStyle: 'dashed',
+                    borderRadius: 12, padding: 20, alignItems: 'center', gap: 6,
+                    backgroundColor: '#fff', marginBottom: 4 },
+  uploadTitle:    { fontSize: 14, fontWeight: '700', color: '#333' },
+  uploadSub:      { fontSize: 12, color: '#888', textAlign: 'center' },
 
-  planQ:        { fontSize:14, fontWeight:'600', color:'#333', marginBottom:4 },
-  planNote:     { fontSize:12, color:'#888', marginBottom:16 },
-  planGrid:     { flexDirection:'row', flexWrap:'wrap', gap:10 },
-  planCard:     { width:'47%', backgroundColor:'#fff', borderWidth:1.5,
-                  borderColor:'#e5e5e5', borderRadius:14, padding:16,
-                  alignItems:'center', gap:4, position:'relative', overflow:'hidden' },
-  popBadge:     { position:'absolute', top:8, right:8,
-                  backgroundColor:'rgba(255,255,255,0.25)',
-                  borderRadius:10, paddingHorizontal:6, paddingVertical:2 },
-  popTxt:       { fontSize:9, color:'#fff', fontWeight:'800' },
-  planLabel:    { fontSize:15, fontWeight:'800', color:'#333', marginTop:6 },
-  planType:     { fontSize:11, color:'#888' },
-  planPrice:    { fontSize:17, fontWeight:'800', color:'#111', marginTop:2 },
-  planFeats:    { flexDirection:'row', justifyContent:'space-around', marginTop:16,
-                  backgroundColor:'#fff', borderRadius:12, padding:14,
-                  borderWidth:1, borderColor:'#e5e5e5' },
-  planFeat:     { alignItems:'center', gap:4 },
-  planFeatTxt:  { fontSize:10, color:'#555', fontWeight:'600', textAlign:'center' },
+  planQ:          { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 4 },
+  planNote:       { fontSize: 12, color: '#888', marginBottom: 16 },
+  planGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  planCard:       { width: '47%', backgroundColor: '#fff', borderWidth: 1.5,
+                    borderColor: '#e5e5e5', borderRadius: 14, padding: 16,
+                    alignItems: 'center', gap: 4, position: 'relative', overflow: 'hidden' },
+  popBadge:       { position: 'absolute', top: 8, right: 8,
+                    backgroundColor: 'rgba(255,255,255,0.25)',
+                    borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
+  popTxt:         { fontSize: 9, color: '#fff', fontWeight: '800' },
+  planLabel:      { fontSize: 15, fontWeight: '800', color: '#333', marginTop: 6 },
+  planType:       { fontSize: 11, color: '#888' },
+  planPrice:      { fontSize: 17, fontWeight: '800', color: '#111', marginTop: 2 },
+  planFeats:      { flexDirection: 'row', justifyContent: 'space-around', marginTop: 16,
+                    backgroundColor: '#fff', borderRadius: 12, padding: 14,
+                    borderWidth: 1, borderColor: '#e5e5e5' },
+  planFeat:       { alignItems: 'center', gap: 4 },
+  planFeatTxt:    { fontSize: 10, color: '#555', fontWeight: '600', textAlign: 'center' },
 
-  reviewH:      { fontSize:14, fontWeight:'700', color:'#333', marginBottom:12 },
-  revCard:      { backgroundColor:'#fff', borderRadius:14, overflow:'hidden',
-                  borderWidth:1, borderColor:'#f0f0f0' },
-  revRow:       { flexDirection:'row', justifyContent:'space-between',
-                  paddingHorizontal:16, paddingVertical:12,
-                  borderBottomWidth:1, borderBottomColor:'#f5f5f5' },
-  revLabel:     { fontSize:11, fontWeight:'700', color:'#aaa', letterSpacing:0.5 },
-  revValue:     { fontSize:13, fontWeight:'600', color:'#333',
-                  maxWidth:'60%', textAlign:'right' },
-  reviewPhoto:  { width:100, height:75, borderRadius:10 },
+  // ── Review ──
+  purposeBadge:   { flexDirection: 'row', alignItems: 'center', gap: 8,
+                    borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 14,
+                    paddingVertical: 10, marginBottom: 16 },
+  purposeBadgeTxt:{ fontSize: 14, fontWeight: '800' },
+  reviewH:        { fontSize: 14, fontWeight: '700', color: '#333', marginBottom: 12 },
+  revCard:        { backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden',
+                    borderWidth: 1, borderColor: '#f0f0f0' },
+  revRow:         { flexDirection: 'row', justifyContent: 'space-between',
+                    paddingHorizontal: 16, paddingVertical: 12,
+                    borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
+  revLabel:       { fontSize: 11, fontWeight: '700', color: '#aaa', letterSpacing: 0.5 },
+  revValue:       { fontSize: 13, fontWeight: '600', color: '#333',
+                    maxWidth: '60%', textAlign: 'right' },
+  reviewPhoto:    { width: 100, height: 75, borderRadius: 10 },
 
-  bottomBar:    { flexDirection:'row', gap:12, padding:16, backgroundColor:'#fff',
-                  borderTopWidth:1, borderTopColor:'#f0f0f0' },
-  backBtnB:     { flex:1, borderWidth:1.5, borderColor:'#ddd', borderRadius:12,
-                  paddingVertical:14, alignItems:'center' },
-  backBtnTxt:   { fontSize:14, fontWeight:'700', color:'#555' },
-  continueBtn:  { flex:2, backgroundColor:PURPLE, borderRadius:12,
-                  paddingVertical:14, alignItems:'center' },
-  continueTxt:  { color:'#fff', fontSize:15, fontWeight:'800' },
+  bottomBar:      { flexDirection: 'row', gap: 12, padding: 16, backgroundColor: '#fff',
+                    borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  backBtnB:       { flex: 1, borderWidth: 1.5, borderColor: '#ddd', borderRadius: 12,
+                    paddingVertical: 14, alignItems: 'center' },
+  backBtnTxt:     { fontSize: 14, fontWeight: '700', color: '#555' },
+  continueBtn:    { flex: 2, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  continueTxt:    { color: '#fff', fontSize: 15, fontWeight: '800' },
 });
