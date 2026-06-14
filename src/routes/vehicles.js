@@ -23,8 +23,10 @@ router.get('/', async (req, res) => {
     const limit    = Math.min(50, parseInt(req.query.limit) || 20);
     const offset   = (page - 1) * limit;
     const district = req.query.district || null;
+    // FIX: Support filtering by listing_purpose ('rent' | 'sell' | null = all)
+    const purpose  = req.query.purpose  || null;
 
-    const cacheKey = `vehicles:${page}:${limit}:${district}`;
+    const cacheKey = `vehicles:${page}:${limit}:${district}:${purpose}`;
     const hit = await cache.get(cacheKey);
     if (hit) return res.json(hit);
 
@@ -33,6 +35,10 @@ router.get('/', async (req, res) => {
     if (district) {
       params.push(district);
       conditions.push(`(v.district=$${params.length} OR v.district IS NULL)`);
+    }
+    if (purpose) {
+      params.push(purpose);
+      conditions.push(`v.listing_purpose=$${params.length}`);
     }
     const where = conditions.join(' AND ');
     const countParams = [...params];
@@ -45,6 +51,8 @@ router.get('/', async (req, res) => {
                v.fuel, v.transmission, v.area, v.address, v.owner_name, v.whatsapp,
                v.district, v.plan, v.status, v.created_at, v.expires_at, v.views,
                v.photos,
+               v.listing_purpose, v.negotiable, v.number_of_owners,
+               v.advance_amt, v.min_booking,
                u.name AS poster_name
         FROM vehicles v
         LEFT JOIN users u ON u.id = v.posted_by
@@ -80,7 +88,10 @@ router.get('/:id', async (req, res) => {
       return res.json(hit);
     }
     const { rows } = await pool.query(
-      `SELECT v.*, u.name AS poster_name FROM vehicles v LEFT JOIN users u ON u.id=v.posted_by WHERE v.id=$1`,
+      `SELECT v.*, u.name AS poster_name
+       FROM vehicles v
+       LEFT JOIN users u ON u.id = v.posted_by
+       WHERE v.id = $1`,
       [id]
     );
     if (!rows[0]) return res.json({ ok: false, error: 'Vehicle not found' });
@@ -94,15 +105,26 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/vehicles
+// POST /api/vehicles  (free/first-post flow — paid listings go through /api/payments/verify/vehicle)
 router.post('/', auth, async (req, res) => {
   try {
     const {
       title, type, brand, model, year, kmDriven, fuel, transmission,
       price, area, address, ownerName, whatsapp, description, photos,
-      plan, district, // planDays intentionally not accepted from client
+      plan, district,
+      // FIX: Accept sell/rent fields
+      listingPurpose, askingPrice, dailyRate, negotiable,
+      numberOfOwners, advanceAmt, minBooking,
+      // planDays intentionally not accepted from client
     } = req.body;
-    if (!title || !price || !whatsapp)
+
+    // FIX: resolve price from the correct field based on listing purpose
+    const isSell      = (listingPurpose || 'rent') === 'sell';
+    const resolvedPrice = isSell
+      ? (askingPrice || price)
+      : (dailyRate   || price);
+
+    if (!title || !resolvedPrice || !whatsapp)
       return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
 
     const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
@@ -110,7 +132,7 @@ router.post('/', auth, async (req, res) => {
       return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
 
     const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
-    const planKey = (plan || 'free').toLowerCase().trim();
+    const planKey    = (plan || 'free').toLowerCase().trim();
 
     // FIX (Medium): Per-user active listing cap to prevent resource exhaustion.
     const { rows: capRows } = await pool.query(
@@ -144,18 +166,50 @@ router.post('/', auth, async (req, res) => {
     expiresAt.setDate(expiresAt.getDate() + days);
 
     const { rows } = await pool.query(`
-      INSERT INTO vehicles (posted_by,name,title,type,brand,model,year,km_driven,fuel,transmission,
-                            price,area,address,owner_name,whatsapp,description,photos,plan,expires_at,district)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *
+      INSERT INTO vehicles (
+        posted_by, name, title, type, brand, model, year, km_driven, fuel, transmission,
+        price, area, address, owner_name, whatsapp, description, photos,
+        plan, expires_at, district,
+        listing_purpose, negotiable, number_of_owners, advance_amt, min_booking
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+        $11,$12,$13,$14,$15,$16,$17,
+        $18,$19,$20,
+        $21,$22,$23,$24,$25
+      ) RETURNING *
     `, [
-      req.user.id, title, title, type||'', brand||'', model||'', year||null, kmDriven||null,
-      fuel||'', transmission||'', price, area||'', address||'', ownerName||'', cleanWhatsapp,
-      description||'', JSON.stringify(safePhotos),
-      planKey, expiresAt, district||'nanded',
+      req.user.id,
+      title, title,
+      type         || '',
+      brand        || '',
+      model        || '',
+      year         || null,
+      isSell ? (kmDriven || null) : null,
+      fuel         || '',
+      transmission || '',
+      resolvedPrice,
+      area         || '',
+      address      || '',
+      ownerName    || '',
+      cleanWhatsapp,
+      description  || '',
+      JSON.stringify(safePhotos),
+      planKey,
+      expiresAt,
+      district     || 'nanded',
+      // FIX: sell/rent specific columns
+      isSell ? 'sell' : 'rent',
+      isSell ? (negotiable !== false) : null,
+      isSell ? (numberOfOwners || null) : null,
+      isSell ? null : (advanceAmt || null),
+      isSell ? null : (minBooking || null),
     ]);
 
     await cache.delPrefix('vehicles:');
-    await logActivity('vehicle_post', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `Vehicle posted: "${title}" (${planKey} plan)` });
+    await logActivity('vehicle_post', {
+      userId: req.user.id, ip: getIP(req), userAgent: getUA(req),
+      detail: `Vehicle posted: "${title}" (${planKey} plan, ${isSell ? 'sell' : 'rent'})`,
+    });
     res.json({ ok: true, vehicle: rows[0] });
   } catch (err) {
     console.error(err);
@@ -173,7 +227,10 @@ router.delete('/:id', auth, async (req, res) => {
     await pool.query("UPDATE vehicles SET status='deleted' WHERE id=$1", [req.params.id]);
     await cache.del(`vehicle:${req.params.id}`);
     await cache.delPrefix('vehicles:');
-    await logActivity('vehicle_delete', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: `Deleted vehicle #${req.params.id}` });
+    await logActivity('vehicle_delete', {
+      userId: req.user.id, ip: getIP(req), userAgent: getUA(req),
+      detail: `Deleted vehicle #${req.params.id}`,
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
