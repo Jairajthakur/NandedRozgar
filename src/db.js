@@ -63,7 +63,7 @@ async function _initRedis() {
 _initRedis();
 
 // In-memory fallback
-const _mem   = new Map();
+const _mem    = new Map();
 const _memTtl = new Map();
 setInterval(() => {
   const now = Date.now();
@@ -210,6 +210,12 @@ async function runMigrations() {
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS plan_days    INTEGER      DEFAULT 30`,
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS plan_label   VARCHAR(30)`,
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS plan_price   INTEGER`,
+      // FIX: New columns for sell listing support (rent is the default for existing rows)
+      `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS listing_purpose  VARCHAR(10)  DEFAULT 'rent'`,
+      `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS negotiable        BOOLEAN      DEFAULT TRUE`,
+      `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS number_of_owners  VARCHAR(30)`,
+      `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS advance_amt        VARCHAR(30)`,
+      `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS min_booking        VARCHAR(30)`,
 
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS title           VARCHAR(200)`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS type            VARCHAR(50)`,
@@ -450,7 +456,13 @@ async function runMigrations() {
         views         INTEGER DEFAULT 0,
         expires_at    TIMESTAMPTZ,
         district      VARCHAR(50) DEFAULT 'nanded',
-        created_at    TIMESTAMPTZ DEFAULT NOW()
+        created_at    TIMESTAMPTZ DEFAULT NOW(),
+        -- FIX: sell listing columns (DEFAULT 'rent' keeps existing rows valid)
+        listing_purpose  VARCHAR(10)  DEFAULT 'rent',
+        negotiable       BOOLEAN      DEFAULT TRUE,
+        number_of_owners VARCHAR(30),
+        advance_amt      VARCHAR(30),
+        min_booking      VARCHAR(30)
       );
     `);
 
@@ -630,12 +642,14 @@ async function runMigrations() {
       `CREATE INDEX IF NOT EXISTS idx_apps_status    ON applications(status)`,
 
       // vehicles / rooms / buysell
-      `CREATE INDEX IF NOT EXISTS idx_vehicles_status   ON vehicles(status)`,
-      `CREATE INDEX IF NOT EXISTS idx_vehicles_district ON vehicles(district)`,
-      `CREATE INDEX IF NOT EXISTS idx_rooms_status      ON rooms(status)`,
-      `CREATE INDEX IF NOT EXISTS idx_rooms_district    ON rooms(district)`,
-      `CREATE INDEX IF NOT EXISTS idx_buysell_status    ON buysell_items(status)`,
-      `CREATE INDEX IF NOT EXISTS idx_buysell_district  ON buysell_items(district)`,
+      `CREATE INDEX IF NOT EXISTS idx_vehicles_status          ON vehicles(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_vehicles_district        ON vehicles(district)`,
+      // FIX: index for filtering vehicles by listing_purpose (rent vs sell)
+      `CREATE INDEX IF NOT EXISTS idx_vehicles_listing_purpose ON vehicles(listing_purpose)`,
+      `CREATE INDEX IF NOT EXISTS idx_rooms_status             ON rooms(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_rooms_district           ON rooms(district)`,
+      `CREATE INDEX IF NOT EXISTS idx_buysell_status           ON buysell_items(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_buysell_district         ON buysell_items(district)`,
 
       // messages
       `CREATE INDEX IF NOT EXISTS idx_messages_sender    ON messages(sender_id)`,
