@@ -320,6 +320,7 @@ function fMoney(v) { return '₹' + Number(v||0).toLocaleString('en-IN'); }
 // ── OVERVIEW ──────────────────────────────────────────────────────────────────
 async function loadOverview() {
   const d = await api('GET', '/api/admin/stats');
+  if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Overview</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load stats'}</div>`; return; }
   const s = d.stats || {};
   document.getElementById('main-content').innerHTML = `
     <div class="page-title">Overview</div>
@@ -412,6 +413,7 @@ async function loadOverview() {
 // ── USERS ─────────────────────────────────────────────────────────────────────
 async function loadUsers() {
   const d = await api('GET', '/api/admin/users');
+  if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Users</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load users'}</div>`; return; }
   allUsers = d.users || [];
   renderUsers(allUsers);
 }
@@ -487,6 +489,7 @@ async function setPro(id, grant) {
 // ── JOBS ─────────────────────────────────────────────────────────────────────
 async function loadJobs() {
   const d = await api('GET', '/api/admin/jobs');
+  if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Jobs</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load jobs'}</div>`; return; }
   allJobs = d.jobs || [];
   renderJobs(allJobs);
 }
@@ -571,6 +574,7 @@ async function deleteJob(id) {
 // ── PAYMENTS ──────────────────────────────────────────────────────────────────
 async function loadPayments() {
   const d = await api('GET', '/api/admin/payments');
+  if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Payments</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load payments'}</div>`; return; }
   allPayments = d.payments || [];
   const rows = allPayments.map(p => `
     <tr>
@@ -647,6 +651,7 @@ async function sendNotif() {
 // ── VEHICLES ──────────────────────────────────────────────────────────────────
 async function loadVehicles() {
   const d = await api('GET', '/api/admin/vehicles');
+  if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Vehicles</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load vehicles'}</div>`; return; }
   const vehicles = d.vehicles || [];
   const rows = vehicles.map(v => `
     <tr>
@@ -694,6 +699,7 @@ async function deleteVehicle(id) {
 // ── ROOMS ─────────────────────────────────────────────────────────────────────
 async function loadRooms() {
   const d = await api('GET', '/api/admin/rooms');
+  if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Rooms</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load rooms'}</div>`; return; }
   const rooms = d.rooms || [];
   const rows = rooms.map(r => `
     <tr>
@@ -742,6 +748,7 @@ async function deleteRoom(id) {
 // ── BUY & SELL ────────────────────────────────────────────────────────────────
 async function loadBuySell() {
   const d = await api('GET', '/api/admin/buysell');
+  if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Buy & Sell</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load listings'}</div>`; return; }
   const items = d.buysell || [];
   const rows = items.map(b => `
     <tr>
@@ -789,6 +796,7 @@ async function deleteBuySell(id) {
 // ── ANALYTICS ─────────────────────────────────────────────────────────────────
 async function loadAnalytics() {
   const d = await api('GET', '/api/admin/analytics');
+  if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Analytics</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load analytics'}</div>`; return; }
   if (!d.ok) { document.getElementById('main-content').innerHTML = '<div class="empty">Failed to load analytics</div>'; return; }
 
   const days30 = [...Array(30)].map((_,i) => {
@@ -1400,8 +1408,8 @@ function stopLogsPolling() {
 async function deleteTestLogs() {
   if (!confirm('Delete all admin_test logs?')) return;
   const d = await api('DELETE', '/api/admin/logs/test-cleanup', {}).catch(() => ({ ok: false }));
-  if (d.ok) { showToast('✅ Test logs deleted'); loadLogs(1); }
-  else showToast('❌ ' + (d.error || 'Failed'), true);
+  if (d.ok) { toast('✅ Test logs deleted'); loadLogs(1); }
+  else toast('❌ ' + (d.error || 'Failed'), 'error');
 }
 
 async function loadLogs(page = 1, silent = false) {
@@ -1413,6 +1421,7 @@ async function loadLogs(page = 1, silent = false) {
   if (logsSearch) params.set('search', logsSearch);
 
   const d = await api('GET', '/api/admin/logs?' + params.toString());
+  if (!d.ok && !silent) { document.getElementById('main-content').innerHTML = `<div class="page-title">Logs</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load logs'}</div>`; return; }
   const logs = d.logs || [];
   const total = d.total || 0;
   const totalPages = Math.ceil(total / 50);
