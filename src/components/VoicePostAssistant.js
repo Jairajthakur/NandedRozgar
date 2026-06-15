@@ -144,6 +144,7 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
   const [transcript, setTranscript]     = useState('');
   const [errorMsg, setErrorMsg]         = useState('');
   const [filledFields, setFilledFields] = useState(null);
+  const [liveTranscript, setLiveTranscript] = useState('');  // FIX: live partial text
 
   const { anim, start: startPulse, stop: stopPulse } = usePulse();
 
@@ -166,6 +167,7 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
 
     setStatus('listening');
     setTranscript('');
+    setLiveTranscript('');   // FIX: clear live preview
     setErrorMsg('');
     setFilledFields(null);
     startPulse();
@@ -181,7 +183,11 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
         setErrorMsg('Microphone permission denied. Please allow in settings.');
         return;
       }
-      ExpoSpeech.ExpoSpeechRecognitionModule.start({ lang, interimResults: false, continuous: false });
+      ExpoSpeech.ExpoSpeechRecognitionModule.start({
+        lang,
+        interimResults: true,   // we'll filter for isFinal=true below
+        continuous: true,        // FIX: don't auto-stop after first silence
+      });
     } catch (err) {
       stopPulse();
       setStatus('error');
@@ -200,6 +206,33 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
     setTranscript(text);
     setStatus('processing');
     await callClaude(text);
+  }
+
+  // ── Manual stop — user taps "Done Speaking" button ─────────────────────────
+  async function stopListening() {
+    if (!SPEECH_AVAILABLE) return;
+    try {
+      ExpoSpeech.ExpoSpeechRecognitionModule.stop();
+    } catch {}
+    // If we have a live transcript already, process it immediately
+    if (liveTranscript.trim()) {
+      await handleSpeechResult(liveTranscript.trim());
+    }
+  }
+
+  // ── Called when OS ends recognition (silence timeout / end event) ─────────
+  async function handleEnd() {
+    // If a result already came in and we moved past 'listening', ignore
+    if (status !== 'listening') return;
+    // If we accumulated partial text, process it
+    if (liveTranscript.trim()) {
+      await handleSpeechResult(liveTranscript.trim());
+    } else {
+      // No speech detected at all
+      stopPulse();
+      setStatus('error');
+      setErrorMsg('Kuch sunai nahi diya. Phir se try karein.\nकाही ऐकू आले नाही, पुन्हा try करा.');
+    }
   }
 
   // ── Backend AI call ───────────────────────────────────────────────────────────
@@ -263,6 +296,7 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
   function retry() {
     setStatus('idle');
     setTranscript('');
+    setLiveTranscript('');  // FIX: clear live transcript on retry
     setFilledFields(null);
     setErrorMsg('');
   }
@@ -351,7 +385,18 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
                   </View>
                 </Animated.View>
                 <Text style={[styles.tapText, { color: '#dc2626' }]}>Sun raha hoon... / ऐकतोय...</Text>
-                <Text style={styles.subText}>Bolna band karo → result aayega</Text>
+                {/* FIX: show live partial transcript so user knows it's working */}
+                {!!liveTranscript && (
+                  <View style={styles.transcriptBox}>
+                    <Text style={styles.transcriptLabel}>Sun raha hoon / ऐकतोय:</Text>
+                    <Text style={styles.transcriptText}>{liveTranscript}</Text>
+                  </View>
+                )}
+                {/* FIX: manual stop button — user controls when to end recording */}
+                <TouchableOpacity style={styles.stopBtn} onPress={stopListening} activeOpacity={0.8}>
+                  <Ionicons name="stop-circle" size={20} color="#fff" />
+                  <Text style={styles.stopBtnLabel}>Done Speaking / बोलणे संपले</Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -425,9 +470,13 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
 
       {/* Expo Speech Recognition event bridge — only rendered when speech is
           available and the module is actually imported (SPEECH_AVAILABLE=true) */}
-      {SPEECH_AVAILABLE && status === 'listening' && (
+      {/* FIX: keep listener mounted for both 'listening' and 'processing'
+           so late 'end' or 'error' events aren't lost when status transitions */}
+      {SPEECH_AVAILABLE && (status === 'listening' || status === 'processing') && (
         <ExpoVoiceListener
           onResult={handleSpeechResult}
+          onPartial={text => setLiveTranscript(text)}
+          onEnd={handleEnd}
           onError={msg => { stopPulse(); setStatus('error'); setErrorMsg(msg); }}
         />
       )}
@@ -447,9 +496,19 @@ function ExpoVoiceListener({ onResult, onError }) {
   if (!SPEECH_AVAILABLE) return null;
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
+  // Accumulate partial transcripts; only call onResult when speech is final
+  // This prevents the modal from processing/closing on every partial word.
   ExpoSpeech.useSpeechRecognitionEvent('result', e => {
-    const text = e.results?.[0]?.transcript || '';
-    if (text) onResult(text);
+    const result = e.results?.[0];
+    const text   = result?.transcript || '';
+    if (text) onPartial(text);          // show live text in UI
+    if (result?.isFinal && text) onResult(text);   // FIX: only fire on final
+  });
+
+  // FIX: handle 'end' event — fires when OS stops recognition (silence timeout)
+  // Without this, recognition silently stops and UI is stuck on 'listening'
+  ExpoSpeech.useSpeechRecognitionEvent('end', () => {
+    onEnd();
   });
   // eslint-disable-next-line react-hooks/rules-of-hooks
   ExpoSpeech.useSpeechRecognitionEvent('error', e => {
@@ -530,4 +589,6 @@ const styles = StyleSheet.create({
   applyBtn:    { flex: 2, backgroundColor: ORANGE, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
   applyLabel:  { fontSize: 14, fontWeight: '800', color: '#fff' },
   errorText:   { fontSize: 13, color: '#ef4444', textAlign: 'center', lineHeight: 20, marginVertical: 8 },
+  stopBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#dc2626', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 22, marginTop: 8 },
+  stopBtnLabel:{ color: '#fff', fontWeight: '700', fontSize: 13 },
 });
