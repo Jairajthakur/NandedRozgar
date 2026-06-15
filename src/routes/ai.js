@@ -40,14 +40,23 @@ const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 // ── Voice-fill prompts (one per screen type) ──────────────────────────────────
 const VOICE_FILL_PROMPTS = {
   job: (langLabel) => `You are a form-filling assistant for a job posting app in Nanded, Maharashtra.
-User spoke in ${langLabel}. Extract job details and return ONLY a valid JSON object (no markdown, no extra text):
+User spoke in ${langLabel}. Extract job details and return ONLY a valid JSON object (no markdown, no extra text).
+
+CRITICAL RULE — MULTIPLE POSITIONS:
+If the user mentions MORE THAN ONE job title (e.g. "Delivery Boy, Driver aur TeleCaller chahiye" or "need a cook and a waiter"), you MUST extract EACH as a separate position in the "positions" array. Do NOT merge them into one title.
+
 {
-  "title": "Job title in English",
-  "company": "Company name if mentioned",
+  "positions": [
+    {
+      "title": "First job title in English",
+      "vacancies": "number of openings as string e.g. 2",
+      "salaryMin": "number string only e.g. 8000",
+      "salaryMax": "number string only e.g. 12000"
+    }
+  ],
+  "company": "Company name if mentioned — shared across all positions",
   "industry": "Closest match from: Cafe/Tea Stall Boy, Hotel Waiter, Cook/Chef, Kitchen Helper, Delivery Boy (2-Wheeler), Courier Executive, Auto Driver, Car Driver, Shop Assistant/Helper, Salesman, Mason/Contractor, Electrician, Plumber, Hair Stylist, Data Entry Operator, Receptionist, Field Sales Executive, TeleCaller, School Teacher, Maid/Househelp, Security Guard, Software Developer, Other/Custom",
   "jobType": "One of: Full-time, Part-time, Contract, Freshers Welcome",
-  "salaryMin": "number string only e.g. 8000",
-  "salaryMax": "number string only e.g. 12000",
   "experience": "One of: Fresher (0 yr), 6 Months, 1 Year, 2 Years, 3 Years, 5+ Years",
   "workHours": "One of: 9 AM - 6 PM, 10 AM - 7 PM, 8 AM - 5 PM, 6 AM - 2 PM, 2 PM - 10 PM, Night Shift, Flexible",
   "education": "One of: none, 10th, 12th, graduate, diploma",
@@ -56,8 +65,14 @@ User spoke in ${langLabel}. Extract job details and return ONLY a valid JSON obj
   "requirements": "Requirements in English",
   "address": "Area or locality if mentioned"
 }
-Rules: JSON only. Omit fields you are unsure about. Translate everything to English.
-Salary: "8 se 12 hazar" means salaryMin 8000 salaryMax 12000.`,
+
+Rules:
+- JSON only. No markdown. Omit fields you are unsure about.
+- ALWAYS use the "positions" array — even for a single job title.
+- Translate everything to English.
+- Salary: "8 se 12 hazar" → salaryMin:"8000", salaryMax:"12000". "10 hazar" → salaryMin:"10000".
+- Vacancies: "2 chahiye" or "do chahiye" → "2". If not mentioned → "1".
+- If salary is mentioned once without specifying per-position, apply it to ALL positions.`,
 
   room: (langLabel) => `You are a form-filling assistant for a room/property listing app in Maharashtra.
 User spoke in ${langLabel}. Return ONLY valid JSON:
@@ -223,7 +238,7 @@ router.post('/voice-fill', auth, voiceFillLimiter, async (req, res) => {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `User said: "${transcript.trim()}"` },
         ],
-        max_tokens: 600,
+        max_tokens: 900,  // increased for multi-position responses
         temperature: 0.2, // Low temp for structured extraction — less hallucination
       }),
     });
