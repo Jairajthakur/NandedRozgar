@@ -76,11 +76,11 @@ const SCREEN_CONFIG = {
   job: {
     title: 'Job Post',
     hints: {
-      'mr-IN': '"मला delivery boy साठी नोकरी टाकायची. पगार 8 ते 12 हजार, full time, bike असणे आवश्यक, fresher चालेल."',
-      'hi-IN': '"Mujhe delivery boy ki naukri post karni hai. Salary 8 se 12 hazar, full time, bike hona zaruri, fresher chalega."',
-      'en-IN': '"I want to post for a delivery boy. Salary 8 to 12 thousand, full time shift, own bike required, freshers welcome."',
+      'mr-IN': '"मला Delivery Boy, Driver आणि TeleCaller साठी नोकरी टाकायची. पगार 8 ते 12 हजार, full time." (एक किंवा अनेक जागा एकत्र सांगा!)',
+      'hi-IN': '"Mujhe Delivery Boy, Driver aur TeleCaller ki naukri post karni hai. Salary 8 se 12 hazar, full time." (ek ya kai positions ek saath bolo!)',
+      'en-IN': '"I want to post for a Delivery Boy, Driver and TeleCaller. Salary 8 to 12 thousand, full time." (say one or multiple positions together!)',
     },
-    systemPrompt: (langLabel) => `You are a form-filling assistant for a job posting app used in tier-2 cities in Maharashtra.\n\nUser spoke in ${langLabel}. Extract job details and return ONLY a valid JSON object (no markdown, no extra text):\n\n{\n  "title": "Job title in English",\n  "company": "Company name if mentioned",\n  "industry": "Closest match from: Cafe/Tea Stall Boy, Hotel Waiter, Cook/Chef, Kitchen Helper, Delivery Boy (2-Wheeler), Courier Executive, Auto Driver, Car Driver, Shop Assistant/Helper, Salesman, Mason/Contractor, Electrician, Plumber, Hair Stylist, Data Entry Operator, Receptionist, Field Sales Executive, TeleCaller, School Teacher, Maid/Househelp, Security Guard, Software Developer, Other/Custom",\n  "jobType": "One of: Full-time, Part-time, Contract, Freshers Welcome",\n  "salaryMin": "number string only e.g. 8000",\n  "salaryMax": "number string only e.g. 12000",\n  "experience": "One of: Fresher (0 yr), 6 Months, 1 Year, 2 Years, 3 Years, 5+ Years",\n  "workHours": "One of: 9 AM – 6 PM, 10 AM – 7 PM, 8 AM – 5 PM, 6 AM – 2 PM, 2 PM – 10 PM, Night Shift, Flexible",\n  "education": "One of: none, 10th, 12th, graduate, diploma",\n  "skills": ["pick only from: Marathi, Hindi, English, MS Excel, Tally, Typing, Driving Licence, 2-Wheeler, 4-Wheeler, Customer Service, Cooking, Welding, Electrical Work, Plumbing"],\n  "description": "2-3 sentence job description in English",\n  "requirements": "Requirements in English (age, bike, local candidate, etc.)",\n  "address": "Area or locality if mentioned"\n}\n\nRules: JSON only. Omit fields you are unsure about. Translate everything to English.\nSalary: "8 se 12 hazar" → salaryMin:"8000", salaryMax:"12000". "10 hazar" → salaryMin:"10000".`,
+    systemPrompt: (langLabel) => `You are a form-filling assistant for a job posting app used in tier-2 cities in Maharashtra.\n\nUser spoke in ${langLabel}. Extract job details and return ONLY a valid JSON object (no markdown, no extra text).\n\nCRITICAL RULE — MULTIPLE POSITIONS: If the user mentions MORE THAN ONE job title (e.g. \"Delivery Boy, Driver aur TeleCaller chahiye\"), extract EACH as a separate item in the \"positions\" array. ALWAYS include a positions array.\n\n{\n  \"positions\": [\n    { \"title\": \"Job title in English\", \"vacancies\": \"1\", \"salaryMin\": \"8000\", \"salaryMax\": \"12000\" }\n  ],\n  \"company\": \"Company name if mentioned\",\n  \"industry\": \"Closest match from: Cafe/Tea Stall Boy, Hotel Waiter, Cook/Chef, Kitchen Helper, Delivery Boy (2-Wheeler), Courier Executive, Auto Driver, Car Driver, Shop Assistant/Helper, Salesman, Mason/Contractor, Electrician, Plumber, Hair Stylist, Data Entry Operator, Receptionist, Field Sales Executive, TeleCaller, School Teacher, Maid/Househelp, Security Guard, Software Developer, Other/Custom\",\n  \"jobType\": \"One of: Full-time, Part-time, Contract, Freshers Welcome\",\n  \"experience\": \"One of: Fresher (0 yr), 6 Months, 1 Year, 2 Years, 3 Years, 5+ Years\",\n  \"workHours\": \"One of: 9 AM – 6 PM, 10 AM – 7 PM, 8 AM – 5 PM, 6 AM – 2 PM, 2 PM – 10 PM, Night Shift, Flexible\",\n  \"education\": \"One of: none, 10th, 12th, graduate, diploma\",\n  \"skills\": [\"pick only from: Marathi, Hindi, English, MS Excel, Tally, Typing, Driving Licence, 2-Wheeler, 4-Wheeler, Customer Service, Cooking, Welding, Electrical Work, Plumbing\"],\n  \"description\": \"2-3 sentence job description in English\",\n  \"requirements\": \"Requirements in English (age, bike, local candidate, etc.)\",\n  \"address\": \"Area or locality if mentioned\"\n}\n\nRules: JSON only. ALWAYS use the positions array. Omit fields you are unsure about. Translate everything to English.\nSalary: \"8 se 12 hazar\" → salaryMin:\"8000\", salaryMax:\"12000\". Vacancies: \"2 chahiye\" → \"2\", default \"1\".`,
   },
 
   room: {
@@ -301,7 +301,10 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
     setErrorMsg('');
   }
 
-  const filledCount = filledFields ? Object.keys(filledFields).length : 0;
+  const filledCount = filledFields
+    ? (Array.isArray(filledFields.positions) ? filledFields.positions.length + Object.keys(filledFields).length - 1 : Object.keys(filledFields).length)
+    : 0;
+  const positionCount = filledFields?.positions?.length || 0;
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
@@ -419,7 +422,7 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
               <View>
                 <View style={styles.successRow}>
                   <Ionicons name="checkmark-circle" size={26} color="#16a34a" />
-                  <Text style={styles.successText}>{filledCount} fields ready! ✅</Text>
+                  <Text style={styles.successText}>{positionCount > 1 ? `${positionCount} positions` : `${filledCount} fields`} ready! ✅</Text>
                 </View>
 
                 {!!transcript && (
@@ -431,7 +434,21 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
 
                 <ScrollView style={styles.previewBox} nestedScrollEnabled>
                   <Text style={styles.previewTitle}>Ye fields bharenge / हे fields भरतील:</Text>
-                  {Object.entries(filledFields).map(([k, v]) => (
+                  {/* Show positions array as readable cards */}
+                  {Array.isArray(filledFields.positions) && filledFields.positions.length > 0 && (
+                    <View style={{ marginBottom: 6 }}>
+                      <Text style={[styles.previewKey, { marginBottom: 4 }]}>POSITIONS ({filledFields.positions.length}):</Text>
+                      {filledFields.positions.map((p, i) => (
+                        <View key={i} style={{ backgroundColor: '#fff7ed', borderRadius: 6, padding: 8, marginBottom: 4, borderLeftWidth: 3, borderLeftColor: '#f97316' }}>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#1f2937' }}>{i + 1}. {p.title}</Text>
+                          <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+                            {p.vacancies || '1'} vacancy{p.salaryMin ? ` · ₹${p.salaryMin}${p.salaryMax ? `–${p.salaryMax}` : ''}` : ''}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  {Object.entries(filledFields).filter(([k]) => k !== 'positions').map(([k, v]) => (
                     <View key={k} style={styles.previewRow}>
                       <Text style={styles.previewKey}>{k}:</Text>
                       <Text style={styles.previewVal} numberOfLines={2}>
