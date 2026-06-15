@@ -669,14 +669,44 @@ export default function PostJobScreen() {
             {/* ── Voice Post Assistant ── */}
             <VoicePostAssistant
               screenType="job"
-              onFill={({ title: t, company: co, salaryMin: smin, salaryMax: smax,
-                         industry: ind, jobType: jt, experience: exp,
-                         workHours: wh, education: edu, skills: sk,
-                         description: desc, requirements: req, address: addr }) => {
-                if (t)    setTitle(t);
+              onFill={(fields) => {
+                const {
+                  positions: voicePositions, title: t, company: co,
+                  salaryMin: smin, salaryMax: smax,
+                  industry: ind, jobType: jt, experience: exp,
+                  workHours: wh, education: edu, skills: sk,
+                  description: desc, requirements: req, address: addr,
+                } = fields;
+
+                // ── Multi-position handling ─────────────────────────────────
+                if (Array.isArray(voicePositions) && voicePositions.length > 0) {
+                  if (voicePositions.length === 1) {
+                    // Single position — fill the normal single-job fields
+                    const p = voicePositions[0];
+                    if (p.title)     setTitle(p.title);
+                    if (p.vacancies) setOpenings(p.vacancies);
+                    if (p.salaryMin) setSalaryMin(p.salaryMin);
+                    if (p.salaryMax) setSalaryMax(p.salaryMax);
+                  } else {
+                    // Multiple positions — switch to multi-pos mode and populate array
+                    setMultiplePos(true);
+                    setPositions(voicePositions.map((p, i) => ({
+                      id: Date.now() + i,
+                      title:     p.title     || '',
+                      vacancies: p.vacancies || '1',
+                      salaryMin: p.salaryMin || smin || '',
+                      salaryMax: p.salaryMax || smax || '',
+                    })));
+                  }
+                } else {
+                  // Fallback: no positions array — fill legacy single fields
+                  if (t)    setTitle(t);
+                  if (smin) setSalaryMin(smin);
+                  if (smax) setSalaryMax(smax);
+                }
+
+                // ── Shared fields (same for all positions) ──────────────────
                 if (co)   setCompany(co);
-                if (smin) setSalaryMin(smin);
-                if (smax) setSalaryMax(smax);
                 if (ind)  setIndustry(ind);
                 if (jt)   setJobType(jt);
                 if (exp)  setExperience(exp);
@@ -686,7 +716,13 @@ export default function PostJobScreen() {
                 if (desc) setDescription(desc);
                 if (req)  setRequirements(req);
                 if (addr) setAddress(addr);
-                Toast.show({ type: 'success', text1: '✅ Form filled by voice!', text2: 'Check karo aur edit kar sakte ho' });
+
+                const posCount = voicePositions?.length || 0;
+                Toast.show({
+                  type: 'success',
+                  text1: posCount > 1 ? \`✅ \${posCount} positions filled by voice!\` : '✅ Form filled by voice!',
+                  text2: 'Check karo aur edit kar sakte ho',
+                });
               }}
             />
 
