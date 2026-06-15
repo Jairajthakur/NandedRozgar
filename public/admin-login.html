@@ -956,6 +956,7 @@ function buildPostForm(service) {
         ${row(field('Job Type', sel('type',['Full-time','Part-time','Freelance','Internship'],'Type')), field('Location *', inp('location','City / Area','text',true)))}
         ${row(field('Salary', inp('salary','e.g. ₹8000–₹12000')), field('Openings', inp('openings','1','number')))}
         ${row(field('Phone *', inp('phone','10-digit number','text',true)), field('WhatsApp', inp('whatsapp','Same as phone if blank')))}
+        ${row(field('District *', sel('district',[['nanded','🏙️ Nanded'],['latur','🌆 Latur'],['osmanabad','🌇 Osmanabad'],['hingoli','🌄 Hingoli']],'Select District *')), field('Featured', sel('featured',[['true','Yes — featured'],['false','No']],'Feature this job?')))}
         ${field('Description', ta('description','Job details, responsibilities…',4))}
         ${field('Skills (comma separated)', inp('skills','e.g. Excel, Communication'))}
         ${submitBtn}
@@ -969,6 +970,7 @@ function buildPostForm(service) {
         ${field('Address', inp('address','Full address'))}
         ${row(field('Area / Locality', inp('area','Locality')), field('Landmark', inp('landmark','Near…')))}
         ${row(field('Owner Name', inp('ownerName','Name')), field('WhatsApp *', inp('whatsapp','10-digit','text',true)))}
+        ${row(field('District *', sel('district',[['nanded','🏙️ Nanded'],['latur','🌆 Latur'],['osmanabad','🌇 Osmanabad'],['hingoli','🌄 Hingoli']],'Select District *')), field('Available From', inp('availableFrom','e.g. Immediately / 1 Jan')))}
         ${field('Description', ta('description','Room details…',3))}
         ${photoField}
         ${submitBtn}
@@ -982,6 +984,7 @@ function buildPostForm(service) {
         ${row(field('KM Driven', inp('kmDriven','e.g. 12000','number')), field('Fuel', sel('fuel',['Petrol','Diesel','Electric','CNG'],'Fuel')))}
         ${row(field('Price (₹) *', inp('price','','number',true)), field('Transmission', sel('transmission',['Manual','Automatic'],'Type')))}
         ${row(field('Area', inp('area','Locality')), field('WhatsApp *', inp('whatsapp','10-digit','text',true)))}
+        ${row(field('District *', sel('district',[['nanded','🏙️ Nanded'],['latur','🌆 Latur'],['osmanabad','🌇 Osmanabad'],['hingoli','🌄 Hingoli']],'Select District *')), field('Listing Purpose', sel('listingPurpose',[['rent','For Rent'],['sale','For Sale']],'Purpose')))}
         ${field('Description', ta('description','Vehicle details…',3))}
         ${photoField}
         ${submitBtn}
@@ -992,7 +995,7 @@ function buildPostForm(service) {
         ${field('Title *', inp('title','e.g. Samsung TV 43 inch','text',true))}
         ${row(field('Category', sel('category',['Electronics','Furniture','Clothes','Vehicles','Books','Sports','Other'],'Category')), field('Condition', sel('condition',['New','Like New','Good','Fair','Poor'],'Condition')))}
         ${row(field('Price (₹) *', inp('price','','number',true)), field('Age', inp('age','e.g. 2 years')))}
-        ${row(field('Area / Locality', inp('area','Where is item located?')), field('District', sel('district',[['nanded','Nanded'],['latur','Latur'],['osmanabad','Osmanabad'],['hingoli','Hingoli']],'Select District')))}
+        ${row(field('Area / Locality', inp('area','Where is item located?')), field('District *', sel('district',[['nanded','🏙️ Nanded'],['latur','🌆 Latur'],['osmanabad','🌇 Osmanabad'],['hingoli','🌄 Hingoli']],'Select District *')))}
         ${row(field('WhatsApp *', inp('whatsapp','10-digit','text',true)), field('Negotiable', sel('negotiable',[['true','Yes'],['false','No']],'Negotiable?')))}
         ${field('Description', ta('description','Item details…',3))}
         ${photoField}
@@ -1366,6 +1369,12 @@ async function submitAdminPost() {
     const colorRadio = form.querySelector('input[name="accentColor"]:checked');
     if (styleRadio) data.bannerStyle = styleRadio.value;
     if (colorRadio) data.accentColor = colorRadio.value;
+  }
+
+  // District required for listing types
+  if (['job','room','vehicle','buysell'].includes(postService) && !data.district) {
+    result.innerHTML = `<span style="color:var(--red)">⚠ Please select a District</span>`;
+    return;
   }
 
   const endpointMap = { job: 'job', room: 'room', vehicle: 'vehicle', buysell: 'buysell', banner: 'banner' };
