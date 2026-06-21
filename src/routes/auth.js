@@ -12,30 +12,7 @@ const crypto    = require('crypto');
 const rateLimit = require('express-rate-limit');
 const { pool }  = require('../db');
 const { auth }  = require('../middleware/auth');
-
-// ── Firebase Admin (lazy-init once) ───────────────────────────────────────────
-let _firebaseAdmin = null;
-function getFirebaseAdmin() {
-  if (_firebaseAdmin) return _firebaseAdmin;
-  try {
-    const admin = require('firebase-admin');
-    if (!admin.apps.length) {
-      const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-        ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-        : undefined;
-      admin.initializeApp({
-        credential: serviceAccount
-          ? admin.credential.cert(serviceAccount)
-          : admin.credential.applicationDefault(),
-      });
-    }
-    _firebaseAdmin = admin;
-    return admin;
-  } catch (e) {
-    console.warn('Firebase Admin not initialised:', e.message);
-    return null;
-  }
-}
+const { getFirebaseAdmin } = require('../utils/firebaseAdmin');
 
 // ── Activity logger ───────────────────────────────────────────────────────────
 async function log(action, { userId = null, status = 'success', ip = null, userAgent = null, detail = null } = {}) {
@@ -729,10 +706,21 @@ router.post('/logout', async (req, res) => {
 });
 
 // ── POST /api/auth/save-push-token ────────────────────────────────────────────
+// NOTE: the app (src/utils/notifications.js) registers devices using
+// Notifications.getDevicePushTokenAsync(), which returns a raw FCM/APNs
+// device token — NOT an "ExponentPushToken[...]" token. The old check here
+// required the Expo format and silently rejected every real token sent by
+// the app, so push_token was never being saved at all. Accept raw FCM/APNs
+// tokens (long opaque strings) instead.
 router.post('/save-push-token', auth, async (req, res) => {
   try {
     const { pushToken } = req.body;
-    if (!pushToken || typeof pushToken !== 'string' || !pushToken.startsWith('ExponentPushToken[')) {
+    const isValid =
+      typeof pushToken === 'string' &&
+      pushToken.trim().length >= 20 &&
+      pushToken.trim().length <= 4096 &&
+      !/\s/.test(pushToken.trim());
+    if (!isValid) {
       return res.status(400).json({ ok: false, error: 'Invalid push token format' });
     }
     await pool.query(
