@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { pool, cache } = require('../db');
 const { auth } = require('../middleware/auth');
 const { logActivity, getIP, getUA } = require('../utils/logActivity');
+const { sendPushNotifications } = require('../utils/push');
 
 const JOBS_TTL   = 15_000;  // list cache: 15 s
 const DETAIL_TTL = 30_000;  // single-job cache: 30 s
@@ -250,25 +251,19 @@ router.post('/', auth, async (req, res) => {
         );
         if (!alerts.length) return;
 
-        const messages = alerts
-          .filter(a => a.push_token?.startsWith('ExponentPushToken['))
-          .map(a => ({
-            to:    a.push_token,
-            title: `New ${newJob.category} job in ${newJob.location || 'your area'}`,
-            body:  `${newJob.title} at ${newJob.company || 'a local employer'} — tap to view`,
-            data:  { jobId: newJob.id },
-            sound: 'default',
-          }));
+        const tokens = alerts.map(a => a.push_token).filter(Boolean);
+        if (!tokens.length) return;
 
-        if (!messages.length) return;
+        const { invalidTokens } = await sendPushNotifications(tokens, {
+          title: `New ${newJob.category} job in ${newJob.location || 'your area'}`,
+          body:  `${newJob.title} at ${newJob.company || 'a local employer'} — tap to view`,
+          data:  { jobId: newJob.id },
+        });
 
-        // Send in batches of 100 (Expo limit)
-        for (let i = 0; i < messages.length; i += 100) {
-          await fetch('https://exp.host/--/api/v2/push/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify(messages.slice(i, i + 100)),
-          }).catch(e => console.warn('Push batch error:', e.message));
+        // Drop dead tokens so future alert sends don't keep retrying them.
+        if (invalidTokens.length) {
+          await pool.query('UPDATE job_alerts SET push_token = NULL WHERE push_token = ANY($1)', [invalidTokens])
+            .catch(e => console.warn('Failed to clear invalid alert tokens:', e.message));
         }
       } catch (e) {
         console.warn('Job alert notifications error:', e.message);
