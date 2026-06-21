@@ -54,6 +54,11 @@ export function AuthProvider({ children }) {
         setSessionPending(false);
         await loadJobs(1);
         if (r.user.role === 'admin') await loadUsers();
+        // Re-register the push token on every app open, not just at login.
+        // Without this, already-logged-in users (the common case) would
+        // never have a push_token saved/refreshed since _registerAndSavePushToken
+        // was previously only called from login/register/google/OTP flows.
+        await _registerAndSavePushToken(token);
       } else if (r?.status === 401 || r?.status === 403) {
         await clearToken();
         setSessionPending(false);
