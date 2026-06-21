@@ -950,7 +950,7 @@ function buildPostForm(service) {
 
   const forms = {
     job: `
-      <form id="admin-post-form" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+      <form id="admin-post-form" onsubmit="return false" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
         ${field('Job Title *', inp('title','e.g. Sales Executive',  'text', true))}
         ${row(field('Company', inp('company','Company name')), field('Category *', sel('category',['IT','Sales','Teaching','Driver','Security','Electrician','Plumber','Cook','Helper','Other'],'Select category')))}
         ${row(field('Job Type', sel('type',['Full-time','Part-time','Freelance','Internship'],'Type')), field('Location *', inp('location','City / Area','text',true)))}
@@ -963,7 +963,7 @@ function buildPostForm(service) {
       </form>`,
 
     room: `
-      <form id="admin-post-form" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+      <form id="admin-post-form" onsubmit="return false" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
         ${field('Title *', inp('title','e.g. 2BHK Flat near Station','text',true))}
         ${row(field('Rent (₹/month) *', inp('rent','','number',true)), field('BHK', sel('bhk',['1 RK','1 BHK','2 BHK','3 BHK','4+ BHK'],'Select')))}
         ${row(field('Type', sel('type',['Apartment','Independent House','PG','Hostel','Shop','Office'],'Type')), field('Furnished', sel('furnished',['Furnished','Semi-Furnished','Unfurnished'],'Select')))}
@@ -977,7 +977,7 @@ function buildPostForm(service) {
       </form>`,
 
     vehicle: `
-      <form id="admin-post-form" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+      <form id="admin-post-form" onsubmit="return false" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
         ${field('Title *', inp('title','e.g. Honda Activa 2020','text',true))}
         ${row(field('Type', sel('type',['Bike','Car','Auto','Truck','Tractor','Other'],'Type')), field('Brand', inp('brand','e.g. Honda')))}
         ${row(field('Model', inp('model','e.g. Activa 6G')), field('Year', inp('year','e.g. 2020','number')))}
@@ -991,7 +991,7 @@ function buildPostForm(service) {
       </form>`,
 
     buysell: `
-      <form id="admin-post-form" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+      <form id="admin-post-form" onsubmit="return false" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
         ${field('Title *', inp('title','e.g. Samsung TV 43 inch','text',true))}
         ${row(field('Category', sel('category',['Electronics','Furniture','Clothes','Vehicles','Books','Sports','Other'],'Category')), field('Condition', sel('condition',['New','Like New','Good','Fair','Poor'],'Condition')))}
         ${row(field('Price (₹) *', inp('price','','number',true)), field('Age', inp('age','e.g. 2 years')))}
