@@ -503,7 +503,7 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
 
 // ── Expo Speech event bridge (hooks require a component) ────────────────────
 // Only functional when SPEECH_AVAILABLE = true and ExpoSpeech is imported.
-function ExpoVoiceListener({ onResult, onError }) {
+function ExpoVoiceListener({ onResult, onPartial, onEnd, onError }) {
   // When SPEECH_AVAILABLE is false this component is never rendered, so
   // referencing ExpoSpeech here is safe — Metro will tree-shake it away
   // because the conditional above is always false.
