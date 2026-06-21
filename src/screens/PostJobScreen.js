@@ -720,7 +720,7 @@ export default function PostJobScreen() {
                 const posCount = voicePositions?.length || 0;
                 Toast.show({
                   type: 'success',
-                  text1: posCount > 1 ? \`✅ \${posCount} positions filled by voice!\` : '✅ Form filled by voice!',
+                  text1: posCount > 1 ? `✅ ${posCount} positions filled by voice!` : '✅ Form filled by voice!',
                   text2: 'Check karo aur edit kar sakte ho',
                 });
               }}
