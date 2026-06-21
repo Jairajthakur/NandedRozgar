@@ -557,6 +557,18 @@ function RootNavigator() {
   const { t } = useLang();
   const [showOnboarding, setShowOnboarding] = React.useState(null);
 
+  // Bug fix: previously `showOnboarding` alone decided the unauthenticated
+  // stack's initialRouteName. If that flag was ever wrong (e.g. a flaky
+  // storage read on app open, see isOnboarded() in storage.js) it would
+  // resurface on *every* future logout too, not just on first launch.
+  // wasAuthenticatedRef remembers — for the lifetime of this app session —
+  // that the user has successfully been logged in at least once. Once true,
+  // we never show Onboarding again, no matter what showOnboarding says.
+  const wasAuthenticatedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (user) wasAuthenticatedRef.current = true;
+  }, [user]);
+
   React.useEffect(() => {
     isOnboarded().then(done => setShowOnboarding(!done));
   }, []);
@@ -689,7 +701,7 @@ function RootNavigator() {
     return (
       <Stack.Navigator
         screenOptions={{ headerShown: false }}
-        initialRouteName={showOnboarding ? 'Onboarding' : 'Login'}
+        initialRouteName={(showOnboarding && !wasAuthenticatedRef.current) ? 'Onboarding' : 'Login'}
       >
         <Stack.Screen name="Onboarding">
           {({ navigation }) => (
