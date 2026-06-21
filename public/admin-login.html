@@ -213,6 +213,7 @@ window.addEventListener('error', e => {
   console.error('[GLOBAL ERROR]', e.message, e.filename, e.lineno);
 });
 let currentTab = 'overview';
+let navGen = 0; // incremented on every tab switch; async loaders check this to discard stale responses
 let allUsers = [], allJobs = [], allPayments = [];
 
 // ── AUTH ─────────────────────────────────────────────────────────────────────
@@ -293,23 +294,24 @@ function toast(msg, type = 'success') {
 // ── NAVIGATION ────────────────────────────────────────────────────────────────
 function showTab(tab) {
   currentTab = tab;
+  const gen = ++navGen; // capture current generation for stale-response detection
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const idx = ['overview','users','jobs','payments','vehicles','rooms','buysell','analytics','logs','post','banners','notify'].indexOf(tab);
   document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
   const m = document.getElementById('main-content');
   m.innerHTML = '<div class="tab-spinner">Loading…</div>';
-  if (tab === 'overview')   loadOverview();
-  if (tab === 'users')      loadUsers();
-  if (tab === 'jobs')       loadJobs();
-  if (tab === 'vehicles')   loadVehicles();
-  if (tab === 'rooms')      loadRooms();
-  if (tab === 'buysell')    loadBuySell();
-  if (tab === 'payments')   loadPayments();
-  if (tab === 'analytics')  loadAnalytics();
-  if (tab === 'logs')       { logsPage=1; logsAction=''; logsStatus=''; logsSearch=''; loadLogs(); startLogsPolling(); }
+  if (tab === 'overview')   loadOverview(gen);
+  if (tab === 'users')      loadUsers(gen);
+  if (tab === 'jobs')       loadJobs(gen);
+  if (tab === 'vehicles')   loadVehicles(gen);
+  if (tab === 'rooms')      loadRooms(gen);
+  if (tab === 'buysell')    loadBuySell(gen);
+  if (tab === 'payments')   loadPayments(gen);
+  if (tab === 'analytics')  loadAnalytics(gen);
+  if (tab === 'logs')       { logsPage=1; logsAction=''; logsStatus=''; logsSearch=''; loadLogs(1, false, gen); startLogsPolling(); }
   else                       { stopLogsPolling(); }
   if (tab === 'post')       renderPostTab();
-  if (tab === 'banners')    loadBanners();
+  if (tab === 'banners')    loadBanners(gen);
   if (tab === 'notify')     renderNotify();
 }
 
@@ -318,8 +320,9 @@ function fDate(d) { return d ? new Date(d).toLocaleDateString('en-IN',{day:'2-di
 function fMoney(v) { return '₹' + Number(v||0).toLocaleString('en-IN'); }
 
 // ── OVERVIEW ──────────────────────────────────────────────────────────────────
-async function loadOverview() {
+async function loadOverview(gen) {
   const d = await api('GET', '/api/admin/stats');
+  if (gen !== navGen) return; // tab changed while fetching — discard
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Overview</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load stats'}</div>`; return; }
   const s = d.stats || {};
   document.getElementById('main-content').innerHTML = `
@@ -411,8 +414,9 @@ async function loadOverview() {
 }
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
-async function loadUsers() {
+async function loadUsers(gen) {
   const d = await api('GET', '/api/admin/users');
+  if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Users</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load users'}</div>`; return; }
   allUsers = d.users || [];
   renderUsers(allUsers);
@@ -487,8 +491,9 @@ async function setPro(id, grant) {
 }
 
 // ── JOBS ─────────────────────────────────────────────────────────────────────
-async function loadJobs() {
+async function loadJobs(gen) {
   const d = await api('GET', '/api/admin/jobs');
+  if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Jobs</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load jobs'}</div>`; return; }
   allJobs = d.jobs || [];
   renderJobs(allJobs);
@@ -572,8 +577,9 @@ async function deleteJob(id) {
 }
 
 // ── PAYMENTS ──────────────────────────────────────────────────────────────────
-async function loadPayments() {
+async function loadPayments(gen) {
   const d = await api('GET', '/api/admin/payments');
+  if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Payments</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load payments'}</div>`; return; }
   allPayments = d.payments || [];
   const rows = allPayments.map(p => `
@@ -649,8 +655,9 @@ async function sendNotif() {
 }
 
 // ── VEHICLES ──────────────────────────────────────────────────────────────────
-async function loadVehicles() {
+async function loadVehicles(gen) {
   const d = await api('GET', '/api/admin/vehicles');
+  if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Vehicles</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load vehicles'}</div>`; return; }
   const vehicles = d.vehicles || [];
   const rows = vehicles.map(v => `
@@ -697,8 +704,9 @@ async function deleteVehicle(id) {
 }
 
 // ── ROOMS ─────────────────────────────────────────────────────────────────────
-async function loadRooms() {
+async function loadRooms(gen) {
   const d = await api('GET', '/api/admin/rooms');
+  if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Rooms</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load rooms'}</div>`; return; }
   const rooms = d.rooms || [];
   const rows = rooms.map(r => `
@@ -746,8 +754,9 @@ async function deleteRoom(id) {
 }
 
 // ── BUY & SELL ────────────────────────────────────────────────────────────────
-async function loadBuySell() {
+async function loadBuySell(gen) {
   const d = await api('GET', '/api/admin/buysell');
+  if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Buy & Sell</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load listings'}</div>`; return; }
   const items = d.buysell || [];
   const rows = items.map(b => `
@@ -794,10 +803,10 @@ async function deleteBuySell(id) {
 
 
 // ── ANALYTICS ─────────────────────────────────────────────────────────────────
-async function loadAnalytics() {
+async function loadAnalytics(gen) {
   const d = await api('GET', '/api/admin/analytics');
+  if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Analytics</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load analytics'}</div>`; return; }
-  if (!d.ok) { document.getElementById('main-content').innerHTML = '<div class="empty">Failed to load analytics</div>'; return; }
 
   const days30 = [...Array(30)].map((_,i) => {
     const dt = new Date(); dt.setDate(dt.getDate() - (29 - i));
@@ -1227,7 +1236,7 @@ function clearBannerImage() {
 }
 
 // ── BANNERS TAB ───────────────────────────────────────────────────────────────
-async function loadBanners() {
+async function loadBanners(gen) {
   document.getElementById('main-content').innerHTML = `
     <div class="page-title">Active Banners</div>
     <div class="table-wrap" style="padding:20px">
@@ -1235,6 +1244,7 @@ async function loadBanners() {
     </div>`;
 
   const d = await api('GET', '/api/admin/banners');
+  if (gen !== navGen) return;
   const el = document.getElementById('banners-list');
   if (!el) return;
 
@@ -1421,7 +1431,7 @@ async function deleteTestLogs() {
   else toast('❌ ' + (d.error || 'Failed'), 'error');
 }
 
-async function loadLogs(page = 1, silent = false) {
+async function loadLogs(page = 1, silent = false, gen = navGen) {
   logsPage = page;
 
   const params = new URLSearchParams({ page, limit: 50 });
@@ -1430,6 +1440,7 @@ async function loadLogs(page = 1, silent = false) {
   if (logsSearch) params.set('search', logsSearch);
 
   const d = await api('GET', '/api/admin/logs?' + params.toString());
+  if (gen !== navGen) return; // tab changed while fetching — discard
   if (!d.ok && !silent) { document.getElementById('main-content').innerHTML = `<div class="page-title">Logs</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load logs'}</div>`; return; }
   const logs = d.logs || [];
   const total = d.total || 0;
