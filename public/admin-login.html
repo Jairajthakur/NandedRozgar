@@ -421,7 +421,7 @@ async function loadOverview(gen) {
 }
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
-async function loadUsers(gen) {
+async function loadUsers(gen = navGen) {
   const d = await api('GET', '/api/admin/users');
   if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Users</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load users'}</div>`; return; }
@@ -498,7 +498,7 @@ async function setPro(id, grant) {
 }
 
 // ── JOBS ─────────────────────────────────────────────────────────────────────
-async function loadJobs(gen) {
+async function loadJobs(gen = navGen) {
   const d = await api('GET', '/api/admin/jobs');
   if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Jobs</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load jobs'}</div>`; return; }
@@ -584,7 +584,7 @@ async function deleteJob(id) {
 }
 
 // ── PAYMENTS ──────────────────────────────────────────────────────────────────
-async function loadPayments(gen) {
+async function loadPayments(gen = navGen) {
   const d = await api('GET', '/api/admin/payments');
   if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Payments</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load payments'}</div>`; return; }
@@ -662,7 +662,7 @@ async function sendNotif() {
 }
 
 // ── VEHICLES ──────────────────────────────────────────────────────────────────
-async function loadVehicles(gen) {
+async function loadVehicles(gen = navGen) {
   const d = await api('GET', '/api/admin/vehicles');
   if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Vehicles</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load vehicles'}</div>`; return; }
@@ -711,7 +711,7 @@ async function deleteVehicle(id) {
 }
 
 // ── ROOMS ─────────────────────────────────────────────────────────────────────
-async function loadRooms(gen) {
+async function loadRooms(gen = navGen) {
   const d = await api('GET', '/api/admin/rooms');
   if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Rooms</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load rooms'}</div>`; return; }
@@ -761,7 +761,7 @@ async function deleteRoom(id) {
 }
 
 // ── BUY & SELL ────────────────────────────────────────────────────────────────
-async function loadBuySell(gen) {
+async function loadBuySell(gen = navGen) {
   const d = await api('GET', '/api/admin/buysell');
   if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Buy & Sell</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load listings'}</div>`; return; }
@@ -810,7 +810,7 @@ async function deleteBuySell(id) {
 
 
 // ── ANALYTICS ─────────────────────────────────────────────────────────────────
-async function loadAnalytics(gen) {
+async function loadAnalytics(gen = navGen) {
   const d = await api('GET', '/api/admin/analytics');
   if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Analytics</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load analytics'}</div>`; return; }
@@ -1243,7 +1243,7 @@ function clearBannerImage() {
 }
 
 // ── BANNERS TAB ───────────────────────────────────────────────────────────────
-async function loadBanners(gen) {
+async function loadBanners(gen = navGen) {
   document.getElementById('main-content').innerHTML = `
     <div class="page-title">Active Banners</div>
     <div class="table-wrap" style="padding:20px">
@@ -1624,10 +1624,10 @@ function esc(s) {
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
-  // Sidebar nav items via data-tab attribute
-  document.querySelectorAll('.nav-item[data-tab]').forEach(el => {
-    el.addEventListener('click', () => showTab(el.dataset.tab));
-  });
+  // NOTE: Sidebar nav items already have onclick="showTab(...)" attributes in HTML.
+  // Do NOT add addEventListener here — that would call showTab() twice per click,
+  // incrementing navGen twice and causing the stale-response guard to discard
+  // the first API response, making tabs like Rooms/Vehicles/BuySell appear broken.
 
   if (await checkExistingSession()) bootApp();
 })();
