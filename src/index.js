@@ -444,6 +444,10 @@ if (DISABLE_CLUSTER) {
 
 // ── Cron jobs ──────────────────────────────────────────────────────────────────
 function _startPrimaryCrons() {
+  // FIX: Require pool and cache here so this function works in BOTH the primary
+  // process (which only imports runMigrations at the top) and worker processes.
+  const { pool, cache } = require('./db');
+
   async function deleteExpired() {
     try {
       const now = new Date();
