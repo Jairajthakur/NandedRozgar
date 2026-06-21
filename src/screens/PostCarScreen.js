@@ -472,10 +472,11 @@ export default function PostCarScreen() {
             <VoicePostAssistant
               screenType="vehicle"
               onFill={({ title: name, salaryMin: dailyRate, description: notes, address: pickupLocation, whatsapp: wa }) => {
-                if (name)         set('name', name);
-                if (dailyRate)    set('dailyRate', dailyRate);
-                if (notes)        set('notes', notes);
-                if (wa)           set('whatsapp', wa);
+                if (name)           set('name', name);
+                if (dailyRate)      set('dailyRate', dailyRate);
+                if (notes)          set('notes', notes);
+                if (pickupLocation) set('pickupLocation', pickupLocation);
+                if (wa)             set('whatsapp', wa);
                 Toast.show({ type: 'success', text1: '✅ Form filled by voice!', text2: 'Check karo aur edit kar sakte ho' });
               }}
             />
