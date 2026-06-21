@@ -904,23 +904,26 @@ async function loadAnalytics(gen = navGen) {
 let postService = 'job';
 
 function renderPostTab() {
-  document.getElementById('main-content').innerHTML = `
+  const mc = document.getElementById('main-content');
+  mc.innerHTML = `
     <div class="page-title">Post a Listing</div>
     <div class="table-wrap" style="padding:20px">
-
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px">
-        ${['job','room','vehicle','buysell','banner'].map(s => `
-          <button onclick="postService='${s}';renderPostTab()"
-            style="padding:8px 20px;border-radius:20px;border:1px solid ${postService===s?'var(--orange)':'var(--border)'};
-                   background:${postService===s?'var(--orange-bg)':'transparent'};
-                   color:${postService===s?'var(--orange)':'var(--text2)'};cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif">
-            ${{job:'💼 Job',room:'🏠 Room',vehicle:'🚗 Vehicle',buysell:'🛍 Buy & Sell',banner:'📣 Promo Banner'}[s]}
-          </button>`).join('')}
-      </div>
-
+      <div id="post-tab-btns" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px"></div>
       <div id="post-form-area">${buildPostForm(postService)}</div>
     </div>`;
+
+  const labels = {job:'\u{1F4BC} Job', room:'\u{1F3E0} Room', vehicle:'\u{1F697} Vehicle', buysell:'\u{1F6CD} Buy & Sell', banner:'\u{1F4E3} Promo Banner'};
+  const btnContainer = document.getElementById('post-tab-btns');
+  ['job','room','vehicle','buysell','banner'].forEach(s => {
+    const btn = document.createElement('button');
+    btn.textContent = labels[s];
+    const active = postService === s;
+    btn.style.cssText = 'padding:8px 20px;border-radius:20px;border:1px solid ' + (active ? 'var(--orange)' : 'var(--border)') + ';background:' + (active ? 'var(--orange-bg)' : 'transparent') + ';color:' + (active ? 'var(--orange)' : 'var(--text2)') + ';cursor:pointer;font-size:13px;font-family:\'DM Sans\',sans-serif';
+    btn.addEventListener('click', () => { postService = s; renderPostTab(); });
+    btnContainer.appendChild(btn);
+  });
 }
+
 
 function buildPostForm(service) {
   // Reset uploaded photos for this form
