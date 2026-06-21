@@ -379,13 +379,17 @@ app.get('/payment/start', (req, res) => {
 // ── Static pages ──────────────────────────────────────────────────────────────
 const CALLBACK_HTML    = path.join(__dirname, '..', 'public', 'payment-callback.html');
 const ADMIN_LOGIN_HTML = path.join(__dirname, '..', 'public', 'admin-login.html');
-const ADMIN_PANEL_HTML = path.join(__dirname, '..', 'public', 'admin-panel.html');
+// NOTE: admin-login.html is a self-contained SPA — it renders the login screen
+// first, then transitions to the full admin panel in-page after authentication.
+// A separate admin-panel.html file does not exist and is not needed.
+// All three admin URLs below serve the same file intentionally.
 const PRIVACY_HTML     = path.join(__dirname, '..', 'public', 'privacy-policy.html');
 const TERMS_HTML       = path.join(__dirname, '..', 'public', 'terms-and-conditions.html');
 const REFUND_HTML      = path.join(__dirname, '..', 'public', 'refund-policy.html');
 
 app.get('/admin',       (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
 app.get('/admin-login', (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
+app.get('/admin-panel', (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
 app.get('/privacy-policy',       (_req, res) => res.sendFile(PRIVACY_HTML));
 app.get('/terms-and-conditions', (_req, res) => res.sendFile(TERMS_HTML));
 app.get('/refund-policy',        (_req, res) => res.sendFile(REFUND_HTML));
