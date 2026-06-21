@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { pool, cache } = require('../db');
 const { auth, adminOnly } = require('../middleware/auth');
+const { sendPushNotifications } = require('../utils/push');
 
 // ── Admin direct-post constants ───────────────────────────────────────────────
 const ADMIN_EXPIRY_DAYS = 365;
@@ -336,14 +337,13 @@ router.get('/debug', async (req, res) => {
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
 
-// POST /api/admin/notifications — send push notification via Expo push API
+// POST /api/admin/notifications — send push notification via Firebase (FCM)
 //
-// Targets users by push_token (stored in users.push_token by POST /api/auth/push-token).
-// Delivers in batches of 100 as required by the Expo push service.
+// Targets users by push_token (stored in users.push_token, a raw FCM device
+// token saved via POST /api/auth/save-push-token). Delivered through Firebase
+// Admin's messaging API — NOT Expo's push API, since the tokens we collect
+// are raw FCM tokens, not Expo-format tokens. See src/utils/push.js.
 // Returns { ok, sent_to, failed } so the admin sees accurate delivery counts.
-const EXPO_PUSH_URL  = 'https://exp.host/--/api/v2/push/send';
-const EXPO_BATCH_MAX = 100;
-
 router.post('/notifications', async (req, res) => {
   try {
     const { title, body, target } = req.body;
@@ -362,52 +362,17 @@ router.post('/notifications', async (req, res) => {
       return res.json({ ok: true, sent_to: 0, failed: 0, message: 'No push tokens found for target audience' });
     }
 
-    // Build Expo message objects
-    const messages = tokens.map(token => ({
-      to:    token,
-      title,
-      body,
-      sound: 'default',
-    }));
+    const { sent, failed, invalidTokens } = await sendPushNotifications(tokens, { title, body });
 
-    // Send in batches of EXPO_BATCH_MAX
-    let sentCount  = 0;
-    let failCount  = 0;
-    const batchErrors = [];
-
-    for (let i = 0; i < messages.length; i += EXPO_BATCH_MAX) {
-      const batch = messages.slice(i, i + EXPO_BATCH_MAX);
-      try {
-        const response = await fetch(EXPO_PUSH_URL, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body:    JSON.stringify(batch),
-        });
-
-        if (!response.ok) {
-          const text = await response.text();
-          batchErrors.push(`Batch ${Math.floor(i / EXPO_BATCH_MAX) + 1} HTTP ${response.status}: ${text}`);
-          failCount += batch.length;
-          continue;
-        }
-
-        const result = await response.json();
-        // Expo returns { data: [ { status: 'ok' | 'error', ... } ] }
-        for (const ticket of result.data || []) {
-          ticket.status === 'ok' ? sentCount++ : failCount++;
-        }
-      } catch (batchErr) {
-        batchErrors.push(`Batch ${Math.floor(i / EXPO_BATCH_MAX) + 1} fetch error: ${batchErr.message}`);
-        failCount += batch.length;
-      }
+    // House-keeping: clear dead/unregistered tokens so future sends don't
+    // keep wasting batches on devices that uninstalled the app or expired.
+    if (invalidTokens.length) {
+      await pool.query('UPDATE users SET push_token = NULL WHERE push_token = ANY($1)', [invalidTokens])
+        .catch(e => console.warn('[admin/notifications] failed to clear invalid tokens:', e.message));
     }
 
-    if (batchErrors.length) {
-      console.error('📣 Notification batch errors:', batchErrors);
-    }
-    console.log(`📣 Admin notification (${target}): "${title}" — sent=${sentCount}, failed=${failCount}`);
-
-    res.json({ ok: true, sent_to: sentCount, failed: failCount });
+    console.log(`📣 Admin notification (${target}): "${title}" — sent=${sent}, failed=${failed}`);
+    res.json({ ok: true, sent_to: sent, failed });
   } catch (err) {
     console.error(err);
     res.json({ ok: false, error: 'Failed to send notification' });
