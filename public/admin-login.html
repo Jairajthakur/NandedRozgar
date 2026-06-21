@@ -142,51 +142,51 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-top:5px">Admin</div>
     </div>
     <nav class="nav-items">
-      <div class="nav-item active" data-tab="overview">
+      <div class="nav-item active" data-tab="overview" onclick="showTab('overview')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         Overview
       </div>
-      <div class="nav-item" data-tab="users">
+      <div class="nav-item" data-tab="users" onclick="showTab('users')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>
         Users
       </div>
-      <div class="nav-item" data-tab="jobs">
+      <div class="nav-item" data-tab="jobs" onclick="showTab('jobs')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
         Jobs
       </div>
-      <div class="nav-item" data-tab="payments">
+      <div class="nav-item" data-tab="payments" onclick="showTab('payments')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         Payments
       </div>
-      <div class="nav-item" data-tab="vehicles">
+      <div class="nav-item" data-tab="vehicles" onclick="showTab('vehicles')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
         Car Rent
       </div>
-      <div class="nav-item" data-tab="rooms">
+      <div class="nav-item" data-tab="rooms" onclick="showTab('rooms')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Home / PG
       </div>
-      <div class="nav-item" data-tab="buysell">
+      <div class="nav-item" data-tab="buysell" onclick="showTab('buysell')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
         Buy &amp; Sell
       </div>
-      <div class="nav-item" data-tab="analytics">
+      <div class="nav-item" data-tab="analytics" onclick="showTab('analytics')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Analytics
       </div>
-      <div class="nav-item" data-tab="logs">
+      <div class="nav-item" data-tab="logs" onclick="showTab('logs')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Activity Logs
       </div>
-      <div class="nav-item" data-tab="post">
+      <div class="nav-item" data-tab="post" onclick="showTab('post')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         Post Listing
       </div>
-      <div class="nav-item" data-tab="banners">
+      <div class="nav-item" data-tab="banners" onclick="showTab('banners')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
         Banners
       </div>
-      <div class="nav-item" data-tab="notify">
+      <div class="nav-item" data-tab="notify" onclick="showTab('notify')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         Notifications
       </div>
@@ -296,22 +296,29 @@ function showTab(tab) {
   currentTab = tab;
   const gen = ++navGen; // capture current generation for stale-response detection
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  const idx = ['overview','users','jobs','payments','vehicles','rooms','buysell','analytics','logs','post','banners','notify'].indexOf(tab);
-  document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
+  // Set active on the matching nav item by data-tab attribute (more reliable than index)
+  const activeEl = document.querySelector(`.nav-item[data-tab="${tab}"]`);
+  if (activeEl) activeEl.classList.add('active');
   const m = document.getElementById('main-content');
   m.innerHTML = '<div class="tab-spinner">Loading…</div>';
-  if (tab === 'overview')   loadOverview(gen);
-  if (tab === 'users')      loadUsers(gen);
-  if (tab === 'jobs')       loadJobs(gen);
-  if (tab === 'vehicles')   loadVehicles(gen);
-  if (tab === 'rooms')      loadRooms(gen);
-  if (tab === 'buysell')    loadBuySell(gen);
-  if (tab === 'payments')   loadPayments(gen);
-  if (tab === 'analytics')  loadAnalytics(gen);
-  if (tab === 'logs')       { logsPage=1; logsAction=''; logsStatus=''; logsSearch=''; loadLogs(1, false, gen); startLogsPolling(); }
+
+  const catchErr = (fn) => fn().catch(err => {
+    console.error('[showTab] load error:', err);
+    if (gen === navGen) m.innerHTML = `<div style="padding:40px;text-align:center;color:var(--red)">⚠ Error loading tab: ${esc(String(err.message||err))}</div>`;
+  });
+
+  if (tab === 'overview')   catchErr(() => loadOverview(gen));
+  if (tab === 'users')      catchErr(() => loadUsers(gen));
+  if (tab === 'jobs')       catchErr(() => loadJobs(gen));
+  if (tab === 'vehicles')   catchErr(() => loadVehicles(gen));
+  if (tab === 'rooms')      catchErr(() => loadRooms(gen));
+  if (tab === 'buysell')    catchErr(() => loadBuySell(gen));
+  if (tab === 'payments')   catchErr(() => loadPayments(gen));
+  if (tab === 'analytics')  catchErr(() => loadAnalytics(gen));
+  if (tab === 'logs')       { logsPage=1; logsAction=''; logsStatus=''; logsSearch=''; catchErr(() => loadLogs(1, false, gen)); startLogsPolling(); }
   else                       { stopLogsPolling(); }
   if (tab === 'post')       renderPostTab();
-  if (tab === 'banners')    loadBanners(gen);
+  if (tab === 'banners')    catchErr(() => loadBanners(gen));
   if (tab === 'notify')     renderNotify();
 }
 
@@ -481,7 +488,7 @@ function filterUsers(q) {
 
 async function toggleUser(id, active) {
   const d = await api('PATCH', `/api/admin/users/${id}/toggle`);
-  if (d.ok) { toast(active ? 'User banned' : 'User unbanned'); loadUsers(); }
+  if (d.ok) { toast(active ? 'User banned' : 'User unbanned'); loadUsers(navGen); }
   else toast(d.error || 'Failed', 'error');
 }
 async function setPro(id, grant) {
