@@ -68,16 +68,7 @@ const AREAS_BY_DISTRICT = {
     'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
     'Mudkhed', 'Other',
   ],
-  latur: [
-    // ── Latur City localities ──
-    'Latur City', 'Ausa Road', 'Udgir Road', 'Railway Station Area',
-    'Nit Nagar', 'Gandhi Nagar', 'Shivaji Nagar', 'Budhwar Peth',
-    'Sadar Bazar', 'Renuka Nagar',
-    // ── Latur District Talukas ──
-    'Latur (Taluka)', 'Ausa', 'Udgir', 'Nilanga', 'Deoni',
-    'Chakur', 'Renapur', 'Ahmedpur', 'Shirur Anantpal', 'Jalkot',
-    'Other',
-  ],
+  // Latur localities removed — Nanded-only for now.
 };
 const AVAILABLE_FROM = [
   { label: 'Immediately',   sub: 'Ready to move in right now' },
