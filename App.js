@@ -15,6 +15,7 @@ import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-ic
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { DistrictProvider, useDistrict } from './src/context/DistrictContext';
 import { LangProvider, useLang } from './src/utils/i18n';
+import { UpdateProvider } from './src/hooks/useAppUpdate';
 import LoginScreen      from './src/screens/LoginScreen';
 import HomeScreen       from './src/screens/HomeScreen';
 import BoardScreen      from './src/screens/BoardScreen';
@@ -837,12 +838,14 @@ export default function App() {
           <AuthProvider>
             <DistrictProvider>
             <LangProvider>
+            <UpdateProvider>
             <NavigationContainer linking={linking} ref={navigationRef}>
               <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
               {Platform.OS === 'web' && !isOnline && <OfflineBanner />}
               <RootNavigator />
             </NavigationContainer>
             <Toast />
+            </UpdateProvider>
           </LangProvider>
           </DistrictProvider>
           </AuthProvider>
