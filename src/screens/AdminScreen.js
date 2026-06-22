@@ -1271,7 +1271,7 @@ export default function AdminScreen() {
                   style={styles.input}
                   value={bannerForm.location}
                   onChangeText={v => setBannerForm(f => ({ ...f, location: v }))}
-                  placeholder="e.g. Nanded, Latur"
+                  placeholder="e.g. Nanded"
                   placeholderTextColor={C.text3}
                 />
 
