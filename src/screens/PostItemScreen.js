@@ -60,16 +60,7 @@ const AREAS_BY_DISTRICT = {
     'Mudkhed',
     'Other',
   ],
-  latur: [
-    // ── Latur City localities ──
-    'Latur City', 'Ausa Road', 'Udgir Road', 'Railway Station Area',
-    'Nit Nagar', 'Gandhi Nagar', 'Shivaji Nagar', 'Budhwar Peth',
-    'Sadar Bazar', 'Renuka Nagar',
-    // ── Latur District Talukas ──
-    'Latur (Taluka)', 'Ausa', 'Udgir', 'Nilanga', 'Deoni',
-    'Chakur', 'Renapur', 'Ahmedpur', 'Shirur Anantpal', 'Jalkot',
-    'Other',
-  ],
+  // Latur localities removed — Nanded-only for now.
 };
 
 const PLANS = [
