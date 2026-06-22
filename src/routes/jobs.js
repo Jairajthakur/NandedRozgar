@@ -233,7 +233,7 @@ router.post('/', auth, async (req, res) => {
       phone, whatsapp || phone, description, skillsArr, reqArr,
       education || '', experience || '', hours || '', openings || '1',
       false, false, isFresherOk, expiresAt,
-      (process.env.VALID_DISTRICTS || 'nanded,latur').split(',').map(d=>d.trim()).includes(district) ? district : 'nanded',
+      (process.env.VALID_DISTRICTS || 'nanded').split(',').map(d=>d.trim()).includes(district) ? district : 'nanded',
     ]);
 
     await cache.delPrefix('jobs:'); // bust list cache
