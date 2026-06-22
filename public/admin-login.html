@@ -967,9 +967,24 @@ function buildPostForm(service) {
       Post Now (No Payment)
     </button>`;
 
+  const voiceFillBlock = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:4px">
+      <button type="button" id="admin-voice-btn" onclick="toggleAdminVoiceFill('${service}')"
+        style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--orange);color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
+        🎙️ <span id="admin-voice-btn-label">Speak to Fill Form</span>
+      </button>
+      <select id="admin-voice-lang" style="padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif">
+        <option value="mr-IN">Marathi</option>
+        <option value="hi-IN">Hindi</option>
+        <option value="en-IN">English</option>
+      </select>
+      <span id="admin-voice-status" style="font-size:12px;color:var(--text3)">Speak job/room/item details and AI will fill the form.</span>
+    </div>`;
+
   const forms = {
     job: `
       <form id="admin-post-form" onsubmit="return false" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+        ${voiceFillBlock}
         ${field('Job Title *', inp('title','e.g. Sales Executive',  'text', true))}
         ${row(field('Company', inp('company','Company name')), field('Category *', sel('category',['IT','Sales','Teaching','Driver','Security','Electrician','Plumber','Cook','Helper','Other'],'Select category')))}
         ${row(field('Job Type', sel('type',['Full-time','Part-time','Freelance','Internship'],'Type')), field('Location *', inp('location','City / Area','text',true)))}
@@ -983,6 +998,7 @@ function buildPostForm(service) {
 
     room: `
       <form id="admin-post-form" onsubmit="return false" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+        ${voiceFillBlock}
         ${field('Title *', inp('title','e.g. 2BHK Flat near Station','text',true))}
         ${row(field('Rent (₹/month) *', inp('rent','','number',true)), field('BHK', sel('bhk',['1 RK','1 BHK','2 BHK','3 BHK','4+ BHK'],'Select')))}
         ${row(field('Type', sel('type',['Apartment','Independent House','PG','Hostel','Shop','Office'],'Type')), field('Furnished', sel('furnished',['Furnished','Semi-Furnished','Unfurnished'],'Select')))}
@@ -997,6 +1013,7 @@ function buildPostForm(service) {
 
     vehicle: `
       <form id="admin-post-form" onsubmit="return false" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+        ${voiceFillBlock}
         ${field('Title *', inp('title','e.g. Honda Activa 2020','text',true))}
         ${row(field('Type', sel('type',['Bike','Car','Auto','Truck','Tractor','Other'],'Type')), field('Brand', inp('brand','e.g. Honda')))}
         ${row(field('Model', inp('model','e.g. Activa 6G')), field('Year', inp('year','e.g. 2020','number')))}
@@ -1011,6 +1028,7 @@ function buildPostForm(service) {
 
     buysell: `
       <form id="admin-post-form" onsubmit="return false" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+        ${voiceFillBlock}
         ${field('Title *', inp('title','e.g. Samsung TV 43 inch','text',true))}
         ${row(field('Category', sel('category',['Electronics','Furniture','Clothes','Vehicles','Books','Sports','Other'],'Category')), field('Condition', sel('condition',['New','Like New','Good','Fair','Poor'],'Condition')))}
         ${row(field('Price (₹) *', inp('price','','number',true)), field('Age', inp('age','e.g. 2 years')))}
@@ -1361,6 +1379,115 @@ async function submitAdminBanner() {
 }
 
 
+
+// ── ADMIN VOICE POST (AI) ─────────────────────────────────────────────────────
+let adminVoiceRecognition = null;
+let adminVoiceListening = false;
+
+function getAdminVoiceRecognitionCtor() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function toggleAdminVoiceFill(service) {
+  const Ctor = getAdminVoiceRecognitionCtor();
+  const statusEl = document.getElementById('admin-voice-status');
+  const labelEl  = document.getElementById('admin-voice-btn-label');
+  if (!Ctor) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">⚠ Voice input not supported in this browser. Use Chrome.</span>';
+    return;
+  }
+
+  if (adminVoiceListening) {
+    adminVoiceRecognition && adminVoiceRecognition.stop();
+    return;
+  }
+
+  const lang = document.getElementById('admin-voice-lang')?.value || 'mr-IN';
+  adminVoiceRecognition = new Ctor();
+  adminVoiceRecognition.lang = lang;
+  adminVoiceRecognition.interimResults = false;
+  adminVoiceRecognition.maxAlternatives = 1;
+
+  adminVoiceRecognition.onstart = () => {
+    adminVoiceListening = true;
+    if (labelEl) labelEl.textContent = 'Listening… tap to stop';
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--orange)">🎙️ Listening — speak the details now…</span>';
+  };
+
+  adminVoiceRecognition.onerror = (e) => {
+    adminVoiceListening = false;
+    if (labelEl) labelEl.textContent = 'Speak to Fill Form';
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--red)">⚠ ${e.error === 'not-allowed' ? 'Microphone permission denied.' : 'Voice error: ' + e.error}</span>`;
+  };
+
+  adminVoiceRecognition.onend = () => {
+    adminVoiceListening = false;
+    if (labelEl) labelEl.textContent = 'Speak to Fill Form';
+  };
+
+  adminVoiceRecognition.onresult = async (e) => {
+    const transcript = e.results?.[0]?.[0]?.transcript || '';
+    if (!transcript.trim()) {
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">⚠ No speech detected. Try again.</span>';
+      return;
+    }
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--text3)">Heard: "${transcript}" — filling form with AI…</span>`;
+
+    const screenTypeMap = { job: 'job', room: 'room', vehicle: 'vehicle', buysell: 'item' };
+    const screenType = screenTypeMap[service] || 'job';
+
+    try {
+      const d = await api('POST', '/api/ai/voice-fill', { transcript, screenType, lang });
+      if (d.ok && d.fields) {
+        applyAdminVoiceFields(service, d.fields);
+        if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✅ Form filled by voice! Check and edit before posting.</span>';
+      } else {
+        if (statusEl) statusEl.innerHTML = `<span style="color:var(--red)">⚠ ${d.error || 'AI could not understand. Try again.'}</span>`;
+      }
+    } catch (err) {
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">⚠ Network error while filling form.</span>';
+    }
+  };
+
+  adminVoiceRecognition.start();
+}
+
+function setAdminFormField(name, value) {
+  if (value === undefined || value === null || value === '') return;
+  const form = document.getElementById('admin-post-form');
+  if (!form) return;
+  const el = form.querySelector(`[name="${name}"]`);
+  if (el) el.value = value;
+}
+
+function applyAdminVoiceFields(service, fields) {
+  if (service === 'job') {
+    const pos = Array.isArray(fields.positions) && fields.positions[0] ? fields.positions[0] : {};
+    setAdminFormField('title', pos.title);
+    setAdminFormField('company', fields.company);
+    setAdminFormField('openings', pos.vacancies);
+    if (pos.salaryMin && pos.salaryMax) setAdminFormField('salary', `₹${pos.salaryMin}–₹${pos.salaryMax}`);
+    else if (pos.salaryMin) setAdminFormField('salary', `₹${pos.salaryMin}`);
+    setAdminFormField('description', fields.description);
+    if (Array.isArray(fields.skills)) setAdminFormField('skills', fields.skills.join(', '));
+    setAdminFormField('location', fields.address);
+  } else if (service === 'room') {
+    setAdminFormField('rent', fields.rent);
+    setAdminFormField('landmark', fields.landmark);
+    setAdminFormField('whatsapp', fields.whatsapp);
+    setAdminFormField('description', fields.notes);
+  } else if (service === 'vehicle') {
+    setAdminFormField('title', fields.title);
+    setAdminFormField('price', fields.salaryMin);
+    setAdminFormField('whatsapp', fields.whatsapp);
+    setAdminFormField('description', fields.description);
+  } else if (service === 'buysell') {
+    setAdminFormField('title', fields.title);
+    setAdminFormField('price', fields.price);
+    setAdminFormField('area', fields.area);
+    setAdminFormField('description', fields.description);
+  }
+}
 
 async function submitAdminPost() {
   const form = document.getElementById('admin-post-form');
