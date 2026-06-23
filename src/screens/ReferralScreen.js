@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { View, Text, TouchableOpacity, StyleSheet, Share, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -46,6 +47,9 @@ export default function ReferralScreen() {
 
         {/* Credit Balance */}
         <View style={styles.balanceBox}>
+          {/* Glossy sheen */}
+          <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
+          <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
           <Text style={styles.balanceLabel}>YOUR CREDIT BALANCE</Text>
           {loading ? (
             <ActivityIndicator color={ORANGE} style={{ marginVertical: 6 }} />
@@ -104,7 +108,7 @@ const styles = StyleSheet.create({
   iconWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   title: { fontSize: 20, fontWeight: '800', color: '#111', marginBottom: 8 },
   sub: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
-  balanceBox: { width: '100%', backgroundColor: '#111', borderRadius: 14, padding: 18, alignItems: 'center', marginBottom: 20 },
+  balanceBox: { width: '100%', backgroundColor: '#111', borderRadius: 14, padding: 18, alignItems: 'center', marginBottom: 20, overflow: 'hidden', position: 'relative' },
   balanceLabel: { fontSize: 10, fontWeight: '700', color: '#888', letterSpacing: 1, marginBottom: 6 },
   balanceAmount: { fontSize: 36, fontWeight: '900', color: ORANGE, marginBottom: 6 },
   balanceUnit: { fontSize: 18, fontWeight: '600', color: '#aaa' },
