@@ -9,7 +9,6 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform, StatusBar,
@@ -494,9 +493,6 @@ export default function LoginScreen() {
             <View style={S.pulseWrap}>
               <Animated.View style={[S.pulseRing, { transform: [{ scale: pulse }], opacity: pulseOp }]} />
               <View style={S.logoMark}>
-              {/* Glossy sheen */}
-              <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-              <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
                 <Image
                   source={require('../../assets/icon.png')}
                   style={{ width: 52, height: 52, borderRadius: 14 }}
