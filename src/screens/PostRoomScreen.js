@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   StyleSheet, Alert, KeyboardAvoidingView, Platform,
@@ -428,9 +427,6 @@ export default function PostRoomScreen() {
 
       {/* Banner */}
       <View style={s.banner}>
-        {/* Glossy sheen */}
-        <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-        <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
         <Text style={s.bannerTitle}>{meta.title}</Text>
         <Text style={s.bannerSub}>{meta.sub}</Text>
       </View>
@@ -853,7 +849,7 @@ const s = StyleSheet.create({
   dot:         { flex:1, height:3, borderRadius:2, backgroundColor:'rgba(255,255,255,0.3)' },
   dotDone:     { backgroundColor:'rgba(255,255,255,0.65)' },
   dotCur:      { backgroundColor:'#fff' },
-  banner:      { overflow: 'hidden', position: 'relative', backgroundColor:TEAL, paddingHorizontal:16, paddingBottom:20 },
+  banner:      { backgroundColor:TEAL, paddingHorizontal:16, paddingBottom:20 },
   bannerTitle: { fontSize:22, fontWeight:'800', color:'#fff' },
   bannerSub:   { fontSize:13, color:'rgba(255,255,255,0.85)', marginTop:2 },
   body:        { padding:16, paddingBottom:40 },
