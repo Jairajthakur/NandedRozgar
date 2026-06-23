@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { LinearGradient } from 'expo-linear-gradient';
 
 const ORANGE = "#f97316";
 const ORANGE_LIGHT = "#fff7ed";
