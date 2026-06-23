@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, RefreshControl,
 } from 'react-native';
@@ -19,6 +20,8 @@ function StatusBadge({ status }) {
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.applied;
   return (
     <View style={[styles.badge, { backgroundColor: cfg.bg, borderColor: cfg.color + '40' }]}>
+      {/* Glossy sheen banner */}
+      <LinearGradient colors={['rgba(249,115,22,0.18)', 'rgba(249,115,22,0)']} style={{ height: 4, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }} />
       <Ionicons name={cfg.icon} size={13} color={cfg.color} />
       <Text style={[styles.badgeTxt, { color: cfg.color }]}>{cfg.label}</Text>
     </View>
