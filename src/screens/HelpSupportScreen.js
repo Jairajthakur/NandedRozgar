@@ -10,7 +10,6 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Animated, Easing, Modal, Linking, Platform,
@@ -195,9 +194,6 @@ function LegalModal({ visible, contentKey, onClose }) {
           {/* Header */}
           <SafeAreaView>
             <View style={styles.legalHeader}>
-              {/* Glossy sheen */}
-              <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-              <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
               <View style={[styles.legalHeaderIcon, { backgroundColor: content.bg }]}>
                 <Ionicons name={content.icon} size={18} color={content.color} />
               </View>
@@ -720,7 +716,7 @@ const styles = StyleSheet.create({
     height: '92%', backgroundColor: SURFACE,
     borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden',
   },
-  legalHeader: { overflow: 'hidden', position: 'relative',
+  legalHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 20, paddingVertical: 16,
     borderBottomWidth: 1, borderBottomColor: BORDER,
