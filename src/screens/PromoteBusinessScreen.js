@@ -10,7 +10,6 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, StatusBar, Alert, ActivityIndicator,
@@ -173,9 +172,6 @@ function PlanCard({ plan, selected, onSelect }) {
           selected && s.planCardActive,
         ]}
       >
-          {/* Glossy sheen */}
-          <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-          <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
         {plan.badge && (
           <View style={[s.planBadge, { backgroundColor: plan.color + '18', borderColor: plan.border }]}>
             <Text style={[s.planBadgeTxt, { color: plan.color }]}>{plan.badge}</Text>
@@ -858,7 +854,7 @@ const s = StyleSheet.create({
 
   // Plans
   plansWrap: { gap: 12 },
-  planCard: { overflow: 'hidden', position: 'relative',
+  planCard: {
     borderRadius: 16, borderWidth: 2, padding: 14, gap: 10,
   },
   planCardActive: {
