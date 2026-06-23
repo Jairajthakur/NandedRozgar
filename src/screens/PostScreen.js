@@ -292,6 +292,9 @@ export default function PostScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[ws.body, { paddingBottom: 60 }]}
         >
+          {/* Monthly Plan Banner — top of page */}
+          <MonthlyPlanBanner navigation={nav} />
+
           {/* Header card */}
           {HeaderContent}
 
@@ -307,9 +310,6 @@ export default function PostScreen() {
               />
             ))}
           </View>
-
-          {/* Monthly Plan Banner */}
-          <MonthlyPlanBanner navigation={nav} />
         </ScrollView>
       </View>
     );
@@ -342,6 +342,11 @@ export default function PostScreen() {
         overScrollMode="never"
         contentContainerStyle={s.scroll}
       >
+        {/* Monthly Plan Banner — top of page */}
+        <View style={s.bannerTop}>
+          <MonthlyPlanBanner navigation={nav} />
+        </View>
+
         {/* Header */}
         {HeaderContent}
 
@@ -357,9 +362,6 @@ export default function PostScreen() {
             />
           ))}
         </View>
-
-        {/* Monthly Plan Banner */}
-        <MonthlyPlanBanner navigation={nav} />
       </ScrollView>
     </View>
   );
@@ -372,6 +374,7 @@ const s = StyleSheet.create({
 
   root:   { flex: 1, backgroundColor: '#f7f7f7' },
   scroll: { paddingBottom: 36 },
+  bannerTop: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 2 },
 
   // ── Top bar ───────────────────────────────────────────────────
   topBar: {
