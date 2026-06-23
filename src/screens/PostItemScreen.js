@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   StyleSheet, Alert, KeyboardAvoidingView, Platform,
@@ -155,6 +156,9 @@ function StepDots({ step, total }) {
 function HeroHeader({ step, total, title, sub, onBack }) {
   return (
     <View style={styles.hero}>
+      {/* Glossy sheen */}
+      <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
+      <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
       <View style={styles.heroCircle1} />
       <View style={styles.heroCircle2} />
       <View style={styles.heroTop}>
@@ -822,7 +826,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
 
   // Hero
-  hero: {
+  hero: { overflow: 'hidden', position: 'relative',
     backgroundColor: ORANGE,
     paddingTop: Platform.OS === 'ios' ? 54 : 36,
     paddingBottom: 24,
