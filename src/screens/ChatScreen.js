@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -143,6 +144,8 @@ export default function ChatScreen({ route, navigation }) {
 
   if (loading) return (
     <View style={styles.center}>
+      {/* Glossy sheen banner */}
+      <LinearGradient colors={['rgba(249,115,22,0.18)', 'rgba(249,115,22,0)']} style={{ height: 4, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }} />
       <ActivityIndicator color={ORANGE} size="large" />
     </View>
   );
