@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   StyleSheet, Alert, KeyboardAvoidingView, Platform,
@@ -850,9 +849,6 @@ function RadioCard({ label, sub, selected, onPress, color }) {
 function RevRow({ label, value }) {
   return (
     <View style={s.revRow}>
-          {/* Glossy sheen */}
-          <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-          <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
       <Text style={s.revLabel}>{label}</Text>
       <Text style={s.revValue} numberOfLines={2}>{value}</Text>
     </View>
