@@ -41,10 +41,11 @@ router.get('/', async (req, res) => {
     const [countRes, dataRes] = await Promise.all([
       pool.query(`SELECT COUNT(*) FROM rooms r WHERE ${where}`, countParams),
       pool.query(`
-        SELECT r.id, r.title, r.rent, r.type, r.bhk, r.furnished, r.area, r.address,
-               r.landmark, r.owner_name, r.whatsapp, r.district, r.plan, r.status,
-               r.created_at, r.expires_at, r.views,
-               r.photos,
+        SELECT r.id, r.title, r.rent, r.type, r.bhk, r.bhk_size, r.room_type, r.furnished,
+               r.area, r.address, r.landmark, r.owner_name, r.whatsapp, r.district,
+               r.plan, r.status, r.created_at, r.expires_at, r.views,
+               r.photos, r.description, r.for_gender, r.floor, r.total_floors,
+               r.vacancies,
                u.name AS poster_name
         FROM rooms r
         LEFT JOIN users u ON u.id = r.posted_by
