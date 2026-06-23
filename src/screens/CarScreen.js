@@ -345,14 +345,16 @@ export default function CarsScreen({ route }) {
       if (res.ok && res.vehicles) {
         const mapped = res.vehicles.map(v => ({
           id:       String(v.id),
-          name:     v.name,
-          subtitle: [v.color, v.fuel_type, v.ac_type, v.seats ? `${v.seats} seats` : ''].filter(Boolean).join(' · '),
-          price:    v.daily_rate ? `₹${v.daily_rate}/day` : 'Price on request',
-          priceNum: v.daily_rate || 0,
+          name:     v.name || v.title || v.type || 'Vehicle',
+          subtitle: [v.color, v.fuel, v.seats ? `${v.seats} seats` : ''].filter(Boolean).join(' · '),
+          price:    v.price
+            ? (v.listing_purpose === 'sell' ? `₹${v.price}` : `₹${v.price}/day`)
+            : 'Price on request',
+          priceNum: v.price || 0,
           location: v.area || 'Nanded',
-          type:     v.vehicle_type || 'Car',
-          fuel:     v.fuel_type || '',
-          ac:       !!v.ac_type,
+          type:     v.type || 'Car',
+          fuel:     v.fuel || '',
+          ac:       false,
           photoUrls: (() => {
             try {
               const raw = v.photos;
