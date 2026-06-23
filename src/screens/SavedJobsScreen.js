@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl,
@@ -19,9 +18,6 @@ function JobCard({ job, onPress }) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>
       <View style={styles.cardTop}>
-        {/* Glossy sheen */}
-        <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-        <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
         <View style={{ flex: 1 }}>
           <Text style={styles.title} numberOfLines={1}>{job.title}</Text>
           <Text style={styles.company} numberOfLines={1}>{job.company}</Text>
@@ -147,7 +143,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
   },
-  cardTop:    { overflow: 'hidden', position: 'relative', flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8, gap: 8 },
+  cardTop:    { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8, gap: 8 },
   title:      { fontSize: 15, fontWeight: '700', color: TEXT, marginBottom: 2 },
   company:    { fontSize: 13, color: MUTED },
   badge:      { backgroundColor: '#fff7ed', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
