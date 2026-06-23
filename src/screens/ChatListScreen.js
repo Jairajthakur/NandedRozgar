@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl,
@@ -75,9 +74,6 @@ export default function ChatListScreen({ navigation }) {
             <TouchableOpacity style={styles.row} onPress={() => openChat(item)} activeOpacity={0.8}>
               {/* Avatar */}
               <View style={styles.avatar}>
-                {/* Glossy sheen */}
-                <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-                <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
                 <Text style={styles.avatarTxt}>{item.other_name?.[0]?.toUpperCase() || '?'}</Text>
               </View>
               <View style={styles.rowContent}>
@@ -109,7 +105,7 @@ const styles = StyleSheet.create({
   emptyTitle:      { fontSize: 16, fontWeight: '700', color: '#aaa' },
   emptySub:        { fontSize: 12, color: '#ccc', textAlign: 'center', lineHeight: 18 },
   row:             { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f5', gap: 12 },
-  avatar:          { width: 48, height: 48, borderRadius: 24, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' },
+  avatar:          { width: 48, height: 48, borderRadius: 24, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
   avatarTxt:       { fontSize: 18, fontWeight: '800', color: '#fff' },
   rowContent:      { flex: 1 },
   rowTop:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
