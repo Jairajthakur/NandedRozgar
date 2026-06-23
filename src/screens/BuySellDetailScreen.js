@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Linking, Alert, Image, Animated, Easing, Share,
@@ -135,6 +136,9 @@ function ImageGallery({ photos, category }) {
     }, []);
     return (
       <View style={[s.gallery, { backgroundColor: catColor.bg, overflow: 'hidden' }]}>
+          {/* Glossy sheen */}
+          <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
+          <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
         <View style={s.galleryRing1} />
         <View style={s.galleryRing2} />
         <Animated.View style={{ transform: [{ scale: pulse }, { translateY: float }], alignItems: 'center' }}>
