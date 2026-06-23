@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
@@ -168,9 +167,6 @@ function ImageGallery({ photos, vehicleType }) {
     }, []);
     return (
       <View style={[s.gallery, { backgroundColor: DARK_NAVY, overflow: 'hidden' }]}>
-          {/* Glossy sheen */}
-          <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-          <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
         {/* Background rings */}
         <View style={s.galleryRing1} />
         <View style={s.galleryRing2} />
@@ -288,16 +284,11 @@ export default function CarDetailScreen() {
   const featureIcons = ['color-palette-outline', 'flame-outline', 'snow-outline', 'people-outline', 'speedometer-outline', 'settings-outline'];
 
   // Build quick stats from features
-  // Support both legacy (listedDaysAgo) and new (daysLeft) fields
-  const daysAgoValue = car.listedDaysAgo
-    ? `${car.listedDaysAgo}d ago`
-    : (car.daysLeft != null ? `${Math.max(0, 30 - car.daysLeft)}d ago` : 'Recent');
-
   const quickStats = [
     { icon: 'car-outline',         label: 'Type',   value: car.type || 'Car' },
     { icon: 'flame-outline',       label: 'Fuel',   value: car.fuel || features.find(f => ['Petrol','Diesel','CNG','Electric'].includes(f)) || '—' },
-    { icon: 'people-outline',      label: 'Seats',  value: car.seats ? `${car.seats} seats` : (features.find(f => f.includes('seat')) || '—') },
-    { icon: 'calendar-outline',    label: 'Listed', value: daysAgoValue },
+    { icon: 'people-outline',      label: 'Seats',  value: features.find(f => f.includes('seat')) || '5 seats' },
+    { icon: 'calendar-outline',    label: 'Listed', value: car.listedDaysAgo ? `${car.listedDaysAgo}d ago` : 'Recent' },
   ];
 
   return (
@@ -346,7 +337,7 @@ export default function CarDetailScreen() {
                 <Ionicons name="location-outline" size={13} color="#888" />
                 <Text style={s.locationTxt}>
                   {car.location || 'Nanded'}
-                  {car.listedDaysAgo ? ` · ${car.listedDaysAgo} days ago` : (car.daysLeft != null ? ` · ${Math.max(0, 30 - car.daysLeft)}d ago` : '')}
+                  {car.listedDaysAgo ? ` · ${car.listedDaysAgo} days ago` : ''}
                 </Text>
               </View>
             </View>
