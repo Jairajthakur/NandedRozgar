@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   View,
   Text,
@@ -162,9 +161,6 @@ function Card({ title, icon, iconColor, iconBg, children, action, onAction }) {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        {/* Glossy sheen */}
-        <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-        <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
         <View style={styles.cardTitle}>
           {icon ? (
             <View style={[styles.cardTitleIcon, { backgroundColor: iconBg || C.orangeLight }]}>
@@ -1858,7 +1854,7 @@ const styles = StyleSheet.create({
 
   // Card
   card: { backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginBottom: 14, overflow: 'hidden' },
-  cardHeader: { position: 'relative', overflow: 'hidden', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 1, borderBottomColor: C.border },
   cardTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardTitleIcon: { width: 26, height: 26, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   cardTitleText: { fontSize: 13, fontWeight: '700', color: C.text },
