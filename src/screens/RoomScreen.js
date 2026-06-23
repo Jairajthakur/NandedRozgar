@@ -471,21 +471,36 @@ export default function RoomScreen({ route }) {
       if (res.ok && res.rooms?.length > 0) {
         const apiRooms = res.rooms.map((r) => ({
           id:            String(r.id),
-          title:         r.title || r.name || 'Room',
+          title:         r.title || r.bhk || r.bhk_size || r.type || 'Room',
           location:      r.area  || r.location || 'Nanded',
-          type:          r.room_type || r.type || '1BHK',
-          rent:          r.monthly_rent ? `₹${r.monthly_rent}/mo` : (r.rent || 'Price on request'),
-          rentNum:       r.monthly_rent || 0,
-          available:     r.available !== false,
+          type:          r.room_type || r.type || r.bhk || '1BHK',
+          bhk:           r.bhk || r.bhk_size || '',
+          rent:          r.rent ? `₹${r.rent}/mo` : 'Price on request',
+          rentNum:       r.rent || 0,
+          available:     r.status !== 'inactive',
           description:   r.description || '',
-          amenities:     r.amenities   || [],
-          for:           r.suitable_for || r.for || 'Any',
+          amenities:     (() => {
+            try {
+              if (Array.isArray(r.amenities)) return r.amenities;
+              if (typeof r.amenities === 'string') return JSON.parse(r.amenities);
+              return [];
+            } catch { return []; }
+          })(),
+          for:           r.for_gender || 'Any',
+          furnished:     r.furnished || '',
           listedDaysAgo: r.created_at
             ? Math.ceil((Date.now() - new Date(r.created_at)) / 86400000) : null,
           deposit:  r.deposit || null,
           owner:    { name: r.owner_name || r.poster_name || 'Owner', verified: !!r.verified },
-          phone:    r.phone || r.whatsapp || '',
-          photos:   Array.isArray(r.photos) ? r.photos : (r.photos ? JSON.parse(r.photos) : []),
+          phone:    r.whatsapp || '',
+          whatsapp: r.whatsapp || '',
+          photos:   (() => {
+            try {
+              if (Array.isArray(r.photos)) return r.photos;
+              if (typeof r.photos === 'string') return JSON.parse(r.photos);
+              return [];
+            } catch { return []; }
+          })(),
           vacancies: r.vacancies || 0,
         }));
         // Use only real API rooms; empty state is handled by the FlatList ListEmptyComponent
