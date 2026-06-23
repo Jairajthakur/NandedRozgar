@@ -284,11 +284,16 @@ export default function CarDetailScreen() {
   const featureIcons = ['color-palette-outline', 'flame-outline', 'snow-outline', 'people-outline', 'speedometer-outline', 'settings-outline'];
 
   // Build quick stats from features
+  // Support both legacy (listedDaysAgo) and new (daysLeft) fields
+  const daysAgoValue = car.listedDaysAgo
+    ? `${car.listedDaysAgo}d ago`
+    : (car.daysLeft != null ? `${Math.max(0, 30 - car.daysLeft)}d ago` : 'Recent');
+
   const quickStats = [
     { icon: 'car-outline',         label: 'Type',   value: car.type || 'Car' },
     { icon: 'flame-outline',       label: 'Fuel',   value: car.fuel || features.find(f => ['Petrol','Diesel','CNG','Electric'].includes(f)) || '—' },
-    { icon: 'people-outline',      label: 'Seats',  value: features.find(f => f.includes('seat')) || '5 seats' },
-    { icon: 'calendar-outline',    label: 'Listed', value: car.listedDaysAgo ? `${car.listedDaysAgo}d ago` : 'Recent' },
+    { icon: 'people-outline',      label: 'Seats',  value: car.seats ? `${car.seats} seats` : (features.find(f => f.includes('seat')) || '—') },
+    { icon: 'calendar-outline',    label: 'Listed', value: daysAgoValue },
   ];
 
   return (
@@ -337,7 +342,7 @@ export default function CarDetailScreen() {
                 <Ionicons name="location-outline" size={13} color="#888" />
                 <Text style={s.locationTxt}>
                   {car.location || 'Nanded'}
-                  {car.listedDaysAgo ? ` · ${car.listedDaysAgo} days ago` : ''}
+                  {car.listedDaysAgo ? ` · ${car.listedDaysAgo} days ago` : (car.daysLeft != null ? ` · ${Math.max(0, 30 - car.daysLeft)}d ago` : '')}
                 </Text>
               </View>
             </View>
