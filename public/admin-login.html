@@ -186,6 +186,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
         Banners
       </div>
+      <div class="nav-item" data-tab="coupons">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        Coupons
+      </div>
       <div class="nav-item" data-tab="notify">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         Notifications
@@ -319,6 +323,7 @@ function showTab(tab) {
   else                       { stopLogsPolling(); }
   if (tab === 'post')       renderPostTab();
   if (tab === 'banners')    catchErr(() => loadBanners(gen));
+  if (tab === 'coupons')    catchErr(() => loadCoupons(gen));
   if (tab === 'notify')     renderNotify();
 }
 
@@ -1261,6 +1266,160 @@ function clearBannerImage() {
   if (dz) { dz.style.display = 'block'; dz.style.borderColor = 'var(--border)'; }
   if (fi) fi.value = '';
   // NOTE: intentionally does NOT clear banner-post-result — caller sets it after
+}
+
+// ── COUPONS TAB ───────────────────────────────────────────────────────────────
+let _coupons = [];
+
+async function loadCoupons(gen = navGen) {
+  setContent(`<div style="color:var(--text3);font-size:13px;padding:20px 0">Loading coupons…</div>`);
+  const d = await api('GET', '/api/coupons');
+  if (gen !== navGen) return;
+  _coupons = d.coupons || [];
+  renderCouponsTab();
+}
+
+function renderCouponsTab() {
+  const typeLabels = { percent: 'Percent %', flat: 'Flat ₹', free_days: 'Free Days' };
+  const rows = _coupons.map(c => {
+    const expires = c.valid_until ? new Date(c.valid_until).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '∞ Never';
+    const statusColor = c.is_active ? 'var(--green)' : 'var(--text3)';
+    return `
+      <tr>
+        <td><strong>${c.code}</strong></td>
+        <td>${typeLabels[c.type] || c.type}</td>
+        <td>${c.type === 'percent' ? c.value + '%' : c.type === 'flat' ? '₹' + c.value : c.value + ' days'}</td>
+        <td>${c.uses_count ?? 0}${c.max_uses ? ' / ' + c.max_uses : ''}</td>
+        <td>${expires}</td>
+        <td><span style="color:${statusColor};font-weight:600">${c.is_active ? 'Active' : 'Inactive'}</span></td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn" style="font-size:11px;padding:4px 10px" onclick="toggleCoupon(${c.id}, ${c.is_active})">${c.is_active ? 'Disable' : 'Enable'}</button>
+          <button class="btn" style="font-size:11px;padding:4px 10px;background:var(--red-bg);color:var(--red)" onclick="deleteCoupon(${c.id}, '${c.code}')">Delete</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  setContent(`
+    <h2 style="font-size:18px;font-weight:700;margin-bottom:18px">🎟 Coupons</h2>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px;max-width:560px">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">Create Coupon</h3>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="font-size:12px;color:var(--text2);font-weight:600;display:block;margin-bottom:4px">Coupon Code</label>
+          <input id="cp-code" placeholder="e.g. SAVE20" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;box-sizing:border-box"
+            oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text2);font-weight:600;display:block;margin-bottom:6px">Type</label>
+          <div style="display:flex;gap:8px">
+            ${['percent','flat','free_days'].map(t => `
+              <button id="cp-type-${t}" onclick="setCouponType('${t}')"
+                style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text2);font-size:12px;font-weight:700;cursor:pointer">
+                ${typeLabels[t]}
+              </button>`).join('')}
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text2);font-weight:600;display:block;margin-bottom:4px">Value</label>
+          <input id="cp-value" type="number" min="1" placeholder="e.g. 20"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text2);font-weight:600;display:block;margin-bottom:4px">Max Uses (optional)</label>
+          <input id="cp-maxuses" type="number" min="1" placeholder="Leave blank for unlimited"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text2);font-weight:600;display:block;margin-bottom:4px">Valid Until (optional)</label>
+          <input id="cp-until" type="date"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;box-sizing:border-box">
+        </div>
+        <div id="cp-result"></div>
+        <button class="btn" onclick="createCoupon()" style="padding:12px;font-size:14px;font-weight:700">+ Create Coupon</button>
+      </div>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">All Coupons (${_coupons.length})</h3>
+      ${_coupons.length === 0
+        ? `<div style="color:var(--text3);font-size:13px;padding:12px 0">No coupons yet. Create one above.</div>`
+        : `<div class="table-wrap"><table>
+            <thead><tr>
+              <th>Code</th><th>Type</th><th>Value</th><th>Uses</th><th>Expires</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+           </table></div>`}
+    </div>
+  `);
+
+  // Highlight active type button (default: percent)
+  setCouponType(window._cpType || 'percent', true);
+}
+
+window._cpType = 'percent';
+function setCouponType(t, silent) {
+  window._cpType = t;
+  ['percent','flat','free_days'].forEach(x => {
+    const el = document.getElementById('cp-type-' + x);
+    if (!el) return;
+    el.style.background    = x === t ? 'var(--orange-bg)' : 'var(--bg)';
+    el.style.color         = x === t ? 'var(--orange)'    : 'var(--text2)';
+    el.style.borderColor   = x === t ? 'var(--orange)'    : 'var(--border)';
+  });
+  const valInput = document.getElementById('cp-value');
+  if (valInput && !silent) {
+    valInput.placeholder = t === 'percent' ? 'e.g. 20  (for 20% off)' : t === 'flat' ? 'e.g. 50  (₹50 off)' : 'e.g. 7  (7 bonus days)';
+  }
+}
+
+async function createCoupon() {
+  const code    = document.getElementById('cp-code')?.value.trim().toUpperCase();
+  const value   = parseInt(document.getElementById('cp-value')?.value || '0');
+  const maxUses = document.getElementById('cp-maxuses')?.value ? parseInt(document.getElementById('cp-maxuses').value) : null;
+  const until   = document.getElementById('cp-until')?.value || null;
+  const result  = document.getElementById('cp-result');
+
+  if (!code)      { if (result) result.innerHTML = err('Enter a coupon code.'); return; }
+  if (!value > 0) { if (result) result.innerHTML = err('Enter a valid value > 0.'); return; }
+
+  if (result) result.innerHTML = `<span style="color:var(--text3);font-size:12px">Creating…</span>`;
+
+  const d = await api('POST', '/api/coupons', { code, type: window._cpType, value, maxUses, validUntil: until });
+  if (d.ok) {
+    _coupons.unshift(d.coupon);
+    window._cpType = 'percent';
+    renderCouponsTab();
+    toast('Coupon created!');
+  } else {
+    if (result) result.innerHTML = err(d.error || 'Failed to create coupon.');
+  }
+}
+
+async function toggleCoupon(id, isActive) {
+  const d = await api('PATCH', `/api/coupons/${id}`, { isActive: !isActive });
+  if (d.ok) {
+    _coupons = _coupons.map(c => c.id === id ? d.coupon : c);
+    renderCouponsTab();
+  } else {
+    alert(d.error || 'Failed to update coupon.');
+  }
+}
+
+async function deleteCoupon(id, code) {
+  if (!confirm(`Delete coupon "${code}"? This cannot be undone.`)) return;
+  const d = await api('DELETE', `/api/coupons/${id}`);
+  if (d.ok) {
+    _coupons = _coupons.filter(c => c.id !== id);
+    renderCouponsTab();
+    toast('Coupon deleted.');
+  } else {
+    alert(d.error || 'Failed to delete coupon.');
+  }
+}
+
+function err(msg) {
+  return `<div style="background:#fff1f1;border:1px solid var(--red);border-radius:8px;padding:8px 12px;color:var(--red);font-weight:600;font-size:12px;margin-top:4px">⚠️ ${msg}</div>`;
 }
 
 // ── BANNERS TAB ───────────────────────────────────────────────────────────────
