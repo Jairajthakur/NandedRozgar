@@ -9,6 +9,7 @@
  */
 
 import React, { useRef, useEffect } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, Animated, Easing, StatusBar,
@@ -157,6 +158,9 @@ function ActionCard({ card, index, onPress, isWeb }) {
         style={[s.card, { backgroundColor: card.cardBg }, isWeb && s.cardWeb]}
       >
         {/* Left accent stripe */}
+        {/* Glossy sheen */}
+        <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
+        <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
         <View style={[s.accentBar, { backgroundColor: card.accent }]} />
 
         {/* Icon */}
@@ -344,6 +348,9 @@ export default function PostScreen() {
       >
         {/* Monthly Plan Banner — top of page */}
         <View style={s.bannerTop}>
+          {/* Glossy sheen */}
+          <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
+          <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
           <MonthlyPlanBanner navigation={nav} />
         </View>
 
