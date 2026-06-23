@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   Platform,
   View, Text, StyleSheet, TouchableOpacity,
@@ -184,9 +183,6 @@ export default function OnboardingScreen({ onDone }) {
         </TouchableOpacity>
         <Animated.View style={{ transform: [{ scale: btnScale }] }}>
           <TouchableOpacity style={os.nextBtn} onPress={next} activeOpacity={0.85}>
-            {/* Glossy sheen */}
-            <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-            <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
             <Text style={os.nextTxt}>
               {page === SLIDES.length - 1
                 ? (lang === 'mr' ? 'सुरू करा' : lang === 'hi' ? 'शुरू करें' : 'Get Started')
@@ -210,7 +206,7 @@ const os = StyleSheet.create({
   langTxt: { fontSize: 12, fontWeight: '600', color: '#555' },
   langActiveTxt: { color: '#fff' },
   slide: { width, flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36, paddingBottom: 20 },
-  iconCircle: { width: 120, height: 120, borderRadius: 60, alignItems: 'center', justifyContent: 'center', marginBottom: 32, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 4, overflow: 'hidden', position: 'relative' },
+  iconCircle: { width: 120, height: 120, borderRadius: 60, alignItems: 'center', justifyContent: 'center', marginBottom: 32, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   title: { fontSize: 26, fontWeight: '900', color: '#111', textAlign: 'center', marginBottom: 14, lineHeight: 32 },
   sub:   { fontSize: 15, color: '#666', textAlign: 'center', lineHeight: 24 },
   dots:  { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginBottom: 24 },
@@ -218,7 +214,7 @@ const os = StyleSheet.create({
   btnRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 16 },
   skipBtn: { padding: 12 },
   skipTxt: { fontSize: 14, color: '#999', fontWeight: '600' },
-  nextBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: ORANGE, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 28, overflow: 'hidden', position: 'relative' },
+  nextBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: ORANGE, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 28 },
   nextTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },
   brand:  { textAlign: 'center', fontSize: 13, fontWeight: '700', paddingBottom: 32, letterSpacing: 0.3 },
 });
