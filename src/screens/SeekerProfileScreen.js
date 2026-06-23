@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   StyleSheet, Switch, ActivityIndicator,
@@ -160,9 +159,6 @@ export default function SeekerProfileScreen() {
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
       {/* Header card */}
       <View style={styles.headerCard}>
-            {/* Glossy sheen */}
-            <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-            <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
         <View style={styles.avatar}>
           <Text style={styles.avatarTxt}>{user?.name?.[0]?.toUpperCase() || 'U'}</Text>
         </View>
@@ -295,7 +291,7 @@ export default function SeekerProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   center:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerCard: { overflow: 'hidden', position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#ebebeb' },
+  headerCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#ebebeb' },
   avatar:    { width: 52, height: 52, borderRadius: 26, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
   avatarTxt: { fontSize: 22, fontWeight: '800', color: '#fff' },
   userName:  { fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 4 },
