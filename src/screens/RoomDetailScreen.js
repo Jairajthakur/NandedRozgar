@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, TouchableOpacity, Linking,
   StyleSheet, Share, Animated, Easing, Image,
