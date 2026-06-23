@@ -1,1691 +1,754 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
+/**
+ * CityPlus — HelpSupportScreen.js
+ * Full-featured help & support page with:
+ * - Searchable FAQ accordion
+ * - Contact channels (WhatsApp, Email, Phone)
+ * - Quick-action categories
+ * - In-app modals for Terms, Privacy Policy, Community Guidelines
+ * - Report a problem form modal
+ * - Animated entrance, consistent design tokens
+ */
+
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Animated, Easing, StatusBar, TextInput, Modal,
-  FlatList, Dimensions, Platform, useWindowDimensions, Linking,
+  TextInput, Animated, Easing, Modal, Linking, Platform,
+  KeyboardAvoidingView, SafeAreaView,
 } from 'react-native';
-
-// ScrollVelocity is a web-only component (uses DOM/motion)
-let ScrollVelocity = null;
-if (Platform.OS === 'web') {
-  try {
-    ScrollVelocity = require('../components/ScrollVelocity').default;
-  } catch (e) {
-    // fallback gracefully if motion not installed
-  }
-}
-import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../context/AuthContext';
-import { useDistrict } from '../context/DistrictContext';
-import { C, CAT_ICONS } from '../utils/constants';
-import { useLang, LANGUAGES } from '../utils/i18n';
-import { AutoTranslate } from '../utils/translate';
-import { timeAgo, http } from '../utils/api';
-import storage from '../utils/storage';
-const { setItem, getItem } = storage;
+import Toast from 'react-native-toast-message';
 
-const JOBS_CACHE_KEY = 'home_jobs_cache_v1';
+// ── Design tokens ──────────────────────────────────────────────────────────────
+const ORANGE  = '#f97316';
+const BG      = '#f4f4f6';
+const SURFACE = '#ffffff';
+const TEXT    = '#111118';
+const MUTED   = '#8e8ea0';
+const BORDER  = 'rgba(0,0,0,0.07)';
+const GREEN   = '#16a34a';
 
-const ORANGE    = '#f97316';
-const TEAL      = '#0d9488';
-const PURPLE    = '#7c3aed';
-const TICKER_BG = '#1a1a2e';
-const IS_WEB    = Platform.OS === 'web';
-// ── Custom scrollbar (web only) ────────────────────────────────────────────────
+// ── Support contact details — update before publishing ──────────────────────
+const SUPPORT_PHONE    = '919834308805';   // e.g. '919823001234'  (91 + 10-digit number, no +)
+const SUPPORT_EMAIL    = 'support@thecityplus.in';
+const LEGAL_EMAIL      = 'support@thecityplus.in';
+const PRIVACY_EMAIL    = 'support@thecityplus.in';
 
+// ── Legal content ──────────────────────────────────────────────────────────────
+const LEGAL_CONTENT = {
+  terms: {
+    title: 'Terms of Service',
+    icon: 'document-text-outline',
+    color: '#6366f1',
+    bg: 'rgba(99,102,241,0.1)',
+    lastUpdated: 'Last updated: January 1, 2025',
+    sections: [
+      {
+        heading: '1. Acceptance of Terms',
+        body: 'By downloading, installing, or using the CityPlus app ("App"), you agree to be bound by these Terms of Service. If you do not agree, please do not use the App.',
+      },
+      {
+        heading: '2. Eligibility',
+        body: 'You must be at least 18 years old to use CityPlus. By using the App, you confirm that you are 18 years or older and have the legal capacity to enter into these terms.',
+      },
+      {
+        heading: '3. User Accounts',
+        body: 'You are responsible for maintaining the confidentiality of your account credentials. You must provide accurate, current, and complete information during registration. CityPlus reserves the right to suspend or terminate accounts that violate these terms.',
+      },
+      {
+        heading: '4. Prohibited Content',
+        body: 'You may not post content that is false, misleading, or fraudulent; promotes illegal activities; contains hate speech or harassment; violates third-party intellectual property rights; or involves multi-level marketing or pyramid schemes.',
+      },
+      {
+        heading: '5. Job Listings & Payments',
+        body: 'Employers are responsible for the accuracy of their job listings. CityPlus does not guarantee employment. Payments for Featured or Urgent listings are non-refundable once the listing goes live. A full refund is issued only if a post is rejected by our moderation team.',
+      },
+      {
+        heading: '6. Limitation of Liability',
+        body: 'CityPlus is a platform connecting users and is not responsible for interactions between them. We do not verify every listing and are not liable for any loss or damage arising from your use of the App.',
+      },
+      {
+        heading: '7. Modifications',
+        body: 'We may update these Terms at any time. Continued use of the App after changes constitutes acceptance of the revised Terms. We will notify users of significant changes via in-app notification.',
+      },
+      {
+        heading: '8. Governing Law',
+        body: 'These Terms are governed by the laws of India. Any disputes shall be subject to the exclusive jurisdiction of the courts in Nanded, Maharashtra.',
+      },
+      {
+        heading: '9. Contact',
+        body: 'For questions about these Terms, contact us at ' + LEGAL_EMAIL + ' or via WhatsApp at +91 ' + SUPPORT_PHONE.slice(2) + '.',
+      },
+    ],
+  },
+  privacy: {
+    title: 'Privacy Policy',
+    icon: 'lock-closed-outline',
+    color: '#0ea5e9',
+    bg: 'rgba(14,165,233,0.1)',
+    lastUpdated: 'Last updated: January 1, 2025',
+    sections: [
+      {
+        heading: '1. Information We Collect',
+        body: 'We collect information you provide directly (name, phone number, location, resume) and information generated through your use of the App (jobs viewed, searches, applications submitted, device info).',
+      },
+      {
+        heading: '2. How We Use Your Information',
+        body: 'Your data is used to: operate and improve the App; match you with relevant jobs, rooms, or listings; send job alerts and notifications; prevent fraud and abuse; and process payments securely via Razorpay.',
+      },
+      {
+        heading: '3. What We Never Do',
+        body: 'We never sell your personal data to third parties. We never show your phone number publicly without your explicit action (e.g. tapping "Call"). We never share your data with advertisers.',
+      },
+      {
+        heading: '4. Data Sharing',
+        body: 'We share data only with: service providers who help operate the App (Razorpay for payments, Firebase for notifications, Expo for app delivery); and law enforcement when required by valid legal process.',
+      },
+      {
+        heading: '5. Data Security',
+        body: 'All data in transit is encrypted using HTTPS/TLS. Passwords are hashed using bcrypt. We conduct periodic security reviews and promptly address vulnerabilities.',
+      },
+      {
+        heading: '6. Your Rights',
+        body: 'You can access, update, or delete your personal information at any time from Profile → Edit Profile. You can request complete data deletion by contacting ' + SUPPORT_EMAIL + '. We respond to deletion requests within 7 business days.',
+      },
+      {
+        heading: '7. Cookies & Analytics',
+        body: 'The App uses anonymous analytics (Expo Analytics) to understand usage patterns and improve the experience. No personally identifiable information is included in analytics events.',
+      },
+      {
+        heading: '8. Children\'s Privacy',
+        body: 'CityPlus is not intended for users under 18. We do not knowingly collect data from minors. If we become aware of such data, we will delete it promptly.',
+      },
+      {
+        heading: '9. Contact',
+        body: 'For privacy-related queries or data deletion requests, contact us at ' + PRIVACY_EMAIL + ' or via WhatsApp at +91 ' + SUPPORT_PHONE.slice(2).replace(/(\d{5})(\d{5})/, '$1 $2') + '.',
+      },
+    ],
+  },
+  guidelines: {
+    title: 'Community Guidelines',
+    icon: 'newspaper-outline',
+    color: '#f59e0b',
+    bg: 'rgba(245,158,11,0.1)',
+    lastUpdated: 'Last updated: January 1, 2025',
+    sections: [
+      {
+        heading: '🤝 Be Honest',
+        body: 'Post only accurate, truthful information. Fake job listings, false salary ranges, non-existent rooms, or misleading vehicle descriptions harm real people and will result in immediate removal and account suspension.',
+      },
+      {
+        heading: '🚫 No Spam',
+        body: 'Do not post duplicate listings. Do not repeatedly repost the same job or item. Automated or mass posting is prohibited. Accounts found spamming will be permanently banned.',
+      },
+      {
+        heading: '💼 Legitimate Jobs Only',
+        body: 'Multi-level marketing (MLM), pyramid schemes, "investment opportunities", and work-from-home scams are strictly prohibited. Jobs must involve real, legal work with clear, honest compensation.',
+      },
+      {
+        heading: '🏠 Accurate Room Listings',
+        body: 'Photos must accurately represent the actual room. Rent and deposit amounts must be correct. Contact details must be of the actual owner or verified agent. Do not list rooms you do not own or have authority to rent.',
+      },
+      {
+        heading: '💬 Respectful Communication',
+        body: 'Treat everyone — job seekers, employers, landlords, and buyers — with respect. Harassment, abusive language, threats, or discrimination based on caste, religion, gender, or disability will result in immediate account removal.',
+      },
+      {
+        heading: '🔐 Privacy & Safety',
+        body: 'Never share another user\'s personal information without their consent. Do not attempt to bypass the in-app contact system to harvest phone numbers for unsolicited marketing.',
+      },
+      {
+        heading: '⚠️ Reporting Violations',
+        body: 'If you see a listing or user that violates these guidelines, tap the three-dot menu (⋯) on the listing and select "Report". Our moderation team reviews all reports within 24 hours.',
+      },
+      {
+        heading: '🔨 Consequences',
+        body: 'Violations result in: (1) warning and content removal for first offence, (2) temporary suspension for repeat offences, (3) permanent ban for serious or persistent violations. Paid listings that are removed due to violations are non-refundable.',
+      },
+    ],
+  },
+};
 
+// ── In-app legal content modal ─────────────────────────────────────────────────
+function LegalModal({ visible, contentKey, onClose }) {
+  const content = LEGAL_CONTENT[contentKey];
+  const slideAnim = useRef(new Animated.Value(600)).current;
 
-// Responsive breakpoints
-const BP_SM  = 600;   // mobile-web: single column, no sidebar
-const BP_MD  = 900;   // tablet: sidebar + main, no right panel
-const BP_LG  = 1100;  // desktop: full 3-column layout
-
-const { width: SCREEN_W } = Dimensions.get('window');
-
-// ── Animated Pressable ─────────────────────────────────────────────────────────
-function AnimatedPress({ style, onPress, children }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const press = () => {
-    Animated.sequence([
-      Animated.timing(scale, { toValue: 0.97, duration: 80, useNativeDriver: Platform.OS !== 'web' }),
-      Animated.timing(scale, { toValue: 1,    duration: 120, useNativeDriver: Platform.OS !== 'web' }),
-    ]).start();
-    onPress?.();
-  };
-  return (
-    <Animated.View style={[{ transform: [{ scale }] }, style]}>
-      <TouchableOpacity onPress={press} activeOpacity={1}>{children}</TouchableOpacity>
-    </Animated.View>
-  );
-}
-
-// ── FadeSlide ──────────────────────────────────────────────────────────────────
-function FadeSlide({ children, delay = 0, fromY = 24, style }) {
-  const opacity    = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(fromY)).current;
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity,    { toValue: 1, duration: 480, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
-      Animated.timing(translateY, { toValue: 0, duration: 480, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
-    ]).start();
-  }, []);
-  return (
-    <Animated.View style={[{ opacity, transform: [{ translateY }] }, style]}>{children}</Animated.View>
-  );
-}
-
-// ── Pulsing dot ────────────────────────────────────────────────────────────────
-function PulseDot({ color = ORANGE }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(scale, { toValue: 1.7, duration: 700, useNativeDriver: Platform.OS !== 'web' }),
-        Animated.timing(scale, { toValue: 1,   duration: 700, useNativeDriver: Platform.OS !== 'web' }),
-      ])
-    ).start();
-  }, []);
-  return <Animated.View style={[s.freshnessDot, { backgroundColor: color, transform: [{ scale }] }]} />;
-}
-
-// ── Gloss Overlay (reusable glossy sheen layer) ───────────────────────────────
-function GlossOverlay({ style, intensity = 0.18 }) {
-  return (
-    <LinearGradient
-      colors={[`rgba(255,255,255,${intensity + 0.17})`, `rgba(255,255,255,0)`]}
-      pointerEvents="none"
-      style={[{
-        position: 'absolute', top: 0, left: 0, right: 0,
-        height: '55%',
-        borderTopLeftRadius: 16, borderTopRightRadius: 16,
-        zIndex: 1,
-      }, style]}
-    />
-  );
-}
-
-// ── Animated stat counter ──────────────────────────────────────────────────────
-function AnimatedStat({ value, label, delay = 0, accent = ORANGE }) {
-  const anim = useRef(new Animated.Value(0)).current;
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    anim.setValue(0);
-    const timer = setTimeout(() => {
-      Animated.timing(anim, { toValue: value, duration: 1100, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
-    }, delay);
-    const id = anim.addListener(({ value: v }) => setDisplay(Math.round(v)));
-    return () => { clearTimeout(timer); anim.removeListener(id); };
-  }, [value]);
-
-  if (IS_WEB) {
-    return (
-      <View style={ws.statCard}>
-        <Text style={[ws.statNum, { color: accent }]}>{display}+</Text>
-        <Text style={ws.statLabel}>{label}</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={s.statItem}>
-      <Text style={s.statNum}>{display}+</Text>
-      <Text style={s.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-// ── Lang Modal ─────────────────────────────────────────────────────────────────
-function LangModal({ visible, current, onSelect, onClose }) {
-  const slideY = useRef(new Animated.Value(300)).current;
-  useEffect(() => {
-    Animated.timing(slideY, {
-      toValue: visible ? 0 : 300, duration: 320,
-      easing: Easing.out(Easing.ease), useNativeDriver: Platform.OS !== 'web',
-    }).start();
+    if (visible) {
+      Animated.spring(slideAnim, {
+        toValue: 0, tension: 65, friction: 12, useNativeDriver: Platform.OS !== 'web',
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 600, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: Platform.OS !== 'web',
+      }).start();
+    }
   }, [visible]);
+
+  if (!content) return null;
+
   return (
-    <Modal transparent animationType="none" visible={visible} onRequestClose={onClose}>
-      <TouchableOpacity style={lm.overlay} activeOpacity={1} onPress={onClose}>
-        <Animated.View style={[lm.sheet, IS_WEB && lm.sheetWeb, { transform: [{ translateY: IS_WEB ? 0 : slideY }] }]}>
-          <Text style={lm.title}>Choose Language</Text>
-          {LANGUAGES.map(l => (
-            <TouchableOpacity key={l.code} style={[lm.row, current === l.code && lm.rowActive]}
-              onPress={() => { onSelect(l.code); onClose(); }} activeOpacity={0.8}>
-              <Text style={[lm.native, current === l.code && lm.nativeActive]}>{l.native}</Text>
-              <Text style={lm.label}>{l.label}</Text>
-              {current === l.code && <Ionicons name="checkmark-circle" size={18} color={ORANGE} style={{ marginLeft: 'auto' }} />}
-            </TouchableOpacity>
-          ))}
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <View style={styles.legalBackdrop}>
+        <Animated.View style={[styles.legalSheet, { transform: [{ translateY: slideAnim }] }]}>
+          {/* Header */}
+          <SafeAreaView>
+            <View style={styles.legalHeader}>
+              <View style={[styles.legalHeaderIcon, { backgroundColor: content.bg }]}>
+                <Ionicons name={content.icon} size={18} color={content.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.legalHeaderTitle}>{content.title}</Text>
+                <Text style={styles.legalHeaderSub}>{content.lastUpdated}</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} style={styles.legalClose}>
+                <Ionicons name="close" size={20} color={MUTED} />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+
+          {/* Scrollable content */}
+          <ScrollView
+            style={styles.legalScroll}
+            contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {content.sections.map((s, i) => (
+              <View key={i} style={styles.legalSection}>
+                <Text style={styles.legalSectionHeading}>{s.heading}</Text>
+                <Text style={styles.legalSectionBody}>{s.body}</Text>
+              </View>
+            ))}
+
+            <View style={styles.legalFooter}>
+              <Text style={styles.legalFooterTxt}>
+                CityPlus v4.4.0 · Nanded, Maharashtra, India
+              </Text>
+              <Text style={styles.legalFooterTxt}>
+                {`Questions? Contact ${SUPPORT_EMAIL}`}
+              </Text>
+            </View>
+          </ScrollView>
         </Animated.View>
-      </TouchableOpacity>
+      </View>
     </Modal>
   );
 }
 
-// ── Ticker ─────────────────────────────────────────────────────────────────────
-function getTickerItems(t, districtLocalName) {
-  const d = districtLocalName || '';
-  return [
-    { icon: 'checkmark-circle',   text: t('tickerHiring').replace('{DISTRICT}', d) },
-    { icon: 'bicycle-outline',    text: t('tickerDelivery') },
-    { icon: 'home-outline',       text: t('tickerRooms').replace('{DISTRICT}', d) },
-    { icon: 'car-outline',        text: t('tickerCars') },
-    { icon: 'cube-outline',       text: t('tickerBuySell') },
-    { icon: 'call-outline',       text: 'TELECALLER JOBS — APPLY NOW' },
-    { icon: 'shield-outline',     text: 'SECURITY GUARD VACANCIES' },
-    { icon: 'construct-outline',  text: 'CONSTRUCTION WORK AVAILABLE' },
-    { icon: 'briefcase-outline',  text: 'DATA ENTRY & OFFICE JOBS' },
-    { icon: 'storefront-outline', text: t('tickerBuySell') },
-  ];
-}
+// ── FAQ data ───────────────────────────────────────────────────────────────────
+const FAQ_CATEGORIES = [
+  {
+    id: 'jobs',
+    icon: 'briefcase-outline',
+    label: 'Jobs & Posting',
+    color: '#6366f1',
+    bg: 'rgba(99,102,241,0.1)',
+    faqs: [
+      {
+        q: 'How do I post a job?',
+        a: 'Tap the "+" button in the bottom navigation bar and select "Post a Job". Fill in the job title, description, salary, and contact details. Choose a listing type (Free / Featured / Urgent) and submit. Your job will go live after review.',
+      },
+      {
+        q: 'How long does my job listing stay active?',
+        a: 'Free listings stay active for 30 days. Featured listings are active for 45 days. Urgent listings are active for 60 days. You can renew or repost from your Profile → My Job Posts.',
+      },
+      {
+        q: 'Can I edit or delete my job post?',
+        a: 'Yes! Go to Profile → My Job Posts, tap the job you want to manage, and choose Edit or Delete. Note: once a job has 5+ applications, editing is limited to contact details and salary only.',
+      },
+      {
+        q: 'What is the difference between Featured and Urgent listings?',
+        a: 'Featured listings appear highlighted at the top of search results and cost ₹49. Urgent listings show a red "URGENT" badge and are prioritised above Featured — they cost ₹99. Both include a WhatsApp Apply button.',
+      },
+      {
+        q: 'How do I apply for a job?',
+        a: 'Open any job listing and tap "Apply via WhatsApp" or "Apply Now". WhatsApp applications connect you directly with the employer. For in-app applications, your saved profile and resume are submitted automatically.',
+      },
+      {
+        q: 'Why was my job post rejected?',
+        a: 'Posts are rejected if they violate our guidelines — e.g., misleading salaries, adult content, multi-level marketing schemes, or duplicate listings. You will receive an in-app notification with the reason. Edit and resubmit if appropriate.',
+      },
+    ],
+  },
+  {
+    id: 'account',
+    icon: 'person-circle-outline',
+    label: 'Account & Profile',
+    color: '#0ea5e9',
+    bg: 'rgba(14,165,233,0.1)',
+    faqs: [
+      {
+        q: 'How do I change my phone number or password?',
+        a: 'Go to Profile → Edit Profile. Tap "Change Phone" to receive an OTP on your new number. To change your password, tap "Change Password" and follow the prompts.',
+      },
+      {
+        q: 'How do I switch between Seeker and Employer mode?',
+        a: 'Go to Profile → Edit Profile and tap "Account Type". Select Job Seeker or Employer. You can switch at any time — your data for both roles is preserved.',
+      },
+      {
+        q: 'I forgot my password. How do I reset it?',
+        a: 'On the login screen, tap "Forgot Password?" and enter your registered phone number. You\'ll receive an OTP. Enter it, then set a new password.',
+      },
+      {
+        q: 'How do I upload or update my resume?',
+        a: 'Go to Profile → Upload Resume. You can upload a PDF (max 5 MB) or fill in the in-app resume builder.',
+      },
+      {
+        q: 'Can I delete my account?',
+        a: 'Yes. Go to Profile → Settings → Delete Account. This permanently removes your profile, listings, and data and cannot be undone.',
+      },
+    ],
+  },
+  {
+    id: 'rooms',
+    icon: 'home-outline',
+    label: 'Rooms & Rentals',
+    color: '#f59e0b',
+    bg: 'rgba(245,158,11,0.1)',
+    faqs: [
+      {
+        q: 'How do I list a room for rent?',
+        a: 'Tap "+" → Post a Room. Add photos, monthly rent, deposit, amenities, and contact info. Listings are reviewed within 2 hours. You can list up to 3 rooms for free.',
+      },
+      {
+        q: 'Are room listings verified?',
+        a: 'Listings marked with a blue shield are verified by our team (address confirmed + landlord ID checked). We recommend visiting the property in person before paying any advance.',
+      },
+      {
+        q: 'How do I contact a room owner?',
+        a: 'Open the room listing and tap "Contact Owner" to call or WhatsApp them directly. Never pay an advance without visiting the property first.',
+      },
+    ],
+  },
+  {
+    id: 'payments',
+    icon: 'card-outline',
+    label: 'Payments & Credits',
+    color: GREEN,
+    bg: 'rgba(22,163,74,0.1)',
+    faqs: [
+      {
+        q: 'What payment methods are accepted?',
+        a: 'We accept UPI (Google Pay, PhonePe, Paytm), debit/credit cards, and net banking via Razorpay. All transactions are encrypted. Cash payments are not supported.',
+      },
+      {
+        q: 'I was charged but my listing wasn\'t upgraded. What do I do?',
+        a: 'Wait 10 minutes and refresh your listing. If it\'s still not upgraded, contact us via WhatsApp with your Order ID (found in Profile → Payment History) and we\'ll resolve it within 24 hours.',
+      },
+      {
+        q: 'Are payments refundable?',
+        a: 'Payments for Featured and Urgent listings are non-refundable once the listing goes live. If your post was rejected by our team, a full refund is processed within 5–7 business days.',
+      },
+      {
+        q: 'How do referral credits work?',
+        a: 'Earn 1 credit for every friend who signs up using your referral code. 1 credit = ₹1 off any paid listing. Credits stack — if a listing costs ₹49 and you have 49 credits, it\'s completely free. Credits never expire.',
+      },
+    ],
+  },
+  {
+    id: 'safety',
+    icon: 'shield-checkmark-outline',
+    label: 'Safety & Privacy',
+    color: '#ec4899',
+    bg: 'rgba(236,72,153,0.1)',
+    faqs: [
+      {
+        q: 'How do I report a suspicious listing or user?',
+        a: 'On any listing or profile, tap the three-dot menu (⋯) in the top-right corner and select "Report". Our team reviews reports within 24 hours.',
+      },
+      {
+        q: 'Is my phone number visible to everyone?',
+        a: 'Your phone number is only shared when you initiate contact (tap "Call" or "WhatsApp"). It is never displayed publicly on your profile.',
+      },
+      {
+        q: 'How is my data used?',
+        a: 'We use your data only to operate the CityPlus service. We never sell your data to third parties. Read our full Privacy Policy in Quick Links below.',
+      },
+    ],
+  },
+];
 
-// Scrolling text rows for ScrollVelocity (web)
-const SCROLL_ROW_2 = '✦ SECURITY GUARD VACANCIES  ✦ CONSTRUCTION WORK  ✦ DATA ENTRY & OFFICE JOBS  ✦ LOCAL MARKETPLACE — NANDED  ✦ FRESHER JOBS AVAILABLE  ✦ POST FREE ADS TODAY';
-
-// Web ScrollVelocity banner
-function WebScrollBanner({ itemCount = 0 }) {
-  const itemLabel = itemCount > 0 ? `${itemCount}+` : 'MANY';
-  const SCROLL_ROW_1 = `✦ HIRING NOW — Nanded  ✦ DELIVERY JOBS AVAILABLE  ✦ ROOMS FOR RENT  ✦ CARS & VEHICLES FOR HIRE  ✦ BUY & SELL ${itemLabel} ITEMS  ✦ TELECALLER JOBS — APPLY NOW`;
-  if (!ScrollVelocity) return null;
-  return (
-    <div style={{
-      backgroundColor: '#f8f5f0',
-      overflow: 'hidden',
-      paddingTop: 12,
-      paddingBottom: 12,
-      marginBottom: 20,
-      borderRadius: 12,
-      border: '1.5px solid #ede8e0',
-    }}>
-      <ScrollVelocity
-        texts={[SCROLL_ROW_1, SCROLL_ROW_2]}
-        velocity={80}
-        className="cityplus-ticker-span"
-        parallaxStyle={{ overflow: 'hidden' }}
-        scrollerStyle={{ color: '#1a1a1a', fontSize: '0.95rem', fontWeight: '700', letterSpacing: '0.07em', paddingTop: 4, paddingBottom: 4 }}
-      />
-    </div>
-  );
-}
-
-
-// Native animated ticker (mobile / fallback)
-// ── Ticker ─────────────────────────────────────────────────────────────────────
-const ITEM_H = 38; // must match s.ticker height
-
-function TickerBanner({ t, districtLocalName, itemCount = 0 }) {
-  if (IS_WEB) return <WebScrollBanner itemCount={itemCount} />;
-
-  const TICKER_ITEMS = getTickerItems(t, districtLocalName);
-  const DOUBLED = [...TICKER_ITEMS, ...TICKER_ITEMS]; // seamless loop
-  const translateY = useRef(new Animated.Value(0)).current;
+// ── Animated FAQ accordion ─────────────────────────────────────────────────────
+function FAQItem({ q, a, index }) {
+  const [open, setOpen] = useState(false);
+  const anim     = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const totalHeight = ITEM_H * TICKER_ITEMS.length;
-
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateY, {
-          toValue: -totalHeight,
-          duration: TICKER_ITEMS.length * 1800, // 1.8s per item
-          easing: Easing.linear,
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 0, // instant reset — invisible because we use doubled array
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
+    Animated.timing(fadeAnim, {
+      toValue: 1, duration: 300, delay: index * 60, useNativeDriver: Platform.OS !== 'web',
+    }).start();
   }, []);
 
+  function toggle() {
+    Animated.spring(anim, {
+      toValue: open ? 0 : 1, useNativeDriver: false, tension: 60, friction: 10,
+    }).start();
+    setOpen(!open);
+  }
+
+  const rotate  = anim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
+  const maxH    = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 300] });
+  const opacity = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
+
   return (
-    <View style={[s.ticker, { overflow: 'hidden' }]}>
-      <Animated.View style={{ transform: [{ translateY }] }}>
-        {DOUBLED.map((item, idx) => (
-          <View key={idx} style={[s.tickerRow, { height: ITEM_H, justifyContent: 'center' }]}>
-            <Ionicons name={item.icon} size={14} color={ORANGE} style={{ marginRight: 8 }} />
-            <Text style={s.tickerText} numberOfLines={1}>{item.text}</Text>
-          </View>
-        ))}
+    <Animated.View style={{ opacity: fadeAnim }}>
+      <TouchableOpacity onPress={toggle} activeOpacity={0.75}
+        style={[styles.faqRow, open && styles.faqRowOpen]}>
+        <Text style={[styles.faqQ, open && { color: ORANGE }]}>{q}</Text>
+        <Animated.View style={{ transform: [{ rotate }] }}>
+          <Ionicons name="chevron-down" size={18} color={open ? ORANGE : MUTED} />
+        </Animated.View>
+      </TouchableOpacity>
+      <Animated.View style={{ maxHeight: maxH, overflow: 'hidden', opacity }}>
+        <Text style={styles.faqA}>{a}</Text>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 }
 
-// ── Web Sidebar Nav Item ───────────────────────────────────────────────────────
-function SideNavItem({ icon, label, onPress, active }) {
+// ── Category pill ──────────────────────────────────────────────────────────────
+function CategoryPill({ item, selected, onPress }) {
   return (
-    <TouchableOpacity style={[ws.sideNavItem, active && ws.sideNavItemActive]} onPress={onPress} activeOpacity={0.8}>
-      <Ionicons name={icon} size={18} color={active ? ORANGE : '#666'} />
-      <Text style={[ws.sideNavLabel, active && ws.sideNavLabelActive]}>{label}</Text>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8}
+      style={[styles.pill, selected && { backgroundColor: ORANGE, borderColor: ORANGE }]}>
+      <Ionicons name={item.icon} size={14} color={selected ? '#fff' : item.color} style={{ marginRight: 5 }} />
+      <Text style={[styles.pillTxt, selected && { color: '#fff' }]}>{item.label}</Text>
     </TouchableOpacity>
   );
 }
 
-// ── Explore Card ───────────────────────────────────────────────────────────────
-function ExploreCard({ icon, title, subtitle, color, onPress, style, compact }) {
-  return (
-    <AnimatedPress style={[s.exploreCard, IS_WEB && ws.exploreCard, IS_WEB && compact && ws.exploreCardSm, { backgroundColor: color }, style]} onPress={onPress}>
-      {/* Glossy top-half sheen */}
-      <GlossOverlay intensity={0.22} style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16 }} />
-      {/* Glossy top border highlight */}
-      <LinearGradient colors={['rgba(255,255,255,0.72)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, borderTopLeftRadius: 16, borderTopRightRadius: 16, zIndex: 2}} />
-      <View style={s.exploreInner}>
-        <View style={s.exploreIconWrap}>
-          <Ionicons name={icon} size={compact ? 22 : IS_WEB ? 28 : 26} color="#fff" />
-        </View>
-        <View style={s.exploreBadge}>
-          <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.8)" />
-        </View>
-      </View>
-      <Text style={[s.exploreTitle, IS_WEB && ws.exploreTitle, IS_WEB && compact && ws.exploreTitleSm]}>{title}</Text>
-      <Text style={[s.exploreSub, compact && { fontSize: 11 }]}>{subtitle}</Text>
-      <View style={[s.exploreCircle1, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
-      <View style={[s.exploreCircle2, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />
-    </AnimatedPress>
-  );
-}
-
-// ── Featured Job Card ──────────────────────────────────────────────────────────
-function FeaturedJobCard({ job, onPress, cardWidth }) {
-  const { t, lang } = useLang();
-  const baseStyle = IS_WEB ? ws.featJobCard : s.featJobCard;
-  const widthStyle = cardWidth ? { width: cardWidth } : {};
-  return (
-    <AnimatedPress style={[baseStyle, widthStyle]} onPress={onPress}>
-      {/* Glossy sheen */}
-      <LinearGradient colors={['rgba(255,255,255,0.72)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: 32, zIndex: 1, borderTopLeftRadius: 14, borderTopRightRadius: 14}} />
-      <View style={s.featJobTop}>
-        <View style={s.featJobIcon}>
-          <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={18} color={ORANGE} />
-        </View>
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <AutoTranslate text={job.title} lang={lang} style={s.featJobTitle} numberOfLines={1} />
-          <AutoTranslate text={job.company} lang={lang} style={s.featJobCompany} numberOfLines={1} />
-        </View>
-      </View>
-      <View style={s.featJobBottom}>
-        <Text style={s.featJobSalary} numberOfLines={1}>{job.salary}</Text>
-        <TouchableOpacity style={s.applyBtn} onPress={onPress} activeOpacity={0.85}>
-          <Text style={s.applyBtnTxt}>{t('applyBtn')}</Text>
-        </TouchableOpacity>
-      </View>
-    </AnimatedPress>
-  );
-}
-
-// ── Recent Room Card ───────────────────────────────────────────────────────────
-function RecentRoomCard({ room, onPress }) {
-  const { t, lang } = useLang();
-  const title    = room.title    || (room.bhk_size ? `${room.bhk_size} – ${room.area}` : room.area || 'Room');
-  const location = room.location || room.area || 'Nanded';
-  const type     = room.type     || room.room_type || room.bhk_size || 'Room';
-  const rent     = room.rent
-    ? (String(room.rent).startsWith('₹') ? room.rent : `₹${room.rent}/mo`)
-    : t('priceOnRequest');
-  const available = room.available !== undefined ? room.available : room.status === 'active';
-
-  return (
-    <AnimatedPress style={[s.roomCard, IS_WEB && ws.roomCard]} onPress={onPress}>
-      <View style={[s.roomImgPlaceholder, IS_WEB && ws.roomImgPlaceholder]}>
-        <Ionicons name="home-outline" size={IS_WEB ? 44 : 36} color="rgba(255,255,255,0.4)" />
-        {available && (
-          <View style={s.availBadge}>
-            <Text style={s.availTxt}>{t('availableBadge')}</Text>
-          </View>
-        )}
-      </View>
-      <View style={s.roomInfo}>
-        <AutoTranslate text={title} lang={lang} style={[s.roomTitle, IS_WEB && { fontSize: 15 }]} numberOfLines={1} />
-        <View style={s.roomMeta}>
-          <View style={s.roomChip}>
-            <Ionicons name="location-outline" size={11} color="#777" />
-            <Text style={s.roomChipTxt}>{location}</Text>
-          </View>
-          <View style={s.roomChip}>
-            <AutoTranslate text={type} lang={lang} style={s.roomChipTxt} />
-          </View>
-        </View>
-        <Text style={[s.roomRent, IS_WEB && { fontSize: 17 }]}>{rent}</Text>
-      </View>
-    </AnimatedPress>
-  );
-}
-
-// ── Recent Job Card ────────────────────────────────────────────────────────────
-function RecentJobCard({ job, onPress, index = 0 }) {
-  const { t, lang } = useLang();
-  const iconName = CAT_ICONS[job.category || job.icon] || 'briefcase';
-  const ageDays = (Date.now() - (job.timestamp || 0)) / 86400000;
-  const freshnessColor = ageDays < 1 ? '#16a34a' : ageDays < 7 ? ORANGE : '#bbb';
-  const freshnessLabel = ageDays < 1 ? t('todayLabel')
-    : ageDays < 7 ? `${Math.floor(ageDays)}d ago`
-    : job.timestamp ? timeAgo(job.timestamp) : (job.jobTime || t('recentLabel'));
-  const skills = Array.isArray(job.skills) ? job.skills.slice(0, 3) : [];
-  const expLabel = job.experience ? job.experience : job.fresher_ok ? t('fresherOK') : null;
-
-  return (
-    <FadeSlide delay={200 + index * 90}>
-      <AnimatedPress
-        style={[s.jobCard, IS_WEB && ws.jobCard, job.featured && s.jobCardFeatured, job.urgent && s.jobCardUrgent]}
-        onPress={onPress}
-      >
-        {job.featured && (
-          <View style={s.jobFeatBadge}>
-            <Ionicons name="star" size={8} color="#fff" />
-            <Text style={s.jobFeatTxt}>{t('featuredBadge')}</Text>
-          </View>
-        )}
-        {job.urgent && !job.featured && (
-          <View style={[s.jobFeatBadge, { backgroundColor: '#ef4444' }]}>
-            <Ionicons name="flame" size={8} color="#fff" />
-            <Text style={s.jobFeatTxt}>{t('urgentBadge')}</Text>
-          </View>
-        )}
-        <View style={s.jobRow}>
-          <View style={[s.jobThumb, IS_WEB && ws.jobThumb]}>
-            <Ionicons name={iconName} size={IS_WEB ? 24 : 20} color={ORANGE} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <AutoTranslate text={job.title} lang={lang} style={[s.jobTitle, IS_WEB && ws.jobTitle]} numberOfLines={1} />
-              {job.verified_employer && <Ionicons name="checkmark-circle" size={14} color="#16a34a" />}
-            </View>
-            <View style={s.jobSubRow}>
-              <Ionicons name="business-outline" size={11} color="#aaa" />
-              <AutoTranslate text={job.company} lang={lang} style={s.jobSub} numberOfLines={1} />
-            </View>
-            <View style={s.jobChipsRow}>
-              <View style={s.jobLocChip}>
-                <Ionicons name="location-outline" size={10} color="#777" />
-                <Text style={s.jobLocTxt}>{job.location || job.loc}</Text>
-              </View>
-              {expLabel && <View style={s.jobExpChip}><Text style={s.jobExpTxt}>{expLabel}</Text></View>}
-            </View>
-            {skills.length > 0 && (
-              <View style={s.jobSkillsRow}>
-                {skills.map((sk, i) => <View key={i} style={s.jobSkillTag}><Text style={s.jobSkillTxt}>{sk}</Text></View>)}
-              </View>
-            )}
-          </View>
-          <View style={s.salaryCol}>
-            <View style={s.priceBadge}><Text style={[s.priceTxt, IS_WEB && { fontSize: 13 }]}>{job.salary}</Text></View>
-            <View style={[s.freshnessRow, { marginTop: 6 }]}>
-              {ageDays < 1 ? <PulseDot color={freshnessColor} /> : <View style={[s.freshnessDot, { backgroundColor: freshnessColor }]} />}
-              <Text style={[s.jobTime, { color: freshnessColor }]}>{freshnessLabel}</Text>
-            </View>
-            {(job.applicant_count > 0) && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, justifyContent: 'flex-end' }}>
-                <Ionicons name="people" size={10} color={ORANGE} />
-                <Text style={{ fontSize: 10, color: ORANGE, fontWeight: '700', marginLeft: 2 }}>{job.applicant_count}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </AnimatedPress>
-    </FadeSlide>
-  );
-}
-
-// ── Web Quick-Action Button ────────────────────────────────────────────────────
-function QuickAction({ icon, label, color, onPress }) {
-  return (
-    <TouchableOpacity style={[ws.quickAction, { borderColor: color + '33' }]} onPress={onPress} activeOpacity={0.85}>
-      <View style={[ws.quickActionIcon, { backgroundColor: color + '15' }]}>
-        <Ionicons name={icon} size={20} color={color} />
-      </View>
-      <Text style={ws.quickActionLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={14} color="#ccc" style={{ marginLeft: 'auto' }} />
-    </TouchableOpacity>
-  );
-}
-
-// ── Main ───────────────────────────────────────────────────────────────────────
-export default function HomeScreen() {
-  const nav = useNavigation();
-  const { jobs, user } = useAuth();
-  const isAdmin = user?.role === 'admin';
-  const { lang, changeLang, t, tDistrict } = useLang();
-  const insets = useSafeAreaInsets();
-  const { width: winW } = useWindowDimensions();
-  const { currentDistrict, selectDistrict, DISTRICTS } = useDistrict();
-
-  // Localised district name — Marathi/Hindi script when those langs are active
-  const districtLocalName = currentDistrict
-    ? (lang === 'mr' ? (currentDistrict.nameMarathi || currentDistrict.name)
-     : lang === 'hi' ? (currentDistrict.nameHindi   || currentDistrict.name)
-     : currentDistrict.name)
-    : 'Nanded';
-
-  const [showLangPicker, setShowLangPicker] = useState(false);
-  const [showDistrictPicker, setShowDistrictPicker] = useState(false);
-  const [searchText, setSearchText]         = useState('');
-  const [isListening, setIsListening]       = useState(false);
-
-  // Voice search handler — uses Web Speech API on web, no-op on native (requires expo-speech-recognition)
-  const startVoiceSearch = useCallback(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SR();
-      recognition.lang = 'mr-IN'; // Marathi first; falls back to en-IN
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      setIsListening(true);
-      recognition.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        setSearchText(transcript);
-        setIsListening(false);
-      };
-      recognition.onerror  = () => setIsListening(false);
-      recognition.onend    = () => setIsListening(false);
-      recognition.start();
-    } else {
-      // On native, show a prompt-style fallback (expo-speech-recognition can be added)
-      alert('Voice search: Please speak after enabling microphone permission in your device settings.');
-    }
-  }, []);
-
-  // Responsive breakpoints (web only)
-  const showSidebar    = IS_WEB && winW >= BP_MD;
-  const showRightPanel = IS_WEB && winW >= BP_LG;
-  const isSmWeb        = IS_WEB && winW < BP_SM;
-
-  const [rooms,    setRooms]    = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-  const [stats,    setStats]    = useState({ jobs: 0, rooms: 0, vehicles: 0, items: 0 });
-  const [cachedJobs, setCachedJobs] = useState([]);  // instant 2G/3G seed
-
-  const { loadJobs } = useAuth();
-
-  // Load cached jobs instantly on mount so the list shows before network responds
-  useEffect(() => {
-    getItem(JOBS_CACHE_KEY).then(raw => {
-      if (raw) {
-        try { setCachedJobs(JSON.parse(raw)); } catch {}
-      }
-    });
-  }, []);
-
-  const fetchHomeData = useCallback(async () => {
-    try {
-      const districtParam = currentDistrict?.id ? `?district=${currentDistrict.id}` : '';
-      const [roomRes, vehicleRes, buysellCountRes] = await Promise.all([
-        http('GET', `/api/rooms${districtParam}`),
-        http('GET', `/api/vehicles${districtParam}`),
-        http('GET', `/api/buysell/count${districtParam}`),
-      ]);
-      if (roomRes?.ok && Array.isArray(roomRes.rooms))           setRooms(roomRes.rooms);
-      if (vehicleRes?.ok && Array.isArray(vehicleRes.vehicles)) setVehicles(vehicleRes.vehicles);
-      const liveJobs     = jobs?.filter(j => j.status === 'active').length || 0;
-      const liveRooms    = roomRes?.rooms?.length    || 0;
-      const liveVehicles = vehicleRes?.vehicles?.length || 0;
-      const liveItems    = buysellCountRes?.ok ? (buysellCountRes.count ?? 0) : 0;
-      setStats(prev => ({
-        jobs:     liveJobs     > 0 ? liveJobs     : prev.jobs,
-        rooms:    liveRooms    > 0 ? liveRooms    : prev.rooms,
-        vehicles: liveVehicles > 0 ? liveVehicles : prev.vehicles,
-        items:    liveItems    >= 0 ? liveItems    : prev.items,
-      }));
-    } catch {}
-  }, [jobs, currentDistrict]);
-
-  // Reload jobs & home data whenever district changes
-  useEffect(() => {
-    if (currentDistrict?.id) {
-      loadJobs(1, null, null, currentDistrict.id);
-    }
-    fetchHomeData();
-  }, [currentDistrict?.id]);
-
-  const currentLang  = LANGUAGES.find(l => l.code === lang);
-  const langBtnLabel = currentLang?.native || 'EN';
-  const activeJobs   = jobs?.filter(j => j.status === 'active') || [];
-  const recentJobs   = activeJobs
-    .sort((a, b) =>
-      ((b.featured ? 2 : 0) + (b.urgent ? 1 : 0)) -
-      ((a.featured ? 2 : 0) + (a.urgent ? 1 : 0)) ||
-      b.timestamp - a.timestamp)
-    .slice(0, 20);
-
-  // Persist fresh jobs to cache (top 20) for instant next-open load
-  useEffect(() => {
-    if (recentJobs.length > 0) {
-      setItem(JOBS_CACHE_KEY, JSON.stringify(recentJobs.slice(0, 20))).catch(() => {});
-    }
-  }, [recentJobs.length]);
-
-  const featuredDemoJobs = [
-    { id: 'f1', title: t('demoJob1Title'), company: 'Swiggy Instamart',    salary: '₹15k–20k/mo', category: 'Delivery',   status: 'active', location: 'Nanded',               timestamp: Date.now() - 3600000 * 2 },
-    { id: 'f2', title: t('demoJob2Title'), company: 'TechSoft Solutions',  salary: '₹10k–12k/mo', category: 'Data Entry', status: 'active', location: 'Nanded',               timestamp: Date.now() - 86400000, verified_employer: true },
-    { id: 'f3', title: t('demoJob3Title'), company: 'Cybex Solution',      salary: '₹10,000/mo',  category: 'Security',   status: 'active', location: 'Kabra Nagar',          timestamp: Date.now() - 86400000 },
-    { id: 'f4', title: t('demoJob4Title'), company: 'Dhanraj Enterprises', salary: '₹12,000/mo',  category: 'TeleCaller', status: 'active', location: 'Maharana Pratap Chowk',timestamp: Date.now() - 86400000 * 5, fresher_ok: true },
-  ];
-  const demoJobs = [
-    { id: 'demo1', title: t('demoJob4Title'), company: 'Dhanraj Enterprises', location: 'Nanded',       salary: '₹12,000/mo', category: 'Other', icon: 'call-outline',       fresher_ok: true,   skills: ['Marathi', 'Hindi'],           jobTime: t('fullTime') },
-    { id: 'demo2', title: t('demoJob5Title'), company: 'TechSoft Solutions',  location: 'Nanded',       salary: '₹25,000/mo', category: 'Other', icon: 'globe-outline',      experience: '1 yr', skills: ['React', 'Node.js'], verified_employer: true, jobTime: t('fullTime') },
-    { id: 'demo3', title: t('demoJob6Title'), company: 'Reliance Retail',     location: 'Station Road', salary: '₹12,000/mo', category: 'Shop Assistant', icon: 'storefront-outline', fresher_ok: true, skills: ['Customer service', 'Billing'], jobTime: t('fullTime') },
-  ];
-  const demoRooms = [
-    { id: 'r1', title: t('demoRoom1Title'), location: 'Vazirabad',     type: t('demoRoom1Type'), rent: '₹5,500/mo',  available: true },
-    { id: 'r2', title: t('demoRoom2Title'), location: 'Station Road',  type: t('demoRoom2Type'), rent: '₹3,000/mo',  available: true },
-    { id: 'r3', title: t('demoRoom3Title'), location: 'Shivaji Nagar', type: t('demoRoom3Type'), rent: '₹4,200/mo',  available: true },
-  ];
-
-  const displayJobs     = recentJobs.length > 0  ? recentJobs : cachedJobs.length > 0 ? cachedJobs : demoJobs;
-  const displayFeatured = activeJobs.length > 0  ? activeJobs.slice(0,4) : featuredDemoJobs;
-  const displayRooms    = rooms.length > 0        ? rooms.slice(0, 3)     : demoRooms;
-
-  const handleSearch = () => {
-    const q = searchText.trim().toLowerCase();
-    if (!q) return;
-    const roomKw = ['room', 'rooms', 'flat', 'pg', 'hostel', 'rent', 'bhk', 'house', 'accommodation', '1bhk', '2bhk'];
-    const carKw  = ['car', 'cars', 'vehicle', 'vehicles', 'bike', 'scooter', 'auto', 'truck', 'cab'];
-    const sellKw = ['buy', 'sell', 'item', 'items', 'product', 'second hand', 'used', 'electronics', 'furniture', 'mobile'];
-    if (roomKw.some(k => q.includes(k)))      nav.navigate('Rooms',   { searchQuery: searchText.trim() });
-    else if (carKw.some(k => q.includes(k)))  nav.navigate('Cars',    { searchQuery: searchText.trim() });
-    else if (sellKw.some(k => q.includes(k))) nav.navigate('BuySell', { searchQuery: searchText.trim() });
-    else                                      nav.navigate('Jobs',    { searchQuery: searchText.trim() });
+// ── Contact card ───────────────────────────────────────────────────────────────
+function ContactCard({ icon, label, sub, onPress, bg, iconColor }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const press = () => {
+    Animated.sequence([
+      Animated.spring(scale, { toValue: 0.93, useNativeDriver: Platform.OS !== 'web', speed: 30 }),
+      Animated.spring(scale, { toValue: 1,    useNativeDriver: Platform.OS !== 'web', speed: 20 }),
+    ]).start();
+    onPress();
   };
+  return (
+    <Animated.View style={{ transform: [{ scale }], flex: 1 }}>
+      <TouchableOpacity onPress={press} activeOpacity={0.85} style={styles.contactCard}>
+        <View style={[styles.contactIconWrap, { backgroundColor: bg }]}>
+          <Ionicons name={icon} size={24} color={iconColor} />
+        </View>
+        <Text style={styles.contactLabel}>{label}</Text>
+        <Text style={styles.contactSub}>{sub}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
 
-  // ── WEB LAYOUT ─────────────────────────────────────────────────────────────
-  if (IS_WEB) {
-    return (
-      <>
-      <View style={ws.root}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+// ── Report modal ───────────────────────────────────────────────────────────────
+function ReportModal({ visible, onClose }) {
+  const [type, setType]     = useState('');
+  const [detail, setDetail] = useState('');
+  const translateY = useRef(new Animated.Value(400)).current;
 
-        {/* ── Top Nav Bar ── */}
-        <View style={ws.topNav}>
-          {isSmWeb ? (
-            /* ── Mobile web: 2-row header ── */
-            <View style={ws.topNavSm}>
-              {/* Row 1: Brand + icons */}
-              <View style={ws.topNavSmRow1}>
-                <TouchableOpacity onPress={() => setShowDistrictPicker(true)} activeOpacity={0.8}>
-                  <Text style={ws.brandText}>
-                    <Text style={ws.brandCity}>City</Text>
-                    <Text style={ws.brandRozgar}>Plus</Text>
-                  </Text>
-                  <View style={ws.locRow}>
-                    <Ionicons name="location-sharp" size={11} color={ORANGE} />
-                    <Text style={ws.locText}>{districtLocalName || 'Select District'}, Maharashtra</Text>
-                    <Ionicons name="chevron-down" size={10} color={ORANGE} style={{ marginLeft: 2 }} />
-                  </View>
-                </TouchableOpacity>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <TouchableOpacity style={ws.langBtn} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
-                    <Ionicons name="language" size={13} color={ORANGE} />
-                    <Text style={ws.langBtnTxt}>{langBtnLabel}</Text>
-                    <Ionicons name="chevron-down" size={11} color={ORANGE} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setShowDistrictPicker(true)}
-                    activeOpacity={0.8}
-                    style={[ws.bellBtn, { backgroundColor: (currentDistrict?.color || ORANGE) + '15', borderWidth: 1, borderColor: (currentDistrict?.color || ORANGE) + '40' }]}
-                  >
-                    <Ionicons name="location-sharp" size={16} color={currentDistrict?.color || ORANGE} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={ws.profileBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
-                    <Text style={ws.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'T'}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              {/* Search bar moved into hero banner for small web */}
-            </View>
-          ) : (
-            /* ── Desktop web: single row ── */
-            <View style={ws.topNavInner}>
-              <TouchableOpacity style={ws.brandRow} onPress={() => setShowDistrictPicker(true)} activeOpacity={0.8}>
-                <Text style={ws.brandText}>
-                  <Text style={ws.brandCity}>City</Text>
-                  <Text style={ws.brandRozgar}>Plus</Text>
-                </Text>
-                <View style={ws.locRow}>
-                  <Ionicons name="location-sharp" size={12} color={ORANGE} />
-                  <Text style={ws.locText}>{districtLocalName || 'Select District'}, Maharashtra</Text>
-                  <Ionicons name="chevron-down" size={11} color={ORANGE} style={{ marginLeft: 2 }} />
-                </View>
+  useEffect(() => {
+    Animated.spring(translateY, {
+      toValue: visible ? 0 : 400,
+      useNativeDriver: Platform.OS !== 'web', tension: 60, friction: 12,
+    }).start();
+  }, [visible]);
+
+  const PROBLEM_TYPES = ['App crash / bug', 'Fake listing', 'Spam or scam', 'Payment issue', 'Account problem', 'Other'];
+
+  function submit() {
+    if (!type) { Toast.show({ type: 'error', text1: 'Select a problem type' }); return; }
+    Toast.show({ type: 'success', text1: 'Report submitted!', text2: 'We\'ll get back within 24 hours.' });
+    setType(''); setDetail(''); onClose();
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBackdrop}>
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
+        <Animated.View style={[styles.reportSheet, { transform: [{ translateY }] }]}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>Report a Problem</Text>
+            <TouchableOpacity onPress={onClose} style={styles.sheetClose}>
+              <Ionicons name="close" size={20} color={MUTED} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.fieldLabel}>Problem type *</Text>
+          <View style={styles.chipRow}>
+            {PROBLEM_TYPES.map(t => (
+              <TouchableOpacity key={t} onPress={() => setType(t)}
+                style={[styles.chip, type === t && styles.chipActive]}>
+                <Text style={[styles.chipTxt, type === t && styles.chipTxtActive]}>{t}</Text>
               </TouchableOpacity>
-              <View style={ws.topSearchWrap}>
-                <Ionicons name="search" size={16} color="#aaa" style={{ marginLeft: 14 }} />
-                <TextInput
-                  style={ws.topSearchInput}
-                  placeholder={t('homeSearchPlaceholderWeb')}
-                  placeholderTextColor="#bbb"
-                  value={searchText}
-                  onChangeText={setSearchText}
-                  onSubmitEditing={handleSearch}
-                  returnKeyType="search"
-                />
-                <TouchableOpacity
-                  onPress={startVoiceSearch}
-                  style={{ paddingHorizontal: 8, justifyContent: 'center' }}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons name={isListening ? 'radio-button-on' : 'mic-outline'} size={16} color={isListening ? '#ef4444' : '#999'} />
-                </TouchableOpacity>
-                <TouchableOpacity style={ws.topSearchBtn} onPress={handleSearch} activeOpacity={0.9}>
-                  <Text style={ws.topSearchBtnTxt}>{t('homeSearchBtn')}</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={ws.topNavRight}>
-                <TouchableOpacity style={ws.langBtn} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
-                  <Ionicons name="language" size={13} color={ORANGE} />
-                  <Text style={ws.langBtnTxt}>{langBtnLabel}</Text>
-                  <Ionicons name="chevron-down" size={11} color={ORANGE} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setShowDistrictPicker(true)}
-                  activeOpacity={0.8}
-                  style={[ws.bellBtn, { backgroundColor: (currentDistrict?.color || ORANGE) + '15', borderWidth: 1, borderColor: (currentDistrict?.color || ORANGE) + '40' }]}
-                >
-                  <Ionicons name="location-sharp" size={16} color={currentDistrict?.color || ORANGE} />
-                </TouchableOpacity>
-                <TouchableOpacity style={ws.profileBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
-                  <Text style={ws.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'T'}</Text>
-                </TouchableOpacity>
-              </View>
+            ))}
+          </View>
+          <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Tell us more (optional)</Text>
+          <TextInput style={styles.textarea} placeholder="Describe the problem…"
+            placeholderTextColor={MUTED} value={detail} onChangeText={setDetail}
+            multiline numberOfLines={4} textAlignVertical="top" />
+          <TouchableOpacity style={styles.submitBtn} onPress={submit} activeOpacity={0.85}>
+            <Ionicons name="send-outline" size={16} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.submitBtnTxt}>Submit Report</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ── Main screen ────────────────────────────────────────────────────────────────
+export default function HelpSupportScreen() {
+  const [search, setSearch]         = useState('');
+  const [activeCat, setActiveCat]   = useState('jobs');
+  const [showReport, setShowReport] = useState(false);
+  const [legalKey, setLegalKey]     = useState(null); // 'terms' | 'privacy' | 'guidelines'
+  const headerAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(headerAnim, {
+      toValue: 1, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  }, []);
+
+  const headerTranslate = headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] });
+
+  const activeCatData = FAQ_CATEGORIES.find(c => c.id === activeCat);
+  const filteredFaqs  = search.trim().length > 1
+    ? FAQ_CATEGORIES.flatMap(c => c.faqs).filter(
+        f => f.q.toLowerCase().includes(search.toLowerCase()) ||
+             f.a.toLowerCase().includes(search.toLowerCase())
+      )
+    : activeCatData?.faqs ?? [];
+
+  const openWhatsApp = useCallback(() => {
+    Linking.openURL(`https://wa.me/${SUPPORT_PHONE}?text=Hi%2C%20I%20need%20help%20with%20CityPlus%20app.`);
+  }, []);
+  const openEmail = useCallback(() => {
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=CityPlus%20Support`);
+  }, []);
+  const openPhone = useCallback(() => {
+    Linking.openURL(`tel:+${SUPPORT_PHONE}`);
+  }, []);
+
+  return (
+    <View style={styles.root}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={{ paddingBottom: 48 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Hero ── */}
+        <Animated.View style={[styles.hero, { opacity: headerAnim, transform: [{ translateY: headerTranslate }] }]}>
+          <View style={styles.heroIconWrap}>
+            <Ionicons name="headset-outline" size={32} color={ORANGE} />
+          </View>
+          <Text style={styles.heroTitle}>How can we help you?</Text>
+          <Text style={styles.heroSub}>Search FAQs or choose a topic below</Text>
+          <View style={styles.searchBox}>
+            <Ionicons name="search-outline" size={18} color={MUTED} style={{ marginRight: 8 }} />
+            <TextInput style={styles.searchInput} placeholder="Search help articles…"
+              placeholderTextColor={MUTED} value={search} onChangeText={setSearch} returnKeyType="search" />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Ionicons name="close-circle" size={18} color={MUTED} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </Animated.View>
+
+        {/* ── Contact channels ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Contact Support</Text>
+          <View style={styles.contactRow}>
+            <ContactCard icon="logo-whatsapp" label="WhatsApp" sub="Fastest response"
+              onPress={openWhatsApp} bg="rgba(37,211,102,0.12)" iconColor="#25d366" />
+            <ContactCard icon="mail-outline" label="Email" sub="Reply in 24 hrs"
+              onPress={openEmail} bg="rgba(249,115,22,0.1)" iconColor={ORANGE} />
+            <ContactCard icon="call-outline" label="Call" sub="Mon–Sat 9am–6pm"
+              onPress={openPhone} bg="rgba(14,165,233,0.1)" iconColor="#0ea5e9" />
+          </View>
+        </View>
+
+        {/* ── FAQ section ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
+
+          {search.trim().length < 2 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
+              {FAQ_CATEGORIES.map(cat => (
+                <CategoryPill key={cat.id} item={cat} selected={activeCat === cat.id}
+                  onPress={() => setActiveCat(cat.id)} />
+              ))}
+            </ScrollView>
+          )}
+
+          {search.trim().length < 2 && activeCatData && (
+            <View style={[styles.catHeader, { backgroundColor: activeCatData.bg }]}>
+              <Ionicons name={activeCatData.icon} size={18} color={activeCatData.color} style={{ marginRight: 8 }} />
+              <Text style={[styles.catHeaderTxt, { color: activeCatData.color }]}>{activeCatData.label}</Text>
             </View>
           )}
-        </View>
 
-        <LangModal visible={showLangPicker} current={lang} onSelect={changeLang} onClose={() => setShowLangPicker(false)} />
-
-        {/* ── Body: Sidebar + Main + Right Panel ── */}
-        <View style={ws.body}>
-
-          {/* ── Left Sidebar (hidden on small/medium screens) ── */}
-          {showSidebar && <View style={ws.sidebar}>
-            <Text style={ws.sideNavSection}>{t('sideNavBrowse')}</Text>
-            <SideNavItem icon="home-outline"        label={t('sideNavHome')}      onPress={() => {}} active />
-            <SideNavItem icon="briefcase-outline"   label={t('sideNavJobs')}      onPress={() => nav.navigate('Jobs')} />
-            <SideNavItem icon="home-outline"        label={t('sideNavRooms')}     onPress={() => nav.navigate('Rooms')} />
-            <SideNavItem icon="car-sport-outline"   label={t('sideNavVehicles')}  onPress={() => nav.navigate('Cars')} />
-            <SideNavItem icon="pricetag-outline"    label={t('sideNavBuySell')}   onPress={() => nav.navigate('BuySell')} />
-
-            <Text style={[ws.sideNavSection, { marginTop: 20 }]}>{t('sideNavAccount')}</Text>
-            <SideNavItem icon="add-circle-outline"  label={t('sideNavPostAd')}    onPress={() => nav.navigate('Post')} />
-            <SideNavItem icon="person-outline"      label={t('sideNavMyProfile')} onPress={() => nav.navigate('Profile')} />
-            <SideNavItem icon="sparkles"    label={t('sideNavAI')}        onPress={() => nav.navigate('AIMatch')} />
-            {/* Bug fix #13: Messages was unreachable from the web sidebar */}
-            <SideNavItem icon="chatbubbles-outline" label={t('profileMenuMyMessages')} onPress={() => nav.navigate('ChatList')} />
-            {isAdmin && <SideNavItem icon="shield-checkmark-outline" label="Admin Dashboard" onPress={() => nav.navigate('AdminPanel')} />}
-
-            {/* Sidebar promo */}
-            <View style={ws.sidePromo}>
-              <Ionicons name="sparkles" size={20} color={ORANGE} />
-              <Text style={ws.sidePromoTitle}>{t('sidePromoTitle')}</Text>
-              <Text style={ws.sidePromoSub}>{t('sidePromoSub')}</Text>
-              <TouchableOpacity style={ws.sidePromoCta} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.85}>
-                <Text style={ws.sidePromoCtaTxt}>{t('sidePromoTryNow')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>}
-
-          {/* ── Main Content ── */}
-          <ScrollView
-            style={[ws.main, { paddingHorizontal: isSmWeb ? 10 : 16, paddingTop: isSmWeb ? 8 : 10 }]}
-            contentContainerStyle={{ paddingBottom: isSmWeb ? 80 : 48 }}
-            showsVerticalScrollIndicator={true}
-          >
-
-            {/* ── Hero Banner ── */}
-            <FadeSlide delay={0} fromY={-16}>
-              {isSmWeb ? (
-                /* ── Compact hero for mobile web — title + subtitle + search inside ── */
-                <View style={ws.heroBannerCompact}>
-                  <View style={ws.heroCircle1} />
-                  <View style={ws.heroCircle2} />
-                  <Text style={ws.heroBannerCompactTitle}>
-                    {t('heroTitleWeb').split('{DISTRICT}')[0]}<Text style={{ color: '#ffd580' }}>{districtLocalName}</Text>{t('heroTitleWeb').split('{DISTRICT}')[1] || ''}
-                  </Text>
-                  <Text style={ws.heroBannerCompactSub}>{t('heroSubWeb')}</Text>
-                  <View style={ws.heroBannerCompactSearch}>
-                    <Ionicons name="search" size={16} color="#aaa" style={{ marginLeft: 12 }} />
-                    <TextInput
-                      style={ws.heroBannerSearchInput}
-                      placeholder={t('homeSearchPlaceholder')}
-                      placeholderTextColor="#bbb"
-                      value={searchText}
-                      onChangeText={setSearchText}
-                      onSubmitEditing={handleSearch}
-                      returnKeyType="search"
-                    />
-                    <TouchableOpacity style={ws.heroBannerSearchBtn} onPress={handleSearch} activeOpacity={0.9}>
-                      <Ionicons name="search" size={16} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                /* ── Full hero for desktop web ── */
-                <View style={ws.heroBanner}>
-                  <View style={ws.heroCircle1} />
-                  <View style={ws.heroCircle2} />
-                  <View style={ws.heroCircle3} />
-                  <View style={ws.heroContent}>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-                        <Ionicons name="shield-checkmark-outline" size={13} color="rgba(255,255,255,0.85)" />
-                        <Text style={ws.heroTag}>{t('heroCityTag').replace(/^\p{Emoji_Presentation}\s*/u, '').replace(/^🏙️\s*/, '')}</Text>
-                      </View>
-                      <Text style={ws.heroTitle}>
-                        {t('heroTitleWeb').split('{DISTRICT}')[0]}<Text style={{ color: '#ffd580' }}>{districtLocalName}</Text>{t('heroTitleWeb').split('{DISTRICT}')[1] || ''}
-                      </Text>
-                      <Text style={ws.heroSub}>{t('heroSubWeb')}</Text>
-                      <View style={ws.heroBadges}>
-                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>{t('heroBadgeFree')}</Text></View>
-                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>{t('heroBadgeLocal')}</Text></View>
-                        <View style={ws.heroBadge}><Text style={ws.heroBadgeTxt}>{t('heroBadgeVerified')}</Text></View>
-                      </View>
-                    </View>
-                    <View style={ws.heroStats}>
-                      <View style={ws.heroStatCard}>
-                        <Text style={ws.heroStatNum}>{stats.jobs}+</Text>
-                        <Text style={ws.heroStatLabel}>{t('statActiveJobs')}</Text>
-                      </View>
-                      <View style={ws.heroStatCard}>
-                        <Text style={ws.heroStatNum}>{stats.rooms}+</Text>
-                        <Text style={ws.heroStatLabel}>{t('statRooms')}</Text>
-                      </View>
-                      <View style={ws.heroStatCard}>
-                        <Text style={ws.heroStatNum}>{stats.vehicles}+</Text>
-                        <Text style={ws.heroStatLabel}>{t('statVehicles')}</Text>
-                      </View>
-                      <View style={ws.heroStatCard}>
-                        <Text style={ws.heroStatNum}>{stats.items}+</Text>
-                        <Text style={ws.heroStatLabel}>{t('statItems')}</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              )}
-            </FadeSlide>
-
-            {/* ── Ticker ── */}
-            <TickerBanner t={t} districtLocalName={districtLocalName} itemCount={stats.items} />
-
-            {/* ── Explore Grid ── */}
-            <FadeSlide delay={100}>
-              <View style={ws.sectionHeader}>
-                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>{t('exploreCategories')}</Text>
-              </View>
-              <View style={[ws.exploreGrid, isSmWeb && { flexWrap: 'wrap', gap: 8 }]}>
-                <ExploreCard icon="briefcase-outline"  title={t('sideNavJobs')}     subtitle={`${stats.jobs}+ ${t('jobsOpenings')}`}      color={ORANGE}  onPress={() => nav.navigate('Jobs')}    compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
-                <ExploreCard icon="home-outline"       title={t('sideNavRooms')}    subtitle={`${stats.rooms}+ ${t('roomsListings')}`}     color={TEAL}    onPress={() => nav.navigate('Rooms')}   compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
-                <ExploreCard icon="car-sport-outline"  title={t('sideNavVehicles')} subtitle={`${stats.vehicles}+ ${t('vehiclesForRent')}`} color={PURPLE}  onPress={() => nav.navigate('Cars')}    compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
-                <ExploreCard icon="pricetag-outline"   title={t('sideNavBuySell')}  subtitle={`${stats.items}+ ${t('itemsCount')}`}        color='#0ea5e9' onPress={() => nav.navigate('BuySell')} compact={isSmWeb} style={[{ flex: 1 }, isSmWeb && { minWidth: '46%' }]} />
-              </View>
-            </FadeSlide>
-
-            {/* ── Recent Jobs ── */}
-            <FadeSlide delay={160}>
-              <View style={ws.sectionHeader}>
-                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>{t('recentJobsSection')}</Text>
-                <TouchableOpacity onPress={() => nav.navigate('Jobs')} style={ws.seeAllBtn}>
-                  <Text style={ws.seeAllTxt}>{t('viewAll')}</Text>
-                  <Ionicons name="arrow-forward" size={14} color={ORANGE} />
-                </TouchableOpacity>
-              </View>
-              {isSmWeb ? (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={ws.jobsScrollContent}
-                  style={ws.jobsScroll}
-                >
-                  {displayJobs.slice(0, 6).map(job => (
-                    <FeaturedJobCard
-                      key={String(job.id)}
-                      job={job}
-                      cardWidth={220}
-                      onPress={() => nav.navigate('JobDetail', { job })}
-                    />
-                  ))}
-                </ScrollView>
-              ) : (
-                <View style={ws.featJobsGrid}>
-                  {displayJobs.slice(0, 6).map(job => (
-                    <View key={String(job.id)} style={ws.featJobGridItem}>
-                      <FeaturedJobCard
-                        job={job}
-                        onPress={() => nav.navigate('JobDetail', { job })}
-                      />
-                    </View>
-                  ))}
-                </View>
-              )}
-            </FadeSlide>
-
-            {/* ── Recent Rooms ── */}
-            <FadeSlide delay={280}>
-              <View style={ws.sectionHeader}>
-                <Text style={[ws.sectionTitle, isSmWeb && ws.sectionTitleSm]}>{t('recentRoomsSection')}</Text>
-                <TouchableOpacity onPress={() => nav.navigate('Rooms')} style={ws.seeAllBtn}>
-                  <Text style={ws.seeAllTxt}>{t('viewAll')}</Text>
-                  <Ionicons name="arrow-forward" size={14} color={ORANGE} />
-                </TouchableOpacity>
-              </View>
-              <View style={ws.roomsGrid}>
-                {displayRooms.map(room => (
-                  <RecentRoomCard
-                    key={String(room.id)}
-                    room={room}
-                    onPress={() => nav.navigate('RoomDetail', { room })}
-                  />
-                ))}
-              </View>
-            </FadeSlide>
-
-          </ScrollView>
-
-          {/* ── Right Panel (hidden on small/medium screens) ── */}
-          {showRightPanel && <ScrollView style={ws.rightPanel} contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={true}>
-
-            {/* Post CTA */}
-            <FadeSlide delay={60}>
-              <View style={ws.postCtaCard}>
-                <Text style={ws.postCtaTitle}>{t('postForFree')}</Text>
-                <Text style={ws.postCtaSub}>{t('postForFreeSub').replace('{DISTRICT}', districtLocalName || '')}</Text>
-                <TouchableOpacity style={ws.postCtaBtn} onPress={() => nav.navigate('Post')} activeOpacity={0.88}>
-                  <Ionicons name="add-circle-outline" size={16} color="#fff" />
-                  <Text style={ws.postCtaBtnTxt}>{t('postAnAd')}</Text>
-                </TouchableOpacity>
-              </View>
-            </FadeSlide>
-
-            {/* Stats Card */}
-            <FadeSlide delay={100}>
-              <View style={ws.statsCard}>
-                <Text style={ws.statsCardTitle}>{t('platformStats')}</Text>
-                <AnimatedStat value={stats.jobs}     label={t('statActiveJobs')}   delay={400}  accent={ORANGE} />
-                <View style={ws.statDividerH} />
-                <AnimatedStat value={stats.rooms}    label={t('statRoomsListed')}  delay={550}  accent={TEAL} />
-                <View style={ws.statDividerH} />
-                <AnimatedStat value={stats.vehicles} label={t('statVehicles')}     delay={700}  accent={PURPLE} />
-                <View style={ws.statDividerH} />
-                <AnimatedStat value={stats.items}    label={t('statItemsForSale')} delay={850} accent='#0ea5e9' />
-              </View>
-            </FadeSlide>
-
-            {/* Quick Actions */}
-            <FadeSlide delay={140}>
-              <View style={ws.quickActionsCard}>
-                <Text style={ws.statsCardTitle}>{t('quickActions')}</Text>
-                <QuickAction icon="briefcase-outline"  label={t('qaJobs')}     color={ORANGE}  onPress={() => nav.navigate('Jobs')} />
-                <QuickAction icon="home-outline"       label={t('qaRooms')}    color={TEAL}    onPress={() => nav.navigate('Rooms')} />
-                <QuickAction icon="car-sport-outline"  label={t('qaVehicles')} color={PURPLE}  onPress={() => nav.navigate('Cars')} />
-                <QuickAction icon="pricetag-outline"   label={t('qaBuySell')}  color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
-                <QuickAction icon="sparkles"   label={t('qaAI')}       color={ORANGE}  onPress={() => nav.navigate('AIMatch')} />
-              </View>
-            </FadeSlide>
-
-          </ScrollView>}
-        </View>
-
-        {/* ── Bottom Tab Nav (small web screens only) ── */}
-        {!showSidebar && (
-          <View style={ws.bottomNav}>
-            {[
-              { icon: 'home',              label: t('bottomNavHome'),     route: null },
-              { icon: 'briefcase-outline', label: t('bottomNavJobs'),     route: 'Jobs' },
-              { icon: 'home-outline',      label: t('bottomNavRooms'),    route: 'Rooms' },
-              { icon: 'car-sport-outline', label: t('bottomNavVehicles'), route: 'Cars' },
-              { icon: 'pricetag-outline',  label: t('bottomNavSell'),     route: 'BuySell' },
-            ].map(item => (
-              <TouchableOpacity
-                key={item.label}
-                style={ws.bottomNavItem}
-                onPress={() => item.route ? nav.navigate(item.route) : null}
-                activeOpacity={0.75}
-              >
-                <Ionicons
-                  name={item.icon}
-                  size={22}
-                  color={item.route === null ? ORANGE : '#888'}
-                />
-                <Text style={[ws.bottomNavLabel, item.route === null && { color: ORANGE }]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </View>
-
-      {/* ── District Picker Modal (web) ── */}
-      {showDistrictPicker && (
-        <Modal visible transparent animationType="slide" onRequestClose={() => setShowDistrictPicker(false)}>
-          <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} activeOpacity={1} onPress={() => setShowDistrictPicker(false)} />
-          <View style={s.districtModalSheet}>
-            <View style={s.districtModalHandle} />
-            <Text style={s.districtModalTitle}>Switch District</Text>
-            <Text style={s.districtModalSub}>All listings will update for your selected area</Text>
-            <View style={s.districtModalCards}>
-              {DISTRICTS.map(d => {
-                const isActive = currentDistrict?.id === d.id;
-                return (
-                  <TouchableOpacity
-                    key={d.id}
-                    style={[s.districtModalCard, isActive && { borderColor: d.color, backgroundColor: d.color + '08' }]}
-                    onPress={async () => { await selectDistrict(d.id); setShowDistrictPicker(false); }}
-                    activeOpacity={0.85}
-                  >
-                    <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: d.color + '22', alignItems: 'center', justifyContent: 'center', marginRight: 4 }}><Ionicons name="location-sharp" size={22} color={d.color} /></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[s.districtModalName, isActive && { color: d.color }]}>{d.name}</Text>
-                      <Text style={s.districtModalMarathi}>{d.nameMarathi}</Text>
-                    </View>
-                    {isActive && <Ionicons name="checkmark-circle" size={22} color={d.color} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </Modal>
-      )}
-      </>
-    );
-  }
-  return (
-    <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-
-      {/* ── Sticky White Header ── */}
-      <View style={[s.headerBand, { paddingTop: insets.top + 6 }]}>
-        <View style={s.headerTop}>
-          <TouchableOpacity onPress={() => setShowDistrictPicker(true)} activeOpacity={0.8}>
-            <Text style={s.brandText}>
-              <Text style={s.brandCity}>City</Text>
-              <Text style={s.brandRozgar}>Plus</Text>
-            </Text>
-            <View style={s.locRow}>
-              <Ionicons name="location-sharp" size={12} color={ORANGE} />
-              <Text style={s.locText}>{districtLocalName || 'Select District'}, Maharashtra</Text>
-              <Ionicons name="chevron-down" size={11} color={ORANGE} style={{ marginLeft: 2 }} />
-            </View>
-          </TouchableOpacity>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TouchableOpacity style={s.langToggle} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
-              <Ionicons name="language" size={12} color={ORANGE} />
-              <Text style={s.langToggleTxt}>{langBtnLabel}</Text>
-              <Ionicons name="chevron-down" size={10} color={ORANGE} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setShowDistrictPicker(true)}
-              activeOpacity={0.8}
-              style={[s.bellBtn, { backgroundColor: (currentDistrict?.color || ORANGE) + '15', borderWidth: 1, borderColor: (currentDistrict?.color || ORANGE) + '40' }]}
-            >
-              <Ionicons name="location-sharp" size={16} color={currentDistrict?.color || ORANGE} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.profileBtn} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
-              <Text style={s.profileInitial}>{user?.name?.[0]?.toUpperCase() || 'T'}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
-      <LangModal visible={showLangPicker} current={lang} onSelect={changeLang} onClose={() => setShowLangPicker(false)} />
-
-      {/* ── District Picker Modal ── */}
-      {showDistrictPicker && (
-        <Modal visible transparent animationType="slide" onRequestClose={() => setShowDistrictPicker(false)}>
-          <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} activeOpacity={1} onPress={() => setShowDistrictPicker(false)} />
-          <View style={s.districtModalSheet}>
-            <View style={s.districtModalHandle} />
-            <Text style={s.districtModalTitle}>Switch District</Text>
-            <Text style={s.districtModalSub}>All listings will update for your selected area</Text>
-            <View style={s.districtModalCards}>
-              {DISTRICTS.map(d => {
-                const isActive = currentDistrict?.id === d.id;
-                return (
-                  <TouchableOpacity
-                    key={d.id}
-                    style={[s.districtModalCard, isActive && { borderColor: d.color, backgroundColor: d.color + '08' }]}
-                    onPress={async () => { await selectDistrict(d.id); setShowDistrictPicker(false); }}
-                    activeOpacity={0.85}
-                  >
-                    <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: d.color + '22', alignItems: 'center', justifyContent: 'center', marginRight: 4 }}><Ionicons name="location-sharp" size={22} color={d.color} /></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[s.districtModalName, isActive && { color: d.color }]}>{d.name}</Text>
-                      <Text style={s.districtModalMarathi}>{d.nameMarathi}</Text>
-                    </View>
-                    {isActive && <Ionicons name="checkmark-circle" size={22} color={d.color} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </Modal>
-      )}
-
-      <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={true}>
-
-        {/* Hero */}
-        <FadeSlide delay={0} fromY={-12}>
-          <View style={s.heroBanner}>
-            {/* Glossy top sheen */}
-            <LinearGradient colors={['rgba(255,255,255,0.30)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: '48%', zIndex: 1}} />
-            {/* Glossy top border */}
-            <LinearGradient colors={['rgba(255,255,255,0.62)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2}} />
-            <View style={s.heroCircle1} />
-            <View style={s.heroCircle2} />
-            <Text style={s.heroTitle}>
-              {t('heroTitle').split('{DISTRICT}')[0]}<Text style={{ color: '#ffd580' }}>{districtLocalName}</Text>{t('heroTitle').split('{DISTRICT}')[1] || ''}
-            </Text>
-            <Text style={s.heroSub}>{t('heroSub')}</Text>
-            <View style={s.searchBar}>
-              <Ionicons name="search" size={18} color="#aaa" style={{ marginLeft: 12 }} />
-              <TextInput
-                style={s.searchInput}
-                placeholder={t('homeSearchPlaceholder')}
-                placeholderTextColor="#aaa"
-                value={searchText}
-                onChangeText={setSearchText}
-                onSubmitEditing={handleSearch}
-                returnKeyType="search"
-              />
-              <TouchableOpacity
-                style={s.micBtn}
-                onPress={startVoiceSearch}
-                activeOpacity={0.75}
-              >
-                <Ionicons name={isListening ? 'radio-button-on' : 'mic'} size={18} color={isListening ? '#ef4444' : ORANGE} />
-              </TouchableOpacity>
-              <TouchableOpacity style={s.searchBtn} onPress={handleSearch} activeOpacity={0.85}>
-                <Ionicons name="search" size={16} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </FadeSlide>
-
-        {/* Stats */}
-        <FadeSlide delay={80}>
-          <View style={s.statsRow}>
-            <AnimatedStat value={stats.jobs}     label={t('statActiveJobs')} delay={300} />
-            <View style={s.statDivider} />
-            <AnimatedStat value={stats.rooms}    label={t('statRooms')}      delay={450} />
-            <View style={s.statDivider} />
-            <AnimatedStat value={stats.vehicles} label={t('statVehicles')}   delay={600} />
-            <View style={s.statDivider} />
-            <AnimatedStat value={stats.items}    label={t('statItems')}      delay={750} />
-          </View>
-        </FadeSlide>
-
-        {/* Explore */}
-        <FadeSlide delay={120}>
-          <Text style={s.sectionTitleStandalone}>{t('explore')}</Text>
-          <View style={s.exploreGrid}>
-            <ExploreCard icon="briefcase-outline" title={t('sideNavJobs')}     subtitle={`${stats.jobs}+ ${t('jobsOpenings')}`}     color={ORANGE} onPress={() => nav.navigate('Jobs')}    style={{ marginRight: 8 }} />
-            <ExploreCard icon="home-outline"      title={t('sideNavRooms')}    subtitle={`${stats.rooms}+ ${t('roomsListings')}`}    color={TEAL}   onPress={() => nav.navigate('Rooms')} />
-          </View>
-          <View style={[s.exploreGrid, { marginTop: 10 }]}>
-            <ExploreCard icon="car-sport-outline" title={t('sideNavVehicles')} subtitle={`${stats.vehicles}+ ${t('vehiclesForRent')}`} color={PURPLE} onPress={() => nav.navigate('Cars')}    style={{ marginRight: 8 }} />
-           <ExploreCard icon="pricetag-outline"  title={t('sideNavBuySell')}  subtitle={`${stats.items}+ ${t('itemsCount')}`}       color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
-          </View>
-        </FadeSlide>
-
-        <TickerBanner t={t} districtLocalName={districtLocalName} itemCount={stats.items} />
-
-        {/* ── Job Alerts CTA ── */}
-        <FadeSlide delay={160}>
-          <TouchableOpacity
-            style={s.alertsBanner}
-            onPress={() => nav.navigate('Alerts')}
-            activeOpacity={0.88}
-          >
-            {/* Glossy top sheen */}
-            <LinearGradient colors={['rgba(255,255,255,0.72)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: 26, zIndex: 1, borderTopLeftRadius: 12, borderTopRightRadius: 12}} />
-            <View style={s.alertsIconWrap}>
-              <Ionicons name="notifications" size={22} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.alertsBannerTitle}>Get notified for new jobs</Text>
-              <Text style={s.alertsBannerSub}>
-                Tell us what you're looking for — we'll alert you the moment a match is posted in {districtLocalName || 'your district'}.
+          {search.trim().length > 1 && (
+            <View style={styles.searchResultHeader}>
+              <Ionicons name="search-outline" size={14} color={MUTED} style={{ marginRight: 6 }} />
+              <Text style={styles.searchResultTxt}>
+                {filteredFaqs.length} result{filteredFaqs.length !== 1 ? 's' : ''} for "{search}"
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={ORANGE} />
-          </TouchableOpacity>
-        </FadeSlide>
+          )}
 
-        {/* Recent Jobs */}
-        <FadeSlide delay={200}>
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>{t('recentJobsSection')}</Text>
-            <TouchableOpacity onPress={() => nav.navigate('Jobs')}>
-              <Text style={s.seeAllBtn}>{t('viewAll')} →</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.jobsScrollContent}
-            style={s.jobsScroll}
-          >
-            {displayJobs.slice(0, 6).map((job) => (
-              <FeaturedJobCard
-                key={String(job.id)}
-                job={job}
-                cardWidth={SCREEN_W * 0.60}
-                onPress={() => nav.navigate('JobDetail', { job })}
-              />
-            ))}
-          </ScrollView>
-        </FadeSlide>
-
-        {/* Recent Rooms */}
-        <FadeSlide delay={260}>
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>{t('recentRoomsSection')}</Text>
-            <TouchableOpacity onPress={() => nav.navigate('Rooms')}>
-              <Text style={s.seeAllBtn}>{t('seeAllArrow')}</Text>
-            </TouchableOpacity>
-          </View>
-          {displayRooms.map(room => (
-            <RecentRoomCard key={String(room.id)} room={room} onPress={() => nav.navigate('RoomDetail', { room })} />
-          ))}
-        </FadeSlide>
-
-        {/* AI Banner */}
-        <FadeSlide delay={300}>
-          <TouchableOpacity style={s.aiCard} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.9}>
-            {/* Glossy top sheen */}
-            <LinearGradient colors={['rgba(255,255,255,0.77)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: 28, zIndex: 1, borderTopLeftRadius: 12, borderTopRightRadius: 12}} />
-            <View style={s.aiLeft}>
-              <View style={s.aiIconWrap}><Ionicons name="sparkles" size={22} color={ORANGE} /></View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.aiTitle}>{t('homeAiTitle')}</Text>
-                <Text style={s.aiPrompt}>{t('homeAiPrompt').replace('{DISTRICT}', districtLocalName || '')}</Text>
+          <View style={styles.faqCard}>
+            {filteredFaqs.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <Ionicons name="search-circle-outline" size={48} color="#e5e5e5" />
+                <Text style={styles.emptyTxt}>No results found</Text>
+                <Text style={styles.emptySub}>Try a different keyword or contact us directly</Text>
               </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={ORANGE} />
-          </TouchableOpacity>
-        </FadeSlide>
+            ) : (
+              filteredFaqs.map((f, i) => (
+                <React.Fragment key={`${activeCat}-${i}`}>
+                  <FAQItem q={f.q} a={f.a} index={i} />
+                  {i < filteredFaqs.length - 1 && <View style={styles.divider} />}
+                </React.Fragment>
+              ))
+            )}
+          </View>
+        </View>
 
+        {/* ── Quick links ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Links</Text>
+          <View style={styles.quickGrid}>
+            {[
+              { icon: 'document-text-outline', label: 'Terms of Service',     color: '#6366f1', bg: 'rgba(99,102,241,0.1)',  onPress: () => setLegalKey('terms')      },
+              { icon: 'lock-closed-outline',   label: 'Privacy Policy',       color: '#0ea5e9', bg: 'rgba(14,165,233,0.1)',  onPress: () => setLegalKey('privacy')    },
+              { icon: 'newspaper-outline',     label: 'Community Guidelines', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  onPress: () => setLegalKey('guidelines') },
+              { icon: 'bug-outline',           label: 'Report a Problem',     color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   onPress: () => setShowReport(true)       },
+            ].map((link, i, arr) => (
+              <TouchableOpacity key={i} style={[styles.quickItem, i === arr.length - 1 && { borderBottomWidth: 0 }]}
+                activeOpacity={0.8} onPress={link.onPress}>
+                <View style={[styles.quickIcon, { backgroundColor: link.bg }]}>
+                  <Ionicons name={link.icon} size={20} color={link.color} />
+                </View>
+                <Text style={styles.quickLabel}>{link.label}</Text>
+                <Ionicons name="chevron-forward" size={14} color={MUTED} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.versionNote}>
+          <Text style={styles.versionTxt}>CityPlus v4.4.0 · Made with ❤️ in Nanded</Text>
+        </View>
       </ScrollView>
+
+      {/* Modals */}
+      <LegalModal visible={!!legalKey} contentKey={legalKey} onClose={() => setLegalKey(null)} />
+      <ReportModal visible={showReport} onClose={() => setShowReport(false)} />
     </View>
   );
 }
 
-// ── WEB STYLES ─────────────────────────────────────────────────────────────────
-const ws = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f3f4f6' },
-
-  // Top Nav
-  topNav: {
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1, borderBottomColor: '#ececec',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 }, elevation: 4,
-    zIndex: 100,
-    // Glossy feel: very bright top border acts like reflected light
-    borderTopWidth: 2, borderTopColor: 'rgba(255,255,255,1)',
+// ── Styles ─────────────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  root:   { flex: 1, backgroundColor: BG },
+  scroll: { flex: 1 },
+  hero: {
+    backgroundColor: SURFACE, margin: 16, borderRadius: 20, padding: 20, alignItems: 'center',
+    borderWidth: 1, borderColor: BORDER,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
   },
-  topNavInner: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 0, paddingVertical: 12,
-    gap: 0,
+  heroIconWrap: {
+    width: 64, height: 64, borderRadius: 32, backgroundColor: '#fff7ed',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
-  topNavInnerSm: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-
-  /* Mobile web 2-row header */
-  topNavSm: { paddingHorizontal: 16, paddingVertical: 10, gap: 10 },
-  topNavSmRow1: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
+  heroTitle: { fontSize: 20, fontWeight: '800', color: TEXT, marginBottom: 6, textAlign: 'center' },
+  heroSub:   { fontSize: 13, color: MUTED, marginBottom: 16, textAlign: 'center' },
+  searchBox: {
+    width: '100%', flexDirection: 'row', alignItems: 'center',
+    backgroundColor: BG, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: BORDER,
   },
-  topNavSmRow2: { width: '100%' },
-  brandRow:   { width: 210, flexShrink: 0, flexGrow: 0, paddingHorizontal: 16 },
-  brandText:  { fontSize: 20, fontWeight: '900', letterSpacing: 0.2 },
-  brandCity:{ color: '#111111' },
-  brandRozgar:{ color: ORANGE },
-  locRow:     { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
-  locText:    { color: '#888', fontSize: 11, fontWeight: '500' },
-
-  topSearchWrap: {
-    flex: 1, flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f8f8f8', borderRadius: 10, height: 44,
-    borderWidth: 1.5, borderColor: '#e8e8e8',
-    overflow: 'hidden',
+  searchInput: { flex: 1, fontSize: 14, color: TEXT },
+  section:      { marginHorizontal: 16, marginBottom: 20 },
+  sectionTitle: { fontSize: 13, fontWeight: '800', color: TEXT, letterSpacing: 0.4, marginBottom: 12, textTransform: 'uppercase' },
+  contactRow:   { flexDirection: 'row', gap: 10 },
+  contactCard: {
+    flex: 1, backgroundColor: SURFACE, borderRadius: 14, padding: 14,
+    alignItems: 'center', borderWidth: 1, borderColor: BORDER,
   },
-  topSearchInput: { flex: 1, height: 44, paddingHorizontal: 10, fontSize: 14, color: '#333', outlineStyle: 'none' },
-  topSearchBtn:   { height: 44, paddingHorizontal: 24, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
-  topSearchBtnSm:  { width: 44, height: 44, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
-  topSearchBtnTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
-
-  topNavRight: { width: 220, flexShrink: 0, flexGrow: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, paddingHorizontal: 16 },
-  langBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#fff7f0', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12,
-    borderWidth: 1, borderColor: ORANGE + '44',
+  contactIconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  contactLabel: { fontSize: 12, fontWeight: '700', color: TEXT, textAlign: 'center', marginBottom: 2 },
+  contactSub:   { fontSize: 10, color: MUTED, textAlign: 'center', lineHeight: 14 },
+  pillRow:      { paddingBottom: 12, gap: 8, flexDirection: 'row' },
+  pill: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 20, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER,
   },
-  langBtnTxt: { color: ORANGE, fontSize: 12, fontWeight: '700' },
-  bellBtn: {
-    width: 38, height: 38, borderRadius: 10,
-    backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center',
+  pillTxt: { fontSize: 12, fontWeight: '600', color: MUTED },
+  catHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, marginBottom: 12 },
+  catHeaderTxt: { fontSize: 13, fontWeight: '700' },
+  searchResultHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  searchResultTxt: { fontSize: 12, color: MUTED, fontStyle: 'italic' },
+  faqCard: { backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER, overflow: 'hidden' },
+  faqRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
+  faqRowOpen: { backgroundColor: '#fff9f5' },
+  faqQ:  { flex: 1, fontSize: 14, fontWeight: '600', color: TEXT, paddingRight: 12, lineHeight: 20 },
+  faqA:  { fontSize: 13, color: MUTED, lineHeight: 20, paddingHorizontal: 16, paddingBottom: 14 },
+  divider: { height: 1, backgroundColor: BORDER, marginHorizontal: 16 },
+  emptyWrap: { alignItems: 'center', paddingVertical: 32 },
+  emptyTxt:  { fontSize: 15, fontWeight: '700', color: MUTED, marginTop: 12, marginBottom: 4 },
+  emptySub:  { fontSize: 12, color: '#c0c0c8', textAlign: 'center' },
+  quickGrid: { backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER, overflow: 'hidden' },
+  quickItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: BORDER },
+  quickIcon:  { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  quickLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: TEXT },
+  versionNote: { alignItems: 'center', paddingVertical: 8 },
+  versionTxt:  { fontSize: 11, color: '#c0c0c8', letterSpacing: 0.3 },
+
+  // ── Legal modal
+  legalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
+  legalSheet: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    height: '92%', backgroundColor: SURFACE,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden',
   },
-  profileBtn: {
-    width: 38, height: 38, borderRadius: 10,
-    backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center',
-  },
-  profileInitial: { color: '#fff', fontSize: 15, fontWeight: '800' },
-
-  // Body
-  body:       { flex: 1, flexDirection: 'row', backgroundColor: '#f3f4f6' },
-
-  // Sidebar
-  sidebar: {
-    width: 210, flexShrink: 0, flexGrow: 0, backgroundColor: '#fff',
-    borderRightWidth: 1, borderRightColor: '#ececec',
-    paddingTop: 20, paddingHorizontal: 12,
-  },
-  sideNavSection: { fontSize: 10, fontWeight: '800', color: '#bbb', letterSpacing: 1.2, paddingHorizontal: 10, marginBottom: 6 },
-  sideNavItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, marginBottom: 2,
-  },
-  sideNavItemActive: { backgroundColor: '#fff7f0' },
-  sideNavLabel:      { fontSize: 15, fontWeight: '600', color: '#444' },
-  sideNavLabelActive:{ color: ORANGE, fontWeight: '700' },
-
-  sidePromo: {
-    marginTop: 24, backgroundColor: '#fff7f0', borderRadius: 14,
-    padding: 14, borderWidth: 1, borderColor: ORANGE + '33',
-  },
-  sidePromoTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginTop: 8, marginBottom: 4 },
-  sidePromoSub:   { fontSize: 12, color: '#888', lineHeight: 17, marginBottom: 12 },
-  sidePromoCta:   { backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  sidePromoCtaTxt:{ color: '#fff', fontSize: 13, fontWeight: '700' },
-
-  // Main
-  main: { flex: 1, flexShrink: 1, flexGrow: 1, minWidth: 0, backgroundColor: '#f3f4f6' },  // overridden inline for mobile-web
-
-  // Hero
-  heroBanner: {
-    backgroundColor: ORANGE,
-    borderRadius: 12, padding: 24, paddingVertical: 22,
-    overflow: 'hidden', position: 'relative',
-    marginBottom: 12,
-    borderTopWidth: 1.5, borderTopColor: 'rgba(255,255,255,0.45)',
-  },
-  heroBannerSm: { padding: 16, borderRadius: 12 },
-
-  // Compact hero for mobile web — matches native APK layout exactly
-  heroBannerCompact: {
-    backgroundColor: '#f97316',
-    borderRadius: 0,
-    paddingHorizontal: 20,
-    paddingTop: 28,
-    paddingBottom: 28,
-    marginBottom: 0,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  heroBannerCompactTitle: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#fff',
-    lineHeight: 34,
-    marginBottom: 6,
-  },
-  heroBannerCompactSub: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.88)',
-    marginBottom: 18,
-    fontWeight: '500',
-  },
-  heroBannerCompactSearch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    height: 48,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
-  },
-  heroBannerSearchInput: {
-    flex: 1,
-    height: 48,
-    paddingHorizontal: 10,
-    fontSize: 14,
-    color: '#333',
-    outlineStyle: 'none',
-  },
-  heroBannerSearchBtn: {
-    width: 46,
-    height: 48,
-    backgroundColor: '#f97316',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroCircle1: { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(255,255,255,0.12)', top: -60, right: -50 },
-  heroCircle2: { position: 'absolute', width: 130, height: 130, borderRadius: 65,  backgroundColor: 'rgba(255,255,255,0.08)', bottom: -40, right: 60 },
-  heroCircle3: { position: 'absolute', width: 100, height: 100, borderRadius: 50,  backgroundColor: 'rgba(0,0,0,0.06)',       top: 20,    right: 260 },
-  heroContent: { flexDirection: 'row', alignItems: 'center', gap: 24 },
-  heroTag:     { fontSize: 11, color: 'rgba(255,255,255,0.80)', fontWeight: '600', marginBottom: 6 },
-  heroTitle:   { fontSize: 32, fontWeight: '900', color: '#fff', lineHeight: 38, marginBottom: 6 },
-  heroTitleSm:  { fontSize: 22, lineHeight: 28 },
-  heroSub:     { fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: '400', marginBottom: 12 },
-  heroSubSm:    { fontSize: 12, marginBottom: 10 },
-  heroBadges:  { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  heroBadge:   { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingVertical: 3, paddingHorizontal: 10 },
-  heroBadgeSm:  { paddingHorizontal: 8, paddingVertical: 2 },
-  heroBadgeTxt:{ color: '#fff', fontSize: 11, fontWeight: '600' },
-  heroBadgeTxtSm:{ fontSize: 10 },
-
-  heroStats: {
-    flexDirection: 'column', gap: 6, minWidth: 140,
-  },
-  heroStatsSm: {
-    flexDirection: 'row', minWidth: 0, width: '100%', gap: 5,
-    justifyContent: 'space-around',
-  },
-  heroStatCard: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  heroStatItem:    { alignItems: 'center', paddingVertical: 10 },
-  heroStatItemSm:  { flex: 1, alignItems: 'center', paddingVertical: 6, paddingHorizontal: 6, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 10 },
-  heroStatNum:     { fontSize: 28, fontWeight: '900', color: '#fff' },
-  heroStatNumSm:   { fontSize: 18, fontWeight: '900', color: '#fff' },
-  heroStatLabel:   { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '500', marginTop: 1, textAlign: 'center' },
-  heroStatLabelSm: { fontSize: 10, color: 'rgba(255,255,255,0.85)', fontWeight: '500', marginTop: 1, textAlign: 'center' },
-  heroStatDivider:   { width: '90%', height: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
-  heroStatDividerSm: { width: 1, height: '60%', backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center' },
-
-  // Ticker web
-  ticker: { borderRadius: 10, marginBottom: 12 },
-
-  // Section
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, marginTop: 2 },
-  sectionTitle:  { fontSize: 17, fontWeight: '800', color: '#111' },
-  sectionTitleSm: { fontSize: 15 },
-  seeAllBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  seeAllTxt:     { fontSize: 13, fontWeight: '700', color: ORANGE },
-
-  // Explore — 4-column grid
-  exploreGrid:  { flexDirection: 'row', marginBottom: 16, gap: 10 },
-  exploreCard:  { borderRadius: 16, padding: 16, minHeight: 150 },
-  exploreCardSm: { padding: 12, minHeight: 100 },
-  exploreTitle:  { fontSize: 18, fontWeight: '900', color: '#fff', marginBottom: 3 },
-  exploreTitleSm: { fontSize: 14 },
-
-  // Featured jobs grid — 2 col
-  featJobsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
-  featJobsGridSm:{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  featJobCard:  { backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, overflow: 'hidden' },
-  featJobCardSmWeb: { width: '47%' },
-  featJobCardSm:{ width: '100%' },
-
-  // Recent jobs
-  jobCard: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#ebebeb', marginBottom: 10, padding: 18, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  jobThumb: { width: 52, height: 52, borderRadius: 14 },
-  jobTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
-
-  // Rooms grid — 3 col
-  roomsGrid: { flexDirection: 'row', gap: 14, marginBottom: 28, flexWrap: 'wrap' },
-  roomCard:  { flex: 1, minWidth: 200, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
-  roomImgPlaceholder: { height: 160, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
-
-  // Right Panel
-  rightPanel: { width: 220, flexShrink: 0, flexGrow: 0, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 20, backgroundColor: '#fff', borderLeftWidth: 1, borderLeftColor: '#ececec' },
-
-  postCtaCard: {
-    backgroundColor: ORANGE, borderRadius: 0, padding: 18, marginBottom: 0, paddingTop: 22,
-  },
-  postCtaTitle: { fontSize: 16, fontWeight: '800', color: '#fff', marginBottom: 6 },
-  postCtaSub:   { fontSize: 12, color: 'rgba(255,255,255,0.88)', marginBottom: 14, lineHeight: 18 },
-  postCtaBtn:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)' },
-  postCtaBtnTxt:{ color: '#fff', fontSize: 14, fontWeight: '700' },
-
-  statsCard: { backgroundColor: '#fff', borderRadius: 0, padding: 18, paddingHorizontal: 20, marginBottom: 0, borderTopWidth: 1.5, borderTopColor: 'rgba(255,255,255,0.95)' },
-  statsCardTitle: { fontSize: 15, fontWeight: '800', color: '#111', marginBottom: 14 },
-  statCard:   { paddingVertical: 10 },
-  statNum:    { fontSize: 24, fontWeight: '900' },
-  statLabel:  { fontSize: 12, color: '#888', fontWeight: '500', marginTop: 2 },
-  statDividerH: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 4 },
-
-  quickActionsCard: { backgroundColor: '#fff', borderRadius: 0, padding: 18, paddingHorizontal: 20, borderWidth: 0, borderTopWidth: 1, borderColor: '#f0f0f0' },
-  quickAction: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderRadius: 10, paddingHorizontal: 4, borderWidth: 1, borderColor: 'transparent', marginBottom: 4 },
-  quickActionIcon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  quickActionLabel: { fontSize: 13, fontWeight: '600', color: '#222', flex: 1 },
-
-  featJobGridItem: { width: '47.5%' },
-  // Recent Jobs horizontal scroll carousel (small web)
-  jobsScroll: { marginBottom: 4 },
-  jobsScrollContent: {
-    paddingHorizontal: 0,
-    paddingBottom: 8,
-    gap: 10,
-  },
-
-  // Bottom tab nav (small web)
-  bottomNav: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#ececec',
-    paddingBottom: IS_WEB ? 8 : 0,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: -2 },
-    elevation: 10,
-  },
-  bottomNavItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    gap: 3,
-  },
-  bottomNavLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#888',
-    marginTop: 2,
-  },
-});
-
-// ── MOBILE STYLES (unchanged from original) ────────────────────────────────────
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-
-  headerBand: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 16, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 }, elevation: 4,
-    // Glossy feel via subtle gradient-like top highlight
-    borderTopWidth: 0,
-  },
-  headerTop:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  brandText:       { fontSize: 20, fontWeight: '900', letterSpacing: 0.2 },
-  brandCity:     { color: '#111111' },
-  brandRozgar:     { color: ORANGE },
-  locRow:          { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
-  locText:         { color: '#888', fontSize: 11, fontWeight: '500' },
-  profileBtn:      { width: 36, height: 36, borderRadius: 18, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
-  profileInitial:  { color: '#fff', fontSize: 15, fontWeight: '800' },
-  bellBtn:         { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
-  langToggle:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff', borderRadius: 20, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: ORANGE },
-  langToggleTxt:   { color: ORANGE, fontSize: 11, fontWeight: '700' },
-
-  heroBanner: { backgroundColor: ORANGE, paddingHorizontal: 20, paddingTop: 28, paddingBottom: 28, overflow: 'hidden', position: 'relative' },
-  heroCircle1:{ position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(255,255,255,0.12)', top: -60, right: -50 },
-  heroCircle2:{ position: 'absolute', width: 130, height: 130, borderRadius: 65,  backgroundColor: 'rgba(255,255,255,0.08)', bottom: -40, right: 60 },
-  heroTitle:  { fontSize: 28, fontWeight: '900', color: '#fff', lineHeight: 34, marginBottom: 6 },
-  heroSub:    { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginBottom: 18, fontWeight: '500' },
-  searchBar:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, height: 48, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
-  searchInput:{ flex: 1, height: 48, paddingHorizontal: 10, fontSize: 14, color: '#333' },
-  micBtn:     { width: 36, height: 48, alignItems: 'center', justifyContent: 'center' },
-  searchBtn:  { width: 46, height: 48, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
-
-  statsRow: { flexDirection: 'row', backgroundColor: '#fff', marginHorizontal: 16, marginTop: 16, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 4, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4, borderTopWidth: 1.5, borderTopColor: 'rgba(255,255,255,0.95)', borderLeftWidth: 0.5, borderLeftColor: 'rgba(255,255,255,0.7)', borderRightWidth: 0.5, borderRightColor: 'rgba(200,200,200,0.3)', overflow: 'hidden' },
-  statItem:   { flex: 1, alignItems: 'center' },
-  statNum:    { fontSize: 17, fontWeight: '900', color: '#111' },
-  statLabel:  { fontSize: 9, color: '#888', fontWeight: '600', marginTop: 2, textAlign: 'center' },
-  statDivider:{ width: 1, height: 26, backgroundColor: '#eee' },
-
-  sectionHeader:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12 },
-  sectionTitle:           { fontSize: 17, fontWeight: '800', color: '#111' },
-  sectionTitleStandalone: { fontSize: 17, fontWeight: '800', color: '#111', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12 },
-  seeAllBtn:              { fontSize: 13, fontWeight: '700', color: ORANGE },
-
-  exploreGrid:  { flexDirection: 'row', paddingHorizontal: 16 },
-  exploreCard:  { flex: 1, borderRadius: 16, padding: 16, minHeight: 130, overflow: 'hidden', position: 'relative', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
-  exploreInner: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
-  exploreIconWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  exploreBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  exploreTitle: { fontSize: 15, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  exploreSub:   { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
-  exploreCircle1:{ position: 'absolute', width: 90, height: 90, borderRadius: 45, bottom: -20, right: -20 },
-  exploreCircle2:{ position: 'absolute', width: 60, height: 60, borderRadius: 30, bottom: 20,  right: 40 },
-
-  ticker:     { backgroundColor: TICKER_BG, height: 38, overflow: 'hidden', marginTop: 12, justifyContent: 'center', alignItems: 'center' },
-  tickerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  tickerText: { color: '#ffffff', fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
-
-  featJobCard:    { backgroundColor: '#fff', borderRadius: 14, padding: 14, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0', overflow: 'hidden', borderTopWidth: 1.5, borderTopColor: 'rgba(255,255,255,1)' },
-  featJobCardGrid:{ flex: 1, width: 'auto' },
-  featJobTop:     { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  featJobIcon:    { width: 38, height: 38, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
-  featJobTitle:   { fontSize: 13, fontWeight: '700', color: '#111' },
-  featJobCompany: { fontSize: 11, color: '#aaa', marginTop: 2 },
-  featJobBottom:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  featJobSalary:  { fontSize: 13, fontWeight: '800', color: ORANGE, flex: 1, flexWrap: 'wrap' },
-  applyBtn:       { backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignItems: 'center', flexShrink: 0 },
-  applyBtnTxt:    { color: '#fff', fontSize: 12, fontWeight: '700' },
-
-  roomCard: { backgroundColor: '#fff', borderRadius: 14, marginHorizontal: 16, marginBottom: 12, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderTopWidth: 1.5, borderTopColor: 'rgba(255,255,255,0.95)', borderLeftWidth: 0.5, borderLeftColor: 'rgba(255,255,255,0.8)' },
-  roomImgPlaceholder: { height: 130, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  availBadge: { position: 'absolute', top: 10, right: 10, backgroundColor: '#16a34a', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 },
-  availTxt:    { color: '#fff', fontSize: 11, fontWeight: '700' },
-  roomInfo:    { padding: 14 },
-  roomTitle:   { fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 8 },
-  roomMeta:    { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  roomChip:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f5f5f5', borderRadius: 20, paddingVertical: 3, paddingHorizontal: 10 },
-  roomChipTxt: { fontSize: 11, color: '#666', fontWeight: '500' },
-  roomRent:    { fontSize: 16, fontWeight: '800', color: '#111' },
-
-  aiCard:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: ORANGE, padding: 14, marginHorizontal: 16, marginVertical: 8, shadowColor: ORANGE, shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, overflow: 'hidden', borderTopColor: 'rgba(255,220,180,0.9)' },
-  aiLeft:     { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  aiIconWrap: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
-  aiTitle:    { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 3 },
-  aiPrompt:   { fontSize: 11, color: '#888', fontStyle: 'italic', lineHeight: 16 },
-
-  // Job Alerts Banner
-  alertsBanner: {
+  legalHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff',
-    borderRadius: 14, borderWidth: 1.5, borderColor: ORANGE + '55',
-    marginHorizontal: 16, marginTop: 14, marginBottom: 10, padding: 14,
-    shadowColor: ORANGE, shadowOpacity: 0.08, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 }, elevation: 3,
-    overflow: 'hidden', borderTopColor: 'rgba(255,220,180,0.85)',
+    paddingHorizontal: 20, paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: BORDER,
   },
-  alertsIconWrap: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center',
-  },
-  alertsBannerTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginBottom: 3 },
-  alertsBannerSub:   { fontSize: 11, color: '#666', lineHeight: 16 },
-  alertsBannerCard:  { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#ebebeb', marginHorizontal: 16, marginBottom: 10, padding: 14, position: 'relative', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  jobCardFeatured: { borderLeftWidth: 3, borderLeftColor: ORANGE },
-  jobCardUrgent:   { borderLeftWidth: 3, borderLeftColor: '#ef4444' },
-  jobFeatBadge:    { position: 'absolute', top: 0, right: 12, backgroundColor: ORANGE, borderBottomLeftRadius: 5, borderBottomRightRadius: 5, paddingVertical: 2, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 3, zIndex: 10 },
-  jobFeatTxt:      { color: '#fff', fontSize: 8, fontWeight: '800', letterSpacing: 0.5 },
-  jobRow:          { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  jobThumb:        { width: 44, height: 44, borderRadius: 11, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  jobTitle:        { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
-  jobSubRow:       { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  jobSub:          { fontSize: 11, color: '#777' },
-  jobChipsRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 5 },
-  jobLocChip:      { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#f5f5f5', borderRadius: 20, paddingVertical: 2, paddingHorizontal: 8 },
-  jobLocTxt:       { fontSize: 10, color: '#666', fontWeight: '500' },
-  jobExpChip:      { backgroundColor: '#f0fdf4', borderRadius: 20, paddingVertical: 2, paddingHorizontal: 8, borderWidth: 0.5, borderColor: '#bbf7d0' },
-  jobExpTxt:       { fontSize: 10, color: '#15803d', fontWeight: '600' },
-  jobSkillsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
-  jobSkillTag:     { backgroundColor: '#f8f8f8', borderWidth: 0.5, borderColor: '#e5e5e5', borderRadius: 4, paddingVertical: 2, paddingHorizontal: 6 },
-  jobSkillTxt:     { fontSize: 9, color: '#666', fontWeight: '500' },
-  salaryCol:       { alignItems: 'flex-end', flexShrink: 0 },
-  priceBadge:      { backgroundColor: '#111', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 },
-  priceTxt:        { color: '#fff', fontSize: 12, fontWeight: '700' },
-  freshnessRow:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  freshnessDot:    { width: 5, height: 5, borderRadius: 3 },
-  jobTime:         { fontSize: 10, color: '#bbb', fontWeight: '500' },
+  legalHeaderIcon:  { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  legalHeaderTitle: { fontSize: 16, fontWeight: '800', color: TEXT },
+  legalHeaderSub:   { fontSize: 11, color: MUTED, marginTop: 1 },
+  legalClose: { width: 32, height: 32, borderRadius: 16, backgroundColor: BG, alignItems: 'center', justifyContent: 'center' },
+  legalScroll: { flex: 1 },
+  legalSection: { marginBottom: 20 },
+  legalSectionHeading: { fontSize: 14, fontWeight: '800', color: TEXT, marginBottom: 6 },
+  legalSectionBody:    { fontSize: 13, color: MUTED, lineHeight: 21 },
+  legalFooter: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: BORDER, alignItems: 'center', gap: 4 },
+  legalFooterTxt: { fontSize: 11, color: '#c0c0c8' },
 
-  viewAll:    { marginHorizontal: 16, marginTop: 4, alignItems: 'center', padding: 10 },
-  viewAllTxt: { fontSize: 13, color: ORANGE, fontWeight: '700' },
-
-  // Recent Jobs horizontal scroll carousel (mobile)
-  mobileJobsGrid: { flexDirection: 'row' },
-  mobileJobsGridItem: { width: SCREEN_W * 0.56 },
-  jobsScroll: { marginBottom: 4 },
-  jobsScrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    gap: 12,
+  // ── Report modal
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  reportSheet: { backgroundColor: SURFACE, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#ddd', alignSelf: 'center', marginBottom: 16 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  sheetTitle:  { fontSize: 17, fontWeight: '800', color: TEXT },
+  sheetClose:  { width: 32, height: 32, borderRadius: 16, backgroundColor: BG, alignItems: 'center', justifyContent: 'center' },
+  fieldLabel:  { fontSize: 12, fontWeight: '700', color: MUTED, letterSpacing: 0.5, marginBottom: 10, textTransform: 'uppercase' },
+  chipRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:        { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: BG, borderWidth: 1, borderColor: BORDER },
+  chipActive:    { backgroundColor: '#fff7ed', borderColor: ORANGE },
+  chipTxt:       { fontSize: 12, fontWeight: '600', color: MUTED },
+  chipTxtActive: { color: ORANGE },
+  textarea: {
+    backgroundColor: BG, borderRadius: 12, borderWidth: 1, borderColor: BORDER,
+    padding: 14, fontSize: 13, color: TEXT, height: 100, marginBottom: 20,
   },
-
-  // ── District picker bottom sheet ──────────────────────────────────────────
-  districtModalSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 20,
-  },
-  districtModalHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: '#ddd',
-    alignSelf: 'center',
-    marginBottom: 18,
-  },
-  districtModalTitle: {
-    fontSize: 20, fontWeight: '800', color: '#111',
-    marginBottom: 4,
-  },
-  districtModalSub: {
-    fontSize: 13, color: '#888', marginBottom: 20,
-  },
-  districtModalCards: { gap: 12 },
-  districtModalCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    borderWidth: 1.5, borderColor: '#ebebeb',
-    borderRadius: 14, padding: 14,
-    backgroundColor: '#fafafa',
-  },
-  districtModalEmoji: { display: 'none' },
-  districtModalName:  { fontSize: 17, fontWeight: '700', color: '#111' },
-  districtModalMarathi: { fontSize: 13, color: '#888', marginTop: 1 },
-});
-
-const lm = StyleSheet.create({
-  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: IS_WEB ? 'center' : 'flex-end', alignItems: IS_WEB ? 'center' : 'stretch' },
-  sheet:    { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36 },
-  sheetWeb: { borderRadius: 20, width: 360, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 24, shadowOffset: { width: 0, height: 8 }, elevation: 20 },
-  title:    { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 16 },
-  row:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, marginBottom: 8, backgroundColor: '#f8f8f8', borderWidth: 1.5, borderColor: 'transparent' },
-  rowActive:    { borderColor: ORANGE, backgroundColor: '#fff8f3' },
-  native:       { fontSize: 17, fontWeight: '700', color: '#111', minWidth: 60 },
-  nativeActive: { color: ORANGE },
-  label:        { fontSize: 13, color: '#888', fontWeight: '500' },
+  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: ORANGE, borderRadius: 14, paddingVertical: 14 },
+  submitBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
