@@ -4,6 +4,7 @@
  * Also accessible from HomeScreen header to switch districts.
  */
 import React, { useRef, useEffect, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Animated, Easing, Dimensions, Platform, StatusBar,
@@ -127,6 +128,9 @@ export default function DistrictPickerScreen({ onDone, isSwitch = false }) {
       >
         {/* Header */}
         <Animated.View style={[styles.headerWrap, { opacity: titleOp, transform: [{ translateY: titleY }] }]}>
+          {/* Glossy sheen */}
+          <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
+          <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
           {/* App logo area */}
           <View style={styles.logoRow}>
             <View style={styles.logoIcon}>
@@ -183,7 +187,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     minHeight: SH,
   },
-  headerWrap: {
+  headerWrap: { overflow: 'hidden', position: 'relative',
     marginBottom: 32,
   },
   logoRow: {
