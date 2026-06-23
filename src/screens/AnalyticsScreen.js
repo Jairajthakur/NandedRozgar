@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, RefreshControl,
 } from 'react-native';
@@ -70,9 +69,6 @@ export default function AnalyticsScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        {/* Glossy sheen */}
-        <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-        <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
         <Text style={styles.headerTitle}>Employer Analytics</Text>
         <Text style={styles.headerSub}>Performance overview for your job posts</Text>
       </View>
@@ -188,7 +184,7 @@ export default function AnalyticsScreen() {
 const styles = StyleSheet.create({
   container:  { flex: 1, backgroundColor: '#f5f5f5' },
   center:     { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  header:     { backgroundColor: '#111', padding: 20, paddingBottom: 24, overflow: 'hidden', position: 'relative' },
+  header:     { backgroundColor: '#111', padding: 20, paddingBottom: 24 },
   headerTitle:{ fontSize: 20, fontWeight: '800', color: '#fff' },
   headerSub:  { fontSize: 12, color: '#aaa', marginTop: 4 },
   tabs:       { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#f0f0f0' },
