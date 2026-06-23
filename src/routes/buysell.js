@@ -42,8 +42,9 @@ router.get('/', async (req, res) => {
     const [countRes, dataRes] = await Promise.all([
       pool.query(`SELECT COUNT(*) FROM buysell_items b WHERE ${where}`, countParams),
       pool.query(`
-        SELECT b.id, b.title, b.price, b.category, b.condition, b.area,
-               b.whatsapp, b.district, b.plan_label, b.status, b.created_at, b.expires_at,
+        SELECT b.id, b.title, b.price, b.category, b.condition, b.age,
+               b.negotiable, b.area, b.description, b.whatsapp, b.district,
+               b.plan_label, b.status, b.created_at, b.expires_at, b.views,
                b.photos,
                u.name AS seller_name
         FROM buysell_items b
