@@ -12,6 +12,7 @@
  */
 
 import React, { useRef, useEffect, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Platform,
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
@@ -315,6 +316,9 @@ export default function AboutScreen() {
           { opacity: heroAnim, transform: [{ translateY: heroTranslate }] },
         ]}
       >
+        {/* Glossy sheen */}
+        <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
+        <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
         {/* Background orbs */}
         <Orb size={120} color={ORANGE}  x={-20}  y={-20}  delay={0}    duration={3200} />
         <Orb size={80}  color={AMBER}   x={260}  y={30}   delay={600}  duration={2800} />
