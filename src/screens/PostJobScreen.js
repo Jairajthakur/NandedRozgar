@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, StatusBar, Alert, ActivityIndicator,
@@ -405,6 +406,9 @@ function RadioRow({ label, sub, active, onPress }) {
 function StepBanner({ step, title, subtitle, onBack }) {
   return (
     <View style={s.banner}>
+          {/* Glossy sheen */}
+          <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
+          <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
       <View style={s.dotsRow}>
         {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
           <View key={i} style={[s.dot, i < step && s.dotFilled]} />
