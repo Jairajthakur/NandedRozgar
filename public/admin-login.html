@@ -1272,7 +1272,7 @@ function clearBannerImage() {
 let _coupons = [];
 
 async function loadCoupons(gen = navGen) {
-  setContent(`<div style="color:var(--text3);font-size:13px;padding:20px 0">Loading coupons…</div>`);
+  document.getElementById('main-content').innerHTML = `<div style="color:var(--text3);font-size:13px;padding:20px 0">Loading coupons…</div>`;
   const d = await api('GET', '/api/coupons');
   if (gen !== navGen) return;
   _coupons = d.coupons || [];
@@ -1299,7 +1299,7 @@ function renderCouponsTab() {
       </tr>`;
   }).join('');
 
-  setContent(`
+  document.getElementById('main-content').innerHTML = `
     <h2 style="font-size:18px;font-weight:700;margin-bottom:18px">🎟 Coupons</h2>
 
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px;max-width:560px">
