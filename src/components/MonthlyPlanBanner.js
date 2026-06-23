@@ -2,15 +2,16 @@
  * MonthlyPlanBanner.js
  * ────────────────────────────────────────────────────────────────
  * Promotional banner for the ₹299/month unlimited-free-posts plan.
- * Shows in Jobs, Rooms, Cars, Buy-Sell screens at the top.
+ * Shows in Jobs, Rooms, Cars, Buy-Sell posting screens at Step 3/4.
  *
  * Usage:
  *   import MonthlyPlanBanner from '../components/MonthlyPlanBanner';
- *   <MonthlyPlanBanner navigation={navigation} />
+ *   <MonthlyPlanBanner navigation={navigation} />          // full banner
+ *   <MonthlyPlanBanner navigation={navigation} compact />  // step-3 inline
  *
  * Props:
  *   navigation  — React Navigation object (required)
- *   compact     — boolean, shows a smaller inline version (optional)
+ *   compact     — boolean, shows the inline step-3 version (optional)
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -26,9 +27,14 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 
-const ORANGE  = '#f97316';
-const GOLD    = '#f59e0b';
-const DARK    = '#1a1a1a';
+const ORANGE     = '#f97316';
+const ORANGE_LIGHT = '#fff7ed';
+const ORANGE_MID   = '#fed7aa';
+const GOLD       = '#f59e0b';
+const DARK       = '#1a1a1a';
+const GREEN      = '#16a34a';
+const GREEN_BG   = '#f0fdf4';
+const GREEN_BORDER = '#bbf7d0';
 const PLAN_PRICE = 299;
 
 // ─── Helper: check if user has active monthly plan ────────────────────────────
@@ -54,15 +60,13 @@ export function useMonthlyPlan() {
   useEffect(() => {
     if (!token) { setLoading(false); return; }
     (async () => {
-      // Fast: read from cache
       try {
         const cached = await AsyncStorage.getItem('monthly_plan_active');
         if (cached === 'true') setActive(true);
       } catch {}
 
-      // Fresh: verify from server
       try {
-        const API = process.env.EXPO_PUBLIC_API_URL || 'https://thecityplus.in';
+        const API  = process.env.EXPO_PUBLIC_API_URL || 'https://thecityplus.in';
         const res  = await fetch(`${API}/api/payments/monthly-plan/status`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -84,8 +88,8 @@ export default function MonthlyPlanBanner({ navigation, compact = false }) {
   const { active, loading } = useMonthlyPlan();
   const shimmer = useRef(new Animated.Value(0)).current;
   const pulse   = useRef(new Animated.Value(1)).current;
+  const glow    = useRef(new Animated.Value(0)).current;
 
-  // Shimmer animation on the badge
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -99,34 +103,66 @@ export default function MonthlyPlanBanner({ navigation, compact = false }) {
         Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 1, duration: 1500, useNativeDriver: false }),
+        Animated.timing(glow, { toValue: 0, duration: 1500, useNativeDriver: false }),
+      ])
+    ).start();
   }, []);
 
   if (loading) return null;
 
-  // ── Active plan: show a compact green badge ───────────────────────────────
+  // ── Active plan: prominent green success banner ───────────────────────────
   if (active) {
     return (
-      <View style={s.activeBadge}>
-        <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-        <Text style={s.activeTxt}>Monthly Plan Active — All Posts Free</Text>
+      <View style={s.activeBanner}>
+        <View style={s.activeIconWrap}>
+          <Ionicons name="checkmark-circle" size={22} color={GREEN} />
+        </View>
+        <View style={s.activeTextCol}>
+          <Text style={s.activeTitleTxt}>Monthly Plan Active</Text>
+          <Text style={s.activeSubTxt}>All posts are FREE this month ✓</Text>
+        </View>
       </View>
     );
   }
 
-  // ── Compact inline version ────────────────────────────────────────────────
+  // ── Compact inline version (step 3 of posting flow) ──────────────────────
   if (compact) {
+    const borderAnim = glow.interpolate({
+      inputRange: [0, 1],
+      outputRange: [ORANGE + '55', ORANGE + 'cc'],
+    });
+
     return (
       <TouchableOpacity
-        style={s.compact}
         onPress={() => navigation?.navigate('MonthlyPlan')}
-        activeOpacity={0.85}
+        activeOpacity={0.88}
       >
-        <Ionicons name="flash" size={15} color={GOLD} />
-        <Text style={s.compactTxt}>
-          Post <Text style={{ color: GOLD, fontWeight: '800' }}>unlimited FREE</Text> with Monthly Plan
-          <Text style={s.compactPrice}>  ₹{PLAN_PRICE}/month</Text>
-        </Text>
-        <Ionicons name="chevron-forward" size={13} color={ORANGE} />
+        <Animated.View style={[s.compactCard, { borderColor: borderAnim }]}>
+          {/* Left — lightning badge */}
+          <View style={s.compactIconBox}>
+            <Ionicons name="flash" size={20} color="#fff" />
+          </View>
+
+          {/* Middle — text */}
+          <View style={s.compactMid}>
+            <Text style={s.compactTitle}>
+              Post <Text style={s.compactFree}>Unlimited FREE</Text>
+            </Text>
+            <Text style={s.compactSub}>
+              Monthly Plan · only{' '}
+              <Text style={s.compactPrice}>₹{PLAN_PRICE}/month</Text>
+            </Text>
+          </View>
+
+          {/* Right — CTA pill */}
+          <View style={s.compactCTA}>
+            <Text style={s.compactCTATxt}>GET</Text>
+            <Ionicons name="chevron-forward" size={11} color="#fff" />
+          </View>
+        </Animated.View>
       </TouchableOpacity>
     );
   }
@@ -145,7 +181,6 @@ export default function MonthlyPlanBanner({ navigation, compact = false }) {
 
       {/* Left content */}
       <View style={s.left}>
-        {/* Tag */}
         <View style={s.tagRow}>
           <View style={s.arrowHead} />
           <View style={s.tagBody}>
@@ -161,7 +196,7 @@ export default function MonthlyPlanBanner({ navigation, compact = false }) {
         </Animated.View>
       </View>
 
-      {/* Right avatar area */}
+      {/* Right panel */}
       <View style={s.right}>
         <Animated.View style={[s.circle, {
           opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }),
@@ -186,7 +221,8 @@ export default function MonthlyPlanBanner({ navigation, compact = false }) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  // Full banner
+
+  // ── Full banner ──────────────────────────────────────────────────────────
   banner: {
     flexDirection: 'row',
     backgroundColor: DARK,
@@ -244,9 +280,8 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 24,
   },
-  ctaTxt:    { color: '#fff', fontWeight: '900', fontSize: 12, letterSpacing: 0.5 },
+  ctaTxt: { color: '#fff', fontWeight: '900', fontSize: 12, letterSpacing: 0.5 },
 
-  // Right panel
   right: {
     width: 105,
     backgroundColor: '#2a1500',
@@ -257,8 +292,7 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   circle: {
-    width: 56,
-    height: 56,
+    width: 56, height: 56,
     borderRadius: 28,
     backgroundColor: ORANGE,
     alignItems: 'center',
@@ -268,49 +302,113 @@ const s = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 8,
   },
-  circleEmoji: { fontSize: 26 },
-  priceBadge: {
+  circleEmoji:  { fontSize: 26 },
+  priceBadge:   {
     backgroundColor: GOLD,
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 5,
     alignItems: 'center',
   },
-  priceTop: { fontSize: 15, fontWeight: '900', color: DARK },
-  priceBot: { fontSize: 9,  fontWeight: '700', color: DARK },
-  featureList: { gap: 2, alignItems: 'center' },
-  featureTxt:  { fontSize: 9, color: '#ccc', fontWeight: '600' },
+  priceTop:     { fontSize: 15, fontWeight: '900', color: DARK },
+  priceBot:     { fontSize: 9,  fontWeight: '700', color: DARK },
+  featureList:  { gap: 2, alignItems: 'center' },
+  featureTxt:   { fontSize: 9, color: '#ccc', fontWeight: '600' },
 
-  // Compact inline
-  compact: {
+  // ── Compact card (step 3 of all posting flows) ───────────────────────────
+  compactCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#fff8f0',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: ORANGE + '44',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    backgroundColor: ORANGE_LIGHT,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    // borderColor animated above
     marginHorizontal: 12,
-    marginBottom: 8,
+    marginBottom: 14,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: ORANGE,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
-  compactTxt:   { flex: 1, fontSize: 12, color: '#444', fontWeight: '500' },
-  compactPrice: { color: ORANGE, fontWeight: '800', fontSize: 12 },
-
-  // Active badge
-  activeBadge: {
+  compactIconBox: {
+    width: 52,
+    alignSelf: 'stretch',
+    backgroundColor: ORANGE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactMid: {
+    flex: 1,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    gap: 2,
+  },
+  compactTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    letterSpacing: 0.1,
+  },
+  compactFree: {
+    color: GREEN,
+    fontWeight: '800',
+  },
+  compactSub: {
+    fontSize: 11,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  compactPrice: {
+    color: ORANGE,
+    fontWeight: '700',
+  },
+  compactCTA: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#ecfdf5',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#6ee7b7',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginHorizontal: 12,
-    marginBottom: 8,
+    backgroundColor: ORANGE,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    marginRight: 10,
+    gap: 2,
   },
-  activeTxt: { fontSize: 12, color: '#065f46', fontWeight: '700' },
+  compactCTATxt: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+
+  // ── Active plan banner ───────────────────────────────────────────────────
+  activeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: GREEN_BG,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: GREEN_BORDER,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    gap: 10,
+    elevation: 2,
+    shadowColor: GREEN,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  activeIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#dcfce7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeTextCol:  { flex: 1 },
+  activeTitleTxt: { fontSize: 13, fontWeight: '800', color: '#14532d' },
+  activeSubTxt:   { fontSize: 11, color: GREEN,      fontWeight: '600', marginTop: 1 },
 });
