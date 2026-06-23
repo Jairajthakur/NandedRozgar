@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   Platform,
   View, Text, ScrollView, StyleSheet, Linking, Alert,
