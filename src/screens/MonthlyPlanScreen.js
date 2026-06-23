@@ -6,7 +6,6 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   ActivityIndicator,
   Alert,
@@ -205,9 +204,6 @@ export default function MonthlyPlanScreen({ navigation }) {
 
       {/* Header */}
       <View style={s.header}>
-        {/* Glossy sheen */}
-        <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
-        <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
         <TouchableOpacity onPress={() => navigation?.goBack()} style={s.back} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="chevron-back" size={24} color="#fff" />
         </TouchableOpacity>
@@ -337,7 +333,7 @@ const s = StyleSheet.create({
   scroll: { paddingBottom: 40 },
 
   // Header
-  header: { overflow: 'hidden', position: 'relative',
+  header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: DARK, paddingHorizontal: 16, paddingVertical: 14,
   },
