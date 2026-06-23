@@ -4,6 +4,7 @@
  * staggered entrance, glowing avatar ring, animated stat counters, rich micro-interactions
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Modal, Platform, Animated, Easing, Dimensions,
@@ -317,6 +318,9 @@ export default function ProfileScreen() {
         {/* ── Hero Section ───────────────────────────────────────── */}
         <Animated.View style={[styles.hero, { opacity: heroOpacity, transform: [{ scale: heroScale }] }]}>
 
+          {/* Glossy sheen */}
+          <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', zIndex: 1 }} />
+          <LinearGradient colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2 }} />
           {/* Floating orbs */}
           <FloatingOrb size={120} color={'#ea580c'}  x={-30}          y={-20}  delay={0}    duration={3200} />
           <FloatingOrb size={80}  color={'#d97706'}  x={SCREEN_W-60}  y={10}   delay={800}  duration={2800} />
