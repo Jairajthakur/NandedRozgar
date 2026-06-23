@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Easing, StatusBar, TextInput, Modal,
@@ -93,13 +94,16 @@ function PulseDot({ color = ORANGE }) {
 // ── Gloss Overlay (reusable glossy sheen layer) ───────────────────────────────
 function GlossOverlay({ style, intensity = 0.18 }) {
   return (
-    <View pointerEvents="none" style={[{
-      position: 'absolute', top: 0, left: 0, right: 0,
-      height: '55%',
-      borderTopLeftRadius: 16, borderTopRightRadius: 16,
-      backgroundColor: `rgba(255,255,255,${intensity})`,
-      zIndex: 1,
-    }, style]} />
+    <LinearGradient
+      colors={[`rgba(255,255,255,${intensity + 0.17})`, `rgba(255,255,255,0)`]}
+      pointerEvents="none"
+      style={[{
+        position: 'absolute', top: 0, left: 0, right: 0,
+        height: '55%',
+        borderTopLeftRadius: 16, borderTopRightRadius: 16,
+        zIndex: 1,
+      }, style]}
+    />
   );
 }
 
@@ -272,7 +276,7 @@ function ExploreCard({ icon, title, subtitle, color, onPress, style, compact }) 
       {/* Glossy top-half sheen */}
       <GlossOverlay intensity={0.22} style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16 }} />
       {/* Glossy top border highlight */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, backgroundColor: 'rgba(255,255,255,0.55)', borderTopLeftRadius: 16, borderTopRightRadius: 16, zIndex: 2 }} />
+      <LinearGradient colors={['rgba(255,255,255,0.72)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, borderTopLeftRadius: 16, borderTopRightRadius: 16, zIndex: 2}} />
       <View style={s.exploreInner}>
         <View style={s.exploreIconWrap}>
           <Ionicons name={icon} size={compact ? 22 : IS_WEB ? 28 : 26} color="#fff" />
@@ -297,7 +301,7 @@ function FeaturedJobCard({ job, onPress, cardWidth }) {
   return (
     <AnimatedPress style={[baseStyle, widthStyle]} onPress={onPress}>
       {/* Glossy sheen */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 32, backgroundColor: 'rgba(255,255,255,0.55)', zIndex: 1, borderTopLeftRadius: 14, borderTopRightRadius: 14 }} />
+      <LinearGradient colors={['rgba(255,255,255,0.72)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: 32, zIndex: 1, borderTopLeftRadius: 14, borderTopRightRadius: 14}} />
       <View style={s.featJobTop}>
         <View style={s.featJobIcon}>
           <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={18} color={ORANGE} />
@@ -1067,9 +1071,9 @@ export default function HomeScreen() {
         <FadeSlide delay={0} fromY={-12}>
           <View style={s.heroBanner}>
             {/* Glossy top sheen */}
-            <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '48%', backgroundColor: 'rgba(255,255,255,0.13)', zIndex: 1 }} />
+            <LinearGradient colors={['rgba(255,255,255,0.30)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: '48%', zIndex: 1}} />
             {/* Glossy top border */}
-            <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, backgroundColor: 'rgba(255,255,255,0.45)', zIndex: 2 }} />
+            <LinearGradient colors={['rgba(255,255,255,0.62)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, zIndex: 2}} />
             <View style={s.heroCircle1} />
             <View style={s.heroCircle2} />
             <Text style={s.heroTitle}>
@@ -1137,7 +1141,7 @@ export default function HomeScreen() {
             activeOpacity={0.88}
           >
             {/* Glossy top sheen */}
-            <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 26, backgroundColor: 'rgba(255,255,255,0.55)', zIndex: 1, borderTopLeftRadius: 12, borderTopRightRadius: 12 }} />
+            <LinearGradient colors={['rgba(255,255,255,0.72)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: 26, zIndex: 1, borderTopLeftRadius: 12, borderTopRightRadius: 12}} />
             <View style={s.alertsIconWrap}>
               <Ionicons name="notifications" size={22} color="#fff" />
             </View>
@@ -1193,7 +1197,7 @@ export default function HomeScreen() {
         <FadeSlide delay={300}>
           <TouchableOpacity style={s.aiCard} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.9}>
             {/* Glossy top sheen */}
-            <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 28, backgroundColor: 'rgba(255,255,255,0.6)', zIndex: 1, borderTopLeftRadius: 12, borderTopRightRadius: 12 }} />
+            <LinearGradient colors={['rgba(255,255,255,0.77)', 'rgba(255,255,255,0)']} pointerEvents="none" style={{position: 'absolute', top: 0, left: 0, right: 0, height: 28, zIndex: 1, borderTopLeftRadius: 12, borderTopRightRadius: 12}} />
             <View style={s.aiLeft}>
               <View style={s.aiIconWrap}><Ionicons name="sparkles" size={22} color={ORANGE} /></View>
               <View style={{ flex: 1 }}>
