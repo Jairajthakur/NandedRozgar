@@ -90,6 +90,19 @@ function PulseDot({ color = ORANGE }) {
   return <Animated.View style={[s.freshnessDot, { backgroundColor: color, transform: [{ scale }] }]} />;
 }
 
+// ── Gloss Overlay (reusable glossy sheen layer) ───────────────────────────────
+function GlossOverlay({ style, intensity = 0.18 }) {
+  return (
+    <View pointerEvents="none" style={[{
+      position: 'absolute', top: 0, left: 0, right: 0,
+      height: '55%',
+      borderTopLeftRadius: 16, borderTopRightRadius: 16,
+      backgroundColor: `rgba(255,255,255,${intensity})`,
+      zIndex: 1,
+    }, style]} />
+  );
+}
+
 // ── Animated stat counter ──────────────────────────────────────────────────────
 function AnimatedStat({ value, label, delay = 0, accent = ORANGE }) {
   const anim = useRef(new Animated.Value(0)).current;
@@ -256,6 +269,10 @@ function SideNavItem({ icon, label, onPress, active }) {
 function ExploreCard({ icon, title, subtitle, color, onPress, style, compact }) {
   return (
     <AnimatedPress style={[s.exploreCard, IS_WEB && ws.exploreCard, IS_WEB && compact && ws.exploreCardSm, { backgroundColor: color }, style]} onPress={onPress}>
+      {/* Glossy top-half sheen */}
+      <GlossOverlay intensity={0.22} style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16 }} />
+      {/* Glossy top border highlight */}
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, backgroundColor: 'rgba(255,255,255,0.55)', borderTopLeftRadius: 16, borderTopRightRadius: 16, zIndex: 2 }} />
       <View style={s.exploreInner}>
         <View style={s.exploreIconWrap}>
           <Ionicons name={icon} size={compact ? 22 : IS_WEB ? 28 : 26} color="#fff" />
@@ -279,6 +296,8 @@ function FeaturedJobCard({ job, onPress, cardWidth }) {
   const widthStyle = cardWidth ? { width: cardWidth } : {};
   return (
     <AnimatedPress style={[baseStyle, widthStyle]} onPress={onPress}>
+      {/* Glossy sheen */}
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 32, backgroundColor: 'rgba(255,255,255,0.55)', zIndex: 1, borderTopLeftRadius: 14, borderTopRightRadius: 14 }} />
       <View style={s.featJobTop}>
         <View style={s.featJobIcon}>
           <Ionicons name={CAT_ICONS[job.category] || 'briefcase-outline'} size={18} color={ORANGE} />
@@ -1047,6 +1066,10 @@ export default function HomeScreen() {
         {/* Hero */}
         <FadeSlide delay={0} fromY={-12}>
           <View style={s.heroBanner}>
+            {/* Glossy top sheen */}
+            <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '48%', backgroundColor: 'rgba(255,255,255,0.13)', zIndex: 1 }} />
+            {/* Glossy top border */}
+            <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, backgroundColor: 'rgba(255,255,255,0.45)', zIndex: 2 }} />
             <View style={s.heroCircle1} />
             <View style={s.heroCircle2} />
             <Text style={s.heroTitle}>
@@ -1113,6 +1136,8 @@ export default function HomeScreen() {
             onPress={() => nav.navigate('Alerts')}
             activeOpacity={0.88}
           >
+            {/* Glossy top sheen */}
+            <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 26, backgroundColor: 'rgba(255,255,255,0.55)', zIndex: 1, borderTopLeftRadius: 12, borderTopRightRadius: 12 }} />
             <View style={s.alertsIconWrap}>
               <Ionicons name="notifications" size={22} color="#fff" />
             </View>
@@ -1167,6 +1192,8 @@ export default function HomeScreen() {
         {/* AI Banner */}
         <FadeSlide delay={300}>
           <TouchableOpacity style={s.aiCard} onPress={() => nav.navigate('AIMatch')} activeOpacity={0.9}>
+            {/* Glossy top sheen */}
+            <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 28, backgroundColor: 'rgba(255,255,255,0.6)', zIndex: 1, borderTopLeftRadius: 12, borderTopRightRadius: 12 }} />
             <View style={s.aiLeft}>
               <View style={s.aiIconWrap}><Ionicons name="sparkles" size={22} color={ORANGE} /></View>
               <View style={{ flex: 1 }}>
@@ -1194,6 +1221,8 @@ const ws = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 }, elevation: 4,
     zIndex: 100,
+    // Glossy feel: very bright top border acts like reflected light
+    borderTopWidth: 2, borderTopColor: 'rgba(255,255,255,1)',
   },
   topNavInner: {
     flexDirection: 'row', alignItems: 'center',
@@ -1280,6 +1309,7 @@ const ws = StyleSheet.create({
     borderRadius: 12, padding: 24, paddingVertical: 22,
     overflow: 'hidden', position: 'relative',
     marginBottom: 12,
+    borderTopWidth: 1.5, borderTopColor: 'rgba(255,255,255,0.45)',
   },
   heroBannerSm: { padding: 16, borderRadius: 12 },
 
@@ -1416,7 +1446,7 @@ const ws = StyleSheet.create({
   postCtaBtn:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)' },
   postCtaBtnTxt:{ color: '#fff', fontSize: 14, fontWeight: '700' },
 
-  statsCard: { backgroundColor: '#fff', borderRadius: 0, padding: 18, paddingHorizontal: 20, marginBottom: 0 },
+  statsCard: { backgroundColor: '#fff', borderRadius: 0, padding: 18, paddingHorizontal: 20, marginBottom: 0, borderTopWidth: 1.5, borderTopColor: 'rgba(255,255,255,0.95)' },
   statsCardTitle: { fontSize: 15, fontWeight: '800', color: '#111', marginBottom: 14 },
   statCard:   { paddingVertical: 10 },
   statNum:    { fontSize: 24, fontWeight: '900' },
@@ -1475,6 +1505,8 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 }, elevation: 4,
+    // Glossy feel via subtle gradient-like top highlight
+    borderTopWidth: 0,
   },
   headerTop:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brandText:       { fontSize: 20, fontWeight: '900', letterSpacing: 0.2 },
@@ -1498,7 +1530,7 @@ const s = StyleSheet.create({
   micBtn:     { width: 36, height: 48, alignItems: 'center', justifyContent: 'center' },
   searchBtn:  { width: 46, height: 48, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
 
-  statsRow: { flexDirection: 'row', backgroundColor: '#fff', marginHorizontal: 16, marginTop: 16, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 4, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  statsRow: { flexDirection: 'row', backgroundColor: '#fff', marginHorizontal: 16, marginTop: 16, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 4, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4, borderTopWidth: 1.5, borderTopColor: 'rgba(255,255,255,0.95)', borderLeftWidth: 0.5, borderLeftColor: 'rgba(255,255,255,0.7)', borderRightWidth: 0.5, borderRightColor: 'rgba(200,200,200,0.3)', overflow: 'hidden' },
   statItem:   { flex: 1, alignItems: 'center' },
   statNum:    { fontSize: 17, fontWeight: '900', color: '#111' },
   statLabel:  { fontSize: 9, color: '#888', fontWeight: '600', marginTop: 2, textAlign: 'center' },
@@ -1523,7 +1555,7 @@ const s = StyleSheet.create({
   tickerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   tickerText: { color: '#ffffff', fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
 
-  featJobCard:    { backgroundColor: '#fff', borderRadius: 14, padding: 14, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0', overflow: 'hidden' },
+  featJobCard:    { backgroundColor: '#fff', borderRadius: 14, padding: 14, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0', overflow: 'hidden', borderTopWidth: 1.5, borderTopColor: 'rgba(255,255,255,1)' },
   featJobCardGrid:{ flex: 1, width: 'auto' },
   featJobTop:     { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   featJobIcon:    { width: 38, height: 38, borderRadius: 10, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
@@ -1534,7 +1566,7 @@ const s = StyleSheet.create({
   applyBtn:       { backgroundColor: ORANGE, borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14, alignItems: 'center', flexShrink: 0 },
   applyBtnTxt:    { color: '#fff', fontSize: 12, fontWeight: '700' },
 
-  roomCard: { backgroundColor: '#fff', borderRadius: 14, marginHorizontal: 16, marginBottom: 12, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  roomCard: { backgroundColor: '#fff', borderRadius: 14, marginHorizontal: 16, marginBottom: 12, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderTopWidth: 1.5, borderTopColor: 'rgba(255,255,255,0.95)', borderLeftWidth: 0.5, borderLeftColor: 'rgba(255,255,255,0.8)' },
   roomImgPlaceholder: { height: 130, backgroundColor: '#2d2d3e', alignItems: 'center', justifyContent: 'center', position: 'relative' },
   availBadge: { position: 'absolute', top: 10, right: 10, backgroundColor: '#16a34a', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 },
   availTxt:    { color: '#fff', fontSize: 11, fontWeight: '700' },
@@ -1545,7 +1577,7 @@ const s = StyleSheet.create({
   roomChipTxt: { fontSize: 11, color: '#666', fontWeight: '500' },
   roomRent:    { fontSize: 16, fontWeight: '800', color: '#111' },
 
-  aiCard:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: ORANGE, padding: 14, marginHorizontal: 16, marginVertical: 8, shadowColor: ORANGE, shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  aiCard:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: ORANGE, padding: 14, marginHorizontal: 16, marginVertical: 8, shadowColor: ORANGE, shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, overflow: 'hidden', borderTopColor: 'rgba(255,220,180,0.9)' },
   aiLeft:     { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   aiIconWrap: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
   aiTitle:    { fontSize: 13, fontWeight: '800', color: '#111', marginBottom: 3 },
@@ -1559,6 +1591,7 @@ const s = StyleSheet.create({
     marginHorizontal: 16, marginTop: 14, marginBottom: 10, padding: 14,
     shadowColor: ORANGE, shadowOpacity: 0.08, shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    overflow: 'hidden', borderTopColor: 'rgba(255,220,180,0.85)',
   },
   alertsIconWrap: {
     width: 44, height: 44, borderRadius: 12,
