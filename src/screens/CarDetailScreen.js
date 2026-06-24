@@ -230,6 +230,7 @@ export default function CarDetailScreen() {
   const insets = useSafeAreaInsets();
   const { lang, t } = useLang();
   const car    = route.params?.car || PLACEHOLDER_CAR;
+  const isSell  = car.isSell || false;
 
   const [saved, setSaved] = useState(false);
   const savedScale = useRef(new Animated.Value(1)).current;
@@ -258,7 +259,9 @@ export default function CarDetailScreen() {
 
   function openWhatsApp() {
     const phone = car.whatsapp || car.phone || '';
-    const msg   = `Hi, I'm interested in renting your ${car.name} listed on CityPlus.`;
+    const msg   = isSell
+      ? `Hi, I'm interested in buying your ${car.name} listed on CityPlus. Is it still available?`
+      : `Hi, I'm interested in renting your ${car.name} listed on CityPlus.`;
     if (phone)
       Linking.openURL(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`).catch(() =>
         Alert.alert('WhatsApp not installed', 'Please contact via call.')
@@ -269,7 +272,9 @@ export default function CarDetailScreen() {
   async function shareVehicle() {
     try {
       await Share.share({
-        message: `Check out this vehicle on CityPlus!\n${car.name} - ${car.price}/day\nLocation: ${car.location || 'Nanded'}`,
+        message: isSell
+          ? `Check out this vehicle for sale on CityPlus!\n${car.name} - ${car.price}\nLocation: ${car.location || 'Nanded'}`
+          : `Check out this vehicle on CityPlus!\n${car.name} - ${car.price}/day\nLocation: ${car.location || 'Nanded'}`,
       });
     } catch {}
   }
@@ -284,7 +289,12 @@ export default function CarDetailScreen() {
   const featureIcons = ['color-palette-outline', 'flame-outline', 'snow-outline', 'people-outline', 'speedometer-outline', 'settings-outline'];
 
   // Build quick stats from features
-  const quickStats = [
+  const quickStats = isSell ? [
+    { icon: 'car-outline',          label: 'Type',        value: car.type || 'Car' },
+    { icon: 'flame-outline',        label: 'Fuel',        value: car.fuel || '—' },
+    { icon: 'speedometer-outline',  label: 'KM Driven',   value: car.kmDriven ? `${Number(car.kmDriven).toLocaleString('en-IN')} km` : '—' },
+    { icon: 'people-outline',       label: 'Owners',      value: car.numberOfOwners ? `${car.numberOfOwners} owner${car.numberOfOwners > 1 ? 's' : ''}` : '1 owner' },
+  ] : [
     { icon: 'car-outline',         label: 'Type',   value: car.type || 'Car' },
     { icon: 'flame-outline',       label: 'Fuel',   value: car.fuel || features.find(f => ['Petrol','Diesel','CNG','Electric'].includes(f)) || '—' },
     { icon: 'people-outline',      label: 'Seats',  value: features.find(f => f.includes('seat')) || '5 seats' },
@@ -342,9 +352,14 @@ export default function CarDetailScreen() {
               </View>
             </View>
             <View style={s.priceBlock}>
-              <Text style={s.priceAmt}>{car.price}</Text>
-              <Text style={s.perDay}>{t('perDay')}</Text>
-              {car.deposit ? <Text style={s.deposit}>Dep: {car.deposit}</Text> : null}
+              <Text style={[s.priceAmt, isSell && { color: '#16a34a' }]}>{car.price}</Text>
+              {isSell
+                ? <Text style={s.perDay}>Sale Price{car.negotiable ? ' · Negotiable' : ''}</Text>
+                : <>
+                    <Text style={s.perDay}>{t('perDay')}</Text>
+                    {car.deposit ? <Text style={s.deposit}>Dep: {car.deposit}</Text> : null}
+                  </>
+              }
             </View>
           </View>
 
@@ -356,7 +371,12 @@ export default function CarDetailScreen() {
                 <Text style={s.typeTagTxt}>{car.type}</Text>
               </View>
             )}
-            {car.available !== false && (
+            {isSell ? (
+              <View style={[s.availTag, { borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' }]}>
+                <Ionicons name="pricetag" size={12} color="#16a34a" style={{ marginRight: 4 }} />
+                <Text style={[s.availTagTxt, { color: '#16a34a' }]}>For Sale</Text>
+              </View>
+            ) : car.available !== false && (
               <View style={s.availTag}>
                 <Ionicons name="checkmark-circle" size={12} color="#16a34a" style={{ marginRight: 4 }} />
                 <Text style={s.availTagTxt}>{t('available')}</Text>
@@ -401,7 +421,7 @@ export default function CarDetailScreen() {
         {rentalTerms.length > 0 && (
           <SlideIn delay={240}>
             <View style={s.section}>
-              <Text style={s.sectionTitle}>RENTAL TERMS</Text>
+              <Text style={s.sectionTitle}>{isSell ? "SALE CONDITIONS" : "RENTAL TERMS"}</Text>
               <View style={s.termsBox}>
                 {rentalTerms.map((term, i) => (
                   <View key={i} style={s.termRow}>
@@ -448,7 +468,10 @@ export default function CarDetailScreen() {
               <Ionicons name="information-circle-outline" size={16} color="#0369a1" style={{ marginRight: 6 }} />
               <Text style={s.safetyTitle}>Safety Tips</Text>
             </View>
-            {['Verify documents before handing over payment', 'Inspect vehicle condition before driving', 'Prefer meeting in public places'].map((tip, i) => (
+            {(isSell
+              ? ['Verify RC book and insurance documents', 'Inspect vehicle thoroughly before payment', 'Prefer bank transfer after paperwork is complete']
+              : ['Verify documents before handing over payment', 'Inspect vehicle condition before driving', 'Prefer meeting in public places']
+            ).map((tip, i) => (
               <Text key={i} style={s.safetyTip}>· {tip}</Text>
             ))}
           </View>
@@ -459,7 +482,13 @@ export default function CarDetailScreen() {
       <SlideIn delay={400} from={40}>
         <View style={[s.stickyBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <CTAButton label={t('callOwnerCar')}  onPress={callOwner}    color={DARK_NAVY} icon="call"           delay={0} />
-          <CTAButton label={t('whatsappOwnerCar')}    onPress={openWhatsApp} color={GREEN_WA}  icon="logo-whatsapp"  delay={60} />
+          <CTAButton
+            label={isSell ? 'Chat on WhatsApp' : t('whatsappOwnerCar')}
+            onPress={openWhatsApp}
+            color={GREEN_WA}
+            icon="logo-whatsapp"
+            delay={60}
+          />
         </View>
       </SlideIn>
     </View>
