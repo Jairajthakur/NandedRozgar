@@ -200,20 +200,24 @@ function RoomCard({ item, index, onPress }) {
               </Text>
             </View>
 
-            {/* Available / Occupied badge — top right */}
-            <View style={[ws.availBadge, { backgroundColor: item.available ? '#16a34a' : '#6b7280' }]}>
-              <Text style={ws.availTxt}>{item.available ? 'Available' : 'Occupied'}</Text>
+            {/* Available / Occupied / For Sale badge — top right */}
+            <View style={[ws.availBadge, {
+              backgroundColor: item.isSale ? ORANGE : (item.available ? '#16a34a' : '#6b7280'),
+            }]}>
+              <Text style={ws.availTxt}>
+                {item.isSale ? 'For Sale' : (item.available ? 'Available' : 'Occupied')}
+              </Text>
             </View>
 
-            {/* NEW badge — below available */}
-            {item.listedDaysAgo != null && item.listedDaysAgo <= 7 && (
+            {/* NEW badge — below available (only for rent listings) */}
+            {!item.isSale && item.listedDaysAgo != null && item.listedDaysAgo <= 7 && (
               <View style={ws.newBadge}>
                 <Text style={ws.newBadgeTxt}>{t('newBadge')}</Text>
               </View>
             )}
 
-            {/* Vacancies left — below NEW */}
-            {item.available && item.vacancies > 0 && item.vacancies <= 5 && (
+            {/* Vacancies left — below NEW (only for rent listings) */}
+            {!item.isSale && item.available && item.vacancies > 0 && item.vacancies <= 5 && (
               <View style={ws.vacancyBadge}>
                 <Text style={ws.vacancyTxt}>{item.vacancies} left</Text>
               </View>
@@ -227,8 +231,9 @@ function RoomCard({ item, index, onPress }) {
             <View style={ws.cardTitleRow}>
               <AutoTranslate text={item.title} lang={lang} style={ws.cardTitle} numberOfLines={1} />
               <View style={ws.rentWrap}>
-                <Text style={ws.rentAmt}>{item.rent}</Text>
-                {item.deposit && <Text style={ws.depositTxt}>Dep: {item.deposit}</Text>}
+                <Text style={[ws.rentAmt, item.isSale && { color: ORANGE }]}>{item.rent}</Text>
+                {!item.isSale && item.deposit && <Text style={ws.depositTxt}>Dep: {item.deposit}</Text>}
+                {item.isSale && <Text style={ws.depositTxt}>Sale Price</Text>}
               </View>
             </View>
 
@@ -346,13 +351,17 @@ function RoomCard({ item, index, onPress }) {
             </Text>
           </View>
 
-          {/* ── Top-right: Available / Occupied ── */}
-          <View style={[s.availBadge, { backgroundColor: item.available ? '#16a34a' : '#6b7280' }]}>
-            <Text style={s.availTxt}>{item.available ? 'Available' : 'Occupied'}</Text>
+          {/* ── Top-right: For Sale / Available / Occupied ── */}
+          <View style={[s.availBadge, {
+            backgroundColor: item.isSale ? ORANGE : (item.available ? '#16a34a' : '#6b7280'),
+          }]}>
+            <Text style={s.availTxt}>
+              {item.isSale ? 'For Sale' : (item.available ? 'Available' : 'Occupied')}
+            </Text>
           </View>
 
-          {/* ── Top-right (below available): vacancies left ── */}
-          {item.available && item.vacancies > 0 && item.vacancies <= 5 && (
+          {/* ── Top-right (below available badge): vacancies left — only for rent ── */}
+          {!item.isSale && item.available && item.vacancies > 0 && item.vacancies <= 5 && (
             <View style={s.vacancyBadge}>
               <Text style={s.vacancyTxt}>{item.vacancies} left</Text>
             </View>
@@ -377,7 +386,7 @@ function RoomCard({ item, index, onPress }) {
               </View>
             )}
             <View style={{ flex: 1 }} />
-            <View style={s.rentPill}>
+            <View style={[s.rentPill, item.isSale && { backgroundColor: ORANGE }]}>
               <Text style={s.rentPillTxt}>{item.rent}</Text>
             </View>
           </View>
@@ -469,14 +478,24 @@ export default function RoomScreen({ route }) {
       const districtParam = currentDistrict?.id ? `?district=${currentDistrict.id}` : '';
       const res = await http('GET', `/api/rooms${districtParam}`);
       if (res.ok && res.rooms?.length > 0) {
-        const apiRooms = res.rooms.map((r) => ({
+        const apiRooms = res.rooms.map((r) => {
+          const isSale = r.listing_purpose === 'sale';
+          const displayTitle = r.room_type || r.title || r.bhk || r.bhk_size || r.type || (isSale ? 'Property for Sale' : 'Room');
+          const saleNum = r.sale_price ? parseInt(r.sale_price) : 0;
+          const rentNum = r.rent ? parseInt(r.rent) : 0;
+          const rentDisplay = isSale
+            ? (saleNum ? `₹${Number(saleNum).toLocaleString('en-IN')}` : 'Price on request')
+            : (rentNum ? `₹${rentNum}/mo` : 'Price on request');
+          return ({
           id:            String(r.id),
-          title:         r.title || r.bhk || r.bhk_size || r.type || 'Room',
+          title:         displayTitle,
           location:      r.area  || r.location || 'Nanded',
-          type:          r.room_type || r.type || r.bhk || '1BHK',
+          type:          r.room_type || r.type || r.bhk || (isSale ? 'For Sale' : '1BHK'),
           bhk:           r.bhk || r.bhk_size || '',
-          rent:          r.rent ? `₹${r.rent}/mo` : 'Price on request',
-          rentNum:       r.rent || 0,
+          rent:          rentDisplay,
+          rentNum:       isSale ? saleNum : rentNum,
+          isSale,
+          salePrice:     r.sale_price ? `₹${Number(r.sale_price).toLocaleString('en-IN')}` : null,
           available:     r.status !== 'inactive',
           description:   r.description || '',
           amenities:     (() => {
@@ -502,7 +521,7 @@ export default function RoomScreen({ route }) {
             } catch { return []; }
           })(),
           vacancies: r.vacancies || 0,
-        }));
+        });});
         // Use only real API rooms; empty state is handled by the FlatList ListEmptyComponent
         setRooms(apiRooms);
       }
