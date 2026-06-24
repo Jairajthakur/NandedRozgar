@@ -183,15 +183,18 @@ function VehicleCard({ item, index, onPress }) {
                 {photoCount > 0 ? `${photoCount} photo${photoCount > 1 ? 's' : ''}` : 'photos'}
               </Text>
             </View>
-            <View style={[ws.availBadge, { backgroundColor: '#111' }]}>
-              <Text style={ws.availTxt}>{item.price}</Text>
+            <View style={[ws.availBadge, { backgroundColor: item.isSell ? '#16a34a' : '#111' }]}>
+              <Text style={ws.availTxt}>{item.isSell ? 'For Sale' : item.price}</Text>
             </View>
             {isNew && <View style={ws.newBadge}><Text style={ws.newBadgeTxt}>{t('newBadge')}</Text></View>}
           </View>
           <View style={ws.cardBody}>
             <View style={ws.cardTitleRow}>
               <AutoTranslate text={item.name} lang={lang} style={ws.cardTitle} numberOfLines={1} />
-              <View style={ws.priceWrap}><Text style={ws.priceAmt}>{item.price}</Text></View>
+              <View style={ws.priceWrap}>
+                <Text style={[ws.priceAmt, item.isSell && { color: '#16a34a' }]}>{item.price}</Text>
+                {item.isSell && <Text style={{ fontSize: 10, color: '#16a34a', fontWeight: '700' }}>Sale Price</Text>}
+              </View>
             </View>
             <View style={ws.locationRow}>
               <Ionicons name="location-outline" size={12} color="#aaa" />
@@ -204,13 +207,20 @@ function VehicleCard({ item, index, onPress }) {
                   <Text style={ws.tagTxt}>{item.type}</Text>
                 </View>
               )}
-              {item.subtitle
-                ? item.subtitle.split(' · ').slice(0, 2).map((spec, i) => (
-                    <View key={i} style={[ws.tag, ws.tagBlue]}>
-                      <Text style={[ws.tagTxt, { color: '#0369a1' }]}>{spec}</Text>
-                    </View>
-                  ))
-                : null}
+              {item.isSell ? (
+                <View style={[ws.tag, { borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' }]}>
+                  <Ionicons name="pricetag-outline" size={10} color="#16a34a" style={{ marginRight: 3 }} />
+                  <Text style={[ws.tagTxt, { color: '#16a34a' }]}>For Sale</Text>
+                </View>
+              ) : (
+                item.subtitle
+                  ? item.subtitle.split(' · ').slice(0, 2).map((spec, i) => (
+                      <View key={i} style={[ws.tag, ws.tagBlue]}>
+                        <Text style={[ws.tagTxt, { color: '#0369a1' }]}>{spec}</Text>
+                      </View>
+                    ))
+                  : null
+              )}
             </View>
             <View style={ws.cardFooter}>
               <View style={ws.ownerRow}>
@@ -246,8 +256,8 @@ function VehicleCard({ item, index, onPress }) {
               {item.photos > 0 ? `${item.photos} photo${item.photos > 1 ? 's' : ''}` : 'photos'}
             </Text>
           </View>
-          <View style={[s.availBadge, { backgroundColor: '#111' }]}>
-            <Text style={s.availTxt}>{item.price}</Text>
+          <View style={[s.availBadge, { backgroundColor: item.isSell ? '#16a34a' : '#111' }]}>
+            <Text style={s.availTxt}>{item.isSell ? 'For Sale' : item.price}</Text>
           </View>
           {isNew && <View style={s.newBadge}><Text style={s.newBadgeTxt}>{t('newBadge')}</Text></View>}
         </View>
@@ -348,12 +358,19 @@ export default function CarsScreen({ route }) {
           name:     v.name || v.title || v.type || 'Vehicle',
           subtitle: [v.color, v.fuel, v.seats ? `${v.seats} seats` : ''].filter(Boolean).join(' · '),
           price:    v.price
-            ? (v.listing_purpose === 'sell' ? `₹${v.price}` : `₹${v.price}/day`)
+            ? (v.listing_purpose === 'sell'
+                ? `₹${Number(v.price).toLocaleString('en-IN')}`
+                : `₹${v.price}/day`)
             : 'Price on request',
           priceNum: v.price || 0,
+          isSell:   v.listing_purpose === 'sell',
           location: v.area || 'Nanded',
           type:     v.type || 'Car',
           fuel:     v.fuel || '',
+          year:     v.year || null,
+          kmDriven:       v.km_driven || null,
+          negotiable:     v.negotiable ?? null,
+          numberOfOwners: v.number_of_owners || null,
           ac:       false,
           photoUrls: (() => {
             try {
