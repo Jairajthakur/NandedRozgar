@@ -334,9 +334,12 @@ export default function RoomDetailScreen({ route, navigation }) {
                 </Text>
               </View>
             </View>
-            <View style={s.pricePill}>
+            <View style={[s.pricePill, room.isSale && { backgroundColor: '#f97316' }]}>
               <Text style={s.rent}>{room.rent}</Text>
-              {room.deposit && <Text style={s.depositTxt}>{t('deposit')}: {room.deposit}</Text>}
+              {room.isSale
+                ? <Text style={s.depositTxt}>Sale Price</Text>
+                : room.deposit && <Text style={s.depositTxt}>{t('deposit')}: {room.deposit}</Text>
+              }
             </View>
           </View>
 
@@ -354,19 +357,26 @@ export default function RoomDetailScreen({ route, navigation }) {
                 <Text style={s.chipTxt}>{room.for}</Text>
               </View>
             )}
-            <View style={[s.chip, room.available !== false
-              ? { borderColor: '#86efac', backgroundColor: '#f0fdf4' }
-              : { borderColor: '#fca5a5', backgroundColor: '#fef2f2' }
-            ]}>
-              <Ionicons
-                name={room.available !== false ? 'checkmark-circle' : 'close-circle'}
-                size={11}
-                color={room.available !== false ? '#16a34a' : '#dc2626'}
-              />
-              <Text style={[s.chipTxt, { marginLeft: 3, color: room.available !== false ? '#16a34a' : '#dc2626' }]}>
-                {room.available !== false ? 'Available' : 'Not Available'}
-              </Text>
-            </View>
+            {room.isSale ? (
+              <View style={[s.chip, { borderColor: '#fed7aa', backgroundColor: '#fff7f0' }]}>
+                <Ionicons name="pricetag" size={11} color="#f97316" />
+                <Text style={[s.chipTxt, { marginLeft: 3, color: '#f97316' }]}>For Sale</Text>
+              </View>
+            ) : (
+              <View style={[s.chip, room.available !== false
+                ? { borderColor: '#86efac', backgroundColor: '#f0fdf4' }
+                : { borderColor: '#fca5a5', backgroundColor: '#fef2f2' }
+              ]}>
+                <Ionicons
+                  name={room.available !== false ? 'checkmark-circle' : 'close-circle'}
+                  size={11}
+                  color={room.available !== false ? '#16a34a' : '#dc2626'}
+                />
+                <Text style={[s.chipTxt, { marginLeft: 3, color: room.available !== false ? '#16a34a' : '#dc2626' }]}>
+                  {room.available !== false ? 'Available' : 'Not Available'}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Thumbnail strip (if multiple photos) */}
@@ -387,11 +397,22 @@ export default function RoomDetailScreen({ route, navigation }) {
           )}
 
           {/* Quick Info */}
-          {(room.deposit || room.listedDaysAgo || room.area) && (
+          {(room.deposit || room.listedDaysAgo || room.area || room.salePrice || room.carpetArea || room.propertyAge) && (
             <View style={s.infoCard}>
-              {room.deposit     && <InfoRow icon="card-outline"     label="Security Deposit" value={room.deposit} />}
+              {room.isSale && room.salePrice && (
+                <InfoRow icon="cash-outline" label="Sale Price" value={`₹${Number(room.salePrice).toLocaleString('en-IN')}`} />
+              )}
+              {room.isSale && room.carpetArea && (
+                <InfoRow icon="resize-outline" label="Carpet Area" value={room.carpetArea} />
+              )}
+              {room.isSale && room.propertyAge && (
+                <InfoRow icon="construct-outline" label="Property Age" value={room.propertyAge} />
+              )}
+              {!room.isSale && room.deposit && (
+                <InfoRow icon="card-outline" label="Security Deposit" value={room.deposit} />
+              )}
               {room.listedDaysAgo && <InfoRow icon="calendar-outline" label="Listed"  value={`${room.listedDaysAgo} days ago`} />}
-              {room.area        && <InfoRow icon="resize-outline"   label="Area"     value={room.area} />}
+              {!room.isSale && room.area && <InfoRow icon="resize-outline" label="Area" value={room.area} />}
             </View>
           )}
 
