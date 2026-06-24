@@ -395,11 +395,7 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
                     <Text style={styles.transcriptText}>{liveTranscript}</Text>
                   </View>
                 )}
-                {/* FIX: manual stop button — user controls when to end recording */}
-                <TouchableOpacity style={styles.stopBtn} onPress={stopListening} activeOpacity={0.8}>
-                  <Ionicons name="stop-circle" size={20} color="#fff" />
-                  <Text style={styles.stopBtnLabel}>Done Speaking / बोलणे संपले</Text>
-                </TouchableOpacity>
+
               </View>
             )}
 
