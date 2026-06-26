@@ -100,6 +100,7 @@ if (helmet) {
         frameSrc:        [
           'https://accounts.google.com',                   // Google Sign-In popup/iframe
           'https://thecityplus.firebaseapp.com',           // Firebase auth redirect handler
+          'https://cityplus-7ac75.firebaseapp.com',        // Firebase project auth handler
         ],
         frameAncestors:  ["'none'"],
         formAction:      ["'self'", 'https://api.cashfree.com', 'https://sandbox.cashfree.com'],
