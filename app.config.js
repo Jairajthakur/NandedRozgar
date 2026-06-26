@@ -101,6 +101,8 @@ export default ({ config }) => ({
 
   web: {
     favicon: "./assets/favicon.png",
+    bundler: "metro",
+    output: "static",
   },
 
   plugins: [
