@@ -424,21 +424,24 @@ app.get('/payment/callback', (req, res) => {
   }
 });
 
-// ── Web SPA — always serve public/index.html (the custom CityPlus web app) ────
-// FIX: Previously this block checked for a dist/ folder first and served the
-// Expo web bundle if it existed. Railway runs `npm run build` by default which
-// ran `npx expo export --platform web`, creating dist/ on the server. The Expo
-// bundle then crashed with "Invariant Violation: Expect to have a valid rootTag"
-// because public/index.html has no <div id="root"> for React Native Web to mount
-// into. The build script is now a no-op (see package.json), so dist/ is never
-// created on Railway. This block now unconditionally serves the custom SPA.
+// ── Web SPA — serve Expo web bundle from dist/ (built via `npm run build`) ────
+// Railway runs `npm run build` which runs `npx expo export --platform web`,
+// producing a dist/ folder with a full React Native Web bundle including
+// a proper index.html with <div id="root"> for mounting.
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
-const WEB_INDEX  = path.join(PUBLIC_DIR, 'index.html');
+const DIST_DIR   = path.join(__dirname, '..', 'dist');
+const WEB_DIR    = fs.existsSync(DIST_DIR) ? DIST_DIR : PUBLIC_DIR;
+const WEB_INDEX  = path.join(WEB_DIR, 'index.html');
 
-// Serve public/ assets (icons, images, manifest, etc.)
-app.use(express.static(PUBLIC_DIR, { index: false })); // index:false — we control routing below
+// Serve public/ assets (icons, images, manifest, policy pages, etc.)
+app.use(express.static(PUBLIC_DIR, { index: false }));
 
-// SPA web routes — all load index.html; client-side JS/API handles the content
+// Serve Expo web bundle static assets (JS, CSS, fonts, etc.)
+if (fs.existsSync(DIST_DIR)) {
+  app.use(express.static(DIST_DIR, { index: false }));
+}
+
+// SPA web routes — all load the Expo web index.html
 const WEB_ROUTES = ['/', '/jobs', '/rooms', '/vehicles', '/buysell', '/buy-sell',
                     '/post', '/profile', '/ai', '/alerts', '/saved', '/referral',
                     '/about', '/help', '/chat'];
