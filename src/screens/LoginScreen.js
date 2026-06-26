@@ -280,7 +280,9 @@ export default function LoginScreen() {
     (async () => {
       try {
         setGoogleLoading(true);
+        console.log('[GoogleRedirect] calling getRedirectResult...');
         const result = await getRedirectResult(_webAuth);
+        console.log('[GoogleRedirect] result:', result ? 'got result' : 'null (no pending redirect)');
         if (cancelled || !result) { setGoogleLoading(false); return; }
 
         // With signInWithRedirect, prefer the Firebase ID token (always present).
