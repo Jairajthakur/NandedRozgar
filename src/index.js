@@ -95,6 +95,7 @@ if (helmet) {
           'https://accounts.google.com',                   // Google OAuth token exchange
           'https://oauth2.googleapis.com',                 // Google OAuth2 endpoints
           'https://apis.google.com',                       // Google APIs (gen_204 ping, GSI)
+          'https://www.googleapis.com',                    // Google userinfo / token endpoints
         ],
         // FIX: Google Sign-In loads its UI in an iframe from accounts.google.com.
         // Without frameSrc, the browser blocks the iframe and auth/internal-error is thrown.
