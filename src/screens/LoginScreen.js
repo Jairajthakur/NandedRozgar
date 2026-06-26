@@ -51,7 +51,7 @@ if (Platform.OS === 'web') {
 
   const firebaseConfig = {
     apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY     || 'AIzaSyD_placeholder',
-    authDomain:        'cityplus-7ac75.firebaseapp.com',
+    authDomain:        'thecityplus.in',
     projectId:         'cityplus',
     storageBucket:     'cityplus-7ac75.appspot.com',
     messagingSenderId: '1012993473745',
