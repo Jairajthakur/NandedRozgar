@@ -282,17 +282,32 @@ export default function LoginScreen() {
         setGoogleLoading(true);
         const result = await getRedirectResult(_webAuth);
         if (cancelled || !result) { setGoogleLoading(false); return; }
+
+        // With signInWithRedirect, prefer the Firebase ID token (always present).
+        // accessToken from credential can be null in the redirect flow when no
+        // extra OAuth scopes were requested beyond openid/profile/email.
         const credential  = GoogleAuthProvider.credentialFromResult(result);
         const accessToken = credential?.accessToken;
-        if (!accessToken) {
-          setError('Google sign-in failed: no access token returned.');
+        const idToken     = await result.user?.getIdToken?.();
+
+        console.log('[GoogleRedirect] accessToken:', accessToken ? 'present' : 'null');
+        console.log('[GoogleRedirect] idToken:', idToken ? 'present' : 'null');
+
+        if (idToken) {
+          // Prefer ID token — backend verifies via tokeninfo endpoint
+          const r = await loginWithGoogle(idToken, true);
+          setGoogleLoading(false);
+          if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
+        } else if (accessToken) {
+          // Fallback to access token — backend verifies via userinfo endpoint
+          const r = await loginWithGoogle(accessToken, false);
+          setGoogleLoading(false);
+          if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
+        } else {
+          setError('Google sign-in failed: no token returned.');
           triggerShake();
           setGoogleLoading(false);
-          return;
         }
-        const r = await loginWithGoogle(accessToken, false);
-        setGoogleLoading(false);
-        if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
       } catch (err) {
         if (!cancelled) {
           setError('Google sign-in failed: ' + (err?.message || err));
