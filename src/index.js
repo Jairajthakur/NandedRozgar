@@ -68,6 +68,11 @@ if (helmet) {
         // (static.cloudflareinsights.com) which the admin panel loads.
         scriptSrc:       ["'self'", "'unsafe-inline'", "'unsafe-hashes'",
                           'https://static.cloudflareinsights.com'],
+        // FIX: Helmet 8 sets script-src-attr to 'none' by default, which overrides
+        // scriptSrc for inline event handlers (onclick=, onerror=, onsubmit= etc.).
+        // 'unsafe-hashes' alone in scriptSrc is not enough — must be repeated here.
+        // Without this, public/index.html nav() onclick handlers are silently blocked.
+        scriptSrcAttr:   ["'unsafe-inline'", "'unsafe-hashes'"],
         styleSrc:        ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc:         ["'self'", 'https://fonts.gstatic.com'],
         imgSrc:          ["'self'", 'data:', 'https:'],
