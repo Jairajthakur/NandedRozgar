@@ -417,6 +417,19 @@ const PRIVACY_HTML     = path.join(__dirname, '..', 'public', 'privacy-policy.ht
 const TERMS_HTML       = path.join(__dirname, '..', 'public', 'terms-and-conditions.html');
 const REFUND_HTML      = path.join(__dirname, '..', 'public', 'refund-policy.html');
 
+// ── Firebase Auth handler for custom authDomain (signInWithRedirect) ─────────
+// When authDomain is 'thecityplus.in', Firebase redirects OAuth back to
+// https://thecityplus.in/__/auth/handler. This proxy forwards it to the real
+// Firebase handler so getRedirectResult() resolves correctly.
+app.get('/__/auth/handler', (req, res) => {
+  const qs = req.url.includes('?') ? req.url.split('?').slice(1).join('?') : '';
+  res.redirect(302, `https://cityplus-7ac75.firebaseapp.com/__/auth/handler${qs ? '?' + qs : ''}`);
+});
+app.get('/__/auth/iframe', (req, res) => {
+  const qs = req.url.includes('?') ? req.url.split('?').slice(1).join('?') : '';
+  res.redirect(302, `https://cityplus-7ac75.firebaseapp.com/__/auth/iframe${qs ? '?' + qs : ''}`);
+});
+
 app.get('/admin',       (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
 app.get('/admin-login', (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
 app.get('/admin-panel', (_req, res) => res.sendFile(ADMIN_LOGIN_HTML));
