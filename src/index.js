@@ -71,7 +71,19 @@ if (helmet) {
         styleSrc:        ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc:         ["'self'", 'https://fonts.gstatic.com'],
         imgSrc:          ["'self'", 'data:', 'https:'],
-        connectSrc:      ["'self'", appUrl, 'https://cloudflareinsights.com'],
+        // FIX: Added Firebase domains to connectSrc.
+        // Previously missing, causing CSP violations that blocked:
+        //   - securetoken.googleapis.com  → Firebase ID token refresh (auth breaks silently)
+        //   - identitytoolkit.googleapis.com → Firebase sign-in / verify / password reset
+        //   - firebaseinstallations.googleapis.com → Firebase SDK heartbeat on app init
+        connectSrc:      [
+          "'self'",
+          appUrl,
+          'https://cloudflareinsights.com',
+          'https://securetoken.googleapis.com',            // Firebase token refresh
+          'https://identitytoolkit.googleapis.com',        // Firebase sign-in / verify
+          'https://firebaseinstallations.googleapis.com',  // Firebase SDK init heartbeat
+        ],
         frameAncestors:  ["'none'"],
         formAction:      ["'self'", 'https://api.cashfree.com', 'https://sandbox.cashfree.com'],
         upgradeInsecureRequests: isProduction ? [] : null,
@@ -407,47 +419,43 @@ app.get('/payment/callback', (req, res) => {
   }
 });
 
-// ── Web SPA — serve Expo dist/ if built, else fall back to public/index.html ──
-// The public/index.html is a full-featured SPA (sidebar, search, live API data,
-// jobs/rooms/vehicles/buysell cards) that works without a dist/ build.
-// Once you run `npx expo export --platform web`, dist/ takes priority automatically.
-const WEB_BUILD  = path.join(__dirname, '..', 'dist');
+// ── Web SPA — always serve public/index.html (the custom CityPlus web app) ────
+// FIX: Previously this block checked for a dist/ folder first and served the
+// Expo web bundle if it existed. Railway runs `npm run build` by default which
+// ran `npx expo export --platform web`, creating dist/ on the server. The Expo
+// bundle then crashed with "Invariant Violation: Expect to have a valid rootTag"
+// because public/index.html has no <div id="root"> for React Native Web to mount
+// into. The build script is now a no-op (see package.json), so dist/ is never
+// created on Railway. This block now unconditionally serves the custom SPA.
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const WEB_INDEX  = path.join(PUBLIC_DIR, 'index.html');
 
-if (fs.existsSync(WEB_BUILD)) {
-  // Expo web build exists — serve it (production build preferred)
-  app.use(express.static(WEB_BUILD, { index: 'index.html' }));
-  app.get('*', (_req, res) => res.sendFile(path.join(WEB_BUILD, 'index.html')));
-} else {
-  // No dist/ yet — serve public/ assets (icons, images, manifest, etc.)
-  // and use public/index.html as the SPA shell for all web routes.
-  app.use(express.static(PUBLIC_DIR, { index: false })); // index:false — we control routing below
+// Serve public/ assets (icons, images, manifest, etc.)
+app.use(express.static(PUBLIC_DIR, { index: false })); // index:false — we control routing below
 
-  // SPA web routes — all load index.html; client-side JS/API handles the content
-  const WEB_ROUTES = ['/', '/jobs', '/rooms', '/vehicles', '/buysell', '/buy-sell',
-                      '/post', '/profile', '/ai', '/alerts', '/saved', '/referral',
-                      '/about', '/help', '/chat'];
-  WEB_ROUTES.forEach(route => {
-    app.get(route, (_req, res) => res.sendFile(WEB_INDEX));
-  });
+// SPA web routes — all load index.html; client-side JS/API handles the content
+const WEB_ROUTES = ['/', '/jobs', '/rooms', '/vehicles', '/buysell', '/buy-sell',
+                    '/post', '/profile', '/ai', '/alerts', '/saved', '/referral',
+                    '/about', '/help', '/chat'];
+WEB_ROUTES.forEach(route => {
+  app.get(route, (_req, res) => res.sendFile(WEB_INDEX));
+});
 
-  // Dynamic detail pages  e.g. /jobs/123  /rooms/456  /vehicles/789
-  app.get('/jobs/:id',     (_req, res) => res.sendFile(WEB_INDEX));
-  app.get('/rooms/:id',    (_req, res) => res.sendFile(WEB_INDEX));
-  app.get('/vehicles/:id', (_req, res) => res.sendFile(WEB_INDEX));
-  app.get('/buysell/:id',  (_req, res) => res.sendFile(WEB_INDEX));
+// Dynamic detail pages  e.g. /jobs/123  /rooms/456  /vehicles/789
+app.get('/jobs/:id',     (_req, res) => res.sendFile(WEB_INDEX));
+app.get('/rooms/:id',    (_req, res) => res.sendFile(WEB_INDEX));
+app.get('/vehicles/:id', (_req, res) => res.sendFile(WEB_INDEX));
+app.get('/buysell/:id',  (_req, res) => res.sendFile(WEB_INDEX));
 
-  // Catch-all for any other browser navigation (unknown paths → SPA handles 404)
-  app.get('*', (req, res, next) => {
-    // Skip API calls — those should 404 as JSON, not get the SPA
-    if (req.path.startsWith('/api/') || req.path.startsWith('/admin')) return next();
-    res.sendFile(WEB_INDEX);
-  });
+// Catch-all for any other browser navigation (unknown paths → SPA handles 404)
+app.get('*', (req, res, next) => {
+  // Skip API calls — those should 404 as JSON, not get the SPA
+  if (req.path.startsWith('/api/') || req.path.startsWith('/admin')) return next();
+  res.sendFile(WEB_INDEX);
+});
 
-  // Remaining unmatched (API 404s)
-  app.use((_req, res) => res.status(404).json({ ok: false, error: 'Route not found' }));
-}
+// Remaining unmatched (API 404s)
+app.use((_req, res) => res.status(404).json({ ok: false, error: 'Route not found' }));
 
 // ── Worker startup ─────────────────────────────────────────────────────────────
 // FIX: Workers skip migrations — primary already ran them before forking.
