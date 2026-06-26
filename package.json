@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "start": "node src/index.js",
-    "build": "echo 'No web build — Railway serves public/index.html directly'",
+    "build": "npx expo export --platform web",
     "dev": "nodemon src/index.js",
     "web": "expo start --web",
     "android": "expo run:android",
