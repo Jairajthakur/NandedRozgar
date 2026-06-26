@@ -408,12 +408,26 @@ app.get('/payment/callback', (req, res) => {
 });
 
 // ── Expo web build ─────────────────────────────────────────────────────────────
-const WEB_BUILD = path.join(__dirname, '..', 'dist');
+const WEB_BUILD  = path.join(__dirname, '..', 'dist');
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const INDEX_HTML = path.join(PUBLIC_DIR, 'index.html');
+
 if (fs.existsSync(WEB_BUILD)) {
+  // Production: serve compiled Expo web build
   app.use(express.static(WEB_BUILD));
   app.get('*', (_req, res) => res.sendFile(path.join(WEB_BUILD, 'index.html')));
 } else {
-  app.use((_req, res) => res.status(404).json({ ok: false, error: 'Route not found' }));
+  // Dev / no build: serve public/ landing page so users see the site
+  app.use(express.static(PUBLIC_DIR));
+  app.get('/', (_req, res) => res.sendFile(INDEX_HTML));
+  // Any unmatched route falls back to the landing page (supports direct links)
+  app.get('*', (_req, res) => {
+    if (fs.existsSync(INDEX_HTML)) {
+      res.sendFile(INDEX_HTML);
+    } else {
+      res.status(404).json({ ok: false, error: 'Route not found' });
+    }
+  });
 }
 
 // ── Worker startup ─────────────────────────────────────────────────────────────
