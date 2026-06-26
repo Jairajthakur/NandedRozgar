@@ -67,20 +67,24 @@ if (helmet) {
         // in admin-login.html are permitted. Also added Cloudflare Insights CDN
         // (static.cloudflareinsights.com) which the admin panel loads.
         scriptSrc:       ["'self'", "'unsafe-inline'", "'unsafe-hashes'",
-                          'https://static.cloudflareinsights.com'],
+                          'https://static.cloudflareinsights.com',
+                          'https://apis.google.com',               // Google Sign-In SDK
+                          'https://accounts.google.com'],          // Google OAuth
         // FIX: Helmet 8 sets script-src-attr to 'none' by default, which overrides
         // scriptSrc for inline event handlers (onclick=, onerror=, onsubmit= etc.).
         // 'unsafe-hashes' alone in scriptSrc is not enough — must be repeated here.
-        // Without this, public/index.html nav() onclick handlers are silently blocked.
+        // Without this, admin-login.html nav() onclick handlers are silently blocked.
         scriptSrcAttr:   ["'unsafe-inline'", "'unsafe-hashes'"],
-        styleSrc:        ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        styleSrc:        ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com',
+                          'https://accounts.google.com'],          // Google Sign-In styles
         fontSrc:         ["'self'", 'https://fonts.gstatic.com'],
         imgSrc:          ["'self'", 'data:', 'https:'],
-        // FIX: Added Firebase domains to connectSrc.
+        // FIX: Added Firebase + Google OAuth domains to connectSrc.
         // Previously missing, causing CSP violations that blocked:
-        //   - securetoken.googleapis.com  → Firebase ID token refresh (auth breaks silently)
-        //   - identitytoolkit.googleapis.com → Firebase sign-in / verify / password reset
+        //   - securetoken.googleapis.com       → Firebase ID token refresh
+        //   - identitytoolkit.googleapis.com   → Firebase sign-in / verify / password reset
         //   - firebaseinstallations.googleapis.com → Firebase SDK heartbeat on app init
+        //   - accounts.google.com              → Google Sign-In token exchange
         connectSrc:      [
           "'self'",
           appUrl,
@@ -88,6 +92,14 @@ if (helmet) {
           'https://securetoken.googleapis.com',            // Firebase token refresh
           'https://identitytoolkit.googleapis.com',        // Firebase sign-in / verify
           'https://firebaseinstallations.googleapis.com',  // Firebase SDK init heartbeat
+          'https://accounts.google.com',                   // Google OAuth token exchange
+          'https://oauth2.googleapis.com',                 // Google OAuth2 endpoints
+        ],
+        // FIX: Google Sign-In loads its UI in an iframe from accounts.google.com.
+        // Without frameSrc, the browser blocks the iframe and auth/internal-error is thrown.
+        frameSrc:        [
+          'https://accounts.google.com',                   // Google Sign-In popup/iframe
+          'https://thecityplus.firebaseapp.com',           // Firebase auth redirect handler
         ],
         frameAncestors:  ["'none'"],
         formAction:      ["'self'", 'https://api.cashfree.com', 'https://sandbox.cashfree.com'],
