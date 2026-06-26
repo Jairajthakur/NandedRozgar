@@ -3,304 +3,713 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!-- ═══════════════════════════════════════════════════════════════════
-       PRIMARY SEO META TAGS
-  ═══════════════════════════════════════════════════════════════════ -->
   <title>CityPlus — Local Jobs, Homes, PG & Cars in Maharashtra</title>
   <meta name="description" content="CityPlus is Maharashtra's #1 hyperlocal app. Find jobs, homes, PG rooms, and buy/sell cars in Nanded, Nashik and across Maharashtra. Free to download." />
-  <meta name="keywords" content="jobs in Nanded, jobs in Nashik, Maharashtra jobs, local jobs, naukri Nanded, naukri Nashik, PG rooms Nanded, house for rent Nashik, cars for sale Maharashtra, CityPlus app" />
-  <meta name="author" content="CityPlus" />
+  <meta name="keywords" content="jobs in Nanded, jobs in Nashik, Maharashtra jobs, local jobs, naukri Nanded, PG rooms Nanded, house for rent Nashik, cars for sale Maharashtra, CityPlus app" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-  <meta name="googlebot" content="index, follow" />
   <link rel="canonical" href="https://thecityplus.in/" />
-
-  <!-- ═══════════════════════════════════════════════════════════════════
-       OPEN GRAPH (Facebook, WhatsApp, LinkedIn)
-  ═══════════════════════════════════════════════════════════════════ -->
-  <meta property="og:type"          content="website" />
-  <meta property="og:url"           content="https://thecityplus.in/" />
-  <meta property="og:title"         content="CityPlus — Local Jobs, Homes & Cars in Maharashtra" />
-  <meta property="og:description"   content="Find local jobs, homes, PG, and cars in Nanded, Nashik and across Maharashtra. Download the free CityPlus app." />
-  <meta property="og:image"         content="https://thecityplus.in/assets/og-banner.png" />
-  <meta property="og:image:width"   content="1200" />
-  <meta property="og:image:height"  content="630" />
-  <meta property="og:image:alt"     content="CityPlus — Local Jobs, Homes & Cars in Maharashtra" />
-  <meta property="og:site_name"     content="CityPlus" />
-  <meta property="og:locale"        content="en_IN" />
-
-  <!-- ═══════════════════════════════════════════════════════════════════
-       TWITTER / X CARD
-  ═══════════════════════════════════════════════════════════════════ -->
-  <meta name="twitter:card"        content="summary_large_image" />
-  <meta name="twitter:title"       content="CityPlus — Local Jobs, Homes & Cars in Maharashtra" />
-  <meta name="twitter:description" content="Find local jobs, homes, PG, and cars in Nanded, Nashik and across Maharashtra." />
-  <meta name="twitter:image"       content="https://thecityplus.in/assets/og-banner.png" />
-
-  <!-- ═══════════════════════════════════════════════════════════════════
-       ANDROID APP — GOOGLE PLAY & APP INDEXING
-  ═══════════════════════════════════════════════════════════════════ -->
-  <!-- Smart App Banner for Android Chrome -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://thecityplus.in/" />
+  <meta property="og:title" content="CityPlus — Local Jobs, Homes & Cars in Maharashtra" />
+  <meta property="og:description" content="Find local jobs, homes, PG, and cars in Nanded, Nashik and across Maharashtra." />
+  <meta property="og:image" content="https://thecityplus.in/assets/og-banner.png" />
+  <meta property="og:site_name" content="CityPlus" />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="google-play-app" content="app-id=com.cityplus.app" />
-
-  <!-- App Links: tells Google/Facebook to open this in the app -->
-  <meta property="al:android:app_name"   content="CityPlus" />
-  <meta property="al:android:package"    content="com.cityplus.app" />
-  <meta property="al:android:url"        content="cityplus://home" />
-
-  <!-- Alternate link — tells Google this page has an app equivalent -->
+  <meta property="al:android:app_name" content="CityPlus" />
+  <meta property="al:android:package" content="com.cityplus.app" />
+  <meta property="al:android:url" content="cityplus://home" />
   <link rel="alternate" href="android-app://com.cityplus.app/cityplus/home" />
-
-  <!-- ═══════════════════════════════════════════════════════════════════
-       PWA & ICONS
-  ═══════════════════════════════════════════════════════════════════ -->
-  <link rel="manifest"            href="/manifest.json" />
-  <link rel="icon"                href="/assets/favicon.png" type="image/png" />
-  <link rel="apple-touch-icon"    href="/assets/icon.png" />
-  <meta name="theme-color"        content="#f97316" />
-  <meta name="mobile-web-app-capable"       content="yes" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/assets/icon.png" />
+  <meta name="theme-color" content="#f97316" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title"   content="CityPlus" />
+  <meta name="geo.region" content="IN-MH" />
+  <meta name="geo.placename" content="Maharashtra, India" />
 
-  <!-- ═══════════════════════════════════════════════════════════════════
-       GEO TARGETING
-  ═══════════════════════════════════════════════════════════════════ -->
-  <meta name="geo.region"      content="IN-MH" />
-  <meta name="geo.placename"   content="Maharashtra, India" />
-  <meta name="geo.position"    content="19.0760;72.8777" />
-  <meta name="ICBM"            content="19.0760, 72.8777" />
-
-  <!-- ═══════════════════════════════════════════════════════════════════
-       STRUCTURED DATA — JSON-LD
-  ═══════════════════════════════════════════════════════════════════ -->
-
-  <!-- Organization Schema -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "CityPlus",
-    "url": "https://thecityplus.in",
-    "logo": "https://thecityplus.in/assets/icon.png",
-    "description": "Maharashtra's hyperlocal platform for jobs, homes, PG rooms, and cars in Nanded, Nashik and across Maharashtra.",
-    "sameAs": [
-      "https://play.google.com/store/apps/details?id=com.cityplus.app"
-    ],
-    "contactPoint": {
-      "@type": "ContactPoint",
-      "contactType": "customer support",
-      "availableLanguage": ["Hindi", "Marathi", "English"]
-    },
-    "areaServed": {
-      "@type": "State",
-      "name": "Maharashtra",
-      "containedInPlace": {
-        "@type": "Country",
-        "name": "India"
-      }
-    }
-  }
-  </script>
-
-  <!-- WebSite + SiteLinks SearchBox Schema -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name": "CityPlus",
-    "url": "https://thecityplus.in",
-    "description": "Find local jobs, homes, PG rooms, and cars in Maharashtra",
-    "inLanguage": ["en-IN", "hi", "mr"],
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": {
-        "@type": "EntryPoint",
-        "urlTemplate": "https://thecityplus.in/jobs?q={search_term_string}"
-      },
-      "query-input": "required name=search_term_string"
-    }
-  }
-  </script>
-
-  <!-- Mobile App Schema -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "MobileApplication",
-    "name": "CityPlus",
-    "operatingSystem": "ANDROID",
-    "applicationCategory": "LifestyleApplication",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "INR"
-    },
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "4.5",
-      "ratingCount": "500"
-    },
-    "description": "Find local jobs, homes, PG rooms, and buy/sell cars in Maharashtra. Free to download.",
-    "downloadUrl": "https://play.google.com/store/apps/details?id=com.cityplus.app",
-    "installUrl":  "https://play.google.com/store/apps/details?id=com.cityplus.app",
-    "screenshot":  "https://thecityplus.in/assets/og-banner.png",
-    "featureList":  "Local jobs, Home & PG listings, Car buy/sell/rent, Local news"
-  }
-  </script>
-
-  <!-- BreadcrumbList Schema -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [
-      { "@type": "ListItem", "position": 1, "name": "Home",     "item": "https://thecityplus.in/" },
-      { "@type": "ListItem", "position": 2, "name": "Jobs",     "item": "https://thecityplus.in/jobs" },
-      { "@type": "ListItem", "position": 3, "name": "Homes",    "item": "https://thecityplus.in/rooms" },
-      { "@type": "ListItem", "position": 4, "name": "Vehicles", "item": "https://thecityplus.in/vehicles" }
-    ]
-  }
-  </script>
-
-  <!-- FAQ Schema — helps get FAQ rich result in Google -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
-      {
-        "@type": "Question",
-        "name": "What is CityPlus?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "CityPlus is Maharashtra's #1 hyperlocal app where you can find local jobs, rent homes and PG rooms, and buy or sell cars — all in one place. Available free on Android."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Is CityPlus free to use?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Yes, CityPlus is free to download and use. Job seekers can apply for free. Employers and sellers can post listings starting at ₹49."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Which cities does CityPlus cover?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "CityPlus currently covers Nanded, Nashik, and is expanding across Maharashtra. Download the app to see listings near you."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "How do I post a job on CityPlus?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Download the CityPlus app, create an account, tap 'Post a Job', fill in the details and choose a plan starting at ₹49. Your job goes live immediately."
-        }
-      }
-    ]
-  }
-  </script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"CityPlus","url":"https://thecityplus.in","logo":"https://thecityplus.in/assets/icon.png","sameAs":["https://play.google.com/store/apps/details?id=com.cityplus.app"]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"CityPlus","url":"https://thecityplus.in","potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://thecityplus.in/jobs?search={search_term_string}"},"query-input":"required name=search_term_string"}}</script>
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #fbf9f6;
-      color: #1a1a18;
-      line-height: 1.6;
+    :root {
+      --orange:#f97316; --orange-dark:#ea6a08; --orange-light:#fff7ed;
+      --teal:#0d9488; --purple:#7c3aed; --cyan:#0891b2;
+      --dark:#1a1a18; --gray:#6b7280; --border:#e5e7eb;
+      --white:#ffffff; --bg:#f8f7f4;
+      --sidebar-w:220px; --right-w:260px; --topbar-h:56px;
+      --radius:14px; --shadow:0 2px 12px rgba(0,0,0,0.07);
     }
-    .hero {
-      background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
-      padding: 60px 24px 80px;
-      text-align: center;
-      color: #fff;
-    }
-    .hero h1 { font-size: clamp(28px, 5vw, 48px); font-weight: 900; margin-bottom: 16px; }
-    .hero p  { font-size: clamp(15px, 2vw, 18px); opacity: 0.92; max-width: 560px; margin: 0 auto 32px; }
-    .cta-btn {
-      display: inline-block;
-      background: #fff;
-      color: #f97316;
-      font-weight: 800;
-      font-size: 16px;
-      padding: 14px 32px;
-      border-radius: 50px;
-      text-decoration: none;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    }
-    .features {
-      max-width: 900px; margin: 0 auto;
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px; padding: 48px 24px;
-    }
-    .feature-card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 24px;
-      text-align: center;
-      border: 1px solid #e8e4dd;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-    }
-    .feature-card .icon { font-size: 36px; margin-bottom: 12px; }
-    .feature-card h2 { font-size: 17px; font-weight: 700; margin-bottom: 8px; color: #111; }
-    .feature-card p  { font-size: 13px; color: #666; }
-    footer {
-      text-align: center; padding: 32px 24px;
-      background: #1a1a18; color: #888;
-      font-size: 13px;
-    }
-    footer a { color: #f97316; text-decoration: none; margin: 0 8px; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--dark);line-height:1.5;min-height:100vh}
+    a{text-decoration:none;color:inherit}
+    button{cursor:pointer;border:none;background:none;font:inherit}
+
+    /* TOP BAR */
+    .topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:var(--topbar-h);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+    .topbar-logo{font-size:20px;font-weight:900;color:var(--orange);letter-spacing:-0.5px;white-space:nowrap;cursor:pointer}
+    .topbar-logo span{color:var(--dark)}
+    .topbar-loc{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gray);white-space:nowrap;cursor:pointer}
+    .search-wrap{flex:1;display:flex;align-items:center;gap:8px;background:#f3f4f6;border-radius:30px;padding:0 16px;height:38px;border:1.5px solid transparent;transition:border-color .2s,background .2s;max-width:640px}
+    .search-wrap:focus-within{background:var(--white);border-color:var(--orange)}
+    .search-wrap input{flex:1;border:none;background:transparent;font-size:14px;color:var(--dark);outline:none}
+    .search-wrap input::placeholder{color:#9ca3af}
+    .search-btn{background:var(--orange);color:#fff;font-size:13px;font-weight:700;padding:7px 20px;border-radius:30px;transition:background .15s;white-space:nowrap}
+    .search-btn:hover{background:var(--orange-dark)}
+    .topbar-lang{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--gray);padding:6px 10px;border:1px solid var(--border);border-radius:8px;white-space:nowrap}
+
+    /* LAYOUT */
+    .layout{display:flex;margin-top:var(--topbar-h);min-height:calc(100vh - var(--topbar-h))}
+
+    /* SIDEBAR */
+    .sidebar{width:var(--sidebar-w);position:fixed;top:var(--topbar-h);left:0;height:calc(100vh - var(--topbar-h));background:var(--white);border-right:1px solid var(--border);overflow-y:auto;padding:20px 0 32px;z-index:50}
+    .sl-label{font-size:10px;font-weight:700;color:#9ca3af;letter-spacing:.08em;text-transform:uppercase;padding:16px 20px 6px}
+    .sl{display:flex;align-items:center;gap:10px;padding:9px 20px;font-size:14px;font-weight:500;color:var(--gray);cursor:pointer;transition:background .15s,color .15s}
+    .sl:hover,.sl.active{background:var(--orange-light);color:var(--orange)}
+    .sl.active{font-weight:700}
+    .sl svg{width:18px;height:18px;flex-shrink:0}
+    .ai-card{margin:20px 12px 0;background:linear-gradient(135deg,#fff7ed,#ffedd5);border:1px solid #fed7aa;border-radius:12px;padding:14px}
+    .ai-card h4{font-size:13px;font-weight:700;color:var(--dark)}
+    .ai-card p{font-size:11px;color:var(--gray);margin:3px 0 10px;line-height:1.4}
+    .ai-btn{display:block;width:100%;background:var(--orange);color:#fff;font-size:12px;font-weight:700;padding:8px;border-radius:8px;text-align:center;transition:background .15s}
+    .ai-btn:hover{background:var(--orange-dark)}
+
+    /* MAIN */
+    .main{margin-left:var(--sidebar-w);margin-right:var(--right-w);flex:1;min-width:0;padding:24px 20px}
+
+    /* PAGE VIEWS */
+    .page{display:none}.page.active{display:block}
+
+    /* HERO BANNER */
+    .hero{background:linear-gradient(135deg,#f97316 0%,#fb923c 60%,#fdba74 100%);border-radius:var(--radius);padding:28px 24px;color:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:16px;position:relative;overflow:hidden}
+    .hero::before{content:'';position:absolute;top:-40px;right:80px;width:180px;height:180px;background:rgba(255,255,255,.08);border-radius:50%}
+    .hero::after{content:'';position:absolute;bottom:-60px;right:20px;width:240px;height:240px;background:rgba(255,255,255,.06);border-radius:50%}
+    .hero-tag{font-size:11px;font-weight:700;letter-spacing:.06em;opacity:.9;margin-bottom:6px}
+    .hero h1{font-size:clamp(20px,3vw,30px);font-weight:900;line-height:1.15;margin-bottom:6px}
+    .hero-sub{font-size:13px;opacity:.88;margin-bottom:14px}
+    .hero-badges{display:flex;flex-wrap:wrap;gap:6px}
+    .hero-badge{font-size:11px;font-weight:600;background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px}
+    .hero-stats{display:flex;flex-direction:column;gap:8px;min-width:110px;z-index:1}
+    .stat-card{background:rgba(255,255,255,.18);backdrop-filter:blur(4px);border-radius:10px;padding:10px 14px;text-align:center;min-width:100px}
+    .stat-num{font-size:20px;font-weight:900;line-height:1}
+    .stat-lbl{font-size:10px;opacity:.85;margin-top:2px}
+
+    /* TICKER */
+    .ticker-wrap{background:#1a1a2e;border-radius:10px;overflow:hidden;margin-bottom:20px;height:36px;display:flex;align-items:center}
+    .ticker-inner{display:flex;gap:40px;white-space:nowrap;animation:tick 30s linear infinite}
+    .t-item{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#e2e8f0;letter-spacing:.04em}
+    .t-dot{color:var(--orange)}
+    @keyframes tick{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+    /* SECTION HEADER */
+    .sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .sec-title{font-size:17px;font-weight:800;color:var(--dark)}
+    .view-all{font-size:13px;font-weight:600;color:var(--orange);cursor:pointer}
+    .view-all:hover{text-decoration:underline}
+
+    /* CATEGORY CARDS */
+    .cats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+    .cat{border-radius:var(--radius);padding:18px 14px;color:#fff;cursor:pointer;display:flex;flex-direction:column;gap:8px;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s;min-height:90px}
+    .cat:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.14)}
+    .cat::after{content:'›';position:absolute;top:50%;right:14px;transform:translateY(-50%);font-size:20px;opacity:.5}
+    .cat-icon{font-size:22px}
+    .cat-title{font-size:15px;font-weight:800}
+    .cat-sub{font-size:11px;opacity:.85}
+    .c-jobs{background:linear-gradient(135deg,#f97316,#fb923c)}
+    .c-rooms{background:linear-gradient(135deg,#0d9488,#14b8a6)}
+    .c-vehicles{background:linear-gradient(135deg,#7c3aed,#8b5cf6)}
+    .c-buysell{background:linear-gradient(135deg,#0891b2,#06b6d4)}
+
+    /* JOB / LISTING CARDS */
+    .list{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+    .card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:14px 16px;display:flex;align-items:flex-start;gap:12px;transition:box-shadow .15s,transform .15s;cursor:pointer}
+    .card:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+    .card-icon{width:44px;height:44px;border-radius:10px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .card-info{flex:1;min-width:0}
+    .card-title{font-size:14px;font-weight:700;color:var(--dark);margin-bottom:2px}
+    .card-sub{font-size:12px;color:var(--gray)}
+    .card-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+    .tag{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;background:#f3f4f6;color:#374151}
+    .tag.orange{background:#fff7ed;color:var(--orange)}
+    .tag.green{background:#f0fdf4;color:#16a34a}
+    .tag.teal{background:#f0fdfa;color:var(--teal)}
+    .tag.purple{background:#faf5ff;color:var(--purple)}
+    .tag.cyan{background:#ecfeff;color:var(--cyan)}
+    .card-meta{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+    .card-time{font-size:11px;color:#9ca3af}
+    .card-btn{background:var(--orange);color:#fff;font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;transition:background .15s}
+    .card-btn:hover{background:var(--orange-dark)}
+
+    /* PAGE HEADER (for sub-pages) */
+    .page-hdr{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .page-hdr h2{font-size:20px;font-weight:900;color:var(--dark)}
+    .page-hdr p{font-size:13px;color:var(--gray);margin-top:2px}
+    .filter-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+    .filter-chip{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--border);color:var(--gray);cursor:pointer;transition:all .15s;background:var(--white)}
+    .filter-chip.active,.filter-chip:hover{background:var(--orange-light);border-color:#fed7aa;color:var(--orange)}
+
+    /* SKELETON */
+    .skeleton{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px}
+    .skel-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:14px 16px;display:flex;gap:12px;margin-bottom:10px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* EMPTY STATE */
+    .empty{text-align:center;padding:40px;color:#9ca3af}
+    .empty-icon{font-size:40px;margin-bottom:10px}
+    .empty h3{font-size:15px;font-weight:700;color:#374151;margin-bottom:4px}
+    .empty p{font-size:13px;margin-bottom:16px}
+    .empty a{display:inline-block;background:var(--orange);color:#fff;font-size:13px;font-weight:700;padding:8px 20px;border-radius:20px}
+
+    /* RIGHT PANEL */
+    .right-panel{width:var(--right-w);position:fixed;top:var(--topbar-h);right:0;height:calc(100vh - var(--topbar-h));background:var(--white);border-left:1px solid var(--border);overflow-y:auto;padding:20px 16px;z-index:50}
+    .rp-post{background:linear-gradient(135deg,#fff7ed,#ffedd5);border:1px solid #fed7aa;border-radius:12px;padding:16px;margin-bottom:16px;text-align:center}
+    .rp-post h3{font-size:14px;font-weight:800;color:var(--dark);margin-bottom:4px}
+    .rp-post p{font-size:12px;color:var(--gray);margin-bottom:12px;line-height:1.4}
+    .post-btn{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--orange);color:#fff;font-size:13px;font-weight:700;padding:10px;border-radius:10px;width:100%;cursor:pointer;transition:background .15s}
+    .post-btn:hover{background:var(--orange-dark)}
+    .rp-stats{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}
+    .rp-stats h3,.rp-qa h3{font-size:11px;font-weight:700;color:var(--gray);margin-bottom:12px;letter-spacing:.06em;text-transform:uppercase}
+    .rp-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6}
+    .rp-row:last-child{border-bottom:none}
+    .rp-lbl{font-size:13px;color:var(--gray)}
+    .rp-val{font-size:17px;font-weight:900;color:var(--orange)}
+    .rp-val.t{color:var(--teal)}.rp-val.p{color:var(--purple)}.rp-val.c{color:var(--cyan)}
+    .rp-qa{margin-bottom:16px}
+    .qb{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:500;color:var(--dark);border:1px solid var(--border);margin-bottom:7px;cursor:pointer;transition:background .15s,border-color .15s}
+    .qb:hover{background:var(--orange-light);border-color:#fed7aa;color:var(--orange)}
+    .qb svg{width:16px;height:16px;color:var(--orange);flex-shrink:0}
+
+    /* MOBILE */
+    .mob-bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);z-index:200;padding:6px 0 8px}
+    .bn-inner{display:flex;justify-content:space-around;align-items:center}
+    .bn-item{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--gray);cursor:pointer;padding:4px 8px}
+    .bn-item.active{color:var(--orange)}
+    .bn-item svg{width:20px;height:20px}
+
+    @media(max-width:1100px){.right-panel{display:none}.main{margin-right:0}.cats{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:720px){.sidebar{display:none}.main{margin-left:0;padding:16px 12px 80px}.mob-bottom-nav{display:block}.topbar-lang{display:none}.hero-stats{display:none}.hero{padding:20px 16px}.cats{grid-template-columns:repeat(2,1fr);gap:8px}.topbar-loc{display:none}}
   </style>
 </head>
 <body>
 
-  <header class="hero">
-    <h1>CityPlus — Your City App</h1>
-    <p>Find local jobs, homes, PG rooms, and cars in Nanded, Nashik &amp; across Maharashtra. Free to download.</p>
-    <a class="cta-btn"
-       href="https://play.google.com/store/apps/details?id=com.cityplus.app"
-       rel="noopener"
-       aria-label="Download CityPlus on Google Play">
-      📲 Download Free on Android
-    </a>
-  </header>
+<!-- TOP BAR -->
+<nav class="topbar">
+  <div class="topbar-logo" onclick="nav('home')">City<span>Plus</span></div>
+  <div class="topbar-loc">
+    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="color:var(--orange)"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+    Nanded, Maharashtra ▾
+  </div>
+  <div class="search-wrap">
+    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#9ca3af" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" id="searchInput" placeholder="Search jobs, rooms, vehicles, items…" />
+  </div>
+  <button class="search-btn" onclick="doSearch()">Search</button>
+  <div class="topbar-lang">🌐 EN ▾</div>
+</nav>
 
-  <main>
-    <section class="features" aria-label="CityPlus features">
-      <div class="feature-card">
-        <div class="icon">💼</div>
-        <h2>Local Jobs</h2>
-        <p>Find full-time, part-time &amp; fresher jobs near you in Nanded, Nashik and across Maharashtra.</p>
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sl-label">Browse</div>
+    <div class="sl active" id="sl-home" onclick="nav('home')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>Home
+    </div>
+    <div class="sl" id="sl-jobs" onclick="nav('jobs')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Jobs
+    </div>
+    <div class="sl" id="sl-rooms" onclick="nav('rooms')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Rooms
+    </div>
+    <div class="sl" id="sl-vehicles" onclick="nav('vehicles')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Vehicles
+    </div>
+    <div class="sl" id="sl-buysell" onclick="nav('buysell')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Buy &amp; Sell
+    </div>
+    <div class="sl-label">Account</div>
+    <div class="sl" id="sl-post" onclick="nav('post')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Post an Ad
+    </div>
+    <div class="sl" id="sl-profile" onclick="nav('profile')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>My Profile
+    </div>
+    <div class="sl" id="sl-ai" onclick="nav('ai')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>AI Assistant
+    </div>
+    <div class="ai-card">
+      <div style="font-size:20px;margin-bottom:6px">✨</div>
+      <h4>AI Career Help</h4>
+      <p>Get salary insights &amp; job match scores</p>
+      <div class="ai-btn" onclick="nav('ai')">Try Now</div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="main">
+
+    <!-- ═══ HOME PAGE ═══ -->
+    <div id="page-home" class="page active">
+      <div class="hero">
+        <div>
+          <div class="hero-tag">🏙️ Your City's #1 Local Platform</div>
+          <h1>Find Jobs &amp; Rooms<br>in Nanded</h1>
+          <p class="hero-sub">10,000+ opportunities for everyone nearby</p>
+          <div class="hero-badges">
+            <span class="hero-badge">✓ Free to Post</span>
+            <span class="hero-badge">✓ Local Listings</span>
+            <span class="hero-badge">✓ Verified Employers</span>
+          </div>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-card"><div class="stat-num" id="sJobs">—</div><div class="stat-lbl">Active Jobs</div></div>
+          <div class="stat-card"><div class="stat-num" id="sRooms">—</div><div class="stat-lbl">Rooms</div></div>
+          <div class="stat-card"><div class="stat-num" id="sVehicles">—</div><div class="stat-lbl">Vehicles</div></div>
+          <div class="stat-card"><div class="stat-num" id="sItems">—</div><div class="stat-lbl">Items</div></div>
+        </div>
       </div>
-      <div class="feature-card">
-        <div class="icon">🏠</div>
-        <h2>Homes &amp; PG</h2>
-        <p>Rent homes, flats, and PG rooms in your city. Direct contact with owners — no broker fees.</p>
+      <div class="ticker-wrap">
+        <div class="ticker-inner">
+          <span class="t-item"><span class="t-dot">✦</span> HIRING NOW — Nanded</span>
+          <span class="t-item"><span class="t-dot">✦</span> DELIVERY JOBS AVAILABLE</span>
+          <span class="t-item"><span class="t-dot">✦</span> ROOMS FOR RENT</span>
+          <span class="t-item"><span class="t-dot">✦</span> CARS &amp; VEHICLES FOR HIRE</span>
+          <span class="t-item"><span class="t-dot">✦</span> POST FREE ADS TODAY</span>
+          <span class="t-item"><span class="t-dot">✦</span> SECURITY GUARD VACANCIES</span>
+          <span class="t-item"><span class="t-dot">✦</span> CONSTRUCTION WORK</span>
+          <span class="t-item"><span class="t-dot">✦</span> DATA ENTRY &amp; OFFICE JOBS</span>
+          <!-- duplicate for seamless loop -->
+          <span class="t-item"><span class="t-dot">✦</span> HIRING NOW — Nanded</span>
+          <span class="t-item"><span class="t-dot">✦</span> DELIVERY JOBS AVAILABLE</span>
+          <span class="t-item"><span class="t-dot">✦</span> ROOMS FOR RENT</span>
+          <span class="t-item"><span class="t-dot">✦</span> CARS &amp; VEHICLES FOR HIRE</span>
+          <span class="t-item"><span class="t-dot">✦</span> POST FREE ADS TODAY</span>
+          <span class="t-item"><span class="t-dot">✦</span> SECURITY GUARD VACANCIES</span>
+          <span class="t-item"><span class="t-dot">✦</span> CONSTRUCTION WORK</span>
+          <span class="t-item"><span class="t-dot">✦</span> DATA ENTRY &amp; OFFICE JOBS</span>
+        </div>
       </div>
-      <div class="feature-card">
-        <div class="icon">🚗</div>
-        <h2>Cars &amp; Vehicles</h2>
-        <p>Buy, sell, or rent cars and two-wheelers locally. Best prices, verified sellers.</p>
+      <div class="sec-hdr"><div class="sec-title">Explore Categories</div></div>
+      <div class="cats">
+        <div class="cat c-jobs" onclick="nav('jobs')"><div class="cat-icon">💼</div><div class="cat-title">Jobs</div><div class="cat-sub" id="cJobs">Loading…</div></div>
+        <div class="cat c-rooms" onclick="nav('rooms')"><div class="cat-icon">🏠</div><div class="cat-title">Rooms</div><div class="cat-sub" id="cRooms">Loading…</div></div>
+        <div class="cat c-vehicles" onclick="nav('vehicles')"><div class="cat-icon">🚗</div><div class="cat-title">Vehicles</div><div class="cat-sub" id="cVehicles">Loading…</div></div>
+        <div class="cat c-buysell" onclick="nav('buysell')"><div class="cat-icon">🛒</div><div class="cat-title">Buy &amp; Sell</div><div class="cat-sub" id="cBuySell">Loading…</div></div>
       </div>
-      <div class="feature-card">
-        <div class="icon">🛒</div>
-        <h2>Buy &amp; Sell</h2>
-        <p>List or buy second-hand items near you. Electronics, furniture, and more.</p>
+      <div class="sec-hdr"><div class="sec-title">Recent Jobs</div><div class="view-all" onclick="nav('jobs')">View All →</div></div>
+      <div class="list" id="homeJobs">
+        <div class="skel-card"><div class="skeleton" style="width:44px;height:44px;border-radius:10px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton" style="height:14px;width:60%;margin-bottom:6px"></div><div class="skeleton" style="height:11px;width:40%"></div><div style="display:flex;gap:5px;margin-top:8px"><div class="skeleton" style="height:20px;width:60px;border-radius:20px"></div><div class="skeleton" style="height:20px;width:50px;border-radius:20px"></div></div></div></div>
+        <div class="skel-card"><div class="skeleton" style="width:44px;height:44px;border-radius:10px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton" style="height:14px;width:55%;margin-bottom:6px"></div><div class="skeleton" style="height:11px;width:35%"></div></div></div>
+        <div class="skel-card"><div class="skeleton" style="width:44px;height:44px;border-radius:10px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton" style="height:14px;width:50%;margin-bottom:6px"></div><div class="skeleton" style="height:11px;width:30%"></div></div></div>
       </div>
-    </section>
+    </div>
+
+    <!-- ═══ JOBS PAGE ═══ -->
+    <div id="page-jobs" class="page">
+      <div class="page-hdr">
+        <div><h2>💼 Jobs</h2><p>Full-time, part-time &amp; fresher jobs near you</p></div>
+      </div>
+      <div class="filter-bar" id="jobFilters">
+        <div class="filter-chip active" onclick="filterJobs(null,this)">All</div>
+        <div class="filter-chip" onclick="filterJobs('Delivery',this)">🚲 Delivery</div>
+        <div class="filter-chip" onclick="filterJobs('Driver',this)">🚗 Driver</div>
+        <div class="filter-chip" onclick="filterJobs('Security',this)">🛡️ Security</div>
+        <div class="filter-chip" onclick="filterJobs('Construction',this)">🔨 Construction</div>
+        <div class="filter-chip" onclick="filterJobs('TeleCaller',this)">📞 TeleCaller</div>
+        <div class="filter-chip" onclick="filterJobs('Teaching',this)">📚 Teaching</div>
+        <div class="filter-chip" onclick="filterJobs('Data Entry',this)">💻 Data Entry</div>
+        <div class="filter-chip" onclick="filterJobs('Other',this)">💼 Other</div>
+      </div>
+      <div class="list" id="jobsListFull"></div>
+    </div>
+
+    <!-- ═══ ROOMS PAGE ═══ -->
+    <div id="page-rooms" class="page">
+      <div class="page-hdr">
+        <div><h2>🏠 Rooms &amp; PG</h2><p>Rent homes, flats, and PG rooms — direct from owners</p></div>
+      </div>
+      <div class="list" id="roomsList"></div>
+    </div>
+
+    <!-- ═══ VEHICLES PAGE ═══ -->
+    <div id="page-vehicles" class="page">
+      <div class="page-hdr">
+        <div><h2>🚗 Vehicles</h2><p>Buy, rent or sell cars and two-wheelers locally</p></div>
+      </div>
+      <div class="list" id="vehiclesList"></div>
+    </div>
+
+    <!-- ═══ BUY & SELL PAGE ═══ -->
+    <div id="page-buysell" class="page">
+      <div class="page-hdr">
+        <div><h2>🛒 Buy &amp; Sell</h2><p>Second-hand items near you — electronics, furniture &amp; more</p></div>
+      </div>
+      <div class="list" id="buysellList"></div>
+    </div>
+
+    <!-- ═══ POST PAGE ═══ -->
+    <div id="page-post" class="page">
+      <div class="page-hdr"><div><h2>📢 Post an Ad</h2><p>Reach thousands of people in Nanded for free</p></div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:4px">
+        <div class="card" style="flex-direction:column;align-items:flex-start;cursor:pointer" onclick="alert('Download the CityPlus app to post jobs!')">
+          <div style="font-size:32px;margin-bottom:8px">💼</div>
+          <div class="card-title">Post a Job</div>
+          <div class="card-sub" style="margin-top:3px">Hire staff in Nanded &amp; Maharashtra</div>
+          <div class="card-btn" style="margin-top:12px">Post Job</div>
+        </div>
+        <div class="card" style="flex-direction:column;align-items:flex-start;cursor:pointer" onclick="alert('Download the CityPlus app to post rooms!')">
+          <div style="font-size:32px;margin-bottom:8px">🏠</div>
+          <div class="card-title">List a Room / PG</div>
+          <div class="card-sub" style="margin-top:3px">Rent your room directly — no broker</div>
+          <div class="card-btn" style="margin-top:12px">List Room</div>
+        </div>
+        <div class="card" style="flex-direction:column;align-items:flex-start;cursor:pointer" onclick="alert('Download the CityPlus app to post vehicles!')">
+          <div style="font-size:32px;margin-bottom:8px">🚗</div>
+          <div class="card-title">Sell / Rent a Vehicle</div>
+          <div class="card-sub" style="margin-top:3px">Cars, bikes &amp; two-wheelers</div>
+          <div class="card-btn" style="margin-top:12px">Post Vehicle</div>
+        </div>
+        <div class="card" style="flex-direction:column;align-items:flex-start;cursor:pointer" onclick="alert('Download the CityPlus app to post items!')">
+          <div style="font-size:32px;margin-bottom:8px">🛒</div>
+          <div class="card-title">Sell an Item</div>
+          <div class="card-sub" style="margin-top:3px">Electronics, furniture &amp; more</div>
+          <div class="card-btn" style="margin-top:12px">Sell Item</div>
+        </div>
+      </div>
+      <div style="margin-top:20px;background:linear-gradient(135deg,#f97316,#fb923c);border-radius:var(--radius);padding:20px;color:#fff;text-align:center">
+        <div style="font-size:24px;margin-bottom:8px">📲</div>
+        <div style="font-size:16px;font-weight:800;margin-bottom:6px">Get the CityPlus App</div>
+        <div style="font-size:13px;opacity:.9;margin-bottom:14px">Post ads, apply for jobs and chat with sellers — all from your phone</div>
+        <a href="https://play.google.com/store/apps/details?id=com.cityplus.app" style="display:inline-block;background:#fff;color:var(--orange);font-size:13px;font-weight:800;padding:10px 24px;border-radius:30px" target="_blank">Download Free on Android</a>
+      </div>
+    </div>
+
+    <!-- ═══ PROFILE PAGE ═══ -->
+    <div id="page-profile" class="page">
+      <div class="page-hdr"><div><h2>👤 My Profile</h2><p>Manage your account and applications</p></div></div>
+      <div style="text-align:center;padding:40px 20px">
+        <div style="font-size:60px;margin-bottom:12px">📱</div>
+        <div style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px">Sign in on the App</div>
+        <div style="font-size:13px;color:var(--gray);margin-bottom:16px;max-width:320px;margin-left:auto;margin-right:auto">Download the CityPlus app to manage your profile, track applications, and get notifications</div>
+        <a href="https://play.google.com/store/apps/details?id=com.cityplus.app" style="display:inline-block;background:var(--orange);color:#fff;font-size:13px;font-weight:800;padding:10px 24px;border-radius:30px" target="_blank">📲 Download CityPlus</a>
+      </div>
+    </div>
+
+    <!-- ═══ AI PAGE ═══ -->
+    <div id="page-ai" class="page">
+      <div class="page-hdr"><div><h2>✨ AI Career Help</h2><p>Salary insights, job matching &amp; resume tips powered by AI</p></div></div>
+      <div style="text-align:center;padding:40px 20px">
+        <div style="font-size:60px;margin-bottom:12px">🤖</div>
+        <div style="font-size:16px;font-weight:800;color:var(--dark);margin-bottom:6px">AI Assistant is in the App</div>
+        <div style="font-size:13px;color:var(--gray);margin-bottom:16px;max-width:320px;margin-left:auto;margin-right:auto">Get personalised job recommendations, salary insights and resume tips — download the app to get started</div>
+        <a href="https://play.google.com/store/apps/details?id=com.cityplus.app" style="display:inline-block;background:var(--orange);color:#fff;font-size:13px;font-weight:800;padding:10px 24px;border-radius:30px" target="_blank">📲 Download CityPlus</a>
+      </div>
+    </div>
+
   </main>
 
-  <footer>
-    <p>© 2026 CityPlus. All rights reserved.</p>
-    <p style="margin-top:10px;">
-      <a href="/privacy-policy">Privacy Policy</a>
-      <a href="/terms-and-conditions">Terms</a>
-      <a href="/refund-policy">Refund Policy</a>
-    </p>
-  </footer>
+  <!-- RIGHT PANEL -->
+  <aside class="right-panel">
+    <div class="rp-post">
+      <h3>Post for Free</h3>
+      <p>Reach thousands of people in Nanded</p>
+      <div class="post-btn" onclick="nav('post')">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Post an Ad
+      </div>
+    </div>
+    <div class="rp-stats">
+      <h3>Platform Stats</h3>
+      <div class="rp-row"><span class="rp-lbl">Active Jobs</span><span class="rp-val" id="rpJ">—</span></div>
+      <div class="rp-row"><span class="rp-lbl">Rooms Listed</span><span class="rp-val t" id="rpR">—</span></div>
+      <div class="rp-row"><span class="rp-lbl">Vehicles</span><span class="rp-val p" id="rpV">—</span></div>
+      <div class="rp-row"><span class="rp-lbl">Items for Sale</span><span class="rp-val c" id="rpI">—</span></div>
+    </div>
+    <div class="rp-qa">
+      <h3>Quick Actions</h3>
+      <div class="qb" onclick="nav('jobs')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Browse Jobs</div>
+      <div class="qb" onclick="nav('rooms')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Find a Room</div>
+      <div class="qb" onclick="nav('vehicles')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Rent a Vehicle</div>
+      <div class="qb" onclick="nav('buysell')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Buy &amp; Sell Items</div>
+    </div>
+  </aside>
 
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-bottom-nav">
+  <div class="bn-inner">
+    <div class="bn-item active" id="bn-home" onclick="nav('home')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</div>
+    <div class="bn-item" id="bn-jobs" onclick="nav('jobs')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Jobs</div>
+    <div class="bn-item" id="bn-rooms" onclick="nav('rooms')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Rooms</div>
+    <div class="bn-item" id="bn-post" onclick="nav('post')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Post</div>
+    <div class="bn-item" id="bn-profile" onclick="nav('profile')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</div>
+  </div>
+</nav>
+
+<script>
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function fmt(n){if(n===undefined||n===null)return'—';return n>=1000?Math.floor(n/100)/10+'k+':n+'+'}
+function ago(d){const s=(Date.now()-new Date(d))/1000;if(s<60)return'just now';if(s<3600)return~~(s/60)+'m ago';if(s<86400)return~~(s/3600)+'h ago';if(s<604800)return~~(s/86400)+'d ago';return~~(s/604800)+'w ago'}
+
+const CAT_EMOJI={Delivery:'🚲',Driver:'🚗',Security:'🛡️',Construction:'🔨','Domestic Help':'🏠',TeleCaller:'📞','Shop Assistant':'🛍️','Data Entry':'💻',Teaching:'📚',Other:'💼'};
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+function skelCards(n=3){return Array(n).fill(0).map(()=>`<div class="skel-card"><div class="skeleton" style="width:44px;height:44px;border-radius:10px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton" style="height:14px;width:55%;margin-bottom:6px"></div><div class="skeleton" style="height:11px;width:35%"></div></div></div>`).join('')}
+
+// ── Card renderers ─────────────────────────────────────────────────────────────
+function jobCard(j){
+  const sal=j.salary_min?'₹'+~~(j.salary_min/1000)+'k'+(j.salary_max?'–'+~~(j.salary_max/1000)+'k':'+'):null;
+  return`<div class="card" onclick="window.location='/jobs/${j.id}'">
+    <div class="card-icon">${CAT_EMOJI[j.category]||'💼'}</div>
+    <div class="card-info">
+      <div class="card-title">${esc(j.title)}</div>
+      <div class="card-sub">${esc(j.company||'Private')} · ${esc(j.district||'Nanded')}</div>
+      <div class="card-tags">
+        ${j.type?`<span class="tag">${esc(j.type)}</span>`:''}
+        ${sal?`<span class="tag green">${sal}</span>`:''}
+        ${j.category?`<span class="tag orange">${esc(j.category)}</span>`:''}
+        ${j.fresher_ok?`<span class="tag green">Fresher OK</span>`:''}
+      </div>
+    </div>
+    <div class="card-meta"><span class="card-time">${ago(j.created_at)}</span><span class="card-btn">Apply</span></div>
+  </div>`
+}
+
+function roomCard(r){
+  return`<div class="card" onclick="window.location='/rooms/${r.id}'">
+    <div class="card-icon">🏠</div>
+    <div class="card-info">
+      <div class="card-title">${esc(r.title||r.type||'Room for Rent')}</div>
+      <div class="card-sub">${esc(r.area||'')} ${r.area&&r.district?'·':''} ${esc(r.district||'Nanded')}</div>
+      <div class="card-tags">
+        ${r.rent?`<span class="tag green">₹${r.rent}/mo</span>`:''}
+        ${r.type?`<span class="tag teal">${esc(r.type)}</span>`:''}
+        ${r.furnished?`<span class="tag">${esc(r.furnished)}</span>`:''}
+      </div>
+    </div>
+    <div class="card-meta"><span class="card-time">${ago(r.created_at)}</span><span class="card-btn">View</span></div>
+  </div>`
+}
+
+function vehicleCard(v){
+  return`<div class="card" onclick="window.location='/vehicles/${v.id}'">
+    <div class="card-icon">🚗</div>
+    <div class="card-info">
+      <div class="card-title">${esc(v.title||v.make+' '+v.model||'Vehicle')}</div>
+      <div class="card-sub">${esc(v.district||'Nanded')} ${v.year?'· '+v.year:''}</div>
+      <div class="card-tags">
+        ${v.price?`<span class="tag green">₹${Number(v.price).toLocaleString('en-IN')}</span>`:''}
+        ${v.type?`<span class="tag purple">${esc(v.type)}</span>`:''}
+        ${v.fuel_type?`<span class="tag">${esc(v.fuel_type)}</span>`:''}
+      </div>
+    </div>
+    <div class="card-meta"><span class="card-time">${ago(v.created_at)}</span><span class="card-btn">View</span></div>
+  </div>`
+}
+
+function itemCard(i){
+  return`<div class="card" onclick="window.location='/buysell/${i.id}'">
+    <div class="card-icon">🛒</div>
+    <div class="card-info">
+      <div class="card-title">${esc(i.title)}</div>
+      <div class="card-sub">${esc(i.category||'')} ${i.district?'· '+esc(i.district):''}</div>
+      <div class="card-tags">
+        ${i.price?`<span class="tag green">₹${Number(i.price).toLocaleString('en-IN')}</span>`:''}
+        ${i.condition?`<span class="tag cyan">${esc(i.condition)}</span>`:''}
+      </div>
+    </div>
+    <div class="card-meta"><span class="card-time">${ago(i.created_at)}</span><span class="card-btn">View</span></div>
+  </div>`
+}
+
+function emptyState(icon,label,sub,page){
+  return`<div class="empty"><div class="empty-icon">${icon}</div><h3>No ${label} yet</h3><p>${sub}</p><a onclick="nav('post')">Post one now →</a></div>`
+}
+
+// ── Data cache ────────────────────────────────────────────────────────────────
+const _cache={};
+async function api(url){
+  if(_cache[url])return _cache[url];
+  const r=await fetch(url);
+  if(!r.ok)throw new Error(r.status);
+  const d=await r.json();
+  _cache[url]=d;
+  return d;
+}
+
+// ── Load & render sections ────────────────────────────────────────────────────
+let statsLoaded=false;
+async function loadStats(){
+  if(statsLoaded)return;
+  statsLoaded=true;
+  try{
+    const[jd,rd,vd,bd]=await Promise.all([
+      api('/api/jobs?limit=8'),
+      api('/api/rooms?limit=1'),
+      api('/api/vehicles?limit=1'),
+      api('/api/buysell?limit=1'),
+    ]);
+    const jc=jd.total??jd.jobs?.length??0,
+          rc=rd.total??rd.rooms?.length??0,
+          vc=vd.total??vd.vehicles?.length??0,
+          bc=bd.total??bd.items?.length??0;
+    // Hero stats
+    document.getElementById('sJobs').textContent=fmt(jc);
+    document.getElementById('sRooms').textContent=fmt(rc);
+    document.getElementById('sVehicles').textContent=fmt(vc);
+    document.getElementById('sItems').textContent=fmt(bc);
+    // Right panel
+    document.getElementById('rpJ').textContent=fmt(jc);
+    document.getElementById('rpR').textContent=fmt(rc);
+    document.getElementById('rpV').textContent=fmt(vc);
+    document.getElementById('rpI').textContent=fmt(bc);
+    // Category subs
+    document.getElementById('cJobs').textContent=jc+'+ openings';
+    document.getElementById('cRooms').textContent=rc+'+ listings';
+    document.getElementById('cVehicles').textContent=vc+'+ for rent';
+    document.getElementById('cBuySell').textContent=bc+'+ items';
+    // Home jobs list
+    const items=jd.jobs||jd.data||[];
+    const el=document.getElementById('homeJobs');
+    el.innerHTML=items.length?items.map(jobCard).join(''):emptyState('💼','jobs','Be the first to post a job!','post');
+  }catch(e){
+    console.error('Stats error',e);
+    ['sJobs','sRooms','sVehicles','sItems','rpJ','rpR','rpV','rpI'].forEach(id=>document.getElementById(id).textContent='—');
+    ['cJobs','cRooms','cVehicles','cBuySell'].forEach((id,i)=>document.getElementById(id).textContent=['openings','listings','for rent','items'][i]);
+    document.getElementById('homeJobs').innerHTML=emptyState('💼','jobs','Could not load jobs. Check your connection.','jobs');
+  }
+}
+
+let jobsLoaded=false,jobsCategory=null;
+async function loadJobs(category){
+  if(jobsLoaded&&category===jobsCategory)return;
+  jobsLoaded=true; jobsCategory=category;
+  const el=document.getElementById('jobsListFull');
+  el.innerHTML=skelCards(5);
+  try{
+    const url='/api/jobs?limit=50'+(category?'&category='+encodeURIComponent(category):'');
+    const d=await api(url);
+    const items=d.jobs||d.data||[];
+    el.innerHTML=items.length?items.map(jobCard).join(''):emptyState('💼','jobs','No jobs in this category yet.','post');
+  }catch(e){el.innerHTML=emptyState('💼','jobs','Could not load jobs.','jobs')}
+}
+
+let roomsLoaded=false;
+async function loadRooms(){
+  if(roomsLoaded)return; roomsLoaded=true;
+  const el=document.getElementById('roomsList');
+  el.innerHTML=skelCards(4);
+  try{
+    const d=await api('/api/rooms?limit=30');
+    const items=d.rooms||d.data||[];
+    el.innerHTML=items.length?items.map(roomCard).join(''):emptyState('🏠','rooms','No rooms listed yet.','post');
+  }catch(e){el.innerHTML=emptyState('🏠','rooms','Could not load rooms.','rooms')}
+}
+
+let vehiclesLoaded=false;
+async function loadVehicles(){
+  if(vehiclesLoaded)return; vehiclesLoaded=true;
+  const el=document.getElementById('vehiclesList');
+  el.innerHTML=skelCards(4);
+  try{
+    const d=await api('/api/vehicles?limit=30');
+    const items=d.vehicles||d.data||[];
+    el.innerHTML=items.length?items.map(vehicleCard).join(''):emptyState('🚗','vehicles','No vehicles listed yet.','post');
+  }catch(e){el.innerHTML=emptyState('🚗','vehicles','Could not load vehicles.','vehicles')}
+}
+
+let buysellLoaded=false;
+async function loadBuySell(){
+  if(buysellLoaded)return; buysellLoaded=true;
+  const el=document.getElementById('buysellList');
+  el.innerHTML=skelCards(4);
+  try{
+    const d=await api('/api/buysell?limit=30');
+    const items=d.items||d.data||[];
+    el.innerHTML=items.length?items.map(itemCard).join(''):emptyState('🛒','items','No items listed yet.','post');
+  }catch(e){el.innerHTML=emptyState('🛒','items','Could not load items.','buysell')}
+}
+
+function filterJobs(cat,el){
+  jobsLoaded=false; jobsCategory=null;
+  document.querySelectorAll('#jobFilters .filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  loadJobs(cat);
+}
+
+// ── SPA Router ────────────────────────────────────────────────────────────────
+const PAGES=['home','jobs','rooms','vehicles','buysell','post','profile','ai'];
+const LOADERS={jobs:()=>loadJobs(null),rooms:loadRooms,vehicles:loadVehicles,buysell:loadBuySell,home:loadStats};
+
+function nav(page){
+  // hide all pages
+  PAGES.forEach(p=>{
+    const el=document.getElementById('page-'+p);
+    if(el)el.classList.remove('active');
+  });
+  // show target
+  const target=document.getElementById('page-'+page);
+  if(target)target.classList.add('active');
+  // update sidebar
+  document.querySelectorAll('.sl').forEach(l=>l.classList.remove('active'));
+  const sl=document.getElementById('sl-'+page);
+  if(sl)sl.classList.add('active');
+  // update mobile bottom nav
+  document.querySelectorAll('.bn-item').forEach(l=>l.classList.remove('active'));
+  const bn=document.getElementById('bn-'+page);
+  if(bn)bn.classList.add('active');
+  // update URL
+  const path=page==='home'?'/':'/'+page;
+  history.pushState({page},document.title,path);
+  // load data
+  if(LOADERS[page])LOADERS[page]();
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+function doSearch(){
+  const q=document.getElementById('searchInput').value.trim();
+  if(!q)return;
+  jobsLoaded=false; jobsCategory=null;
+  nav('jobs');
+  // load search results
+  const el=document.getElementById('jobsListFull');
+  el.innerHTML=skelCards(4);
+  api('/api/jobs?limit=50&search='+encodeURIComponent(q))
+    .then(d=>{
+      const items=d.jobs||d.data||[];
+      el.innerHTML=items.length?items.map(jobCard).join(''):`<div class="empty"><div class="empty-icon">🔍</div><h3>No results for "${esc(q)}"</h3><p>Try a different keyword</p></div>`;
+    })
+    .catch(()=>{el.innerHTML=emptyState('🔍','results','Search failed. Try again.','jobs')});
+}
+document.getElementById('searchInput').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch()});
+
+// ── Handle browser back/forward ───────────────────────────────────────────────
+window.addEventListener('popstate',e=>{
+  const page=(e.state&&e.state.page)||'home';
+  nav(page);
+});
+
+// ── Boot: parse URL path and go to right page ─────────────────────────────────
+(function boot(){
+  const path=window.location.pathname.replace(/^\/+/,'').split('/')[0]||'home';
+  const pageMap={''             :'home',
+                  'jobs'        :'jobs',
+                  'rooms'       :'rooms',
+                  'vehicles'    :'vehicles',
+                  'buysell'     :'buysell',
+                  'buy-sell'    :'buysell',
+                  'post'        :'post',
+                  'profile'     :'profile',
+                  'ai'          :'ai'};
+  const page=pageMap[path]||'home';
+  // If navigated directly to a detail like /jobs/123 — go to list for now
+  nav(page);
+})();
+</script>
 </body>
 </html>
