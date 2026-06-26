@@ -36,14 +36,18 @@ if (Platform.OS !== 'web') {
 let _webAuth            = null;
 let GoogleAuthProvider  = null;
 let signInWithPopup     = null;
+let signInWithRedirect  = null;
+let getRedirectResult   = null;
 
 if (Platform.OS === 'web') {
   // Dynamic require so Metro bundler doesn't complain on native builds
   const firebaseApp  = require('firebase/app');
   const firebaseAuth = require('firebase/auth');
 
-  GoogleAuthProvider = firebaseAuth.GoogleAuthProvider;
-  signInWithPopup    = firebaseAuth.signInWithPopup;
+  GoogleAuthProvider    = firebaseAuth.GoogleAuthProvider;
+  signInWithPopup       = firebaseAuth.signInWithPopup;
+  signInWithRedirect    = firebaseAuth.signInWithRedirect;
+  getRedirectResult     = firebaseAuth.getRedirectResult;
 
   const firebaseConfig = {
     apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY     || 'AIzaSyD_placeholder',
@@ -267,6 +271,39 @@ export default function LoginScreen() {
     }
   }, []);
 
+  // ── Handle Google redirect result after signInWithRedirect returns ──────────
+  // On web, signInWithRedirect navigates away and back. When the page reloads,
+  // getRedirectResult() resolves with the credential (or null if no redirect pending).
+  useEffect(() => {
+    if (!IS_WEB || !_webAuth || !getRedirectResult) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setGoogleLoading(true);
+        const result = await getRedirectResult(_webAuth);
+        if (cancelled || !result) { setGoogleLoading(false); return; }
+        const credential  = GoogleAuthProvider.credentialFromResult(result);
+        const accessToken = credential?.accessToken;
+        if (!accessToken) {
+          setError('Google sign-in failed: no access token returned.');
+          triggerShake();
+          setGoogleLoading(false);
+          return;
+        }
+        const r = await loginWithGoogle(accessToken, false);
+        setGoogleLoading(false);
+        if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
+      } catch (err) {
+        if (!cancelled) {
+          setError('Google sign-in failed: ' + (err?.message || err));
+          triggerShake();
+          setGoogleLoading(false);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   function triggerShake() {
     shake.setValue(0);
     Animated.sequence(
@@ -295,9 +332,12 @@ export default function LoginScreen() {
     setGoogleLoading(true);
 
     try {
-      // ── WEB: Firebase signInWithPopup (no Play Services needed) ──────────
+      // ── WEB: Firebase signInWithRedirect (popup blocked in React Native Web) ──
+      // signInWithPopup fails in RN Web bundles because the popup postMessage
+      // channel is broken. signInWithRedirect navigates away and returns, then
+      // getRedirectResult (called on mount below) completes the sign-in.
       if (IS_WEB) {
-        if (!_webAuth || !GoogleAuthProvider || !signInWithPopup) {
+        if (!_webAuth || !GoogleAuthProvider || !signInWithRedirect) {
           setError('Google Sign-In is not configured for web. Please check Firebase setup.');
           triggerShake();
           setGoogleLoading(false);
@@ -306,27 +346,9 @@ export default function LoginScreen() {
         const provider = new GoogleAuthProvider();
         provider.addScope('profile');
         provider.addScope('email');
-
-        const result     = await signInWithPopup(_webAuth, provider);
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        const accessToken = credential?.accessToken;
-
-        if (!accessToken) {
-          setError('Google sign-in failed: no access token returned.');
-          triggerShake();
-          setGoogleLoading(false);
-          return;
-        }
-
-        // Explicitly pass false (not an idToken) so AuthContext sends { accessToken } to the backend.
-        // Backend /api/auth/google verifies via Google userinfo endpoint.
-        const r = await loginWithGoogle(accessToken, false);
-        setGoogleLoading(false);
-        if (!r?.ok) {
-          setError(r?.error || 'Google sign-in failed');
-          triggerShake();
-        }
-        return;
+        // This navigates away; result is handled in the useEffect on mount.
+        await signInWithRedirect(_webAuth, provider);
+        return; // page will redirect; code below won't run
       }
 
       // ── NATIVE: @react-native-google-signin (Android/iOS only) ───────────
