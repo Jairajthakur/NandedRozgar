@@ -94,6 +94,7 @@ if (helmet) {
           'https://firebaseinstallations.googleapis.com',  // Firebase SDK init heartbeat
           'https://accounts.google.com',                   // Google OAuth token exchange
           'https://oauth2.googleapis.com',                 // Google OAuth2 endpoints
+          'https://apis.google.com',                       // Google APIs (gen_204 ping, GSI)
         ],
         // FIX: Google Sign-In loads its UI in an iframe from accounts.google.com.
         // Without frameSrc, the browser blocks the iframe and auth/internal-error is thrown.
@@ -101,6 +102,7 @@ if (helmet) {
           'https://accounts.google.com',                   // Google Sign-In popup/iframe
           'https://thecityplus.firebaseapp.com',           // Firebase auth redirect handler
           'https://cityplus-7ac75.firebaseapp.com',        // Firebase project auth handler
+          'https://thecityplus.in',                        // Own domain /__/auth/iframe proxy
         ],
         frameAncestors:  ["'none'"],
         formAction:      ["'self'", 'https://api.cashfree.com', 'https://sandbox.cashfree.com'],
