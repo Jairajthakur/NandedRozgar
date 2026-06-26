@@ -407,27 +407,46 @@ app.get('/payment/callback', (req, res) => {
   }
 });
 
-// ── Expo web build ─────────────────────────────────────────────────────────────
+// ── Web SPA — serve Expo dist/ if built, else fall back to public/index.html ──
+// The public/index.html is a full-featured SPA (sidebar, search, live API data,
+// jobs/rooms/vehicles/buysell cards) that works without a dist/ build.
+// Once you run `npx expo export --platform web`, dist/ takes priority automatically.
 const WEB_BUILD  = path.join(__dirname, '..', 'dist');
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
-const INDEX_HTML = path.join(PUBLIC_DIR, 'index.html');
+const WEB_INDEX  = path.join(PUBLIC_DIR, 'index.html');
 
 if (fs.existsSync(WEB_BUILD)) {
-  // Production: serve compiled Expo web build
-  app.use(express.static(WEB_BUILD));
+  // Expo web build exists — serve it (production build preferred)
+  app.use(express.static(WEB_BUILD, { index: 'index.html' }));
   app.get('*', (_req, res) => res.sendFile(path.join(WEB_BUILD, 'index.html')));
 } else {
-  // Dev / no build: serve public/ landing page so users see the site
-  app.use(express.static(PUBLIC_DIR));
-  app.get('/', (_req, res) => res.sendFile(INDEX_HTML));
-  // Any unmatched route falls back to the landing page (supports direct links)
-  app.get('*', (_req, res) => {
-    if (fs.existsSync(INDEX_HTML)) {
-      res.sendFile(INDEX_HTML);
-    } else {
-      res.status(404).json({ ok: false, error: 'Route not found' });
-    }
+  // No dist/ yet — serve public/ assets (icons, images, manifest, etc.)
+  // and use public/index.html as the SPA shell for all web routes.
+  app.use(express.static(PUBLIC_DIR, { index: false })); // index:false — we control routing below
+
+  // SPA web routes — all load index.html; client-side JS/API handles the content
+  const WEB_ROUTES = ['/', '/jobs', '/rooms', '/vehicles', '/buysell', '/buy-sell',
+                      '/post', '/profile', '/ai', '/alerts', '/saved', '/referral',
+                      '/about', '/help', '/chat'];
+  WEB_ROUTES.forEach(route => {
+    app.get(route, (_req, res) => res.sendFile(WEB_INDEX));
   });
+
+  // Dynamic detail pages  e.g. /jobs/123  /rooms/456  /vehicles/789
+  app.get('/jobs/:id',     (_req, res) => res.sendFile(WEB_INDEX));
+  app.get('/rooms/:id',    (_req, res) => res.sendFile(WEB_INDEX));
+  app.get('/vehicles/:id', (_req, res) => res.sendFile(WEB_INDEX));
+  app.get('/buysell/:id',  (_req, res) => res.sendFile(WEB_INDEX));
+
+  // Catch-all for any other browser navigation (unknown paths → SPA handles 404)
+  app.get('*', (req, res, next) => {
+    // Skip API calls — those should 404 as JSON, not get the SPA
+    if (req.path.startsWith('/api/') || req.path.startsWith('/admin')) return next();
+    res.sendFile(WEB_INDEX);
+  });
+
+  // Remaining unmatched (API 404s)
+  app.use((_req, res) => res.status(404).json({ ok: false, error: 'Route not found' }));
 }
 
 // ── Worker startup ─────────────────────────────────────────────────────────────
