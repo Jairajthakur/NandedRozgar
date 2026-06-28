@@ -8,7 +8,7 @@
  * which is not available in web browsers — replaced with Firebase web signInWithPopup.
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform, StatusBar,
@@ -245,32 +245,75 @@ export default function LoginScreen() {
 
   // ── Google OAuth2 popup handler (web only, no Firebase) ─────────────────────
   // Listens for postMessage from /google-auth-relay.html after OAuth2 popup flow.
+  // Falls back to URL hash and sessionStorage polling when popup is blocked
+  // and Google opens the relay page as a new tab (common in Brave/Firefox).
   const googlePopupRef = useRef(null);
+
+  // Shared handler — called from postMessage, hash redirect, or sessionStorage poll
+  const handleGoogleResult = useCallback((accessToken, error) => {
+    if (googlePopupRef.current && !googlePopupRef.current.closed) {
+      googlePopupRef.current.close();
+      googlePopupRef.current = null;
+    }
+    if (error || !accessToken) {
+      setError('Google sign-in failed: ' + (error || 'no token returned'));
+      triggerShake();
+      setGoogleLoading(false);
+      return;
+    }
+    loginWithGoogle(accessToken, false).then(r => {
+      setGoogleLoading(false);
+      if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!IS_WEB) return;
+
+    // ── 1. postMessage (standard popup flow) ────────────────────────────────
     function handleMessage(event) {
       if (event.origin !== window.location.origin) return;
       const { type, accessToken, error } = event.data || {};
       if (type !== 'GOOGLE_AUTH_RESULT') return;
-      if (googlePopupRef.current && !googlePopupRef.current.closed) {
-        googlePopupRef.current.close();
-        googlePopupRef.current = null;
-      }
-      if (error || !accessToken) {
-        setError('Google sign-in failed: ' + (error || 'no token returned'));
-        triggerShake();
-        setGoogleLoading(false);
-        return;
-      }
-      loginWithGoogle(accessToken, false).then(r => {
-        setGoogleLoading(false);
-        if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
-      });
+      handleGoogleResult(accessToken, error);
     }
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ── 2. URL hash fallback (popup blocked → opened as new tab) ───────────
+    // relay.html redirects back to /login#google_token=... in this case.
+    const hash = window.location.hash;
+    if (hash.includes('google_token=')) {
+      const token = decodeURIComponent(hash.split('google_token=')[1]?.split('&')[0] || '');
+      window.history.replaceState(null, '', window.location.pathname);
+      if (token) { handleGoogleResult(token, null); }
+    } else if (hash.includes('google_error=')) {
+      const err = decodeURIComponent(hash.split('google_error=')[1]?.split('&')[0] || 'sign_in_failed');
+      window.history.replaceState(null, '', window.location.pathname);
+      handleGoogleResult(null, err);
+    }
+
+    // ── 3. sessionStorage poll fallback (race condition safety net) ─────────
+    // relay.html also writes to sessionStorage; we poll for 30s in case
+    // postMessage was delivered before this listener was registered.
+    let pollCount = 0;
+    const pollInterval = setInterval(() => {
+      pollCount++;
+      if (pollCount > 60) { clearInterval(pollInterval); return; } // 30s timeout
+      try {
+        const raw = sessionStorage.getItem('__google_auth_result');
+        if (!raw) return;
+        sessionStorage.removeItem('__google_auth_result');
+        clearInterval(pollInterval);
+        const { accessToken, error } = JSON.parse(raw);
+        handleGoogleResult(accessToken, error);
+      } catch (_) {}
+    }, 500);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      clearInterval(pollInterval);
+    };
+  }, [handleGoogleResult]);
 
   function triggerShake() {
     shake.setValue(0);
