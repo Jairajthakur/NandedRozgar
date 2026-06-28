@@ -7,8 +7,6 @@
 </p>
 <script>
   (function () {
-    // Parse the URL hash — Google returns token here after implicit flow:
-    //   /google-auth-relay.html#access_token=TOKEN&token_type=Bearer&...
     var hash = window.location.hash.substring(1);
     var params = {};
     hash.split('&').forEach(function (part) {
@@ -22,29 +20,26 @@
     var accessToken = params['access_token'] || null;
     var error = params['error'] || (!accessToken ? 'no_token' : null);
 
-    var payload = JSON.stringify({
-      type: 'GOOGLE_AUTH_RESULT',
-      accessToken: accessToken,
-      error: error
-    });
+    // Always store in sessionStorage — main tab polls for this
+    try {
+      sessionStorage.setItem('__google_auth_result', JSON.stringify({
+        type: 'GOOGLE_AUTH_RESULT',
+        accessToken: accessToken,
+        error: error
+      }));
+    } catch (_) {}
 
-    // Store in sessionStorage as fallback — the opener polls this
-    // in case postMessage races with popup being blocked/redirected.
-    try { sessionStorage.setItem('__google_auth_result', payload); } catch (_) {}
-
-    // Try postMessage to opener (standard popup flow)
     if (window.opener && !window.opener.closed) {
+      // Standard popup: post message to main tab then close this popup
       try {
         window.opener.postMessage(
           { type: 'GOOGLE_AUTH_RESULT', accessToken: accessToken, error: error },
           window.location.origin
         );
       } catch (_) {}
-      // Small delay so postMessage is delivered before close
-      setTimeout(function () { window.close(); }, 300);
+      setTimeout(function () { window.close(); }, 200);
     } else {
-      // Popup was blocked and opened as a new tab — redirect back to login
-      // with result encoded in the URL hash so the main page can read it.
+      // Popup was blocked — opened as new tab, redirect back to /login with token in hash
       var base = window.location.origin + '/login';
       if (accessToken) {
         window.location.replace(base + '#google_token=' + encodeURIComponent(accessToken));
