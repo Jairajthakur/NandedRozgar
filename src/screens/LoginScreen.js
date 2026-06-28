@@ -251,10 +251,14 @@ export default function LoginScreen() {
 
   // Shared handler — called from postMessage, hash redirect, or sessionStorage poll
   const handleGoogleResult = useCallback((accessToken, error) => {
+    // Close popup and bring main tab to front
     if (googlePopupRef.current && !googlePopupRef.current.closed) {
       googlePopupRef.current.close();
       googlePopupRef.current = null;
     }
+    // Focus the main tab so the user sees the app, not a blank popup
+    try { window.focus(); } catch (_) {}
+
     if (error || !accessToken) {
       setError('Google sign-in failed: ' + (error || 'no token returned'));
       triggerShake();
@@ -264,6 +268,8 @@ export default function LoginScreen() {
     loginWithGoogle(accessToken, false).then(r => {
       setGoogleLoading(false);
       if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
+      // App.js automatically navigates to home when user state is set —
+      // no manual navigation needed here.
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -370,6 +376,14 @@ export default function LoginScreen() {
           setGoogleLoading(false);
           setError('Popup blocked. Please allow popups for thecityplus.in and try again.');
           triggerShake();
+        } else {
+          // Poll until popup closes, then focus the main window back
+          const focusTimer = setInterval(() => {
+            if (googlePopupRef.current && googlePopupRef.current.closed) {
+              clearInterval(focusTimer);
+              try { window.focus(); } catch (_) {}
+            }
+          }, 300);
         }
         return;
       }
