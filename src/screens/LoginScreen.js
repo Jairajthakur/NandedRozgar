@@ -6,13 +6,6 @@
  *   Web path:    loginWithGoogle(accessToken, false) → backend uses userinfo verification
  * Root cause: @react-native-google-signin/google-signin requires Google Play Services
  * which is not available in web browsers — replaced with Firebase web signInWithPopup.
- *
- * FIX 2: firebaseConfig now reads authDomain and projectId from env vars instead of
- * hardcoded wrong values ('cityplus' projectId caused silent Firebase init failure).
- * Also requires:
- *   1. Add thecityplus.in to Firebase Console → Authentication → Settings → Authorized Domains
- *   2. Add https://thecityplus.in to Google Cloud Console → Credentials → Authorized JS Origins
- *   3. Add https://thecityplus.in/__/auth/handler to Authorized Redirect URIs
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -38,25 +31,11 @@ if (Platform.OS !== 'web') {
   statusCodes    = gsModule.statusCodes;
 }
 
-// ── Firebase Web SDK (web only) ───────────────────────────────────────────────
-// Only initialised when running in a browser. Tree-shaken on native.
-let _webAuth            = null;
-let GoogleAuthProvider  = null;
-let signInWithPopup     = null;
-let signInWithRedirect    = null;
-let getRedirectResult     = null;
-let setPersistence        = null;
-let browserLocalPersistence = null;
-
-// FIX v5: Firebase is NOT initialized on web.
+// ── Firebase Web SDK REMOVED from web ────────────────────────────────────────
 // Firebase Auth on web internally registers its own Google OAuth client
-// (project 947711...) via the firebaseapp.com auth domain, which conflicts
-// with our client ID and causes 'deleted_client' errors.
-// On web we use Google Identity Services (GSI) directly — no Firebase needed.
-// Firebase is only used on native (Android/iOS) via @react-native-google-signin.
-if (Platform.OS !== 'web') {
-  // Native only — Firebase not needed on web
-}
+// (project 947711...) which causes 'deleted_client' errors.
+// Web Google Sign-In now uses direct OAuth2 popup — no Firebase needed on web.
+// Firebase is only used on native via @react-native-firebase (see above block).
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -264,41 +243,26 @@ export default function LoginScreen() {
     }
   }, []);
 
-  // ── Google Sign-In via OAuth2 popup (no Firebase, no GSI library) ──────────
-  // FIX v6: GSI library was internally using a deleted Firebase project client ID
-  // (947711...) regardless of our client_id setting — because GSI resolves the
-  // client via the firebaseapp.com auth domain association on Google's servers.
-  //
-  // Solution: Open a plain popup window to Google's OAuth2 endpoint with our
-  // client_id directly, using the implicit flow (response_type=token) which
-  // Google supports for single-page apps with a registered origin.
-  // The popup posts the token back via window.opener.postMessage.
-  // No third-party scripts, no Firebase, no redirects.
+  // ── Google OAuth2 popup handler (web only, no Firebase) ─────────────────────
+  // Listens for postMessage from /google-auth-relay.html after OAuth2 popup flow.
   const googlePopupRef = useRef(null);
 
   useEffect(() => {
     if (!IS_WEB) return;
-    // Listen for postMessage from our OAuth popup
     function handleMessage(event) {
-      // Only accept messages from our own origin or Google's accounts domain
-      if (event.origin !== window.location.origin &&
-          event.origin !== 'https://accounts.google.com') return;
+      if (event.origin !== window.location.origin) return;
       const { type, accessToken, error } = event.data || {};
       if (type !== 'GOOGLE_AUTH_RESULT') return;
-
-      // Close popup if still open
       if (googlePopupRef.current && !googlePopupRef.current.closed) {
         googlePopupRef.current.close();
         googlePopupRef.current = null;
       }
-
       if (error || !accessToken) {
         setError('Google sign-in failed: ' + (error || 'no token returned'));
         triggerShake();
         setGoogleLoading(false);
         return;
       }
-      console.log('[GoogleOAuth] got access token via popup, sending to backend...');
       loginWithGoogle(accessToken, false).then(r => {
         setGoogleLoading(false);
         if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
@@ -336,40 +300,34 @@ export default function LoginScreen() {
     setGoogleLoading(true);
 
     try {
-      // ── WEB: Plain OAuth2 popup — no Firebase, no GSI library ─────────────────
-      // FIX v6: Opens Google OAuth2 directly with our client_id.
-      // A small relay page at /google-auth-relay.html reads the token from the
-      // URL hash (implicit flow) and posts it back via window.postMessage.
+      // ── WEB: Direct OAuth2 popup — no Firebase, no GSI ─────────────────────
+      // Opens Google OAuth2 with our correct client ID directly.
+      // Token returned to /google-auth-relay.html, posted back via postMessage.
       if (IS_WEB) {
         const clientId    = encodeURIComponent(GOOGLE_WEB_CLIENT_ID);
         const redirectUri = encodeURIComponent(window.location.origin + '/google-auth-relay.html');
         const scope       = encodeURIComponent('openid profile email');
         const authUrl =
-          `https://accounts.google.com/o/oauth2/v2/auth` +
-          `?client_id=${clientId}` +
-          `&redirect_uri=${redirectUri}` +
-          `&response_type=token` +
-          `&scope=${scope}` +
-          `&prompt=select_account`;
-
+          'https://accounts.google.com/o/oauth2/v2/auth' +
+          '?client_id=' + clientId +
+          '&redirect_uri=' + redirectUri +
+          '&response_type=token' +
+          '&scope=' + scope +
+          '&prompt=select_account';
         const width  = 500;
         const height = 600;
         const left   = Math.round(window.screenX + (window.outerWidth  - width)  / 2);
         const top    = Math.round(window.screenY + (window.outerHeight - height) / 2);
         googlePopupRef.current = window.open(
-          authUrl,
-          'google-signin',
-          `width=${width},height=${height},left=${left},top=${top},` +
-          `toolbar=no,menubar=no,scrollbars=no,resizable=no`
+          authUrl, 'google-signin',
+          'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top +
+          ',toolbar=no,menubar=no,scrollbars=no,resizable=no'
         );
-
         if (!googlePopupRef.current) {
-          // Popup was blocked — fall back to same-tab redirect
           setGoogleLoading(false);
-          setError('Popup was blocked. Please allow popups for this site and try again.');
+          setError('Popup blocked. Please allow popups for thecityplus.in and try again.');
           triggerShake();
         }
-        // Token arrives via postMessage handled in useEffect above
         return;
       }
 
