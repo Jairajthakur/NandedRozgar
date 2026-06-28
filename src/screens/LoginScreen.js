@@ -286,54 +286,42 @@ export default function LoginScreen() {
     }
   }, []);
 
-  // ── Handle Google redirect result after signInWithRedirect returns ──────────
-  // On web, signInWithRedirect navigates away and back. When the page reloads,
-  // getRedirectResult() resolves with the credential (or null if no redirect pending).
+  // ── Handle Google OAuth redirect result on page load ────────────────────────
+  // FIX v3: Firebase signInWithRedirect + getRedirectResult is broken in many
+  // browsers (cross-origin iframe restriction in Chrome/Brave/Firefox).
+  // New approach: we send the user to Google OAuth directly (not via Firebase),
+  // Google redirects back to /login?google_token=ACCESS_TOKEN, and we read
+  // the token from the URL here — no Firebase redirect involved at all.
   useEffect(() => {
-    if (!IS_WEB || !_webAuth || !getRedirectResult) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        setGoogleLoading(true);
-        console.log('[GoogleRedirect] calling getRedirectResult...');
-        const result = await getRedirectResult(_webAuth);
-        console.log('[GoogleRedirect] result:', result ? 'got result' : 'null (no pending redirect)');
-        if (cancelled || !result) { setGoogleLoading(false); return; }
+    if (!IS_WEB) return;
+    const params = new URLSearchParams(window.location.search);
+    const googleToken = params.get('google_token');
+    const googleError = params.get('google_error');
 
-        // With signInWithRedirect, prefer the Firebase ID token (always present).
-        // accessToken from credential can be null in the redirect flow when no
-        // extra OAuth scopes were requested beyond openid/profile/email.
-        const credential  = GoogleAuthProvider.credentialFromResult(result);
-        const accessToken = credential?.accessToken;
-        const idToken     = await result.user?.getIdToken?.();
+    if (googleError) {
+      setError('Google sign-in failed: ' + decodeURIComponent(googleError));
+      triggerShake();
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
 
-        console.log('[GoogleRedirect] accessToken:', accessToken ? 'present' : 'null');
-        console.log('[GoogleRedirect] idToken:', idToken ? 'present' : 'null');
-
-        if (idToken) {
-          // Prefer ID token — backend verifies via tokeninfo endpoint
-          const r = await loginWithGoogle(idToken, true);
+    if (googleToken) {
+      console.log('[GoogleRedirect] got google_token from URL, logging in...');
+      setGoogleLoading(true);
+      // Clean token from URL immediately so refresh doesn't re-trigger
+      window.history.replaceState({}, '', window.location.pathname);
+      loginWithGoogle(decodeURIComponent(googleToken), false)
+        .then(r => {
           setGoogleLoading(false);
           if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
-        } else if (accessToken) {
-          // Fallback to access token — backend verifies via userinfo endpoint
-          const r = await loginWithGoogle(accessToken, false);
+        })
+        .catch(err => {
           setGoogleLoading(false);
-          if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
-        } else {
-          setError('Google sign-in failed: no token returned.');
-          triggerShake();
-          setGoogleLoading(false);
-        }
-      } catch (err) {
-        if (!cancelled) {
           setError('Google sign-in failed: ' + (err?.message || err));
           triggerShake();
-          setGoogleLoading(false);
-        }
-      }
-    })();
-    return () => { cancelled = true; };
+        });
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function triggerShake() {
@@ -364,54 +352,28 @@ export default function LoginScreen() {
     setGoogleLoading(true);
 
     try {
-      // ── WEB: Firebase signInWithPopup with redirect fallback ────────────────
+      // ── WEB: Direct Google OAuth redirect (no Firebase redirect) ─────────────
+      // FIX v3: Firebase signInWithPopup and signInWithRedirect both fail on
+      // deployed web (cross-origin iframe/popup restrictions in modern browsers).
+      // Instead, we redirect directly to Google OAuth. Google sends the user back
+      // to /api/auth/google/callback which redirects to /login?google_token=TOKEN.
+      // The useEffect above reads that token from the URL and completes sign-in.
       if (IS_WEB) {
-        if (!_webAuth || !GoogleAuthProvider || !signInWithPopup) {
-          setError('Google Sign-In is not configured for web. Please check Firebase setup.');
-          triggerShake();
-          setGoogleLoading(false);
-          return;
-        }
-        const provider = new GoogleAuthProvider();
-        provider.addScope('profile');
-        provider.addScope('email');
-
-        try {
-          const result     = await signInWithPopup(_webAuth, provider);
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          const accessToken = credential?.accessToken;
-          const idToken     = await result.user?.getIdToken?.();
-
-          if (idToken) {
-            const r = await loginWithGoogle(idToken, true);
-            setGoogleLoading(false);
-            if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
-          } else if (accessToken) {
-            const r = await loginWithGoogle(accessToken, false);
-            setGoogleLoading(false);
-            if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
-          } else {
-            setError('Google sign-in failed: no token returned.');
-            triggerShake();
-            setGoogleLoading(false);
-          }
-        } catch (popupErr) {
-          // Popup blocked (e.g. Brave shields) — fall back to redirect flow
-          console.warn('[GoogleSignIn] popup failed, trying redirect:', popupErr?.code);
-          if (popupErr?.code === 'auth/popup-blocked' ||
-              popupErr?.code === 'auth/popup-closed-by-user' ||
-              popupErr?.code === 'auth/cancelled-popup-request') {
-            if (setPersistence && browserLocalPersistence) {
-              await setPersistence(_webAuth, browserLocalPersistence);
-            }
-            await signInWithRedirect(_webAuth, provider);
-            // page navigates away; getRedirectResult() on next load handles the result
-          } else {
-            setError('Google sign-in failed: ' + (popupErr?.message || popupErr));
-            triggerShake();
-            setGoogleLoading(false);
-          }
-        }
+        const redirectUri = encodeURIComponent(
+          `${window.location.origin}/api/auth/google/callback`
+        );
+        const clientId = encodeURIComponent(GOOGLE_WEB_CLIENT_ID);
+        const scope    = encodeURIComponent('openid profile email');
+        const googleAuthUrl =
+          `https://accounts.google.com/o/oauth2/v2/auth` +
+          `?client_id=${clientId}` +
+          `&redirect_uri=${redirectUri}` +
+          `&response_type=token` +
+          `&scope=${scope}` +
+          `&access_type=online` +
+          `&prompt=select_account`;
+        window.location.href = googleAuthUrl;
+        // setGoogleLoading stays true — page is navigating away
         return;
       }
 
