@@ -276,49 +276,45 @@ export default function LoginScreen() {
   useEffect(() => {
     if (!IS_WEB) return;
 
-    // ── 1. postMessage (standard popup flow) ────────────────────────────────
-    function handleMessage(event) {
-      if (event.origin !== window.location.origin) return;
-      const { type, accessToken, error } = event.data || {};
-      if (type !== 'GOOGLE_AUTH_RESULT') return;
-      handleGoogleResult(accessToken, error);
-    }
-    window.addEventListener('message', handleMessage);
-
-    // ── 2. URL hash fallback (popup blocked → opened as new tab) ───────────
-    // relay.html redirects back to /login#google_token=... in this case.
-    const hash = window.location.hash;
-    if (hash.includes('google_token=')) {
-      const token = decodeURIComponent(hash.split('google_token=')[1]?.split('&')[0] || '');
+    // ── Same-tab redirect: Google redirects back to /login#access_token=... ──
+    // Parse the hash immediately on mount and process the token.
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+      const params = {};
+      hash.split('&').forEach(part => {
+        const eq = part.indexOf('=');
+        if (eq > 0) params[decodeURIComponent(part.slice(0, eq))] = decodeURIComponent(part.slice(eq + 1));
+      });
+      // Clean the hash from the URL so refreshing doesn't re-trigger
       window.history.replaceState(null, '', window.location.pathname);
-      if (token) { handleGoogleResult(token, null); }
-    } else if (hash.includes('google_error=')) {
-      const err = decodeURIComponent(hash.split('google_error=')[1]?.split('&')[0] || 'sign_in_failed');
-      window.history.replaceState(null, '', window.location.pathname);
-      handleGoogleResult(null, err);
+
+      if (params['access_token']) {
+        setGoogleLoading(true);
+        handleGoogleResult(params['access_token'], null);
+        return;
+      }
+      if (params['error']) {
+        handleGoogleResult(null, params['error']);
+        return;
+      }
+      // Legacy hash fallbacks from old popup flow
+      if (hash.includes('google_token=')) {
+        const token = decodeURIComponent(hash.split('google_token=')[1]?.split('&')[0] || '');
+        if (token) { setGoogleLoading(true); handleGoogleResult(token, null); return; }
+      }
+      if (hash.includes('google_error=')) {
+        const err = decodeURIComponent(hash.split('google_error=')[1]?.split('&')[0] || 'sign_in_failed');
+        handleGoogleResult(null, err); return;
+      }
     }
 
-    // ── 3. sessionStorage poll fallback (race condition safety net) ─────────
-    // relay.html also writes to sessionStorage; we poll for 30s in case
-    // postMessage was delivered before this listener was registered.
-    let pollCount = 0;
-    const pollInterval = setInterval(() => {
-      pollCount++;
-      if (pollCount > 60) { clearInterval(pollInterval); return; } // 30s timeout
-      try {
-        const raw = sessionStorage.getItem('__google_auth_result');
-        if (!raw) return;
-        sessionStorage.removeItem('__google_auth_result');
-        clearInterval(pollInterval);
-        const { accessToken, error } = JSON.parse(raw);
-        handleGoogleResult(accessToken, error);
-      } catch (_) {}
-    }, 500);
-
-    return () => {
-      window.removeEventListener('message', handleMessage);
-      clearInterval(pollInterval);
-    };
+    // Restore loading state if we're returning from Google redirect
+    try {
+      if (sessionStorage.getItem('__google_auth_pending')) {
+        sessionStorage.removeItem('__google_auth_pending');
+        setGoogleLoading(true);
+      }
+    } catch (_) {}
   }, [handleGoogleResult]);
 
   function triggerShake() {
@@ -349,12 +345,14 @@ export default function LoginScreen() {
     setGoogleLoading(true);
 
     try {
-      // ── WEB: Direct OAuth2 popup — no Firebase, no GSI ─────────────────────
-      // Opens Google OAuth2 with our correct client ID directly.
-      // Token returned to /google-auth-relay.html, posted back via postMessage.
+      // ── WEB: Same-tab redirect OAuth2 flow ──────────────────────────────────
+      // Instead of a popup (which Brave/Firefox block and can't be refocused),
+      // we redirect the current tab to Google, then Google redirects back to
+      // /login?google_token=TOKEN. The useEffect below reads that token on load.
       if (IS_WEB) {
         const clientId    = encodeURIComponent(GOOGLE_WEB_CLIENT_ID);
-        const redirectUri = encodeURIComponent(window.location.origin + '/google-auth-relay.html');
+        // Redirect back to /login so the token is handled in the same tab
+        const redirectUri = encodeURIComponent(window.location.origin + '/login');
         const scope       = encodeURIComponent('openid profile email');
         const authUrl =
           'https://accounts.google.com/o/oauth2/v2/auth' +
@@ -363,28 +361,9 @@ export default function LoginScreen() {
           '&response_type=token' +
           '&scope=' + scope +
           '&prompt=select_account';
-        const width  = 500;
-        const height = 600;
-        const left   = Math.round(window.screenX + (window.outerWidth  - width)  / 2);
-        const top    = Math.round(window.screenY + (window.outerHeight - height) / 2);
-        googlePopupRef.current = window.open(
-          authUrl, 'google-signin',
-          'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top +
-          ',toolbar=no,menubar=no,scrollbars=no,resizable=no'
-        );
-        if (!googlePopupRef.current) {
-          setGoogleLoading(false);
-          setError('Popup blocked. Please allow popups for thecityplus.in and try again.');
-          triggerShake();
-        } else {
-          // Poll until popup closes, then focus the main window back
-          const focusTimer = setInterval(() => {
-            if (googlePopupRef.current && googlePopupRef.current.closed) {
-              clearInterval(focusTimer);
-              try { window.focus(); } catch (_) {}
-            }
-          }, 300);
-        }
+        // Save loading state so we can restore "Connecting..." on return
+        try { sessionStorage.setItem('__google_auth_pending', '1'); } catch (_) {}
+        window.location.href = authUrl;
         return;
       }
 
