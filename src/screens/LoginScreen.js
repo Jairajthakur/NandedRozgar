@@ -278,7 +278,7 @@ export default function LoginScreen() {
   useEffect(() => {
     if (!IS_WEB) return;
 
-    // ── postMessage from google-auth-relay.html (popup flow) ─────────────────
+    // ── postMessage (works when popup isn't blocked) ──────────────────────────
     function handleMessage(event) {
       if (event.origin !== window.location.origin) return;
       const { type, accessToken, error } = event.data || {};
@@ -287,26 +287,37 @@ export default function LoginScreen() {
     }
     window.addEventListener('message', handleMessage);
 
-    // ── sessionStorage poll — safety net for race conditions ─────────────────
-    // relay.html writes result to sessionStorage before closing; we poll here
-    // in case postMessage was fired before this listener was registered.
-    let pollCount = 0;
-    const pollInterval = setInterval(() => {
-      pollCount++;
-      if (pollCount > 60) { clearInterval(pollInterval); return; }
+    // ── localStorage 'storage' event (works when popup opens as new tab) ─────
+    // When Brave/Firefox open the relay as a new tab instead of a popup,
+    // window.opener is null so postMessage can't work. The relay writes to
+    // localStorage instead. The browser fires a 'storage' event on ALL OTHER
+    // tabs from the same origin instantly — no polling needed.
+    function handleStorage(event) {
+      if (event.key !== '__google_auth_result' || !event.newValue) return;
       try {
-        const raw = sessionStorage.getItem('__google_auth_result');
-        if (!raw) return;
-        sessionStorage.removeItem('__google_auth_result');
-        clearInterval(pollInterval);
-        const { accessToken, error } = JSON.parse(raw);
+        localStorage.removeItem('__google_auth_result');
+        const { accessToken, error } = JSON.parse(event.newValue);
         handleGoogleResult(accessToken, error);
       } catch (_) {}
-    }, 500);
+    }
+    window.addEventListener('storage', handleStorage);
+
+    // ── Also check localStorage on mount (in case event already fired) ───────
+    try {
+      const existing = localStorage.getItem('__google_auth_result');
+      if (existing) {
+        localStorage.removeItem('__google_auth_result');
+        const { accessToken, error, ts } = JSON.parse(existing);
+        // Only use if written in the last 30 seconds
+        if (Date.now() - (ts || 0) < 30000) {
+          handleGoogleResult(accessToken, error);
+        }
+      }
+    } catch (_) {}
 
     return () => {
       window.removeEventListener('message', handleMessage);
-      clearInterval(pollInterval);
+      window.removeEventListener('storage', handleStorage);
     };
   }, [handleGoogleResult]);
 
