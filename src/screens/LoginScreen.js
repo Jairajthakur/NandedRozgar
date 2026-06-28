@@ -264,81 +264,48 @@ export default function LoginScreen() {
     }
   }, []);
 
-  // ── Google Sign-In via GSI (Google Identity Services) on web ─────────────
-  // FIX v5: Uses GSI initTokenClient — Google's own first-party popup.
-  // Never blocked by browser shields. No Firebase on web at all.
-  const gsiClientRef   = useRef(null);
-  const gsiReadyRef    = useRef(false);  // true once initTokenClient is set up
-  const gsiPendingRef  = useRef(false);  // true if button was clicked before GSI ready
-
-  // Build the token client — called once GSI script is loaded
-  function initGsiClient() {
-    if (gsiReadyRef.current) return; // already initialised
-    gsiClientRef.current = window.google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_WEB_CLIENT_ID,
-      scope: 'openid profile email',
-      callback: async (tokenResponse) => {
-        if (tokenResponse.error) {
-          setError('Google sign-in failed: ' + tokenResponse.error);
-          triggerShake();
-          setGoogleLoading(false);
-          return;
-        }
-        const accessToken = tokenResponse.access_token;
-        if (!accessToken) {
-          setError('Google sign-in failed: no token returned.');
-          triggerShake();
-          setGoogleLoading(false);
-          return;
-        }
-        console.log('[GSI] got access token, sending to backend...');
-        const r = await loginWithGoogle(accessToken, false);
-        setGoogleLoading(false);
-        if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
-      },
-    });
-    gsiReadyRef.current = true;
-    // If the button was already clicked while we were loading, fire now
-    if (gsiPendingRef.current) {
-      gsiPendingRef.current = false;
-      gsiClientRef.current.requestAccessToken({ prompt: 'select_account' });
-    }
-  }
+  // ── Google Sign-In via OAuth2 popup (no Firebase, no GSI library) ──────────
+  // FIX v6: GSI library was internally using a deleted Firebase project client ID
+  // (947711...) regardless of our client_id setting — because GSI resolves the
+  // client via the firebaseapp.com auth domain association on Google's servers.
+  //
+  // Solution: Open a plain popup window to Google's OAuth2 endpoint with our
+  // client_id directly, using the implicit flow (response_type=token) which
+  // Google supports for single-page apps with a registered origin.
+  // The popup posts the token back via window.opener.postMessage.
+  // No third-party scripts, no Firebase, no redirects.
+  const googlePopupRef = useRef(null);
 
   useEffect(() => {
     if (!IS_WEB) return;
-    // If GSI already loaded (e.g. hot reload), init immediately
-    if (window.google?.accounts?.oauth2) {
-      initGsiClient();
-      return;
-    }
-    // Inject GSI script once
-    if (!document.getElementById('gsi-script')) {
-      const script = document.createElement('script');
-      script.id    = 'gsi-script';
-      script.src   = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = () => initGsiClient();
-      script.onerror = () => {
-        setError('Failed to load Google Sign-In. Check your internet connection.');
+    // Listen for postMessage from our OAuth popup
+    function handleMessage(event) {
+      // Only accept messages from our own origin or Google's accounts domain
+      if (event.origin !== window.location.origin &&
+          event.origin !== 'https://accounts.google.com') return;
+      const { type, accessToken, error } = event.data || {};
+      if (type !== 'GOOGLE_AUTH_RESULT') return;
+
+      // Close popup if still open
+      if (googlePopupRef.current && !googlePopupRef.current.closed) {
+        googlePopupRef.current.close();
+        googlePopupRef.current = null;
+      }
+
+      if (error || !accessToken) {
+        setError('Google sign-in failed: ' + (error || 'no token returned'));
+        triggerShake();
         setGoogleLoading(false);
-      };
-      document.head.appendChild(script);
-    } else {
-      // Script tag exists but google object not yet available — poll briefly
-      let attempts = 0;
-      const poll = setInterval(() => {
-        attempts++;
-        if (window.google?.accounts?.oauth2) {
-          clearInterval(poll);
-          initGsiClient();
-        } else if (attempts > 20) {
-          clearInterval(poll);
-          console.warn('[GSI] Timed out waiting for google.accounts.oauth2');
-        }
-      }, 100);
+        return;
+      }
+      console.log('[GoogleOAuth] got access token via popup, sending to backend...');
+      loginWithGoogle(accessToken, false).then(r => {
+        setGoogleLoading(false);
+        if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
+      });
     }
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function triggerShake() {
@@ -369,19 +336,40 @@ export default function LoginScreen() {
     setGoogleLoading(true);
 
     try {
-      // ── WEB: Google Identity Services (GSI) token client ──────────────────────
-      // FIX v5: If GSI is ready, open popup immediately.
-      // If still loading, set pending flag — initGsiClient() will fire it once ready.
+      // ── WEB: Plain OAuth2 popup — no Firebase, no GSI library ─────────────────
+      // FIX v6: Opens Google OAuth2 directly with our client_id.
+      // A small relay page at /google-auth-relay.html reads the token from the
+      // URL hash (implicit flow) and posts it back via window.postMessage.
       if (IS_WEB) {
-        if (gsiReadyRef.current && gsiClientRef.current) {
-          // GSI ready — open Google account picker immediately
-          gsiClientRef.current.requestAccessToken({ prompt: 'select_account' });
-        } else {
-          // GSI script still loading — mark as pending, initGsiClient fires it
-          console.log('[GSI] not ready yet, will fire after load...');
-          gsiPendingRef.current = true;
-          // setGoogleLoading stays true — button shows spinner until popup opens
+        const clientId    = encodeURIComponent(GOOGLE_WEB_CLIENT_ID);
+        const redirectUri = encodeURIComponent(window.location.origin + '/google-auth-relay.html');
+        const scope       = encodeURIComponent('openid profile email');
+        const authUrl =
+          `https://accounts.google.com/o/oauth2/v2/auth` +
+          `?client_id=${clientId}` +
+          `&redirect_uri=${redirectUri}` +
+          `&response_type=token` +
+          `&scope=${scope}` +
+          `&prompt=select_account`;
+
+        const width  = 500;
+        const height = 600;
+        const left   = Math.round(window.screenX + (window.outerWidth  - width)  / 2);
+        const top    = Math.round(window.screenY + (window.outerHeight - height) / 2);
+        googlePopupRef.current = window.open(
+          authUrl,
+          'google-signin',
+          `width=${width},height=${height},left=${left},top=${top},` +
+          `toolbar=no,menubar=no,scrollbars=no,resizable=no`
+        );
+
+        if (!googlePopupRef.current) {
+          // Popup was blocked — fall back to same-tab redirect
+          setGoogleLoading(false);
+          setError('Popup was blocked. Please allow popups for this site and try again.');
+          triggerShake();
         }
+        // Token arrives via postMessage handled in useEffect above
         return;
       }
 
