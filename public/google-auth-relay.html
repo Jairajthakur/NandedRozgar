@@ -6,28 +6,52 @@
   Signing you in… please wait.
 </p>
 <script>
-  // This page is the OAuth2 redirect_uri for the web popup flow.
-  // Google redirects here with the access token in the URL hash:
-  //   /google-auth-relay.html#access_token=TOKEN&token_type=Bearer&...
-  // We extract it and post it back to the opener (LoginScreen), then close.
   (function () {
-    var hash = window.location.hash.substring(1); // remove leading #
+    // Parse the URL hash — Google returns token here after implicit flow:
+    //   /google-auth-relay.html#access_token=TOKEN&token_type=Bearer&...
+    var hash = window.location.hash.substring(1);
     var params = {};
     hash.split('&').forEach(function (part) {
-      var kv = part.split('=');
-      if (kv.length === 2) params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]);
+      var eq = part.indexOf('=');
+      if (eq > 0) {
+        params[decodeURIComponent(part.slice(0, eq))] =
+          decodeURIComponent(part.slice(eq + 1));
+      }
     });
 
-    var accessToken = params['access_token'];
-    var error       = params['error'] || (!accessToken ? 'no_token' : null);
+    var accessToken = params['access_token'] || null;
+    var error = params['error'] || (!accessToken ? 'no_token' : null);
 
-    if (window.opener) {
-      window.opener.postMessage(
-        { type: 'GOOGLE_AUTH_RESULT', accessToken: accessToken || null, error: error || null },
-        window.location.origin
-      );
+    var payload = JSON.stringify({
+      type: 'GOOGLE_AUTH_RESULT',
+      accessToken: accessToken,
+      error: error
+    });
+
+    // Store in sessionStorage as fallback — the opener polls this
+    // in case postMessage races with popup being blocked/redirected.
+    try { sessionStorage.setItem('__google_auth_result', payload); } catch (_) {}
+
+    // Try postMessage to opener (standard popup flow)
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage(
+          { type: 'GOOGLE_AUTH_RESULT', accessToken: accessToken, error: error },
+          window.location.origin
+        );
+      } catch (_) {}
+      // Small delay so postMessage is delivered before close
+      setTimeout(function () { window.close(); }, 300);
+    } else {
+      // Popup was blocked and opened as a new tab — redirect back to login
+      // with result encoded in the URL hash so the main page can read it.
+      var base = window.location.origin + '/login';
+      if (accessToken) {
+        window.location.replace(base + '#google_token=' + encodeURIComponent(accessToken));
+      } else {
+        window.location.replace(base + '#google_error=' + encodeURIComponent(error || 'no_token'));
+      }
     }
-    window.close();
   })();
 </script>
 </body>
