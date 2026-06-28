@@ -48,36 +48,14 @@ let getRedirectResult     = null;
 let setPersistence        = null;
 let browserLocalPersistence = null;
 
-if (Platform.OS === 'web') {
-  // Dynamic require so Metro bundler doesn't complain on native builds
-  const firebaseApp  = require('firebase/app');
-  const firebaseAuth = require('firebase/auth');
-
-  GoogleAuthProvider    = firebaseAuth.GoogleAuthProvider;
-  signInWithPopup       = firebaseAuth.signInWithPopup;
-  signInWithRedirect    = firebaseAuth.signInWithRedirect;
-  getRedirectResult     = firebaseAuth.getRedirectResult;
-  setPersistence        = firebaseAuth.setPersistence;
-  browserLocalPersistence = firebaseAuth.browserLocalPersistence;
-
-  // FIX: Use env vars for ALL fields — previously authDomain and projectId were
-  // hardcoded with wrong values ('cityplus' instead of 'cityplus-7ac75'), which
-  // caused Firebase to silently initialize against the wrong project and blocked
-  // Google Sign-In on web entirely.
-  const firebaseConfig = {
-    apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY       || 'AIzaSyD_placeholder',
-    authDomain:        process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN   || 'cityplus-7ac75.firebaseapp.com',
-    projectId:         process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID    || 'cityplus-7ac75',
-    storageBucket:     (process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'cityplus-7ac75') + '.appspot.com',
-    messagingSenderId: '1012993473745',
-    appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID        || '1:1012993473745:web:placeholder',
-  };
-
-  const apps = firebaseApp.getApps();
-  const app  = apps.length === 0
-    ? firebaseApp.initializeApp(firebaseConfig)
-    : apps[0];
-  _webAuth = firebaseAuth.getAuth(app);
+// FIX v5: Firebase is NOT initialized on web.
+// Firebase Auth on web internally registers its own Google OAuth client
+// (project 947711...) via the firebaseapp.com auth domain, which conflicts
+// with our client ID and causes 'deleted_client' errors.
+// On web we use Google Identity Services (GSI) directly — no Firebase needed.
+// Firebase is only used on native (Android/iOS) via @react-native-google-signin.
+if (Platform.OS !== 'web') {
+  // Native only — Firebase not needed on web
 }
 
 WebBrowser.maybeCompleteAuthSession();
