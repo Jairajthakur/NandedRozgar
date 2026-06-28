@@ -286,41 +286,59 @@ export default function LoginScreen() {
     }
   }, []);
 
-  // ── Handle Google OAuth redirect result on page load ────────────────────────
-  // FIX v3: Firebase signInWithRedirect + getRedirectResult is broken in many
-  // browsers (cross-origin iframe restriction in Chrome/Brave/Firefox).
-  // New approach: we send the user to Google OAuth directly (not via Firebase),
-  // Google redirects back to /login?google_token=ACCESS_TOKEN, and we read
-  // the token from the URL here — no Firebase redirect involved at all.
+  // ── Google Sign-In via GIS (Google Identity Services) on web ────────────────
+  // FIX v4: Neither Firebase signInWithPopup nor signInWithRedirect work reliably
+  // on deployed web (popup blocked by Brave/Chrome shields; redirect broken by
+  // cross-origin iframe restrictions in Chrome 115+).
+  //
+  // Solution: Use Google Identity Services (GSI) tokenClient directly.
+  // GSI opens Google's OWN first-party popup — browsers never block it.
+  // The access token is returned directly in a JS callback, no redirect needed.
+  //
+  // On mount, inject the GSI script and initialise the token client.
+  // handleGooglePress() calls tokenClient.requestAccessToken() to open the popup.
+  const gsiClientRef = useRef(null);
+
   useEffect(() => {
     if (!IS_WEB) return;
-    const params = new URLSearchParams(window.location.search);
-    const googleToken = params.get('google_token');
-    const googleError = params.get('google_error');
 
-    if (googleError) {
-      setError('Google sign-in failed: ' + decodeURIComponent(googleError));
-      triggerShake();
-      // Clean URL
-      window.history.replaceState({}, '', window.location.pathname);
-      return;
+    // Inject GSI script if not already present
+    if (!document.getElementById('gsi-script')) {
+      const script = document.createElement('script');
+      script.id  = 'gsi-script';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => initGsiClient();
+      document.head.appendChild(script);
+    } else if (window.google?.accounts?.oauth2) {
+      initGsiClient();
     }
 
-    if (googleToken) {
-      console.log('[GoogleRedirect] got google_token from URL, logging in...');
-      setGoogleLoading(true);
-      // Clean token from URL immediately so refresh doesn't re-trigger
-      window.history.replaceState({}, '', window.location.pathname);
-      loginWithGoogle(decodeURIComponent(googleToken), false)
-        .then(r => {
+    function initGsiClient() {
+      gsiClientRef.current = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_WEB_CLIENT_ID,
+        scope: 'openid profile email',
+        callback: async (tokenResponse) => {
+          if (tokenResponse.error) {
+            setError('Google sign-in failed: ' + tokenResponse.error);
+            triggerShake();
+            setGoogleLoading(false);
+            return;
+          }
+          const accessToken = tokenResponse.access_token;
+          if (!accessToken) {
+            setError('Google sign-in failed: no token returned.');
+            triggerShake();
+            setGoogleLoading(false);
+            return;
+          }
+          console.log('[GSI] got access token, sending to backend...');
+          const r = await loginWithGoogle(accessToken, false);
           setGoogleLoading(false);
           if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
-        })
-        .catch(err => {
-          setGoogleLoading(false);
-          setError('Google sign-in failed: ' + (err?.message || err));
-          triggerShake();
-        });
+        },
+      });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -352,28 +370,19 @@ export default function LoginScreen() {
     setGoogleLoading(true);
 
     try {
-      // ── WEB: Direct Google OAuth redirect (no Firebase redirect) ─────────────
-      // FIX v3: Firebase signInWithPopup and signInWithRedirect both fail on
-      // deployed web (cross-origin iframe/popup restrictions in modern browsers).
-      // Instead, we redirect directly to Google OAuth. Google sends the user back
-      // to /api/auth/google/callback which redirects to /login?google_token=TOKEN.
-      // The useEffect above reads that token from the URL and completes sign-in.
+      // ── WEB: Google Identity Services (GSI) token client ──────────────────────
+      // FIX v4: Uses GSI initTokenClient which opens Google's own first-party
+      // popup — never blocked by browser shields. No Firebase, no redirect.
       if (IS_WEB) {
-        const redirectUri = encodeURIComponent(
-          `${window.location.origin}/api/auth/google/callback`
-        );
-        const clientId = encodeURIComponent(GOOGLE_WEB_CLIENT_ID);
-        const scope    = encodeURIComponent('openid profile email');
-        const googleAuthUrl =
-          `https://accounts.google.com/o/oauth2/v2/auth` +
-          `?client_id=${clientId}` +
-          `&redirect_uri=${redirectUri}` +
-          `&response_type=token` +
-          `&scope=${scope}` +
-          `&access_type=online` +
-          `&prompt=select_account`;
-        window.location.href = googleAuthUrl;
-        // setGoogleLoading stays true — page is navigating away
+        if (!gsiClientRef.current) {
+          setError('Google Sign-In is not ready yet. Please try again in a moment.');
+          triggerShake();
+          setGoogleLoading(false);
+          return;
+        }
+        // requestAccessToken() opens Google's first-party account picker popup.
+        // The callback set in useEffect handles the token and calls loginWithGoogle.
+        gsiClientRef.current.requestAccessToken({ prompt: 'select_account' });
         return;
       }
 
