@@ -411,86 +411,76 @@ router.get('/google/start_legacy_DISABLED', (req, res) => {
 router.get('/google/callback', (req, res) => {
   const { access_token, error, error_description } = req.query;
 
-  // FIX #5: The original code interpolated process.env.APP_URL and user-supplied
-  // query params directly into an inline <script> block, enabling XSS if APP_URL
-  // was compromised or either param contained quote/semicolon characters.
-  //
-  // Fix strategy:
-  //   • All server-controlled values (APP_URL, nativeUrl) are used only in
-  //     server-side redirect headers (302) or as pre-built full URLs that are
-  //     JSON-encoded before being placed in the HTML. JSON.stringify produces a
-  //     quoted, escaped string literal that cannot break out of JS context.
-  //   • User-supplied values (access_token, error, error_description) are first
-  //     validated/sanitised and then also JSON.stringify-encoded before use.
-  //   • The Content-Security-Policy header prevents execution of any injected
-  //     scripts that somehow made it through.
+  // FIX v3: Detect whether this is a web browser request or a native app request.
+  // Native APK deep-link: User-Agent contains "okhttp" or the request comes from
+  // an Android WebView. Web browser: normal browser User-Agent.
+  // Strategy:
+  //   • Web browser  → 302 redirect to /login?google_token=TOKEN (same origin)
+  //   • Native APK   → intent:// deep link HTML page (unchanged)
+  // This avoids the Firebase signInWithRedirect cross-origin iframe issue entirely.
 
-  // Validate APP_URL at call-time so a misconfigured value fails loudly rather
-  // than silently producing an exploitable redirect.
+  const ua = req.headers['user-agent'] || '';
+  const isNative = /okhttp|Expo|com\.cityplus/i.test(ua);
+
   const rawAppUrl = process.env.APP_URL || 'https://thecityplus.in';
   let appUrl;
   try {
     const parsed = new URL(rawAppUrl);
     if (!['https:', 'http:'].includes(parsed.protocol)) throw new Error('bad protocol');
-    appUrl = parsed.origin; // strip any trailing path to get a clean base
+    appUrl = parsed.origin;
   } catch {
     console.error('google/callback: APP_URL is not a valid URL:', rawAppUrl);
     return res.status(500).send('Server configuration error.');
   }
 
-  // nativeUrl is a hardcoded constant — it never comes from user input or env.
-  const NATIVE_SCHEME = 'cityplus://google-auth'; // Bug fix #19: was 'nanded://' — matches scheme in app.config.js
-
   if (error || !access_token) {
-    // Sanitise: only keep printable ASCII, cap length, re-encode for URL use.
     const rawMsg = String(error_description || error || 'Google sign-in failed')
       .replace(/[^\x20-\x7E]/g, '')
       .slice(0, 200);
     const encodedMsg = encodeURIComponent(rawMsg);
 
-    // JSON-encode the full URL strings so they are safe JS string literals.
-    const errorIntentUrl = JSON.stringify(
-      `intent://google-auth?error=${encodedMsg}` +
-      `#Intent;scheme=cityplus;package=com.cityplus.app;end`
-    );
-
-    res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'");
-    return res.send(
-      `<!DOCTYPE html><html><head><title>Redirecting\u2026</title></head><body>` +
-      `<script>window.location=${errorIntentUrl};</script>` +
-      `<p>Redirecting back to app\u2026</p>` +
-      `</body></html>`
-    );
+    if (isNative) {
+      const errorIntentUrl = JSON.stringify(
+        `intent://google-auth?error=${encodedMsg}` +
+        `#Intent;scheme=cityplus;package=com.cityplus.app;end`
+      );
+      res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'");
+      return res.send(
+        `<!DOCTYPE html><html><head><title>Redirecting\u2026</title></head><body>` +
+        `<script>window.location=${errorIntentUrl};</script>` +
+        `<p>Redirecting back to app\u2026</p>` +
+        `</body></html>`
+      );
+    }
+    // Web: redirect to login page with error param
+    return res.redirect(302, `${appUrl}/login?google_error=${encodedMsg}`);
   }
 
-  // Validate access_token: Google OAuth access tokens are opaque strings that
-  // can be base64-encoded (containing +, /, =) or base64url-encoded (containing
-  // - and _). Allow all safe printable characters; only reject quotes, angle
-  // brackets, and whitespace which could enable XSS injection.
   if (!/^[^\s"'<>]+$/.test(access_token) || access_token.length > 2048) {
     return res.status(400).send('Invalid token format.');
   }
 
   const encodedToken = encodeURIComponent(access_token);
 
-  // Android Intent URL — the ONLY reliable way to open a custom-scheme deep link
-  // from Chrome on Android. window.location=cityplus:// is blocked by Chrome.
-  // Format: intent://<host>/<path>#Intent;scheme=<scheme>;package=<pkg>;end
-  const intentUrl =
-    `intent://google-auth?access_token=${encodedToken}` +
-    `#Intent;scheme=cityplus;package=com.cityplus.app;end`;
+  if (isNative) {
+    // Android Intent URL for native APK
+    const intentUrl =
+      `intent://google-auth?access_token=${encodedToken}` +
+      `#Intent;scheme=cityplus;package=com.cityplus.app;end`;
+    const intentStr = JSON.stringify(intentUrl);
+    res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'");
+    return res.send(
+      `<!DOCTYPE html><html><head><title>Signing in\u2026</title></head><body>` +
+      `<script>window.location=${intentStr};</script>` +
+      `<p style="font-family:sans-serif;text-align:center;margin-top:40px">` +
+      `Signing you in\u2026 please wait.</p>` +
+      `</body></html>`
+    );
+  }
 
-  const fallbackUrl = JSON.stringify(`${appUrl}/`);
-  const intentStr   = JSON.stringify(intentUrl);
-
-  res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'");
-  return res.send(
-    `<!DOCTYPE html><html><head><title>Signing in\u2026</title></head><body>` +
-    `<script>window.location=${intentStr};</script>` +
-    `<p style="font-family:sans-serif;text-align:center;margin-top:40px">` +
-    `Signing you in\u2026 please wait.</p>` +
-    `</body></html>`
-  );
+  // Web browser: simple 302 redirect to login page with token in query param.
+  // LoginScreen reads ?google_token= on mount and calls loginWithGoogle().
+  return res.redirect(302, `${appUrl}/login?google_token=${encodedToken}`);
 });
 
 // ── POST /api/auth/verify-firebase-otp ────────────────────────────────────────
