@@ -249,15 +249,13 @@ export default function LoginScreen() {
   // and Google opens the relay page as a new tab (common in Brave/Firefox).
   const googlePopupRef = useRef(null);
 
-  // Shared handler — called from postMessage, hash redirect, or sessionStorage poll
+  // Shared handler — called from postMessage or sessionStorage poll
   const handleGoogleResult = useCallback((accessToken, error) => {
-    // Close popup and bring main tab to front
+    // Close the popup
     if (googlePopupRef.current && !googlePopupRef.current.closed) {
       googlePopupRef.current.close();
       googlePopupRef.current = null;
     }
-    // Focus the main tab so the user sees the app, not a blank popup
-    try { window.focus(); } catch (_) {}
 
     if (error || !accessToken) {
       setError('Google sign-in failed: ' + (error || 'no token returned'));
@@ -267,54 +265,49 @@ export default function LoginScreen() {
     }
     loginWithGoogle(accessToken, false).then(r => {
       setGoogleLoading(false);
-      if (!r?.ok) { setError(r?.error || 'Google sign-in failed'); triggerShake(); }
-      // App.js automatically navigates to home when user state is set —
-      // no manual navigation needed here.
+      if (!r?.ok) {
+        setError(r?.error || 'Google sign-in failed');
+        triggerShake();
+      }
+      // App.js watches `user` state — once setUser() fires inside loginWithGoogle,
+      // RootNavigator automatically switches from Login stack to the main app.
+      // No manual navigation needed here.
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!IS_WEB) return;
 
-    // ── Same-tab redirect: Google redirects back to /login#access_token=... ──
-    // Parse the hash immediately on mount and process the token.
-    const hash = window.location.hash.substring(1);
-    if (hash) {
-      const params = {};
-      hash.split('&').forEach(part => {
-        const eq = part.indexOf('=');
-        if (eq > 0) params[decodeURIComponent(part.slice(0, eq))] = decodeURIComponent(part.slice(eq + 1));
-      });
-      // Clean the hash from the URL so refreshing doesn't re-trigger
-      window.history.replaceState(null, '', window.location.pathname);
-
-      if (params['access_token']) {
-        setGoogleLoading(true);
-        handleGoogleResult(params['access_token'], null);
-        return;
-      }
-      if (params['error']) {
-        handleGoogleResult(null, params['error']);
-        return;
-      }
-      // Legacy hash fallbacks from old popup flow
-      if (hash.includes('google_token=')) {
-        const token = decodeURIComponent(hash.split('google_token=')[1]?.split('&')[0] || '');
-        if (token) { setGoogleLoading(true); handleGoogleResult(token, null); return; }
-      }
-      if (hash.includes('google_error=')) {
-        const err = decodeURIComponent(hash.split('google_error=')[1]?.split('&')[0] || 'sign_in_failed');
-        handleGoogleResult(null, err); return;
-      }
+    // ── postMessage from google-auth-relay.html (popup flow) ─────────────────
+    function handleMessage(event) {
+      if (event.origin !== window.location.origin) return;
+      const { type, accessToken, error } = event.data || {};
+      if (type !== 'GOOGLE_AUTH_RESULT') return;
+      handleGoogleResult(accessToken, error);
     }
+    window.addEventListener('message', handleMessage);
 
-    // Restore loading state if we're returning from Google redirect
-    try {
-      if (sessionStorage.getItem('__google_auth_pending')) {
-        sessionStorage.removeItem('__google_auth_pending');
-        setGoogleLoading(true);
-      }
-    } catch (_) {}
+    // ── sessionStorage poll — safety net for race conditions ─────────────────
+    // relay.html writes result to sessionStorage before closing; we poll here
+    // in case postMessage was fired before this listener was registered.
+    let pollCount = 0;
+    const pollInterval = setInterval(() => {
+      pollCount++;
+      if (pollCount > 60) { clearInterval(pollInterval); return; }
+      try {
+        const raw = sessionStorage.getItem('__google_auth_result');
+        if (!raw) return;
+        sessionStorage.removeItem('__google_auth_result');
+        clearInterval(pollInterval);
+        const { accessToken, error } = JSON.parse(raw);
+        handleGoogleResult(accessToken, error);
+      } catch (_) {}
+    }, 500);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      clearInterval(pollInterval);
+    };
   }, [handleGoogleResult]);
 
   function triggerShake() {
@@ -345,14 +338,13 @@ export default function LoginScreen() {
     setGoogleLoading(true);
 
     try {
-      // ── WEB: Same-tab redirect OAuth2 flow ──────────────────────────────────
-      // Instead of a popup (which Brave/Firefox block and can't be refocused),
-      // we redirect the current tab to Google, then Google redirects back to
-      // /login?google_token=TOKEN. The useEffect below reads that token on load.
+      // ── WEB: OAuth2 popup with google-auth-relay.html ────────────────────────
+      // Uses a popup so response_type=token (implicit flow) works — Google only
+      // allows implicit flow for popups, not same-tab redirects.
+      // The relay page posts the token back via postMessage, then closes itself.
       if (IS_WEB) {
         const clientId    = encodeURIComponent(GOOGLE_WEB_CLIENT_ID);
-        // Redirect back to /login so the token is handled in the same tab
-        const redirectUri = encodeURIComponent(window.location.origin + '/login');
+        const redirectUri = encodeURIComponent(window.location.origin + '/google-auth-relay.html');
         const scope       = encodeURIComponent('openid profile email');
         const authUrl =
           'https://accounts.google.com/o/oauth2/v2/auth' +
@@ -361,9 +353,20 @@ export default function LoginScreen() {
           '&response_type=token' +
           '&scope=' + scope +
           '&prompt=select_account';
-        // Save loading state so we can restore "Connecting..." on return
-        try { sessionStorage.setItem('__google_auth_pending', '1'); } catch (_) {}
-        window.location.href = authUrl;
+        const width  = 500;
+        const height = 600;
+        const left   = Math.round(window.screenX + (window.outerWidth  - width)  / 2);
+        const top    = Math.round(window.screenY + (window.outerHeight - height) / 2);
+        googlePopupRef.current = window.open(
+          authUrl, 'google-signin',
+          'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top +
+          ',toolbar=no,menubar=no,scrollbars=no,resizable=no'
+        );
+        if (!googlePopupRef.current) {
+          setGoogleLoading(false);
+          setError('Popup was blocked. Please allow popups for thecityplus.in in your browser settings, then try again.');
+          triggerShake();
+        }
         return;
       }
 
