@@ -20,7 +20,7 @@
     var accessToken = params['access_token'] || null;
     var error = params['error'] || (!accessToken ? 'no_token' : null);
 
-    // Always store in sessionStorage — main tab polls for this
+    // Write to sessionStorage as fallback (main tab polls this)
     try {
       sessionStorage.setItem('__google_auth_result', JSON.stringify({
         type: 'GOOGLE_AUTH_RESULT',
@@ -30,22 +30,20 @@
     } catch (_) {}
 
     if (window.opener && !window.opener.closed) {
-      // Standard popup: post message to main tab then close this popup
+      // Send token to main tab
       try {
         window.opener.postMessage(
           { type: 'GOOGLE_AUTH_RESULT', accessToken: accessToken, error: error },
           window.location.origin
         );
       } catch (_) {}
-      setTimeout(function () { window.close(); }, 200);
+      // Close this popup after a short delay
+      setTimeout(function () { window.close(); }, 300);
     } else {
-      // Popup was blocked — opened as new tab, redirect back to /login with token in hash
-      var base = window.location.origin + '/login';
-      if (accessToken) {
-        window.location.replace(base + '#google_token=' + encodeURIComponent(accessToken));
-      } else {
-        window.location.replace(base + '#google_error=' + encodeURIComponent(error || 'no_token'));
-      }
+      // Popup became a new tab — sessionStorage polling in main tab will pick it up
+      // Just show a message and let the poll handle it
+      document.querySelector('p').textContent =
+        'Signed in! You can close this tab and return to CityPlus.';
     }
   })();
 </script>
