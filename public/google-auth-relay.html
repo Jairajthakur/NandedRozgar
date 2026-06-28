@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head><title>Signing in…</title></head>
+<body>
+<p style="font-family:sans-serif;text-align:center;margin-top:80px;color:#555">
+  Signing you in… please wait.
+</p>
+<script>
+  // This page is the OAuth2 redirect_uri for the web popup flow.
+  // Google redirects here with the access token in the URL hash:
+  //   /google-auth-relay.html#access_token=TOKEN&token_type=Bearer&...
+  // We extract it and post it back to the opener (LoginScreen), then close.
+  (function () {
+    var hash = window.location.hash.substring(1); // remove leading #
+    var params = {};
+    hash.split('&').forEach(function (part) {
+      var kv = part.split('=');
+      if (kv.length === 2) params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]);
+    });
+
+    var accessToken = params['access_token'];
+    var error       = params['error'] || (!accessToken ? 'no_token' : null);
+
+    if (window.opener) {
+      window.opener.postMessage(
+        { type: 'GOOGLE_AUTH_RESULT', accessToken: accessToken || null, error: error || null },
+        window.location.origin
+      );
+    }
+    window.close();
+  })();
+</script>
+</body>
+</html>
