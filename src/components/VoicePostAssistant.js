@@ -53,6 +53,69 @@ const SPEECH_AVAILABLE = true;
 
 import * as ExpoSpeech from 'expo-speech-recognition';
 
+// ── Web Speech API fallback ────────────────────────────────────────────────────
+// expo-speech-recognition only works on native (iOS/Android).
+// On web we use the browser's built-in SpeechRecognition API instead.
+const IS_WEB = Platform.OS === 'web';
+
+function getWebSpeechRecognition() {
+  if (!IS_WEB) return null;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  return SR;
+}
+
+let _webRecognizer = null;
+
+function startWebSpeech({ lang, onPartial, onResult, onEnd, onError }) {
+  const SR = getWebSpeechRecognition();
+  if (!SR) {
+    onError('Your browser does not support speech recognition. Please use Chrome on desktop or Android.');
+    return;
+  }
+  // Stop any existing instance
+  try { _webRecognizer?.stop(); } catch {}
+  _webRecognizer = new SR();
+  _webRecognizer.lang = lang;
+  _webRecognizer.continuous = true;
+  _webRecognizer.interimResults = true;
+  _webRecognizer.maxAlternatives = 1;
+
+  _webRecognizer.onresult = (e) => {
+    let interim = '';
+    let finalText = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalText += t;
+      else interim += t;
+    }
+    if (interim) onPartial(interim);
+    if (finalText) onResult(finalText);
+  };
+
+  _webRecognizer.onend = () => onEnd();
+  _webRecognizer.onerror = (e) => {
+    if (e.error === 'no-speech') {
+      onError('Kuch sunai nahi diya. Phir se try karein.\nकाही ऐकू आले नाही, पुन्हा try करा.');
+    } else if (e.error === 'not-allowed') {
+      onError('Microphone permission denied. Please allow mic access in your browser.');
+    } else {
+      onError('Speech error: ' + e.error);
+    }
+  };
+
+  try {
+    _webRecognizer.start();
+  } catch (err) {
+    onError(err?.message || 'Could not start microphone.');
+  }
+}
+
+function stopWebSpeech() {
+  try { _webRecognizer?.stop(); } catch {}
+  _webRecognizer = null;
+}
+
 const LANG_OPTIONS = [
   { code: 'hi-IN', label: 'हिंदी',  flag: '🇮🇳' },
   { code: 'mr-IN', label: 'मराठी',  flag: '🟠' },
@@ -152,9 +215,7 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
 
   // ── Start listening ──────────────────────────────────────────────────────────
   async function startListening() {
-    // Guard: if expo-speech-recognition is not installed, show a clear message
-    // instead of crashing.  See SPEECH_AVAILABLE constant at top of file.
-    if (!SPEECH_AVAILABLE) {
+    if (!SPEECH_AVAILABLE && !IS_WEB) {
       setStatus('error');
       setErrorMsg(
         'Speech recognition abhi install nahi hai.\n' +
@@ -167,14 +228,24 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
 
     setStatus('listening');
     setTranscript('');
-    setLiveTranscript('');   // FIX: clear live preview
+    setLiveTranscript('');
     setErrorMsg('');
     setFilledFields(null);
     startPulse();
 
-    // ── expo-speech-recognition path ──────────────────────────────────────────
-    // This block only runs when SPEECH_AVAILABLE = true and the import above
-    // is uncommented.  At that point ExpoSpeech is a real module in scope.
+    // ── Web browser path ──────────────────────────────────────────────────────
+    if (IS_WEB) {
+      startWebSpeech({
+        lang,
+        onPartial: (text) => setLiveTranscript(text),
+        onResult:  (text) => handleSpeechResult(text),
+        onEnd:     ()     => handleEnd(),
+        onError:   (msg)  => { stopPulse(); setStatus('error'); setErrorMsg(msg); },
+      });
+      return;
+    }
+
+    // ── Native (expo-speech-recognition) path ─────────────────────────────────
     try {
       const { granted } = await ExpoSpeech.ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!granted) {
@@ -185,8 +256,8 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
       }
       ExpoSpeech.ExpoSpeechRecognitionModule.start({
         lang,
-        interimResults: true,   // we'll filter for isFinal=true below
-        continuous: true,        // FIX: don't auto-stop after first silence
+        interimResults: true,
+        continuous: true,
       });
     } catch (err) {
       stopPulse();
@@ -210,11 +281,17 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
 
   // ── Manual stop — user taps "Done Speaking" button ─────────────────────────
   async function stopListening() {
+    if (IS_WEB) {
+      stopWebSpeech();
+      if (liveTranscript.trim()) {
+        await handleSpeechResult(liveTranscript.trim());
+      }
+      return;
+    }
     if (!SPEECH_AVAILABLE) return;
     try {
       ExpoSpeech.ExpoSpeechRecognitionModule.stop();
     } catch {}
-    // If we have a live transcript already, process it immediately
     if (liveTranscript.trim()) {
       await handleSpeechResult(liveTranscript.trim());
     }
@@ -395,7 +472,7 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
                     <Text style={styles.transcriptText}>{liveTranscript}</Text>
                   </View>
                 )}
-
+                {/* On web, browser auto-stops after silence */}
               </View>
             )}
 
@@ -485,7 +562,7 @@ export default function VoicePostAssistant({ onFill, screenType = 'job', style }
           available and the module is actually imported (SPEECH_AVAILABLE=true) */}
       {/* FIX: keep listener mounted for both 'listening' and 'processing'
            so late 'end' or 'error' events aren't lost when status transitions */}
-      {SPEECH_AVAILABLE && (status === 'listening' || status === 'processing') && (
+      {SPEECH_AVAILABLE && !IS_WEB && (status === 'listening' || status === 'processing') && (
         <ExpoVoiceListener
           onResult={handleSpeechResult}
           onPartial={text => setLiveTranscript(text)}
