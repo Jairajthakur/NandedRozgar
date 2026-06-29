@@ -106,13 +106,13 @@ export function AutoTranslate({ text, lang, style, numberOfLines }) {
     return () => { cancelRef.current = true; };
   }, [text, lang]);
 
-  // On web: render a plain <span> so RN styles (passed as objects) apply correctly
-  // and text flows naturally inside flex rows without block-level div issues.
+  // On web: render using <Text> but ensure it displays inline, not as a block div.
+  // We override the RN-web default block display so it sits inline inside flex rows.
   if (Platform.OS === 'web') {
     return (
-      <span style={style}>
+      <Text style={[style, { display: 'inline' }]} numberOfLines={numberOfLines}>
         {display}
-      </span>
+      </Text>
     );
   }
 
