@@ -292,11 +292,11 @@ export default function PostScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[ws.body, { paddingBottom: 60 }]}
         >
-          {/* Monthly Plan Banner — top of page */}
-          <MonthlyPlanBanner navigation={nav} />
-
           {/* Header card */}
           {HeaderContent}
+
+          {/* Monthly Plan Banner — after header */}
+          <MonthlyPlanBanner navigation={nav} />
 
           {/* Card grid */}
           <View style={[ws.cardGrid, webTwoCol && ws.cardGridTwo]}>
@@ -342,13 +342,13 @@ export default function PostScreen() {
         overScrollMode="never"
         contentContainerStyle={s.scroll}
       >
-        {/* Monthly Plan Banner — top of page */}
+        {/* Header */}
+        {HeaderContent}
+
+        {/* Monthly Plan Banner — after header */}
         <View style={s.bannerTop}>
           <MonthlyPlanBanner navigation={nav} />
         </View>
-
-        {/* Header */}
-        {HeaderContent}
 
         {/* Cards */}
         <View style={s.cards}>
