@@ -17,7 +17,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Text } from 'react-native';
+import { Text, Platform } from 'react-native';
 import storage from './storage'; // cross-platform: localStorage on web, AsyncStorage on native
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -105,6 +105,16 @@ export function AutoTranslate({ text, lang, style, numberOfLines }) {
 
     return () => { cancelRef.current = true; };
   }, [text, lang]);
+
+  // On web: render a plain <span> so RN styles (passed as objects) apply correctly
+  // and text flows naturally inside flex rows without block-level div issues.
+  if (Platform.OS === 'web') {
+    return (
+      <span style={style}>
+        {display}
+      </span>
+    );
+  }
 
   return (
     <Text style={style} numberOfLines={numberOfLines}>
