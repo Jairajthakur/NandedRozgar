@@ -18,11 +18,53 @@ function shareJobOnWhatsApp(job) {
   });
 }
 
-// Ensures ₹ prefix; if salary already has a currency symbol, returns as-is
+// Formats any salary string into a clean ₹X,XXX – ₹Y,YYY/month display.
+// Handles: "8000-12000", "8000", "₹8,000 – ₹12,000/month", "₹10k–20k/mo", etc.
 function formatSalary(raw) {
   if (!raw) return '';
-  if (/[₹$£€]/.test(raw)) return raw;
-  return `₹${raw}`;
+  const str = String(raw).trim();
+
+  // Already well-formatted (has ₹ and a range separator or /month) — return as-is
+  if (/₹/.test(str) && (/–|-|to/i.test(str) || /\/mo/i.test(str))) return str;
+
+  // Strip existing ₹ signs and /month suffixes for re-processing
+  const cleaned = str.replace(/₹/g, '').replace(/\/mo(nth)?/gi, '').trim();
+
+  // Helper: parse a number that may use k suffix (e.g. "10k" → 10000)
+  const parseNum = (s) => {
+    const n = parseFloat(s.replace(/,/g, ''));
+    return /k/i.test(s) ? n * 1000 : n;
+  };
+
+  // Helper: format number with commas
+  const fmt = (n) => Math.round(n).toLocaleString('en-IN');
+
+  // Range: "8000-12000" or "8000–12000" or "8000 to 12000"
+  const rangeMatch = cleaned.match(/^([\d,]+k?)\s*[-–to]+\s*([\d,]+k?)$/i);
+  if (rangeMatch) {
+    const lo = parseNum(rangeMatch[1]);
+    const hi = parseNum(rangeMatch[2]);
+    return `₹${fmt(lo)} – ₹${fmt(hi)}/month`;
+  }
+
+  // Single number: "8000"
+  const singleMatch = cleaned.match(/^([\d,]+k?)$/i);
+  if (singleMatch) {
+    return `₹${fmt(parseNum(singleMatch[1]))}/month`;
+  }
+
+  // Daily rate: "700 – 1000/day"
+  if (/day/i.test(str)) {
+    const dayMatch = cleaned.match(/^([\d,]+)\s*[-–]?\s*([\d,]+)?/);
+    if (dayMatch) {
+      const lo = parseNum(dayMatch[1]);
+      const hi = dayMatch[2] ? parseNum(dayMatch[2]) : null;
+      return hi ? `₹${fmt(lo)} – ₹${fmt(hi)}/day` : `₹${fmt(lo)}/day`;
+    }
+  }
+
+  // Fallback: just ensure ₹ prefix
+  return /[₹$£€]/.test(str) ? str : `₹${str}`;
 }
 
 const ORANGE = '#f97316';
