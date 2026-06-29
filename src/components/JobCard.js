@@ -85,7 +85,11 @@ export default function JobCard({ job, onPress, index = 0 }) {
             {/* Title + Salary */}
             <View style={s.titleRow}>
               <AutoTranslate text={job.title} lang={lang} style={s.title} numberOfLines={2} />
-              {!!job.salary && <Text style={s.salary}>{job.salary}</Text>}
+              {!!job.salary && (
+                <Text style={s.salary}>
+                  {/[₹$£€]/.test(job.salary) ? job.salary : `₹${job.salary}`}
+                </Text>
+              )}
             </View>
 
             {/* Company · Location · Verified badge */}
