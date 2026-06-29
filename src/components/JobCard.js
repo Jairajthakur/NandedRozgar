@@ -18,6 +18,13 @@ function shareJobOnWhatsApp(job) {
   });
 }
 
+// Ensures ₹ prefix; if salary already has a currency symbol, returns as-is
+function formatSalary(raw) {
+  if (!raw) return '';
+  if (/[₹$£€]/.test(raw)) return raw;
+  return `₹${raw}`;
+}
+
 const ORANGE = '#f97316';
 
 // ── Animated card entry ────────────────────────────────────────────────────────
@@ -86,9 +93,7 @@ export default function JobCard({ job, onPress, index = 0 }) {
             <View style={s.titleRow}>
               <AutoTranslate text={job.title} lang={lang} style={s.title} numberOfLines={2} />
               {!!job.salary && (
-                <Text style={s.salary}>
-                  {/[₹$£€]/.test(job.salary) ? job.salary : `₹${job.salary}`}
-                </Text>
+                <Text style={s.salary}>{formatSalary(job.salary)}</Text>
               )}
             </View>
 
@@ -202,7 +207,7 @@ const s = StyleSheet.create({
     gap: 8,
   },
   title:  { fontSize: 16, fontWeight: '700', color: '#111', flex: 1, lineHeight: 22 },
-  salary: { fontSize: 13, fontWeight: '700', color: ORANGE, flexShrink: 0, paddingTop: 2 },
+  salary: { fontSize: 12, fontWeight: '700', color: ORANGE, flexShrink: 1, paddingTop: 2, textAlign: 'right', maxWidth: '45%' },
 
   subtitle: { fontSize: 12, color: '#888', fontWeight: '500', marginBottom: 6 },
   companyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' },
