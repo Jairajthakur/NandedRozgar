@@ -33,6 +33,21 @@ const TEAL      = '#0d9488';
 const PURPLE    = '#7c3aed';
 const TICKER_BG = '#1a1a2e';
 const IS_WEB    = Platform.OS === 'web';
+
+// Formats any salary string into a clean ₹X,XXX – ₹Y,YYY/month display
+function formatHomeSalary(raw) {
+  if (!raw) return '';
+  const str = String(raw).trim();
+  if (/₹/.test(str) && (/–|-|to/i.test(str) || /\/mo/i.test(str))) return str;
+  const cleaned = str.replace(/₹/g, '').replace(/\/mo(nth)?/gi, '').trim();
+  const parseNum = (s) => { const n = parseFloat(s.replace(/,/g, '')); return /k/i.test(s) ? n * 1000 : n; };
+  const fmt = (n) => Math.round(n).toLocaleString('en-IN');
+  const rangeMatch = cleaned.match(/^([\d,]+k?)\s*[-–to]+\s*([\d,]+k?)$/i);
+  if (rangeMatch) return `₹${fmt(parseNum(rangeMatch[1]))} – ₹${fmt(parseNum(rangeMatch[2]))}/month`;
+  const singleMatch = cleaned.match(/^([\d,]+k?)$/i);
+  if (singleMatch) return `₹${fmt(parseNum(singleMatch[1]))}/month`;
+  return /[₹$£€]/.test(str) ? str : `₹${str}`;
+}
 // ── Custom scrollbar (web only) ────────────────────────────────────────────────
 
 
@@ -289,7 +304,7 @@ function FeaturedJobCard({ job, onPress, cardWidth }) {
         </View>
       </View>
       <View style={s.featJobBottom}>
-        <Text style={s.featJobSalary} numberOfLines={1}>{job.salary}</Text>
+        <Text style={s.featJobSalary} numberOfLines={1}>{job.salary ? formatHomeSalary(job.salary) : ''}</Text>
         <TouchableOpacity style={s.applyBtn} onPress={onPress} activeOpacity={0.85}>
           <Text style={s.applyBtnTxt}>{t('applyBtn')}</Text>
         </TouchableOpacity>
@@ -392,8 +407,8 @@ function RecentJobCard({ job, onPress, index = 0 }) {
               </View>
             )}
           </View>
-          <View style={s.salaryCol}>
-            <View style={s.priceBadge}><Text style={[s.priceTxt, IS_WEB && { fontSize: 13 }]}>{job.salary}</Text></View>
+            <View style={s.salaryCol}>
+              <View style={s.priceBadge}><Text style={[s.priceTxt, IS_WEB && { fontSize: 13 }]}>{job.salary ? formatHomeSalary(job.salary) : ''}</Text></View>
             <View style={[s.freshnessRow, { marginTop: 6 }]}>
               {ageDays < 1 ? <PulseDot color={freshnessColor} /> : <View style={[s.freshnessDot, { backgroundColor: freshnessColor }]} />}
               <Text style={[s.jobTime, { color: freshnessColor }]}>{freshnessLabel}</Text>
