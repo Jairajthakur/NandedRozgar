@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Platform, NativeModules } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const LANG_STORAGE_KEY = '@nanded_rozgar_lang';
 
 // Detect device locale at startup and default to Marathi if applicable.
 // Nanded/Marathwada users predominantly use Marathi — this is the single
@@ -955,8 +958,31 @@ const LangContext = createContext(null);
 
 export function LangProvider({ children }) {
   const [lang, setLang] = useState(getDefaultLang);
-  function changeLang(code) { setLang(code); }
+  const [loaded, setLoaded] = useState(false);
+
+  // On mount, restore the user's saved language preference
+  useEffect(() => {
+    AsyncStorage.getItem(LANG_STORAGE_KEY)
+      .then(saved => {
+        if (saved && STRINGS[saved]) {
+          setLang(saved);
+        }
+      })
+      .catch(() => {/* ignore read errors — fall back to device default */})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  function changeLang(code) {
+    setLang(code);
+    AsyncStorage.setItem(LANG_STORAGE_KEY, code).catch(() => {});
+  }
+
   function t(key) { return STRINGS[lang]?.[key] || STRINGS.en[key] || key; }
+
+  // Don't render children until we've attempted to load the saved language,
+  // so there's no flash of the wrong language on startup.
+  if (!loaded) return null;
+
   return (
     <LangContext.Provider value={{ lang, changeLang, t }}>
       {children}
