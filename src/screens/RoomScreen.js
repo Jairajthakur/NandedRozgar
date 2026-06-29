@@ -163,7 +163,7 @@ function RoomCard({ item, index, onPress }) {
         <TouchableOpacity activeOpacity={0.97} onPress={handlePress} style={ws.card}>
 
           {/* ── Top image / placeholder area ── */}
-          <View style={[ws.cardPhoto, { backgroundColor: hasPhotos ? webCardBg : '#f0f0f0' }]}>
+          <View style={[ws.cardPhoto, { backgroundColor: hasPhotos ? webCardBg : webCardBg }]}>
 
             {/* Actual photo */}
             {hasPhotos && (
@@ -172,6 +172,11 @@ function RoomCard({ item, index, onPress }) {
                 style={StyleSheet.absoluteFillObject}
                 resizeMode="cover"
               />
+            )}
+
+            {/* Placeholder when no photo */}
+            {!hasPhotos && (
+              <Ionicons name="business-outline" size={64} color="rgba(255,255,255,0.14)" />
             )}
 
             {/* Dark overlay for badge readability */}
@@ -312,7 +317,7 @@ function RoomCard({ item, index, onPress }) {
       <TouchableOpacity activeOpacity={0.95} onPress={handlePress} style={s.card}>
 
         {/* ── Photo / placeholder area ── */}
-        <View style={[s.cardPhoto, { backgroundColor: hasPhotos ? cardBg : '#f5f5f5' }]}>
+        <View style={[s.cardPhoto, { backgroundColor: cardBg }]}>
 
           {/* Actual image if available */}
           {hasPhotos && (
@@ -321,6 +326,11 @@ function RoomCard({ item, index, onPress }) {
               style={StyleSheet.absoluteFillObject}
               resizeMode="cover"
             />
+          )}
+
+          {/* Placeholder when no photo */}
+          {!hasPhotos && (
+            <Ionicons name="business-outline" size={58} color="rgba(255,255,255,0.14)" />
           )}
 
           {/* Dark overlay on real photos for badge readability */}
