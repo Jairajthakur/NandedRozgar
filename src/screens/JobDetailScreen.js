@@ -18,6 +18,20 @@ const ORANGE = '#f97316';
 const GREEN  = '#25d366';
 const { width: SW } = Dimensions.get('window');
 
+function formatSalary(raw) {
+  if (!raw) return '';
+  const str = String(raw).trim();
+  if (/₹/.test(str) && (/–|-|to/i.test(str) || /\/mo/i.test(str))) return str;
+  const cleaned = str.replace(/₹/g, '').replace(/\/mo(nth)?/gi, '').trim();
+  const parseNum = (s) => { const n = parseFloat(s.replace(/,/g, '')); return /k/i.test(s) ? n * 1000 : n; };
+  const fmt = (n) => Math.round(n).toLocaleString('en-IN');
+  const rangeMatch = cleaned.match(/^([\d,]+k?)\s*[-–to]+\s*([\d,]+k?)$/i);
+  if (rangeMatch) return `₹${fmt(parseNum(rangeMatch[1]))} – ₹${fmt(parseNum(rangeMatch[2]))}/month`;
+  const singleMatch = cleaned.match(/^([\d,]+k?)$/i);
+  if (singleMatch) return `₹${fmt(parseNum(singleMatch[1]))}/month`;
+  return /[₹$£€]/.test(str) ? str : `₹${str}`;
+}
+
 /* ─── Floating particle dot ─── */
 function Particle({ delay, x, size, color }) {
   const y   = useRef(new Animated.Value(0)).current;
@@ -288,7 +302,7 @@ export default function JobDetailScreen({ route, navigation }) {
   async function shareJob() {
     try {
       await Share.share({
-        message: `Job: ${job.title}${job.company ? ` at ${job.company}` : ''}\n${job.location || 'Nanded'}${job.salary ? ` | ₹${String(job.salary).replace(/^₹/, "")}` : ''}\n\nApply on CityPlus!`,
+        message: `Job: ${job.title}${job.company ? ` at ${job.company}` : ''}\n${job.location || 'Nanded'}${job.salary ? ` | ${formatSalary(job.salary)}` : ''}\n\nApply on CityPlus!`,
       });
     } catch {}
   }
@@ -379,7 +393,7 @@ export default function JobDetailScreen({ route, navigation }) {
         {/* Stat pills */}
         <View style={s.statsRow}>
           {!!job.salary && (
-            <StatPill icon="cash-outline"   value={`₹${String(job.salary).replace(/^₹/, "")}`}    label="Salary"   delay={300} />
+            <StatPill icon="cash-outline"   value={formatSalary(job.salary)}    label="Salary"   delay={300} />
           )}
           {!!job.type && (
             <StatPill icon="time-outline"   value={job.type}             label="Type"     delay={380} />
@@ -405,7 +419,7 @@ export default function JobDetailScreen({ route, navigation }) {
         <FadeSection delay={100}>
           <View style={s.quickInfoCard}>
             {!!job.salary && (
-              <InfoRow icon="cash-outline"    label="Salary"    value={`₹${String(job.salary).replace(/^₹/, "")}`}   color="#16a34a" />
+              <InfoRow icon="cash-outline"    label="Salary"    value={formatSalary(job.salary)}   color="#16a34a" />
             )}
             {!!job.type && (
               <InfoRow icon="time-outline"    label="Job Type"  value={job.type}            color="#0891b2" />
