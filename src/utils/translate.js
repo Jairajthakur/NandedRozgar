@@ -18,7 +18,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Text } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import storage from './storage'; // cross-platform: localStorage on web, AsyncStorage on native
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ export async function translateText(text, targetLang) {
 
   // 1. Return cached result immediately
   try {
-    const cached = await AsyncStorage.getItem(cacheKey);
+    const cached = await storage.getItem(cacheKey);
     if (cached) return cached;
   } catch (_) {}
 
@@ -64,7 +64,7 @@ export async function translateText(text, targetLang) {
     if (data?.responseStatus === 200 && data?.responseData?.translatedText) {
       const translated = data.responseData.translatedText;
       if (translated.trim() && translated.trim().toLowerCase() !== text.trim().toLowerCase()) {
-        try { await AsyncStorage.setItem(cacheKey, translated); } catch (_) {}
+        try { await storage.setItem(cacheKey, translated); } catch (_) {}
         return translated;
       }
     }
