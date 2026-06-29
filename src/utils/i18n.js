@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Platform, NativeModules } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import storage from './storage'; // cross-platform: localStorage on web, AsyncStorage on native
 
 const LANG_STORAGE_KEY = '@nanded_rozgar_lang';
 
@@ -962,7 +962,7 @@ export function LangProvider({ children }) {
 
   // On mount, restore the user's saved language preference
   useEffect(() => {
-    AsyncStorage.getItem(LANG_STORAGE_KEY)
+    storage.getItem(LANG_STORAGE_KEY)
       .then(saved => {
         if (saved && STRINGS[saved]) {
           setLang(saved);
@@ -974,7 +974,7 @@ export function LangProvider({ children }) {
 
   function changeLang(code) {
     setLang(code);
-    AsyncStorage.setItem(LANG_STORAGE_KEY, code).catch(() => {});
+    storage.setItem(LANG_STORAGE_KEY, code).catch(() => {});
   }
 
   function t(key) { return STRINGS[lang]?.[key] || STRINGS.en[key] || key; }
