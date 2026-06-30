@@ -79,7 +79,7 @@ function StatPill({ icon, value, label, delay }) {
   return (
     <Animated.View style={[s.statPill, { opacity: op, transform: [{ scale }] }]}>
       <Ionicons name={icon} size={14} color={ORANGE} />
-      <Text style={s.statValue}>{value}</Text>
+      <Text style={s.statValue} numberOfLines={2}>{value}</Text>
       <Text style={s.statLabel}>{label}</Text>
     </Animated.View>
   );
@@ -655,14 +655,16 @@ const s = StyleSheet.create({
   statsRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
     justifyContent: 'center', marginBottom: 6,
+    paddingHorizontal: 4, width: '100%',
   },
   statPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12,
+    borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+    maxWidth: '100%', flexShrink: 1,
   },
-  statValue: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  statValue: { fontSize: 13, fontWeight: '800', color: '#fff', flexShrink: 1, flexWrap: 'wrap' },
   statLabel: { fontSize: 10, color: 'rgba(255,255,255,0.75)', fontWeight: '500' },
 
   urgentBanner: {
@@ -708,12 +710,13 @@ const s = StyleSheet.create({
   /* ── Skills ── */
   skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   skillChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#fff7ed', borderRadius: 20,
+    flexDirection: 'row', alignItems: 'flex-start', gap: 5,
+    backgroundColor: '#fff7ed', borderRadius: 16,
     borderWidth: 1, borderColor: '#fed7aa',
     paddingVertical: 7, paddingHorizontal: 14,
+    maxWidth: '100%', flexShrink: 1,
   },
-  skillTxt: { fontSize: 12, fontWeight: '700', color: '#c2410c' },
+  skillTxt: { fontSize: 12, fontWeight: '700', color: '#c2410c', flexShrink: 1, flexWrap: 'wrap' },
 
   /* ── Requirements ── */
   reqRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 9 },
