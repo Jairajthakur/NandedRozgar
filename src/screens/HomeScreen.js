@@ -316,7 +316,7 @@ function FeaturedJobCard({ job, onPress, cardWidth }) {
 // ── Recent Room Card ───────────────────────────────────────────────────────────
 function RecentRoomCard({ room, onPress }) {
   const { t, lang } = useLang();
-  const title    = room.title    || (room.bhk_size ? `${room.bhk_size} – ${room.area}` : room.area || 'Room');
+  const title    = room.title    || (room.bhk_size ? `${room.bhk_size} – ${room.area}` : room.area || 'Property');
   const location = room.location || room.area || 'Nanded';
   const type     = room.type     || room.room_type || room.bhk_size || 'Room';
   const rent     = room.rent
