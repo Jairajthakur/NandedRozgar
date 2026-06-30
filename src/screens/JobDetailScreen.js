@@ -430,6 +430,9 @@ export default function JobDetailScreen({ route, navigation }) {
             {!!job.category && (
               <InfoRow icon="briefcase-outline" label="Category" value={job.category}       color={ORANGE} />
             )}
+            {!!job.openings && (
+              <InfoRow icon="people-outline"    label="Openings" value={job.openings}        color="#db2777" />
+            )}
           </View>
         </FadeSection>
 
