@@ -1024,7 +1024,7 @@ export default function AdminScreen() {
             {/* Health Bars */}
             <Card title="Platform Health" icon="⚡" iconColor={C.purple} iconBg={C.purpleLight}>
               <ProgressBar label="Active Jobs" value={parseInt(stats?.active_jobs || 0)} total={jobs.length} color={C.orange} />
-              <ProgressBar label="Active Rooms" value={rooms.filter(r => r.status === 'active').length} total={rooms.length} color={C.blue} />
+              <ProgressBar label="Active Property" value={rooms.filter(r => r.status === 'active').length} total={rooms.length} color={C.blue} />
               <ProgressBar label="Active Vehicles" value={vehicles.filter(v => v.status === 'active').length} total={vehicles.length} color={C.teal} />
               <ProgressBar label="Active Buy&Sell" value={buysell.filter(b => b.status === 'active').length} total={buysell.length} color={C.red} />
               <ProgressBar label="Active Banners" value={banners.filter(b => b.status === 'active').length} total={banners.length} color={C.gold} />
