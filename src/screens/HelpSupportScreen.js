@@ -302,7 +302,7 @@ const FAQ_CATEGORIES = [
   {
     id: 'rooms',
     icon: 'home-outline',
-    label: 'Rooms & Rentals',
+    label: 'Property & Rentals',
     color: '#f59e0b',
     bg: 'rgba(245,158,11,0.1)',
     faqs: [
