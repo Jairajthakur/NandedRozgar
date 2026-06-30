@@ -23,7 +23,7 @@ export const DISTRICTS = [
     state: 'Maharashtra',
     color: '#f97316',
     emoji: '🏙️',
-    description: 'Jobs, Rooms, Cars & more in Nanded district',
+    description: 'Jobs, Property, Cars & more in Nanded district',
   },
   // Latur / Osmanabad / Hingoli temporarily removed — Nanded-only for now.
   // To re-enable, restore the entries here, in DISTRICT_BOUNDS below, and in
