@@ -224,7 +224,7 @@ export default function MonthlyPlanScreen({ navigation }) {
             opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }),
           }]}>🚀</Animated.Text>
           <Text style={s.heroHeadline}>Post Everything{'\n'}Absolutely <Text style={{ color: GOLD }}>FREE!</Text></Text>
-          <Text style={s.heroSub}>One plan for Jobs · Rooms · Cars · Buy-Sell</Text>
+          <Text style={s.heroSub}>One plan for Jobs · Property · Cars · Buy-Sell</Text>
 
           {/* Price tag */}
           <Animated.View style={[s.pricePill, {
