@@ -22,7 +22,7 @@ const SLIDES = [
   },
   {
     icon: 'business', iconColor: '#6366f1', iconBg: '#f0f4ff',
-    title:   'Rooms, Cars & More',
+    title:   'Property, Cars & More',
     titleMr: 'खोल्या, गाड्या आणि बरेच काही',
     titleHi: 'कमरे, गाड़ियाँ और बहुत कुछ',
     sub:   'Rent a room, hire a car, or buy & sell used items — all in one local app built for Nanded.',
