@@ -180,7 +180,17 @@ const LOCATIONS_BY_DISTRICT = {
     'Kandhar', 'Umri', 'Dharmabad', 'Himayatnagar', 'Mahur',
     'Mudkhed', 'Other',
   ],
-  // Latur localities removed — Nanded-only for now.
+  latur: [
+    // ── Latur City localities ──
+    'Latur City', 'Ashok Chowk', 'Vikas Nagar', 'Shivaji Nagar', 'MIDC Area',
+    'Sub Jail Road', 'Barshi Road', 'Station Road', 'Chandra Nagar',
+    'Anand Nagar', 'Gandhi Chowk', 'Ganj Chauk', 'Nehru Road',
+    'Ausa Road', 'Kalambeshwar', 'Ram Nagar',
+    // ── Latur District Talukas ──
+    'Latur (Taluka)', 'Ausa', 'Nilanga', 'Udgir', 'Ahmadpur',
+    'Chakur', 'Renapur', 'Deoni', 'Shirur Anantpal', 'Jalkot',
+    'Other',
+  ],
 };
 
 const EDUCATION_OPTIONS = [
