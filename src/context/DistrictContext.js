@@ -25,9 +25,16 @@ export const DISTRICTS = [
     emoji: '🏙️',
     description: 'Jobs, Property, Cars & more in Nanded district',
   },
-  // Latur / Osmanabad / Hingoli temporarily removed — Nanded-only for now.
-  // To re-enable, restore the entries here, in DISTRICT_BOUNDS below, and in
-  // VALID_DISTRICTS env var on the backend (src/routes/auth.js, src/routes/jobs.js).
+  {
+    id: 'latur',
+    name: 'Latur',
+    nameMarathi: 'लातूर',
+    nameHindi: 'लातूर',
+    state: 'Maharashtra',
+    color: '#7c3aed',
+    emoji: '🏛️',
+    description: 'Jobs, Property, Cars & more in Latur district',
+  },
 ];
 
 // Derived list of valid district IDs — used for validation everywhere
@@ -38,9 +45,10 @@ export const VALID_DISTRICT_IDS = DISTRICTS.map(d => d.id);
  * Good enough for auto-detection without a reverse-geocoding API call.
  */
 // GPS bounding boxes for auto-detection — extend when adding new districts
+// Order matters: first matching box wins when boxes slightly overlap.
 const DISTRICT_BOUNDS = {
-  nanded:    { latMin: 17.8, latMax: 19.4, lngMin: 76.8, lngMax: 78.0 },
-  // Latur / Osmanabad / Hingoli bounds removed along with DISTRICTS above.
+  nanded: { latMin: 18.25, latMax: 19.95, lngMin: 76.9,  lngMax: 78.3 },
+  latur:  { latMin: 17.85, latMax: 18.9,  lngMin: 76.1,  lngMax: 77.15 },
 };
 
 function detectDistrictFromCoords(lat, lng) {
