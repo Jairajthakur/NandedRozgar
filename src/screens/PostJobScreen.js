@@ -559,7 +559,7 @@ export default function PostJobScreen() {
       const basePayload = {
         company:     company.trim(),
         address:     address.trim(),
-        category:    industry === 'Other' ? customIndustry.trim() : (INDUSTRY_TO_CAT[industry] || industry),
+        category:    (industry === 'Other' ? customIndustry.trim() : (INDUSTRY_TO_CAT[industry] || industry)) || 'General',
         type:        jobType,
         location,
         salary:      salaryStr,
@@ -866,6 +866,13 @@ export default function PostJobScreen() {
               </TouchableOpacity>
             )}
             <Dropdown value={location} options={LOCATIONS} placeholder="Select location" onSelect={setLocation} />
+            <StyledInput
+              value={address}
+              onChangeText={setAddress}
+              placeholder="Full address (e.g. Shop No. 4, near Bus Stand, Vazirabad)"
+              maxLength={150}
+              style={{ marginTop: 10 }}
+            />
 
             <View style={{ height: 18 }} />
             <SectionLabel text="JOB TYPE" />
