@@ -427,6 +427,9 @@ export default function JobDetailScreen({ route, navigation }) {
             {!!job.location && (
               <InfoRow icon="location-outline" label="Location" value={job.location}        color="#7c3aed" />
             )}
+            {!!job.address && (
+              <InfoRow icon="navigate-outline" label="Address"  value={job.address}         color="#7c3aed" />
+            )}
             {!!job.category && (
               <InfoRow icon="briefcase-outline" label="Category" value={job.category}       color={ORANGE} />
             )}
