@@ -168,11 +168,11 @@ router.post('/', auth, async (req, res) => {
       title, company, category, type, location, salary,
       phone, whatsapp, description, skills, requirements,
       education, experience, hours, openings, fresherOk, planDays, plan,
-      district,
+      district, address,
     } = req.body;
 
-    if (!title || !category || !location)
-      return res.json({ ok: false, error: 'Title, category and location are required' });
+    if (!title || !location)
+      return res.json({ ok: false, error: 'Title and location are required' });
 
     const planKey = (plan || 'free').toLowerCase().trim();
 
@@ -222,14 +222,14 @@ router.post('/', auth, async (req, res) => {
 
     const { rows } = await pool.query(`
       INSERT INTO jobs (
-        posted_by, title, company, category, type, location, salary,
+        posted_by, title, company, address, category, type, location, salary,
         phone, whatsapp, description, skills, requirements,
         education, experience, hours, openings,
         featured, urgent, fresher_ok, expires_at, district
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
       RETURNING *
     `, [
-      req.user.id, title, company, category, type || 'Full-time', location, salary || '',
+      req.user.id, title, company, address || '', category || 'General', type || 'Full-time', location, salary || '',
       phone, whatsapp || phone, description, skillsArr, reqArr,
       education || '', experience || '', hours || '', openings || '1',
       false, false, isFresherOk, expiresAt,
