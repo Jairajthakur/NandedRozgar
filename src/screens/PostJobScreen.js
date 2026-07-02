@@ -947,7 +947,7 @@ export default function PostJobScreen() {
         {step === 3 && <>
           <StepBanner step={3} title="Choose Plan & Post" subtitle="Pick a plan, review & go live" onBack={goBack} />
           <MonthlyPlanBanner navigation={nav} compact />
-          <View style={s.card}>
+          <View style={[s.card, { marginTop: 0 }]}>
             <Text style={s.planQ}>How long should your listing stay live?</Text>
             <Text style={s.planHint}>Your listing is automatically removed after the selected period.</Text>
 
