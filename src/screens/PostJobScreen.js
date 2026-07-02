@@ -846,22 +846,6 @@ export default function PostJobScreen() {
             <StyledInput value={company} onChangeText={setCompany} placeholder="e.g. Sharma & Sons Pvt. Ltd." maxLength={100} />
 
             <View style={{ height: 18 }} />
-            <SectionLabel text="JOB CATEGORY" />
-            <CategoryPicker
-              selected={industry}
-              onSelect={v => { setIndustry(v); if (v !== 'Other / Custom') setCustomIndustry(''); }}
-            />
-            {(industry === 'Other / Custom' || industry === 'Other') && (
-              <StyledInput
-                value={customIndustry}
-                onChangeText={setCustomIndustry}
-                placeholder="Type your category (e.g. Photography, Farming…)"
-                maxLength={60}
-                style={{ marginTop: 10 }}
-              />
-            )}
-
-            <View style={{ height: 18 }} />
             <SectionLabel text="WORK LOCATION" />
             {currentDistrict && (
               <TouchableOpacity
