@@ -15,6 +15,19 @@ import { Platform } from 'react-native';
 
 const IS_DEV = __DEV__;
 
+// ── Manual override ─────────────────────────────────────────────────────
+// __DEV__ is only true in a local Metro dev session — your EAS "preview"
+// and "production" profiles both set NODE_ENV=production, so __DEV__ is
+// FALSE in those builds too, even for internal testing APKs.
+//
+// While your app is still in closed testing / not yet verified with AdMob
+// (app-ads.txt + app readiness review), real ad units will likely show
+// zero fill and there's no upside to risking real ad requests from test
+// devices. Keep this `true` until the app is publicly available (open
+// testing or production) and AdMob verification has cleared — then flip
+// it to `false` so real builds serve real ads.
+const FORCE_TEST_ADS = true;
+
 // ── Your real AdMob ad unit IDs (from the AdMob console) ───────────────────
 const REAL_NATIVE_AD_UNIT_ID = {
   android: 'ca-app-pub-7042392981755855/7722283743',
@@ -42,7 +55,7 @@ function pick(real, test) {
   const realId = real[platformKey];
   // Fall back to test ID automatically if a real ID hasn't been filled in yet,
   // so nothing crashes while you're still setting up new ad units.
-  if (IS_DEV || !realId) return test[platformKey];
+  if (IS_DEV || FORCE_TEST_ADS || !realId) return test[platformKey];
   return realId;
 }
 
