@@ -36,15 +36,33 @@ export default function NativeAdCard() {
   useEffect(() => {
     if (!ADS_SUPPORTED) return;
     let cancelled = false;
+    console.log('[ads] NativeAdCard mounted, requesting ad', NATIVE_AD_UNIT_ID);
 
-    NativeAd.createForAdRequest(NATIVE_AD_UNIT_ID)
+    // createForAdRequest talks to a native module. If the installed binary
+    // was built before react-native-google-mobile-ads was linked, calling
+    // it can throw synchronously (not as a promise rejection) — wrap the
+    // call itself in try/catch so that case is caught and logged too,
+    // instead of surfacing as an unrelated blank/crashed screen.
+    let request;
+    try {
+      request = NativeAd.createForAdRequest(NATIVE_AD_UNIT_ID);
+    } catch (err) {
+      console.log('[ads] NativeAd.createForAdRequest threw synchronously — likely a missing native module, needs a fresh eas build:', err);
+      setFailed(true);
+      setErrorMsg(String(err?.message || err));
+      return;
+    }
+
+    request
       .then(ad => {
         if (cancelled) { ad.destroy?.(); return; }
+        console.log('[ads] Native ad loaded successfully');
         adRef.current = ad;
         setNativeAd(ad);
       })
       .catch(err => {
         if (!cancelled) {
+          console.log('[ads] Native ad failed to load:', err);
           setFailed(true);
           setErrorMsg(String(err?.message || err));
         }
