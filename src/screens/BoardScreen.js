@@ -15,6 +15,9 @@ import { CAT_ICONS } from '../utils/constants';
 import { useLang } from '../utils/i18n';
 import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../components/PromoBanner';
 import { http, timeAgo } from '../utils/api';
+import NativeAdCard from '../components/ads/NativeAdCard';
+import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
+import { useIsPremium } from '../hooks/useIsPremium';
 
 const ORANGE = '#f97316';
 const TEAL   = '#0d9488';
@@ -135,6 +138,7 @@ function QuickAction({ icon, label, color, onPress }) {
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function BoardScreen({ route }) {
   const { jobs, loadJobs, role } = useAuth();
+  const isPremium = useIsPremium();
   const { t } = useLang();
   const nav    = useNavigation();
   const insets = useSafeAreaInsets();
@@ -253,18 +257,36 @@ export default function BoardScreen({ route }) {
 
   // ── Interleaved feed: merge jobs + promos by created_at timing ────────────
   // Each promotion is inserted at the position matching its post time in the feed.
-  // Result items: { type: 'job', data: job } | { type: 'promo', data: promo }
+  // Result items: { type: 'job', data: job } | { type: 'promo', data: promo } | { type: 'ad' }
   const interleavedFeed = useMemo(() => {
+    let merged;
     if (livePromos.length === 0) {
-      return filtered.map(j => ({ type: 'job', data: j, id: 'job_' + j.id }));
+      merged = filtered.map(j => ({ type: 'job', data: j, id: 'job_' + j.id }));
+    } else {
+      // Build a merged timeline sorted by created_at/timestamp DESC
+      const jobItems   = filtered.map(j => ({ type: 'job',   data: j, id: 'job_'   + j.id,   ts: j.timestamp || 0 }));
+      const promoItems = livePromos.map(p => ({ type: 'promo', data: p, id: 'promo_' + p.id, ts: new Date(p.createdAt).getTime() }));
+      merged = [...jobItems, ...promoItems].sort((a, b) => b.ts - a.ts);
     }
 
-    // Build a merged timeline sorted by created_at/timestamp DESC
-    const jobItems   = filtered.map(j => ({ type: 'job',   data: j, id: 'job_'   + j.id,   ts: j.timestamp || 0 }));
-    const promoItems = livePromos.map(p => ({ type: 'promo', data: p, id: 'promo_' + p.id, ts: new Date(p.createdAt).getTime() }));
+    // Insert one native ad card after every NATIVE_AD_FREQUENCY real items.
+    // Skipped entirely for premium/subscribed users and on web (ADS_SUPPORTED
+    // handles the web case; isPremium is checked here so it never even
+    // takes a feed slot for paying users).
+    if (!ADS_SUPPORTED || isPremium) return merged;
 
-    return [...jobItems, ...promoItems].sort((a, b) => b.ts - a.ts);
-  }, [filtered, livePromos]);
+    const withAds = [];
+    let sinceLastAd = 0;
+    merged.forEach(item => {
+      withAds.push(item);
+      sinceLastAd++;
+      if (sinceLastAd >= NATIVE_AD_FREQUENCY) {
+        withAds.push({ type: 'ad', id: 'ad_' + withAds.length });
+        sinceLastAd = 0;
+      }
+    });
+    return withAds;
+  }, [filtered, livePromos, isPremium]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -602,6 +624,9 @@ export default function BoardScreen({ route }) {
                       <BannerCard promo={item.data} />
                     </View>
                   );
+                }
+                if (item.type === 'ad') {
+                  return <NativeAdCard />;
                 }
                 return (
                   <JobCard
