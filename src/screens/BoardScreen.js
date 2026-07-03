@@ -16,6 +16,7 @@ import { useLang } from '../utils/i18n';
 import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../components/PromoBanner';
 import { http, timeAgo } from '../utils/api';
 import NativeAdCard from '../components/ads/NativeAdCard';
+import BannerAd from '../components/ads/BannerAd';
 import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
 import { useIsPremium } from '../hooks/useIsPremium';
 
@@ -644,6 +645,9 @@ export default function BoardScreen({ route }) {
                   action={isGiver ? () => nav.navigate('Post') : null}
                   actionLabel={t('postAJob')}
                 />
+              }
+              ListFooterComponent={
+                !isPremium && interleavedFeed.length > 0 ? <BannerAd /> : null
               }
             />
           </View>
