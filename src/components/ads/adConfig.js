@@ -66,4 +66,5 @@ export const BANNER_AD_UNIT_ID = pick(REAL_BANNER_AD_UNIT_ID, TEST_BANNER_AD_UNI
 export const ADS_SUPPORTED = Platform.OS === 'android' || Platform.OS === 'ios';
 
 // Show one ad card after every N real listings in a feed.
-export const NATIVE_AD_FREQUENCY = 8;
+// TEMPORARILY set low (3) for easier testing — raise back to 8 once confirmed working.
+export const NATIVE_AD_FREQUENCY = 3;
