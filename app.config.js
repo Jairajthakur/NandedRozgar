@@ -135,6 +135,16 @@ export default ({ config }) => ({
     // expo-speech-recognition — voice-to-form feature
     // Adds RECORD_AUDIO permission and SpeechRecognitionService to AndroidManifest
     "expo-speech-recognition",
+    [
+      "react-native-google-mobile-ads",
+      {
+        androidAppId: "ca-app-pub-7042392981755855~4646327174",
+        // TODO: create an iOS app in AdMob console and paste its App ID here
+        // before doing an iOS build. Using the Android ID as iOS placeholder
+        // will crash the iOS app on launch — replace before shipping to iOS.
+        iosAppId: "ca-app-pub-7042392981755855~4646327174",
+      },
+    ],
     // @react-native-firebase/app is included only when google-services.json exists
     // This prevents expo config from failing during CI before the file is written
     ...(require('fs').existsSync('./google-services.json') ? ["@react-native-firebase/app"] : []),
