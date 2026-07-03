@@ -629,6 +629,7 @@ export default function BoardScreen({ route }) {
                 if (item.type === 'ad') {
                   return <NativeAdCard />;
                 }
+                if (!item.data) return null;
                 return (
                   <JobCard
                     job={item.data}
