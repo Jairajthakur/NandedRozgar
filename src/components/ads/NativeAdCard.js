@@ -22,9 +22,15 @@ import { NATIVE_AD_UNIT_ID, ADS_SUPPORTED } from './adConfig';
 
 const ORANGE = '#f97316';
 
+// TEMPORARY debug switch — shows what's actually happening in this ad slot
+// (loading / failed + error message) instead of silently rendering nothing.
+// Set to false once ads are confirmed working.
+const DEBUG_ADS = true;
+
 export default function NativeAdCard() {
   const [nativeAd, setNativeAd] = useState(null);
   const [failed, setFailed] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
   const adRef = useRef(null);
 
   useEffect(() => {
@@ -37,7 +43,12 @@ export default function NativeAdCard() {
         adRef.current = ad;
         setNativeAd(ad);
       })
-      .catch(() => { if (!cancelled) setFailed(true); });
+      .catch(err => {
+        if (!cancelled) {
+          setFailed(true);
+          setErrorMsg(String(err?.message || err));
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -45,9 +56,23 @@ export default function NativeAdCard() {
     };
   }, []);
 
+  if (!ADS_SUPPORTED) return null;
+
+  if (DEBUG_ADS && (failed || !nativeAd)) {
+    return (
+      <View style={styles.debugBox}>
+        <Text style={styles.debugTitle}>
+          {failed ? '❌ Native ad failed to load' : '⏳ Native ad loading…'}
+        </Text>
+        <Text style={styles.debugUnit}>Ad unit: {NATIVE_AD_UNIT_ID}</Text>
+        {errorMsg ? <Text style={styles.debugErr}>{errorMsg}</Text> : null}
+      </View>
+    );
+  }
+
   // Render nothing on web, on failure, or while loading — never show a
   // broken/empty ad slot, that's worse than no ad at all.
-  if (!ADS_SUPPORTED || failed || !nativeAd) return null;
+  if (failed || !nativeAd) return null;
 
   return (
     <View style={styles.wrap}>
@@ -99,6 +124,15 @@ export default function NativeAdCard() {
 }
 
 const styles = StyleSheet.create({
+  debugBox: {
+    marginHorizontal: 12, marginVertical: 6, padding: 14,
+    backgroundColor: '#fff3f3', borderRadius: 12,
+    borderWidth: 1, borderColor: '#f5c2c2',
+  },
+  debugTitle: { fontSize: 13, fontWeight: '700', color: '#c0392b', marginBottom: 4 },
+  debugUnit: { fontSize: 11, color: '#888', marginBottom: 2 },
+  debugErr: { fontSize: 11, color: '#c0392b' },
+
   wrap: { marginHorizontal: 12, marginVertical: 6 },
   labelRow: { marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE },
