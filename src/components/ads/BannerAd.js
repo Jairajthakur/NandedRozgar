@@ -22,6 +22,8 @@ export default function BannerAd({ style }) {
 
   if (!ADS_SUPPORTED) return null;
 
+  console.log('[ads] BannerAd rendering, requesting', BANNER_AD_UNIT_ID);
+
   if (DEBUG_ADS && (failed || !loaded)) {
     return (
       <View style={[styles.debugBox, style]}>
@@ -35,8 +37,12 @@ export default function BannerAd({ style }) {
           <GoogleBannerAd
             unitId={BANNER_AD_UNIT_ID}
             size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-            onAdLoaded={() => setLoaded(true)}
-            onAdFailedToLoad={err => { setFailed(true); setErrorMsg(String(err?.message || err)); }}
+            onAdLoaded={() => { console.log('[ads] Banner ad loaded'); setLoaded(true); }}
+            onAdFailedToLoad={err => {
+              console.log('[ads] Banner ad failed to load:', err);
+              setFailed(true);
+              setErrorMsg(String(err?.message || err));
+            }}
           />
         </View>
       </View>
