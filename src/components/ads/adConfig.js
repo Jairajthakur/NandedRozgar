@@ -68,3 +68,20 @@ export const ADS_SUPPORTED = Platform.OS === 'android' || Platform.OS === 'ios';
 // Show one ad card after every N real listings in a feed.
 // TEMPORARILY set low (3) for easier testing — raise back to 8 once confirmed working.
 export const NATIVE_AD_FREQUENCY = 3;
+
+// ── Startup diagnostics ─────────────────────────────────────────────────
+// Logs once at import time so `adb logcat -s ReactNativeJS` (or the EAS
+// build log) tells you immediately whether the JS thinks ads should be
+// possible at all, before any ad request is even made. If ADS_SUPPORTED
+// is false here on what you believe is a native build, Platform.OS is
+// not what you think it is (e.g. running inside a webview) — check that
+// first, it explains "no ads and no debug box" more often than anything
+// ad-request-related.
+console.log(
+  '[ads] adConfig loaded — Platform.OS=' + Platform.OS +
+  ' ADS_SUPPORTED=' + ADS_SUPPORTED +
+  ' IS_DEV=' + IS_DEV +
+  ' FORCE_TEST_ADS=' + FORCE_TEST_ADS +
+  ' NATIVE_AD_UNIT_ID=' + NATIVE_AD_UNIT_ID +
+  ' BANNER_AD_UNIT_ID=' + BANNER_AD_UNIT_ID
+);
