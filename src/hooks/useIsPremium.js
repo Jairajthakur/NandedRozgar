@@ -15,6 +15,11 @@ export function useIsPremium() {
   const refresh = useCallback(async () => {
     try {
       const active = await AsyncStorage.getItem('monthly_plan_active');
+      // Diagnostic: a stale 'true' left over from earlier testing is a
+      // common, completely silent reason every ad slot (native + banner)
+      // disappears — this line makes that visible in logcat instead of
+      // looking like an ad-serving bug.
+      console.log('[ads] monthly_plan_active =', active, '→ isPremium =', active === 'true');
       setIsPremium(active === 'true');
     } catch {
       setIsPremium(false);
