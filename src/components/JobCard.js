@@ -84,6 +84,10 @@ function AnimCard({ children, delay = 0 }) {
 
 export default function JobCard({ job, onPress, index = 0 }) {
   const { lang, t } = useLang();
+  // Defensive guard: if job is missing/undefined (e.g. a stale list item,
+  // a race during refresh, or a non-job item slipping into this slot),
+  // render nothing instead of crashing the whole screen.
+  if (!job) return null;
   const applicants = job.applicant_count || 0;
   const views      = job.views || 0;
   const isFeatured = !!job.featured;
