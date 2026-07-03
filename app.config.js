@@ -1,33 +1,43 @@
-export default ({ config }) => ({
-  ...config,
-  name: "CityPlus",
-  slug: "cityplus",
-  owner: "jai234",         // Required for auth.expo.io and EAS
-  version: "4.4.0",
-  scheme: "cityplus",                   // Required for deep links & payment callbacks
-  orientation: "portrait",
-  icon: "./assets/icon.png",
-  userInterfaceStyle: "light",
+export default ({ config }) => {
+  // EAS sets EAS_BUILD_PROFILE automatically during `eas build` (both cloud
+  // and --local). For anything other than a real production build, we
+  // suffix the package name and app name so this build installs as a
+  // SEPARATE app on the device instead of conflicting with (or being
+  // blocked from replacing) your closed-testing Play Store install, which
+  // is signed with a different key.
+  const profile = process.env.EAS_BUILD_PROFILE;
+  const isTestBuild = profile && profile !== 'production';
 
-  splash: {
-    image: "./assets/splash.png",
-    resizeMode: "contain",
-    backgroundColor: "#ffffff",
-  },
+  return {
+    ...config,
+    name: isTestBuild ? 'CityPlus Test' : 'CityPlus',
+    slug: "cityplus",
+    owner: "jai234",         // Required for auth.expo.io and EAS
+    version: "4.4.0",
+    scheme: "cityplus",                   // Required for deep links & payment callbacks
+    orientation: "portrait",
+    icon: "./assets/icon.png",
+    userInterfaceStyle: "light",
 
-  android: {
-    package: "com.cityplus.app",
-    versionCode: parseInt(process.env.ANDROID_VERSION_CODE) || 91,
-    adaptiveIcon: {
-      foregroundImage: "./assets/adaptive-icon.png",
+    splash: {
+      image: "./assets/splash.png",
+      resizeMode: "contain",
       backgroundColor: "#ffffff",
     },
-    googleServicesFile: "./google-services.json",
-    permissions: [
-      "ACCESS_FINE_LOCATION",
-      "ACCESS_COARSE_LOCATION",
-      "CAMERA",
-      // READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE are deprecated and
+
+    android: {
+      package: isTestBuild ? "com.cityplus.app.preview" : "com.cityplus.app",
+      versionCode: parseInt(process.env.ANDROID_VERSION_CODE) || 87,
+      adaptiveIcon: {
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#ffffff",
+      },
+      googleServicesFile: "./google-services.json",
+      permissions: [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        // READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE are deprecated and
       // blocked on Android 13+ (API 33+). Removed to pass Play Store review.
       // expo-file-system + expo-image-picker handle storage access via
       // scoped storage APIs which don't require these broad permissions.
@@ -164,4 +174,5 @@ export default ({ config }) => ({
     apiUrl: process.env.EXPO_PUBLIC_API_URL || "https://thecityplus.in",
     razorpayKeyId: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || "",
   },
-});
+  };
+};
