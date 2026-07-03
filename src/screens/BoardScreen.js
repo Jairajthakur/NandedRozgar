@@ -274,7 +274,10 @@ export default function BoardScreen({ route }) {
     // Skipped entirely for premium/subscribed users and on web (ADS_SUPPORTED
     // handles the web case; isPremium is checked here so it never even
     // takes a feed slot for paying users).
-    if (!ADS_SUPPORTED || isPremium) return merged;
+    if (!ADS_SUPPORTED || isPremium) {
+      console.log('[ads] BoardScreen: skipping ad insertion — ADS_SUPPORTED=' + ADS_SUPPORTED + ' isPremium=' + isPremium);
+      return merged;
+    }
 
     const withAds = [];
     let sinceLastAd = 0;
@@ -286,6 +289,8 @@ export default function BoardScreen({ route }) {
         sinceLastAd = 0;
       }
     });
+    const adCount = withAds.filter(i => i.type === 'ad').length;
+    console.log('[ads] BoardScreen: inserted ' + adCount + ' ad slot(s) into a feed of ' + merged.length + ' items');
     return withAds;
   }, [filtered, livePromos, isPremium]);
 
