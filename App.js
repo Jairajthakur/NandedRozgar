@@ -53,6 +53,7 @@ import ChatListScreen       from './src/screens/ChatListScreen';
 import SavedJobsScreen      from './src/screens/SavedJobsScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
 import { emitPaymentResult } from './src/utils/payment_bridge';
+import { initAds } from './src/components/ads/initAds';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -831,6 +832,13 @@ export default function App() {
   // pings Cloudflare on native, so calling it unconditionally is safe.
   // We still only *show* the banner on web — the native OS has its own indicator.
   const isOnline = useOnlineStatus();
+
+  // Initialize the AdMob SDK once at startup — required before any ad
+  // request (test or real) will succeed. No-op on web.
+  React.useEffect(() => {
+    initAds();
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
