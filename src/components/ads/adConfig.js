@@ -22,8 +22,8 @@ const REAL_NATIVE_AD_UNIT_ID = {
 };
 
 const REAL_BANNER_AD_UNIT_ID = {
-  android: '', // paste your Banner ad unit ID here once created
-  ios: '',
+  android: 'ca-app-pub-7042392981755855/4316144367',
+  ios: '', // create an iOS banner ad unit in AdMob and paste it here
 };
 
 // ── Google's official test IDs (safe to use anytime, always fill) ──────────
