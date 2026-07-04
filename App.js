@@ -277,10 +277,10 @@ function TabIcon({ name, focused, library = 'ion' }) {
 
 // ── Post Button (pulsing ring + press-bounce) ──────────────────────────────────
 function AnimatedPostButton({ onPress }) {
-  const ring  = useRef(new Animated.Value(0)).current; // 0→1 pulse loop
-  const press = useRef(new Animated.Value(1)).current; // press scale
+  const ring  = React.useRef(new Animated.Value(0)).current; // 0→1 pulse loop
+  const press = React.useRef(new Animated.Value(1)).current; // press scale
 
-  useEffect(() => {
+  React.useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(ring, {
