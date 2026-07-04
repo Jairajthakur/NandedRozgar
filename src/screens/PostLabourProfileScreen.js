@@ -1,0 +1,399 @@
+/**
+ * PostLabourProfileScreen.js — "Post your labour profile" form
+ *
+ * Lets a worker create (or update) their own entry in the Labour directory
+ * so contractors can find and hire them. Posts to POST /api/labour, which
+ * inserts a new row the first time and updates the existing one after that
+ * (the backend keys off the logged-in user's id).
+ *
+ * Place at: src/screens/PostLabourProfileScreen.js
+ */
+
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View, Text, ScrollView, TextInput, TouchableOpacity,
+  StyleSheet, Alert, KeyboardAvoidingView, Platform,
+  Animated, Easing, ActivityIndicator, Image, StatusBar,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
+import * as ImagePicker from 'expo-image-picker';
+
+import { http } from '../utils/api';
+import { uriToBase64DataUri } from '../utils/imageUtils';
+import { useAuth } from '../context/AuthContext';
+import { useDistrict } from '../context/DistrictContext';
+
+const ORANGE = '#f97316';
+const LABOUR_COLOR = '#b45309';
+const IS_WEB = Platform.OS === 'web';
+
+const SKILLS = [
+  { label: 'Mason',       icon: 'construct-outline' },
+  { label: 'Electrician', icon: 'flash-outline' },
+  { label: 'Plumber',     icon: 'water-outline' },
+  { label: 'Painter',     icon: 'color-palette-outline' },
+  { label: 'Carpenter',   icon: 'hammer-outline' },
+  { label: 'Welder',      icon: 'flame-outline' },
+  { label: 'Helper',      icon: 'people-outline' },
+  { label: 'Other',       icon: 'apps-outline' },
+];
+
+const AVAILABILITY = [
+  { value: 'available', label: 'Available now',   color: '#16a34a' },
+  { value: 'busy',       label: 'Busy this week', color: '#d97706' },
+];
+
+// ── Small fade+slide wrapper, matches the pattern used across Post screens ────
+function FadeSlide({ children, delay = 0, style }) {
+  const o = useRef(new Animated.Value(0)).current;
+  const y = useRef(new Animated.Value(16)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(o, { toValue: 1, duration: 380, delay, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(y, { toValue: 0, duration: 380, delay, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }),
+    ]).start();
+  }, []);
+  return <Animated.View style={[style, { opacity: o, transform: [{ translateY: y }] }]}>{children}</Animated.View>;
+}
+
+export default function PostLabourProfileScreen() {
+  const nav = useNavigation();
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const { district } = useDistrict();
+
+  const [fullName, setFullName]   = useState(user?.name || '');
+  const [skill, setSkill]         = useState(null);
+  const [skillsText, setSkillsText] = useState('');
+  const [experience, setExperience] = useState('');
+  const [wage, setWage]           = useState('');
+  const [location, setLocation]   = useState('');
+  const [bio, setBio]             = useState('');
+  const [availability, setAvailability] = useState('available');
+  const [photoUri, setPhotoUri]   = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const pickPhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to add a profile photo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setPhotoUri(result.assets[0].uri);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!fullName.trim()) {
+      Toast.show({ type: 'error', text1: 'Enter your name' });
+      return;
+    }
+    if (!skill) {
+      Toast.show({ type: 'error', text1: 'Select your main skill' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      let photo_url = null;
+      if (photoUri) photo_url = await uriToBase64DataUri(photoUri);
+
+      const skills = skillsText
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const res = await http('POST', '/api/labour', {
+        full_name: fullName.trim(),
+        skill_category: skill,
+        skills,
+        experience_years: experience ? parseInt(experience, 10) : null,
+        daily_wage: wage ? parseInt(wage, 10) : null,
+        district: district || 'nanded',
+        location: location.trim() || null,
+        bio: bio.trim() || null,
+        photo_url,
+      });
+
+      if (res?.ok) {
+        Toast.show({ type: 'success', text1: 'Profile posted!', text2: 'Contractors in your area can now find you.' });
+        if (res.profile?.id) nav.replace('LabourDetail', { id: res.profile.id });
+        else nav.goBack();
+      } else if (res?.status === 401) {
+        Alert.alert('Login required', 'Please log in to post your labour profile.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log in', onPress: () => nav.navigate('Login') },
+        ]);
+      } else {
+        Toast.show({ type: 'error', text1: 'Could not save profile', text2: res?.error || 'Please try again.' });
+      }
+    } catch (err) {
+      Toast.show({ type: 'error', text1: 'Network error', text2: 'Please check your connection and try again.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <View style={[s.root, { paddingTop: IS_WEB ? 0 : insets.top }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+      <View style={s.topBar}>
+        <TouchableOpacity onPress={() => nav.goBack()} style={s.backBtn} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={20} color="#111" />
+        </TouchableOpacity>
+        <Text style={s.topBarTitle}>Post your profile</Text>
+        <View style={s.backBtn} />
+      </View>
+
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 100 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <FadeSlide delay={40} style={s.heroCard}>
+            <Text style={s.heroEyebrow}>LABOUR DIRECTORY</Text>
+            <Text style={s.heroTitle}>Get hired faster</Text>
+            <Text style={s.heroSub}>
+              List your skills, daily wage & availability — contractors nearby can find and hire you directly.
+            </Text>
+          </FadeSlide>
+
+          {/* Photo */}
+          <FadeSlide delay={90} style={s.section}>
+            <TouchableOpacity style={s.photoPicker} onPress={pickPhoto} activeOpacity={0.85}>
+              {photoUri ? (
+                <Image source={{ uri: photoUri }} style={s.photoImg} />
+              ) : (
+                <View style={s.photoPlaceholder}>
+                  <Ionicons name="camera-outline" size={22} color={LABOUR_COLOR} />
+                </View>
+              )}
+              <Text style={s.photoLabel}>{photoUri ? 'Change photo' : 'Add a profile photo'}</Text>
+            </TouchableOpacity>
+          </FadeSlide>
+
+          {/* Name */}
+          <FadeSlide delay={120} style={s.section}>
+            <Text style={s.label}>Full name *</Text>
+            <TextInput
+              style={s.input}
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="e.g. Ramesh Patil"
+              placeholderTextColor="#bbb"
+            />
+          </FadeSlide>
+
+          {/* Skill category */}
+          <FadeSlide delay={150} style={s.section}>
+            <Text style={s.label}>Main skill *</Text>
+            <View style={s.skillGrid}>
+              {SKILLS.map(sk => {
+                const active = skill === sk.label;
+                return (
+                  <TouchableOpacity
+                    key={sk.label}
+                    onPress={() => setSkill(sk.label)}
+                    style={[s.skillChip, active && s.skillChipActive]}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name={sk.icon} size={14} color={active ? '#fff' : LABOUR_COLOR} />
+                    <Text style={[s.skillChipTxt, active && s.skillChipTxtActive]}>{sk.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </FadeSlide>
+
+          {/* Other skills */}
+          <FadeSlide delay={180} style={s.section}>
+            <Text style={s.label}>Other skills (optional)</Text>
+            <TextInput
+              style={s.input}
+              value={skillsText}
+              onChangeText={setSkillsText}
+              placeholder="e.g. Tiling, Wiring, Painting (comma separated)"
+              placeholderTextColor="#bbb"
+            />
+          </FadeSlide>
+
+          {/* Experience + wage */}
+          <FadeSlide delay={210} style={[s.section, s.row]}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.label}>Experience (yrs)</Text>
+              <TextInput
+                style={s.input}
+                value={experience}
+                onChangeText={setExperience}
+                placeholder="e.g. 5"
+                placeholderTextColor="#bbb"
+                keyboardType="number-pad"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.label}>Daily wage (₹)</Text>
+              <TextInput
+                style={s.input}
+                value={wage}
+                onChangeText={setWage}
+                placeholder="e.g. 600"
+                placeholderTextColor="#bbb"
+                keyboardType="number-pad"
+              />
+            </View>
+          </FadeSlide>
+
+          {/* Location */}
+          <FadeSlide delay={240} style={s.section}>
+            <Text style={s.label}>Area / locality</Text>
+            <TextInput
+              style={s.input}
+              value={location}
+              onChangeText={setLocation}
+              placeholder="e.g. Vazirabad, Nanded"
+              placeholderTextColor="#bbb"
+            />
+          </FadeSlide>
+
+          {/* Bio */}
+          <FadeSlide delay={270} style={s.section}>
+            <Text style={s.label}>About you (optional)</Text>
+            <TextInput
+              style={[s.input, s.textarea]}
+              value={bio}
+              onChangeText={setBio}
+              placeholder="A short line about your work — tools you carry, past projects, etc."
+              placeholderTextColor="#bbb"
+              multiline
+              numberOfLines={4}
+            />
+          </FadeSlide>
+
+          {/* Availability */}
+          <FadeSlide delay={300} style={s.section}>
+            <Text style={s.label}>Availability</Text>
+            <View style={s.row}>
+              {AVAILABILITY.map(a => {
+                const active = availability === a.value;
+                return (
+                  <TouchableOpacity
+                    key={a.value}
+                    onPress={() => setAvailability(a.value)}
+                    style={[s.availPill, active && { backgroundColor: a.color + '18', borderColor: a.color }]}
+                    activeOpacity={0.85}
+                  >
+                    <View style={[s.availDot, { backgroundColor: a.color }]} />
+                    <Text style={[s.availTxt, active && { color: a.color, fontWeight: '800' }]}>{a.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </FadeSlide>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Sticky submit bar */}
+      <View style={[s.submitBar, { paddingBottom: insets.bottom + 12 }]}>
+        <TouchableOpacity
+          style={[s.submitBtn, submitting && { opacity: 0.7 }]}
+          onPress={handleSubmit}
+          disabled={submitting}
+          activeOpacity={0.88}
+        >
+          {submitting
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={s.submitBtnTxt}>Post my profile — it&apos;s free</Text>}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#f7f7f7' },
+
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  backBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#e8e8e8',
+  },
+  topBarTitle: { fontSize: 16, fontWeight: '800', color: '#111' },
+
+  scroll: { padding: 16, gap: 14 },
+
+  heroCard: {
+    backgroundColor: LABOUR_COLOR, borderRadius: 16, padding: 18, marginBottom: 4,
+  },
+  heroEyebrow: { fontSize: 10, fontWeight: '800', color: '#fde68a', letterSpacing: 1.2 },
+  heroTitle: { fontSize: 20, fontWeight: '900', color: '#fff', marginTop: 6 },
+  heroSub: { fontSize: 12, color: '#fde68a', marginTop: 6, lineHeight: 17 },
+
+  section: { gap: 8 },
+  row: { flexDirection: 'row', gap: 12 },
+
+  label: { fontSize: 12, fontWeight: '700', color: '#555' },
+  input: {
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#ebebeb',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11,
+    fontSize: 14, color: '#111',
+  },
+  textarea: { height: 90, textAlignVertical: 'top', paddingTop: 11 },
+
+  photoPicker: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  photoImg: { width: 56, height: 56, borderRadius: 28 },
+  photoPlaceholder: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: LABOUR_COLOR + '18',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: LABOUR_COLOR + '33', borderStyle: 'dashed',
+  },
+  photoLabel: { fontSize: 13, fontWeight: '700', color: LABOUR_COLOR },
+
+  skillGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  skillChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 100,
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e0e0e0',
+  },
+  skillChipActive: { backgroundColor: LABOUR_COLOR, borderColor: LABOUR_COLOR },
+  skillChipTxt: { fontSize: 12, fontWeight: '700', color: '#555' },
+  skillChipTxtActive: { color: '#fff' },
+
+  availPill: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12,
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#ebebeb',
+  },
+  availDot: { width: 8, height: 8, borderRadius: 4 },
+  availTxt: { fontSize: 12, fontWeight: '600', color: '#666' },
+
+  submitBar: {
+    position: IS_WEB ? 'sticky' : 'absolute',
+    left: 0, right: 0, bottom: 0,
+    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f0f0f0',
+    paddingHorizontal: 16, paddingTop: 12,
+  },
+  submitBtn: {
+    backgroundColor: ORANGE, borderRadius: 14, paddingVertical: 15,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+  },
+  submitBtnTxt: { fontSize: 15, fontWeight: '800', color: '#fff' },
+});
