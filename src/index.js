@@ -237,6 +237,7 @@ app.use('/api/ai',         require('./routes/ai'));
 app.use('/api/vehicles',   require('./routes/vehicles'));
 app.use('/api/buysell',    require('./routes/buysell'));
 app.use('/api/rooms',      require('./routes/rooms'));
+app.use('/api/labour',     require('./routes/labour'));
 app.use('/api/chat',       require('./routes/chat'));
 app.use('/api/ratings',    require('./routes/ratings'));
 app.use('/api/alerts',     require('./routes/alerts'));
