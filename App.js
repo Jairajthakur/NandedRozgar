@@ -33,6 +33,7 @@ import PostCarScreen    from './src/screens/PostCarScreen';
 import PostRoomScreen   from './src/screens/PostRoomScreen';
 import BuySellScreen    from './src/screens/BuySellScreen';
 import BuySellDetailScreen from './src/screens/BuySellDetailScreen';
+import LabourScreen     from './src/screens/LabourScreen';
 import PostItemScreen   from './src/screens/PostItemScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import { isOnboarded } from './src/utils/storage';
@@ -53,7 +54,6 @@ import ChatListScreen       from './src/screens/ChatListScreen';
 import SavedJobsScreen      from './src/screens/SavedJobsScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
 import { emitPaymentResult } from './src/utils/payment_bridge';
-import { initAds } from './src/components/ads/initAds';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -74,7 +74,7 @@ let _HomeScreen, _BoardScreen, _JobDetailScreen, _PostScreen, _PostJobScreen,
     _ReferralScreen, _MyApplicationsScreen, _SeekerProfileScreen,
     _AnalyticsScreen, _AlertsScreen, _PromoteBusinessScreen,
     _HelpSupportScreen, _SellItemForm, _AboutScreen, _ChatScreen, _ChatListScreen, _SavedJobsScreen,
-    _MonthlyPlanScreen;
+    _MonthlyPlanScreen, _LabourScreen;
 
 // ── Online / offline detection ────────────────────────────────────────────────
 // FIX: The previous version pinged our own backend server (/health) to decide
@@ -412,17 +412,30 @@ function CustomTabBar({ state, descriptors, navigation }) {
         const label = t(routeKey) || descriptors[route.key].options.tabBarLabel || route.name;
 
         const iconMap = {
-          Home:  { name: 'home',    library: 'ion' },
-          Jobs:  { name: 'briefcase', library: 'ion' },
-          Rooms: { name: 'business', library: 'ion' },
-          Cars:  { name: 'car-sport', library: 'ion' },
+          Home:    { name: 'home',      library: 'ion' },
+          Jobs:    { name: 'briefcase', library: 'ion' },
+          Rooms:   { name: 'business',  library: 'ion' },
+          Cars:    { name: 'car-sport', library: 'ion' },
+          BuySell: { name: 'pricetag',  library: 'ion' },
+          Labour:  { name: 'construct', library: 'ion' },
         };
         const icon = iconMap[route.name] || { name: 'ellipse', library: 'ion' };
+        const isNew = route.name === 'Labour';
 
         return (
-          <TouchableOpacity key={route.key} onPress={onPress} style={s.tabItem} activeOpacity={0.8}>
-            <TabIcon name={icon.name} focused={isFocused} library={icon.library} />
-            <Text style={[s.tabLabel, isFocused && s.tabLabelActive]}>{label}</Text>
+          <TouchableOpacity
+            key={route.key}
+            onPress={onPress}
+            style={[s.tabItem, isFocused && s.tabItemActive]}
+            activeOpacity={0.8}
+          >
+            <View>
+              <TabIcon name={icon.name} focused={isFocused} library={icon.library} />
+              {isNew && !isFocused && <View style={s.tabBadgeDot} />}
+            </View>
+            {isFocused && (
+              <Text style={[s.tabLabel, s.tabLabelActive]} numberOfLines={1}>{label}</Text>
+            )}
           </TouchableOpacity>
         );
       })}
@@ -502,6 +515,42 @@ function MainTabs() {
           ),
         })}
       />
+      <Tab.Screen
+        name="BuySell"
+        component={_BuySellScreen}
+        options={({ navigation }) => ({
+          headerTitle: 'Buy & Sell',
+          tabBarLabel: t('buysell') || 'Buy/Sell',
+          headerShown: Platform.OS !== 'web',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ paddingHorizontal: 12 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="arrow-back" size={22} color="#111111" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
+      <Tab.Screen
+        name="Labour"
+        component={_LabourScreen}
+        options={({ navigation }) => ({
+          headerTitle: 'Labour',
+          tabBarLabel: t('labour') || 'Labour',
+          headerShown: Platform.OS !== 'web',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ paddingHorizontal: 12 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="arrow-back" size={22} color="#111111" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
     </Tab.Navigator>
   );
 }
@@ -536,6 +585,7 @@ _PostCarScreen         = withScreenErrorBoundary(PostCarScreen,         'PostCar
 _PostRoomScreen        = withScreenErrorBoundary(PostRoomScreen,        'PostRoomScreen');
 _BuySellScreen         = withScreenErrorBoundary(BuySellScreen,         'BuySellScreen');
 _BuySellDetailScreen   = withScreenErrorBoundary(BuySellDetailScreen,   'BuySellDetailScreen');
+_LabourScreen          = withScreenErrorBoundary(LabourScreen,          'LabourScreen');
 _PostItemScreen        = withScreenErrorBoundary(PostItemScreen,        'PostItemScreen');
 _LoginScreen           = withScreenErrorBoundary(LoginScreen,           'LoginScreen');
 _ReferralScreen        = withScreenErrorBoundary(ReferralScreen,        'ReferralScreen');
@@ -832,13 +882,6 @@ export default function App() {
   // pings Cloudflare on native, so calling it unconditionally is safe.
   // We still only *show* the banner on web — the native OS has its own indicator.
   const isOnline = useOnlineStatus();
-
-  // Initialize the AdMob SDK once at startup — required before any ad
-  // request (test or real) will succeed. No-op on web.
-  React.useEffect(() => {
-    initAds();
-  }, []);
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
@@ -881,6 +924,18 @@ const s = StyleSheet.create({
     } : {}),
   },
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, gap: 2 },
+  tabItemActive: {
+    backgroundColor: '#fff7f0',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    marginHorizontal: 1,
+  },
+  tabBadgeDot: {
+    position: 'absolute', top: -1, right: -3,
+    width: 7, height: 7, borderRadius: 4,
+    backgroundColor: '#16a34a',
+    borderWidth: 1, borderColor: '#fff',
+  },
   tabLabel:       { fontSize: 10, fontWeight: '500', color: '#aaa' },
   tabLabelActive: { fontSize: 10, fontWeight: '700', color: ORANGE },
 
