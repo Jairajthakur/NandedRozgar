@@ -267,7 +267,7 @@ function withScreenErrorBoundary(WrappedScreen, displayName) {
 // ── Custom Tab Bar ────────────────────────────────────────────────────────────
 function TabIcon({ name, focused, library = 'ion' }) {
   const color = focused ? ORANGE : '#aaa';
-  const size = 22;
+  const size = 19;
   if (library === 'material') return <MaterialIcons name={name} size={size} color={color} />;
   if (library === 'community') return <MaterialCommunityIcons name={name} size={size} color={color} />;
   return <Ionicons name={name} size={size} color={color} />;
@@ -417,25 +417,24 @@ function CustomTabBar({ state, descriptors, navigation }) {
           Rooms:   { name: 'business',  library: 'ion' },
           Cars:    { name: 'car-sport', library: 'ion' },
           BuySell: { name: 'pricetag',  library: 'ion' },
-          Labour:  { name: 'construct', library: 'ion' },
+          Labour:  { name: 'hammer',    library: 'ion' },
         };
         const icon = iconMap[route.name] || { name: 'ellipse', library: 'ion' };
         const isNew = route.name === 'Labour';
 
         return (
-          <TouchableOpacity
-            key={route.key}
-            onPress={onPress}
-            style={[s.tabItem, isFocused && s.tabItemActive]}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity key={route.key} onPress={onPress} style={s.tabItem} activeOpacity={0.8}>
             <View>
               <TabIcon name={icon.name} focused={isFocused} library={icon.library} />
-              {isNew && !isFocused && <View style={s.tabBadgeDot} />}
+              {isNew && <View style={s.tabBadgeDot} />}
             </View>
-            {isFocused && (
-              <Text style={[s.tabLabel, s.tabLabelActive]} numberOfLines={1}>{label}</Text>
-            )}
+            <Text
+              style={[s.tabLabel, isFocused && s.tabLabelActive]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {label}
+            </Text>
           </TouchableOpacity>
         );
       })}
@@ -923,21 +922,15 @@ const s = StyleSheet.create({
       width: '100%',
     } : {}),
   },
-  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, gap: 2 },
-  tabItemActive: {
-    backgroundColor: '#fff7f0',
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    marginHorizontal: 1,
-  },
+  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, gap: 1 },
   tabBadgeDot: {
-    position: 'absolute', top: -1, right: -3,
-    width: 7, height: 7, borderRadius: 4,
+    position: 'absolute', top: -2, right: -4,
+    width: 6, height: 6, borderRadius: 3,
     backgroundColor: '#16a34a',
     borderWidth: 1, borderColor: '#fff',
   },
-  tabLabel:       { fontSize: 10, fontWeight: '500', color: '#aaa' },
-  tabLabelActive: { fontSize: 10, fontWeight: '700', color: ORANGE },
+  tabLabel:       { fontSize: 8.5, fontWeight: '500', color: '#aaa' },
+  tabLabelActive: { fontSize: 8.5, fontWeight: '700', color: ORANGE },
 
   postSlot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   postRing: {
