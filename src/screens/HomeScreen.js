@@ -491,7 +491,7 @@ export default function HomeScreen() {
 
   const [rooms,    setRooms]    = useState([]);
   const [vehicles, setVehicles] = useState([]);
-  const [stats,    setStats]    = useState({ jobs: 0, rooms: 0, vehicles: 0, items: 0 });
+  const [stats,    setStats]    = useState({ jobs: 0, rooms: 0, vehicles: 0, items: 0, labour: 0 });
   const [cachedJobs, setCachedJobs] = useState([]);  // instant 2G/3G seed
 
   const { loadJobs } = useAuth();
@@ -508,10 +508,11 @@ export default function HomeScreen() {
   const fetchHomeData = useCallback(async () => {
     try {
       const districtParam = currentDistrict?.id ? `?district=${currentDistrict.id}` : '';
-      const [roomRes, vehicleRes, buysellCountRes] = await Promise.all([
+      const [roomRes, vehicleRes, buysellCountRes, labourRes] = await Promise.all([
         http('GET', `/api/rooms${districtParam}`),
         http('GET', `/api/vehicles${districtParam}`),
         http('GET', `/api/buysell/count${districtParam}`),
+        http('GET', `/api/labour${districtParam}`),
       ]);
       if (roomRes?.ok && Array.isArray(roomRes.rooms))           setRooms(roomRes.rooms);
       if (vehicleRes?.ok && Array.isArray(vehicleRes.vehicles)) setVehicles(vehicleRes.vehicles);
@@ -519,11 +520,13 @@ export default function HomeScreen() {
       const liveRooms    = roomRes?.rooms?.length    || 0;
       const liveVehicles = vehicleRes?.vehicles?.length || 0;
       const liveItems    = buysellCountRes?.ok ? (buysellCountRes.count ?? 0) : 0;
+      const liveLabour   = labourRes?.ok ? (labourRes.total ?? labourRes.labourers?.length ?? 0) : 0;
       setStats(prev => ({
         jobs:     liveJobs     > 0 ? liveJobs     : prev.jobs,
         rooms:    liveRooms    > 0 ? liveRooms    : prev.rooms,
         vehicles: liveVehicles > 0 ? liveVehicles : prev.vehicles,
         items:    liveItems    >= 0 ? liveItems    : prev.items,
+        labour:   liveLabour   > 0 ? liveLabour   : prev.labour,
       }));
     } catch {}
   }, [jobs, currentDistrict]);
@@ -812,7 +815,8 @@ export default function HomeScreen() {
                 <ExploreCard icon="briefcase-outline"  title={t('sideNavJobs')}     subtitle={`${stats.jobs}+ ${t('jobsOpenings')}`}      color={ORANGE}  onPress={() => nav.navigate('Jobs')}    compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
                 <ExploreCard icon="home-outline"       title={t('sideNavRooms')}    subtitle={`${stats.rooms}+ ${t('roomsListings')}`}     color={TEAL}    onPress={() => nav.navigate('Rooms')}   compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
                 <ExploreCard icon="car-sport-outline"  title={t('sideNavVehicles')} subtitle={`${stats.vehicles}+ ${t('vehiclesForRent')}`} color={PURPLE}  onPress={() => nav.navigate('Cars')}    compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
-                <ExploreCard icon="pricetag-outline"   title={t('sideNavBuySell')}  subtitle={`${stats.items}+ ${t('itemsCount')}`}        color='#0ea5e9' onPress={() => nav.navigate('BuySell')} compact={isSmWeb} style={[{ flex: 1 }, isSmWeb && { minWidth: '46%' }]} />
+                <ExploreCard icon="pricetag-outline"   title={t('sideNavBuySell')}  subtitle={`${stats.items}+ ${t('itemsCount')}`}        color='#0ea5e9' onPress={() => nav.navigate('BuySell')} compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
+                <ExploreCard icon="hammer-outline"     title={t('sideNavLabour')}   subtitle={`${stats.labour}+ ${t('labourAvailable')}`}  color='#e11d48' onPress={() => nav.navigate('Labour')}  compact={isSmWeb} style={[{ flex: 1 }, isSmWeb && { minWidth: '46%' }]} />
               </View>
             </FadeSlide>
 
@@ -914,6 +918,7 @@ export default function HomeScreen() {
                 <QuickAction icon="home-outline"       label={t('qaRooms')}    color={TEAL}    onPress={() => nav.navigate('Rooms')} />
                 <QuickAction icon="car-sport-outline"  label={t('qaVehicles')} color={PURPLE}  onPress={() => nav.navigate('Cars')} />
                 <QuickAction icon="pricetag-outline"   label={t('qaBuySell')}  color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
+                <QuickAction icon="hammer-outline"     label={t('qaLabour')}   color='#e11d48' onPress={() => nav.navigate('Labour')} />
                 <QuickAction icon="sparkles"   label={t('qaAI')}       color={ORANGE}  onPress={() => nav.navigate('AIMatch')} />
               </View>
             </FadeSlide>
@@ -1116,6 +1121,9 @@ export default function HomeScreen() {
           <View style={[s.exploreGrid, { marginTop: 10 }]}>
             <ExploreCard icon="car-sport-outline" title={t('sideNavVehicles')} subtitle={`${stats.vehicles}+ ${t('vehiclesForRent')}`} color={PURPLE} onPress={() => nav.navigate('Cars')}    style={{ marginRight: 8 }} />
            <ExploreCard icon="pricetag-outline"  title={t('sideNavBuySell')}  subtitle={`${stats.items}+ ${t('itemsCount')}`}       color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
+          </View>
+          <View style={[s.exploreGrid, { marginTop: 10 }]}>
+            <ExploreCard icon="hammer-outline" title={t('sideNavLabour')} subtitle={`${stats.labour}+ ${t('labourAvailable')}`} color='#e11d48' onPress={() => nav.navigate('Labour')} style={{ flex: 1 }} />
           </View>
         </FadeSlide>
 
