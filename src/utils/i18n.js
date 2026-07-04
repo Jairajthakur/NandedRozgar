@@ -113,6 +113,7 @@ const STRINGS = {
     bottomNavRooms: 'Property',
     bottomNavVehicles: 'Vehicles',
     bottomNavSell: 'Sell',
+    more: 'More',
     // Ticker items (static)
     tickerHiring: 'HIRING NOW — {DISTRICT}',
     tickerDelivery: 'DELIVERY JOBS AVAILABLE',
@@ -421,6 +422,7 @@ const STRINGS = {
     bottomNavRooms: 'मालमत्ता',
     bottomNavVehicles: 'वाहने',
     bottomNavSell: 'विक्री',
+    more: 'अधिक',
     tickerHiring: 'नियुक्ती सुरू — {DISTRICT}',
     tickerDelivery: 'डिलिव्हरी नोकऱ्या उपलब्ध',
     tickerRooms: '{DISTRICT}मध्ये मालमत्ता भाड्याने',
@@ -726,6 +728,7 @@ const STRINGS = {
     bottomNavRooms: 'संपत्ति',
     bottomNavVehicles: 'वाहन',
     bottomNavSell: 'बेचें',
+    more: 'और',
     tickerHiring: 'नियुक्ति हो रही है — {DISTRICT}',
     tickerDelivery: 'डिलीवरी नौकरियाँ उपलब्ध',
     tickerRooms: '{DISTRICT} में संपत्ति किराए पर',
