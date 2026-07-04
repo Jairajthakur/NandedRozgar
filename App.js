@@ -381,28 +381,79 @@ function CustomTabBar({ state, descriptors, navigation }) {
         </TouchableOpacity>
       </View>
 
-      <Modal visible={moreOpen} transparent animationType="fade" onRequestClose={() => setMoreOpen(false)}>
-        <TouchableOpacity style={s.moreOverlay} activeOpacity={1} onPress={() => setMoreOpen(false)}>
-          <View style={s.moreSheet} onStartShouldSetResponder={() => true}>
-            <View style={s.moreHandle} />
-            <Text style={s.moreTitle}>{t('more') || 'More'}</Text>
-            <View style={s.moreGrid}>
-              {MORE_ROUTES.map(name => {
-                const icon  = ICON_MAP[name];
-                const label = t(name.toLowerCase()) || name;
-                return (
-                  <TouchableOpacity key={name} style={s.moreItem} onPress={() => goTo(name)} activeOpacity={0.8}>
-                    <View style={s.moreIconWrap}>
-                      <Ionicons name={icon.name} size={24} color={ORANGE} />
-                    </View>
-                    <Text style={s.moreLabel}>{label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      {moreOpen && (
+        Platform.OS === 'web' ? (
+          // Plain fixed-position overlay on web — avoids react-native-web's Modal
+          // portal/z-index quirks which sat the sheet behind the fixed tab bar.
+          <div
+            onClick={() => setMoreOpen(false)}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+              zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#fff', width: '100%', maxWidth: 520,
+                borderTopLeftRadius: 20, borderTopRightRadius: 20,
+                paddingTop: 10, paddingBottom: 28, paddingLeft: 20, paddingRight: 20,
+              }}
+            >
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e5e5e5', margin: '0 auto 14px' }} />
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#111', marginBottom: 16 }}>{t('more') || 'More'}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                {MORE_ROUTES.map(name => {
+                  const icon  = ICON_MAP[name];
+                  const label = t(name.toLowerCase()) || name;
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => goTo(name)}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                        width: '30%', paddingTop: 8, paddingBottom: 8,
+                        background: 'none', border: 'none', cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{
+                        width: 52, height: 52, borderRadius: 26, background: '#fff7ed',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+                      }}>
+                        <Ionicons name={icon.name} size={24} color={ORANGE} />
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#333' }}>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Modal visible={moreOpen} transparent animationType="fade" onRequestClose={() => setMoreOpen(false)}>
+            <TouchableOpacity style={s.moreOverlay} activeOpacity={1} onPress={() => setMoreOpen(false)}>
+              <View style={s.moreSheet} onStartShouldSetResponder={() => true}>
+                <View style={s.moreHandle} />
+                <Text style={s.moreTitle}>{t('more') || 'More'}</Text>
+                <View style={s.moreGrid}>
+                  {MORE_ROUTES.map(name => {
+                    const icon  = ICON_MAP[name];
+                    const label = t(name.toLowerCase()) || name;
+                    return (
+                      <TouchableOpacity key={name} style={s.moreItem} onPress={() => goTo(name)} activeOpacity={0.8}>
+                        <View style={s.moreIconWrap}>
+                          <Ionicons name={icon.name} size={24} color={ORANGE} />
+                        </View>
+                        <Text style={s.moreLabel}>{label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )
+      )}
     </>
   );
 }
