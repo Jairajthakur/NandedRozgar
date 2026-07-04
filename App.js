@@ -3,7 +3,7 @@ import React from 'react';
 import {
   View, Text, ActivityIndicator, StatusBar,
   TouchableOpacity, StyleSheet, Platform, useWindowDimensions,
-  Animated, Easing, AppState, Image, Linking,
+  Animated, Easing, AppState, Image, Linking, Modal,
 } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -273,40 +273,9 @@ function TabIcon({ name, focused, library = 'ion' }) {
   return <Ionicons name={name} size={size} color={color} />;
 }
 
-// ── Animated Post Button ──────────────────────────────────────────────────────
+// ── Post Button (static — no pulsing/ripple/rotation) ─────────────────────────
 function AnimatedPostButton({ onPress }) {
-  const pulseAnim = React.useRef(new Animated.Value(1)).current;
-  const ringAnim  = React.useRef(new Animated.Value(0)).current;
-  const rotateAnim = React.useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    // Pulse: gentle scale breathe
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: Platform.OS !== 'web' }),
-        Animated.timing(pulseAnim, { toValue: 1,    duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: Platform.OS !== 'web' }),
-      ])
-    ).start();
-
-    // Ring: expanding ripple
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(ringAnim, { toValue: 1, duration: 1400, easing: Easing.out(Easing.ease), useNativeDriver: Platform.OS !== 'web' }),
-        Animated.delay(300),
-      ])
-    ).start();
-
-    // Icon: slow spin on mount then idle
-    Animated.sequence([
-      Animated.timing(rotateAnim, { toValue: 1, duration: 500, easing: Easing.out(Easing.back(2)), useNativeDriver: Platform.OS !== 'web' }),
-    ]).start();
-  }, []);
-
-  const ringScale   = ringAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.65] });
-  const ringOpacity = ringAnim.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.55, 0.2, 0] });
-  const rotate      = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-
-  // Web gets CSS-based animation via inline styles
+  // Web
   if (Platform.OS === 'web') {
     return (
       <button
@@ -317,47 +286,16 @@ function AnimatedPostButton({ onPress }) {
           background: 'none', border: 'none', cursor: 'pointer', padding: 0,
         }}
       >
-        <style>{`
-          @keyframes cityplus-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.12); }
-          }
-          @keyframes cityplus-ring {
-            0% { transform: scale(1); opacity: 0.55; }
-            70% { opacity: 0.15; }
-            100% { transform: scale(1.65); opacity: 0; }
-          }
-          @keyframes cityplus-spin-in {
-            from { transform: rotate(0deg); }
-            to   { transform: rotate(360deg); }
-          }
-          .cp-post-wrap {
-            position: relative; display: flex;
-            align-items: center; justify-content: center;
-            width: 54px; height: 54px; margin-top: -22px;
-          }
-          .cp-ring {
-            position: absolute; inset: 0; border-radius: 50%;
-            background: #f97316;
-            animation: cityplus-ring 1.7s ease-out infinite;
-          }
-          .cp-btn {
-            position: relative; z-index: 1;
-            width: 54px; height: 54px; border-radius: 50%;
-            background: #f97316;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 5px 18px rgba(249,115,22,0.55);
-            animation: cityplus-pulse 1.8s ease-in-out infinite;
-          }
-          .cp-icon {
-            animation: cityplus-spin-in 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
-          }
-        `}</style>
-        <div className="cp-post-wrap">
-          <div className="cp-ring" />
-          <div className="cp-btn">
-            <span className="cp-icon" style={{ fontSize: 28, color: '#fff', lineHeight: 1, fontWeight: 300 }}>＋</span>
-          </div>
+        <div
+          style={{
+            width: 54, height: 54, borderRadius: 27,
+            marginTop: -22,
+            background: '#f97316',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 5px 18px rgba(249,115,22,0.45)',
+          }}
+        >
+          <span style={{ fontSize: 28, color: '#fff', lineHeight: 1, fontWeight: 300 }}>＋</span>
         </div>
         <span style={{ fontSize: 10, fontWeight: 700, color: '#f97316', marginTop: 2 }}>Post</span>
       </button>
@@ -367,78 +305,105 @@ function AnimatedPostButton({ onPress }) {
   // Native (iOS / Android)
   return (
     <TouchableOpacity onPress={onPress} style={s.postSlot} activeOpacity={0.85}>
-      <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
-        {/* Ripple ring */}
-        <Animated.View style={[
-          s.postRing,
-          { transform: [{ scale: ringScale }], opacity: ringOpacity }
-        ]} />
-        {/* Main button */}
-        <Animated.View style={[s.postBtn, { transform: [{ scale: pulseAnim }] }]}>
-          <Animated.View style={{ transform: [{ rotate }] }}>
-            <Ionicons name="add" size={28} color="#fff" />
-          </Animated.View>
-        </Animated.View>
+      <View style={s.postBtn}>
+        <Ionicons name="add" size={28} color="#fff" />
       </View>
       <Text style={s.postLabel}>Post</Text>
     </TouchableOpacity>
   );
 }
 
+const ICON_MAP = {
+  Home:    { name: 'home',      library: 'ion' },
+  Jobs:    { name: 'briefcase', library: 'ion' },
+  Rooms:   { name: 'business',  library: 'ion' },
+  Cars:    { name: 'car-sport', library: 'ion' },
+  BuySell: { name: 'pricetag',  library: 'ion' },
+  Labour:  { name: 'hammer',    library: 'ion' },
+};
+const MORE_ROUTES = ['Cars', 'BuySell', 'Labour'];
+
 function CustomTabBar({ state, descriptors, navigation }) {
   const { t } = useLang();
   const width = useStableWidth();
+  const [moreOpen, setMoreOpen] = React.useState(false);
 
   // On web, only show the bottom tab bar when the viewport is mobile-sized (< 600px)
   // On desktop web, the HomeScreen renders its own sidebar navigation
   if (Platform.OS === 'web' && width >= 600) return null;
 
+  const focusedName  = state.routes[state.index]?.name;
+  const isMoreActive = MORE_ROUTES.includes(focusedName);
+
+  const goTo = (name) => {
+    setMoreOpen(false);
+    const route = state.routes.find(r => r.name === name);
+    if (!route) return;
+    const isFocused = focusedName === name;
+    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+    if (!isFocused && !event.defaultPrevented) navigation.navigate(name);
+  };
+
+  const renderTab = (name) => {
+    const route = state.routes.find(r => r.name === name);
+    if (!route) return null;
+    const isFocused = focusedName === name;
+    const icon  = ICON_MAP[name] || { name: 'ellipse', library: 'ion' };
+    const label = t(name.toLowerCase()) || descriptors[route.key]?.options.tabBarLabel || name;
+
+    return (
+      <TouchableOpacity key={name} onPress={() => goTo(name)} style={s.tabItem} activeOpacity={0.8}>
+        <TabIcon name={icon.name} focused={isFocused} library={icon.library} />
+        <Text style={[s.tabLabel, isFocused && s.tabLabelActive]} numberOfLines={1} adjustsFontSizeToFit>
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
-    <View style={s.tabBar}>
-      {state.routes.map((route, index) => {
-        const isFocused = state.index === index;
-        const isPost    = route.name === 'Post';
+    <>
+      <View style={s.tabBar}>
+        {renderTab('Home')}
+        {renderTab('Jobs')}
+        <AnimatedPostButton key="Post" onPress={() => goTo('Post')} />
+        {renderTab('Rooms')}
 
-        const onPress = () => {
-          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
-        };
+        {/* More tab — houses Cars / Buy & Sell / Labour */}
+        <TouchableOpacity onPress={() => setMoreOpen(true)} style={s.tabItem} activeOpacity={0.8}>
+          <View>
+            <Ionicons name={isMoreActive ? 'grid' : 'grid-outline'} size={19} color={isMoreActive ? ORANGE : '#aaa'} />
+            <View style={s.tabBadgeDot} />
+          </View>
+          <Text style={[s.tabLabel, isMoreActive && s.tabLabelActive]} numberOfLines={1}>
+            {t('more') || 'More'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        if (isPost) return (
-          <AnimatedPostButton key={route.key} onPress={onPress} />
-        );
-
-        const routeKey = route.name.toLowerCase();
-        const label = t(routeKey) || descriptors[route.key].options.tabBarLabel || route.name;
-
-        const iconMap = {
-          Home:    { name: 'home',      library: 'ion' },
-          Jobs:    { name: 'briefcase', library: 'ion' },
-          Rooms:   { name: 'business',  library: 'ion' },
-          Cars:    { name: 'car-sport', library: 'ion' },
-          BuySell: { name: 'pricetag',  library: 'ion' },
-          Labour:  { name: 'hammer',    library: 'ion' },
-        };
-        const icon = iconMap[route.name] || { name: 'ellipse', library: 'ion' };
-        const isNew = route.name === 'Labour';
-
-        return (
-          <TouchableOpacity key={route.key} onPress={onPress} style={s.tabItem} activeOpacity={0.8}>
-            <View>
-              <TabIcon name={icon.name} focused={isFocused} library={icon.library} />
-              {isNew && <View style={s.tabBadgeDot} />}
+      <Modal visible={moreOpen} transparent animationType="fade" onRequestClose={() => setMoreOpen(false)}>
+        <TouchableOpacity style={s.moreOverlay} activeOpacity={1} onPress={() => setMoreOpen(false)}>
+          <View style={s.moreSheet} onStartShouldSetResponder={() => true}>
+            <View style={s.moreHandle} />
+            <Text style={s.moreTitle}>{t('more') || 'More'}</Text>
+            <View style={s.moreGrid}>
+              {MORE_ROUTES.map(name => {
+                const icon  = ICON_MAP[name];
+                const label = t(name.toLowerCase()) || name;
+                return (
+                  <TouchableOpacity key={name} style={s.moreItem} onPress={() => goTo(name)} activeOpacity={0.8}>
+                    <View style={s.moreIconWrap}>
+                      <Ionicons name={icon.name} size={24} color={ORANGE} />
+                    </View>
+                    <Text style={s.moreLabel}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-            <Text
-              style={[s.tabLabel, isFocused && s.tabLabelActive]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-            >
-              {label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
   );
 }
 
@@ -948,6 +913,21 @@ const s = StyleSheet.create({
     shadowOpacity: 0.45, shadowRadius: 12, elevation: 12,
   },
   postLabel: { fontSize: 10, fontWeight: '700', color: ORANGE, marginTop: 2 },
+
+  moreOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  moreSheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 10, paddingBottom: 28, paddingHorizontal: 20,
+  },
+  moreHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e5e5', alignSelf: 'center', marginBottom: 14 },
+  moreTitle: { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 16 },
+  moreGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  moreItem: { alignItems: 'center', width: '30%', paddingVertical: 8 },
+  moreIconWrap: {
+    width: 52, height: 52, borderRadius: 26, backgroundColor: '#fff7ed',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+  },
+  moreLabel: { fontSize: 12, fontWeight: '600', color: '#333' },
 
   errBox:   { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#111', padding:32 },
   errTitle: { color:'#fff', fontSize:20, fontWeight:'800', marginBottom:12, textAlign:'center' },
