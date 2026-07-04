@@ -3,7 +3,7 @@ import React from 'react';
 import {
   View, Text, ActivityIndicator, StatusBar,
   TouchableOpacity, StyleSheet, Platform, useWindowDimensions,
-  Animated, Easing, AppState, Image, Linking,
+  Animated, Easing, AppState, Image, Linking, Modal,
 } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -265,8 +265,9 @@ function withScreenErrorBoundary(WrappedScreen, displayName) {
 }
 
 // ── Custom Tab Bar ────────────────────────────────────────────────────────────
-function TabIcon({ name, focused, library = 'ion', size = 19 }) {
+function TabIcon({ name, focused, library = 'ion' }) {
   const color = focused ? ORANGE : '#aaa';
+  const size = 19;
   if (library === 'material') return <MaterialIcons name={name} size={size} color={color} />;
   if (library === 'community') return <MaterialCommunityIcons name={name} size={size} color={color} />;
   return <Ionicons name={name} size={size} color={color} />;
@@ -320,18 +321,22 @@ const ICON_MAP = {
   BuySell: { name: 'pricetag',  library: 'ion' },
   Labour:  { name: 'hammer',    library: 'ion' },
 };
+const MORE_ROUTES = ['Cars', 'BuySell', 'Labour'];
 
 function CustomTabBar({ state, descriptors, navigation }) {
   const { t } = useLang();
   const width = useStableWidth();
+  const [moreOpen, setMoreOpen] = React.useState(false);
 
   // On web, only show the bottom tab bar when the viewport is mobile-sized (< 600px)
   // On desktop web, the HomeScreen renders its own sidebar navigation
   if (Platform.OS === 'web' && width >= 600) return null;
 
-  const focusedName = state.routes[state.index]?.name;
+  const focusedName  = state.routes[state.index]?.name;
+  const isMoreActive = MORE_ROUTES.includes(focusedName);
 
   const goTo = (name) => {
+    setMoreOpen(false);
     const route = state.routes.find(r => r.name === name);
     if (!route) return;
     const isFocused = focusedName === name;
@@ -343,17 +348,13 @@ function CustomTabBar({ state, descriptors, navigation }) {
     const route = state.routes.find(r => r.name === name);
     if (!route) return null;
     const isFocused = focusedName === name;
-    const icon    = ICON_MAP[name] || { name: 'ellipse', library: 'ion' };
-    const label   = t(name.toLowerCase()) || descriptors[route.key]?.options.tabBarLabel || name;
-    const isNew   = name === 'Labour';
+    const icon  = ICON_MAP[name] || { name: 'ellipse', library: 'ion' };
+    const label = t(name.toLowerCase()) || descriptors[route.key]?.options.tabBarLabel || name;
 
     return (
-      <TouchableOpacity key={name} onPress={() => goTo(name)} style={s.tabItemCompact} activeOpacity={0.8}>
-        <View>
-          <TabIcon name={icon.name} focused={isFocused} library={icon.library} size={17} />
-          {isNew && <View style={s.tabBadgeDot} />}
-        </View>
-        <Text style={[s.tabLabelCompact, isFocused && s.tabLabelActive]} numberOfLines={1} adjustsFontSizeToFit>
+      <TouchableOpacity key={name} onPress={() => goTo(name)} style={s.tabItem} activeOpacity={0.8}>
+        <TabIcon name={icon.name} focused={isFocused} library={icon.library} />
+        <Text style={[s.tabLabel, isFocused && s.tabLabelActive]} numberOfLines={1} adjustsFontSizeToFit>
           {label}
         </Text>
       </TouchableOpacity>
@@ -361,15 +362,99 @@ function CustomTabBar({ state, descriptors, navigation }) {
   };
 
   return (
-    <View style={s.tabBar}>
-      {renderTab('Home')}
-      {renderTab('Jobs')}
-      {renderTab('Rooms')}
-      <AnimatedPostButton key="Post" onPress={() => goTo('Post')} />
-      {renderTab('Cars')}
-      {renderTab('BuySell')}
-      {renderTab('Labour')}
-    </View>
+    <>
+      <View style={s.tabBar}>
+        {renderTab('Home')}
+        {renderTab('Jobs')}
+        <AnimatedPostButton key="Post" onPress={() => goTo('Post')} />
+        {renderTab('Rooms')}
+
+        {/* More tab — houses Cars / Buy & Sell / Labour */}
+        <TouchableOpacity onPress={() => setMoreOpen(true)} style={s.tabItem} activeOpacity={0.8}>
+          <View>
+            <Ionicons name={isMoreActive ? 'grid' : 'grid-outline'} size={19} color={isMoreActive ? ORANGE : '#aaa'} />
+            <View style={s.tabBadgeDot} />
+          </View>
+          <Text style={[s.tabLabel, isMoreActive && s.tabLabelActive]} numberOfLines={1}>
+            {t('more') || 'More'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {moreOpen && (
+        Platform.OS === 'web' ? (
+          // Plain fixed-position overlay on web — avoids react-native-web's Modal
+          // portal/z-index quirks which sat the sheet behind the fixed tab bar.
+          <div
+            onClick={() => setMoreOpen(false)}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+              zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#fff', width: '100%', maxWidth: 520,
+                borderTopLeftRadius: 20, borderTopRightRadius: 20,
+                paddingTop: 10, paddingBottom: 28, paddingLeft: 20, paddingRight: 20,
+              }}
+            >
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e5e5e5', margin: '0 auto 14px' }} />
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#111', marginBottom: 16 }}>{t('more') || 'More'}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                {MORE_ROUTES.map(name => {
+                  const icon  = ICON_MAP[name];
+                  const label = t(name.toLowerCase()) || name;
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => goTo(name)}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                        width: '30%', paddingTop: 8, paddingBottom: 8,
+                        background: 'none', border: 'none', cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{
+                        width: 52, height: 52, borderRadius: 26, background: '#fff7ed',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+                      }}>
+                        <Ionicons name={icon.name} size={24} color={ORANGE} />
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#333' }}>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Modal visible={moreOpen} transparent animationType="fade" onRequestClose={() => setMoreOpen(false)}>
+            <TouchableOpacity style={s.moreOverlay} activeOpacity={1} onPress={() => setMoreOpen(false)}>
+              <View style={s.moreSheet} onStartShouldSetResponder={() => true}>
+                <View style={s.moreHandle} />
+                <Text style={s.moreTitle}>{t('more') || 'More'}</Text>
+                <View style={s.moreGrid}>
+                  {MORE_ROUTES.map(name => {
+                    const icon  = ICON_MAP[name];
+                    const label = t(name.toLowerCase()) || name;
+                    return (
+                      <TouchableOpacity key={name} style={s.moreItem} onPress={() => goTo(name)} activeOpacity={0.8}>
+                        <View style={s.moreIconWrap}>
+                          <Ionicons name={icon.name} size={24} color={ORANGE} />
+                        </View>
+                        <Text style={s.moreLabel}>{label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )
+      )}
+    </>
   );
 }
 
@@ -841,7 +926,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#ffffff',
     borderTopWidth: 1, borderTopColor: '#f0f0f0',
-    height: 72, paddingBottom: Platform.OS === 'web' ? 0 : 10, paddingHorizontal: 2,
+    height: 72, paddingBottom: Platform.OS === 'web' ? 0 : 10, paddingHorizontal: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.08, shadowRadius: 10, elevation: 16,
     ...(Platform.OS === 'web' ? {
@@ -880,8 +965,20 @@ const s = StyleSheet.create({
   },
   postLabel: { fontSize: 10, fontWeight: '700', color: ORANGE, marginTop: 2 },
 
-  tabItemCompact: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, paddingHorizontal: 1, gap: 1 },
-  tabLabelCompact: { fontSize: 8, fontWeight: '500', color: '#aaa' },
+  moreOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  moreSheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 10, paddingBottom: 28, paddingHorizontal: 20,
+  },
+  moreHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e5e5', alignSelf: 'center', marginBottom: 14 },
+  moreTitle: { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 16 },
+  moreGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  moreItem: { alignItems: 'center', width: '30%', paddingVertical: 8 },
+  moreIconWrap: {
+    width: 52, height: 52, borderRadius: 26, backgroundColor: '#fff7ed',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+  },
+  moreLabel: { fontSize: 12, fontWeight: '600', color: '#333' },
 
   errBox:   { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#111', padding:32 },
   errTitle: { color:'#fff', fontSize:20, fontWeight:'800', marginBottom:12, textAlign:'center' },
