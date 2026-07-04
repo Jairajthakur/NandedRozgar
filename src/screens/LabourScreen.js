@@ -99,7 +99,7 @@ export default function LabourScreen() {
       setError(null);
 
       const params = new URLSearchParams();
-      if (currentDistrict?.slug) params.set('district', currentDistrict.slug);
+      if (currentDistrict?.id) params.set('district', currentDistrict.id);
       if (activeSkill !== 'All') params.set('skill_category', activeSkill);
       if (search.trim()) params.set('q', search.trim());
 
@@ -159,7 +159,7 @@ export default function LabourScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={s.chipRow}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: 'center' }}
       >
         {SKILL_CATEGORIES.map(cat => {
           const active = activeSkill === cat;
@@ -238,7 +238,7 @@ const s = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 13, color: '#111' },
 
-  chipRow: { backgroundColor: '#fff', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  chipRow: { height: 52, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100,
