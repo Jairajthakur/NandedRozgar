@@ -360,6 +360,45 @@ async function runMigrations() {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_profiles (
+        id               SERIAL PRIMARY KEY,
+        user_id          INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        full_name        VARCHAR(100) NOT NULL,
+        skill_category   VARCHAR(50) NOT NULL,
+        skills           TEXT[],
+        experience_years INTEGER,
+        daily_wage       INTEGER,
+        district         VARCHAR(50) DEFAULT 'nanded',
+        location         VARCHAR(200),
+        availability     VARCHAR(20) DEFAULT 'available' CHECK (availability IN ('available', 'busy', 'inactive')),
+        bio              TEXT,
+        photo_url        TEXT,
+        id_verified      BOOLEAN DEFAULT FALSE,
+        rating_avg       NUMERIC(2,1) DEFAULT 0,
+        rating_count     INTEGER DEFAULT 0,
+        status           VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'hidden', 'banned')),
+        created_at       TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_district_skill ON labour_profiles(district, skill_category) WHERE status='active'`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_labour_user ON labour_profiles(user_id)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hire_requests (
+        id               SERIAL PRIMARY KEY,
+        labour_id        INTEGER REFERENCES labour_profiles(id) ON DELETE CASCADE,
+        contractor_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        work_description TEXT,
+        proposed_wage    INTEGER,
+        work_date        DATE,
+        status           VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'completed', 'cancelled')),
+        created_at       TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_hire_requests_labour ON hire_requests(labour_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_hire_requests_contractor ON hire_requests(contractor_id)`);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS saved_jobs (
         id         SERIAL PRIMARY KEY,
         job_id     INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
