@@ -37,7 +37,7 @@ export const LANGUAGES = [
 const STRINGS = {
   en: {
     // Navigation
-    home: 'Home', jobs: 'Jobs', rooms: 'Property', cars: 'Cars', post: 'Post',
+    home: 'Home', jobs: 'Jobs', rooms: 'Property', cars: 'Cars', post: 'Post', buysell: 'Buy/Sell', labour: 'Labour',
     // Screens
     findJobs: 'Find Jobs', roomsPG: 'Property/PG', carRental: 'Cars',
     buySell: 'Buy & Sell', ourServices: 'OUR SERVICES', recentJobs: 'RECENT JOBS',
@@ -351,7 +351,7 @@ const STRINGS = {
 
   mr: {
     // Navigation
-    home: 'मुख्यपृष्ठ', jobs: 'नोकऱ्या', rooms: 'मालमत्ता', cars: 'गाड्या', post: 'पोस्ट',
+    home: 'मुख्यपृष्ठ', jobs: 'नोकऱ्या', rooms: 'मालमत्ता', cars: 'गाड्या', post: 'पोस्ट', buysell: 'खरेदी-विक्री', labour: 'मजूर',
     // Screens
     findJobs: 'नोकऱ्या शोधा', roomsPG: 'मालमत्ता/PG', carRental: 'गाड्या',
     buySell: 'खरेदी-विक्री', ourServices: 'आमच्या सेवा', recentJobs: 'अलीकडील नोकऱ्या',
@@ -653,7 +653,7 @@ const STRINGS = {
 
   hi: {
     // Navigation
-    home: 'होम', jobs: 'नौकरियाँ', rooms: 'संपत्ति', cars: 'गाड़ियाँ', post: 'पोस्ट',
+    home: 'होम', jobs: 'नौकरियाँ', rooms: 'संपत्ति', cars: 'गाड़ियाँ', post: 'पोस्ट', buysell: 'खरीदें-बेचें', labour: 'मजदूर',
     // Screens
     findJobs: 'नौकरी खोजें', roomsPG: 'संपत्ति/PG', carRental: 'गाड़ियाँ',
     buySell: 'खरीदें-बेचें', ourServices: 'हमारी सेवाएं', recentJobs: 'हाल की नौकरियाँ',
