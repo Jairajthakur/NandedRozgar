@@ -34,6 +34,8 @@ import PostRoomScreen   from './src/screens/PostRoomScreen';
 import BuySellScreen    from './src/screens/BuySellScreen';
 import BuySellDetailScreen from './src/screens/BuySellDetailScreen';
 import LabourScreen     from './src/screens/LabourScreen';
+import LabourDetailScreen from './src/screens/LabourDetailScreen';
+import PostLabourProfileScreen from './src/screens/PostLabourProfileScreen';
 import PostItemScreen   from './src/screens/PostItemScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import { isOnboarded } from './src/utils/storage';
@@ -74,7 +76,7 @@ let _HomeScreen, _BoardScreen, _JobDetailScreen, _PostScreen, _PostJobScreen,
     _ReferralScreen, _MyApplicationsScreen, _SeekerProfileScreen,
     _AnalyticsScreen, _AlertsScreen, _PromoteBusinessScreen,
     _HelpSupportScreen, _SellItemForm, _AboutScreen, _ChatScreen, _ChatListScreen, _SavedJobsScreen,
-    _MonthlyPlanScreen, _LabourScreen;
+    _MonthlyPlanScreen, _LabourScreen, _LabourDetailScreen, _PostLabourProfileScreen;
 
 // ── Online / offline detection ────────────────────────────────────────────────
 // FIX: The previous version pinged our own backend server (/health) to decide
@@ -273,8 +275,33 @@ function TabIcon({ name, focused, library = 'ion' }) {
   return <Ionicons name={name} size={size} color={color} />;
 }
 
-// ── Post Button (static — no pulsing/ripple/rotation) ─────────────────────────
+// ── Post Button (pulsing ring + press-bounce) ──────────────────────────────────
 function AnimatedPostButton({ onPress }) {
+  const ring  = useRef(new Animated.Value(0)).current; // 0→1 pulse loop
+  const press = useRef(new Animated.Value(1)).current; // press scale
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(ring, {
+          toValue: 1, duration: 1500,
+          easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(ring, { toValue: 0, duration: 0, useNativeDriver: Platform.OS !== 'web' }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const ringScale   = ring.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] });
+  const ringOpacity = ring.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] });
+
+  const onPressIn  = () =>
+    Animated.spring(press, { toValue: 0.86, useNativeDriver: Platform.OS !== 'web', speed: 40, bounciness: 0 }).start();
+  const onPressOut = () =>
+    Animated.spring(press, { toValue: 1, useNativeDriver: Platform.OS !== 'web', speed: 16, bounciness: 10 }).start();
+
   // Web
   if (Platform.OS === 'web') {
     return (
@@ -286,27 +313,57 @@ function AnimatedPostButton({ onPress }) {
           background: 'none', border: 'none', cursor: 'pointer', padding: 0,
         }}
       >
-        <div
-          style={{
-            width: 54, height: 54, borderRadius: 27,
-            marginTop: -22,
-            background: '#f97316',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 5px 18px rgba(249,115,22,0.45)',
-          }}
-        >
-          <span style={{ fontSize: 28, color: '#fff', lineHeight: 1, fontWeight: 300 }}>＋</span>
+        <div style={{ position: 'relative', width: 54, height: 54, marginTop: -22 }}>
+          <div className="post-btn-ring" />
+          <div
+            className="post-btn-core"
+            style={{
+              width: 54, height: 54, borderRadius: 27,
+              background: '#f97316',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 5px 18px rgba(249,115,22,0.45)',
+            }}
+          >
+            <span style={{ fontSize: 28, color: '#fff', lineHeight: 1, fontWeight: 300 }}>＋</span>
+          </div>
         </div>
         <span style={{ fontSize: 10, fontWeight: 700, color: '#f97316', marginTop: 2 }}>Post</span>
+        <style>{`
+          @keyframes postBtnPulse {
+            0%   { transform: scale(1);    opacity: .5; }
+            100% { transform: scale(1.6);  opacity: 0;  }
+          }
+          .post-btn-ring {
+            position: absolute; inset: 0;
+            width: 54px; height: 54px; border-radius: 27px;
+            background: #f97316;
+            animation: postBtnPulse 1.5s ease-out infinite;
+            pointer-events: none;
+          }
+          .post-btn-core { transition: transform .12s ease; }
+          button:active .post-btn-core { transform: scale(0.86); }
+        `}</style>
       </button>
     );
   }
 
   // Native (iOS / Android)
   return (
-    <TouchableOpacity onPress={onPress} style={s.postSlot} activeOpacity={0.85}>
-      <View style={s.postBtn}>
-        <Ionicons name="add" size={28} color="#fff" />
+    <TouchableOpacity
+      onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      style={s.postSlot}
+      activeOpacity={0.9}
+    >
+      <View style={s.postWrap}>
+        <Animated.View
+          pointerEvents="none"
+          style={[s.postRing, { marginTop: 0, opacity: ringOpacity, transform: [{ scale: ringScale }] }]}
+        />
+        <Animated.View style={[s.postBtn, { marginTop: 0, transform: [{ scale: press }] }]}>
+          <Ionicons name="add" size={28} color="#fff" />
+        </Animated.View>
       </View>
       <Text style={s.postLabel}>Post</Text>
     </TouchableOpacity>
@@ -601,6 +658,8 @@ _PostRoomScreen        = withScreenErrorBoundary(PostRoomScreen,        'PostRoo
 _BuySellScreen         = withScreenErrorBoundary(BuySellScreen,         'BuySellScreen');
 _BuySellDetailScreen   = withScreenErrorBoundary(BuySellDetailScreen,   'BuySellDetailScreen');
 _LabourScreen          = withScreenErrorBoundary(LabourScreen,          'LabourScreen');
+_LabourDetailScreen    = withScreenErrorBoundary(LabourDetailScreen,    'LabourDetailScreen');
+_PostLabourProfileScreen = withScreenErrorBoundary(PostLabourProfileScreen, 'PostLabourProfileScreen');
 _PostItemScreen        = withScreenErrorBoundary(PostItemScreen,        'PostItemScreen');
 _LoginScreen           = withScreenErrorBoundary(LoginScreen,           'LoginScreen');
 _ReferralScreen        = withScreenErrorBoundary(ReferralScreen,        'ReferralScreen');
@@ -802,6 +861,8 @@ function RootNavigator() {
       <Stack.Screen name="BuySell"    component={_BuySellScreen}       options={{ headerShown: true, headerTitle: t('buySell'), ...HEADER }} />
       <Stack.Screen name="BuySellDetail" component={_BuySellDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="PostItem"   component={_PostItemScreen}       options={{ headerShown: false }} />
+      <Stack.Screen name="LabourDetail"       component={_LabourDetailScreen}       options={{ headerShown: false }} />
+      <Stack.Screen name="PostLabourProfile"  component={_PostLabourProfileScreen}  options={{ headerShown: false }} />
       <Stack.Screen name="PromoteBusiness" component={_PromoteBusinessScreen} options={{ headerShown: false }} />
       <Stack.Screen name="MonthlyPlan"     component={_MonthlyPlanScreen}     options={{ headerShown: false }} />
       <Stack.Screen name="Profile"    component={_ProfileScreen}    options={{ headerShown: true, headerTitle: t('myProfile'), ...HEADER }} />
@@ -949,6 +1010,7 @@ const s = StyleSheet.create({
   tabLabelActive: { fontSize: 8.5, fontWeight: '700', color: ORANGE },
 
   postSlot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  postWrap: { width: 54, height: 54, marginTop: -22, alignItems: 'center', justifyContent: 'center' },
   postRing: {
     position: 'absolute',
     width: 54, height: 54, borderRadius: 27,
