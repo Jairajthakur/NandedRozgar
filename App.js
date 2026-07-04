@@ -477,7 +477,6 @@ function MainTabs() {
           ),
         })}
       />
-      <Tab.Screen name="Post"  component={_PostScreen}  options={{ headerShown: false, tabBarLabel: t('post') }} />
       <Tab.Screen
         name="Rooms"
         component={_RoomScreen}
@@ -496,6 +495,7 @@ function MainTabs() {
           ),
         })}
       />
+      <Tab.Screen name="Post"  component={_PostScreen}  options={{ headerShown: false, tabBarLabel: t('post') }} />
       <Tab.Screen
         name="Cars"
         component={_CarScreen}
