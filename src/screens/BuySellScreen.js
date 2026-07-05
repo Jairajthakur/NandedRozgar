@@ -131,7 +131,13 @@ function PulseDot() {
 
 /* ─── Top Deals Banner ─── */
 function TopDealsBanner() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const { currentDistrict } = useDistrict();
+  const districtLocalName = currentDistrict
+    ? (lang === 'mr' ? (currentDistrict.nameMarathi || currentDistrict.name)
+     : lang === 'hi' ? (currentDistrict.nameHindi   || currentDistrict.name)
+     : currentDistrict.name)
+    : 'Nanded';
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.loop(
@@ -646,6 +652,7 @@ export default function BuySellScreen({ route }) {
 
   const ListHeader = (
     <>
+      <FadeIn delay={180}><TopDealsBanner /></FadeIn>
       {promos.length === 0 && (
         <View style={{ marginHorizontal: 12, marginVertical: 6 }}>
           <SponsoredLabel />
