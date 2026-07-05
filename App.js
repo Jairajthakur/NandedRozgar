@@ -38,6 +38,7 @@ import LabourDetailScreen from './src/screens/LabourDetailScreen';
 import PostLabourProfileScreen from './src/screens/PostLabourProfileScreen';
 import PostItemScreen   from './src/screens/PostItemScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import LanguagePickerScreen from './src/screens/LanguagePickerScreen';
 import { isOnboarded, hasSeenInstagramBanner, markInstagramBannerSeen } from './src/utils/storage';
 import InstagramFollowModal from './src/components/InstagramFollowModal';
 import { initAds } from './src/components/ads/initAds';
@@ -682,8 +683,14 @@ _SavedJobsScreen       = withScreenErrorBoundary(SavedJobsScreen,       'SavedJo
 function RootNavigator() {
   const { user, loading, sessionPending } = useAuth();
   const { districtLoading } = useDistrict();
-  const { t } = useLang();
+  const { t, hasSavedLang } = useLang();
   const [showOnboarding, setShowOnboarding] = React.useState(null);
+
+  // Mirrors hasSavedLang from LangProvider into local state so selecting a
+  // language on LanguagePickerScreen can flip it immediately (hasSavedLang
+  // itself also updates, but tracking it locally avoids relying on provider
+  // re-render timing for the initialRouteName decision below).
+  const [languageChosen, setLanguageChosen] = React.useState(hasSavedLang);
 
   // Bug fix: previously `showOnboarding` alone decided the unauthenticated
   // stack's initialRouteName. If that flag was ever wrong (e.g. a flaky
@@ -839,27 +846,40 @@ function RootNavigator() {
     </View>
   );
 
-  // ── Unauthenticated stack: Onboarding (if needed) → Login ────────────────
+  // ── Unauthenticated stack: Onboarding (if needed) → Language (if needed) → Login ──
   // Bug fix: previously OnboardingScreen was returned as a bare element outside
   // any Navigator. When the user tapped "Get Started" / "Skip", setShowOnboarding(false)
   // caused a switch from a bare <OnboardingScreen /> to a fresh <Stack.Navigator>.
   // React Navigation had no prior navigation state for that Navigator, which left
   // the screen blank / frozen. Fix: always render a single Stack.Navigator and
-  // use initialRouteName to land on Onboarding or Login as appropriate. The
-  // Onboarding screen calls onDone → setShowOnboarding(false); the navigator then
-  // re-renders with Login as the only remaining screen, which React Navigation
-  // transitions to correctly because the Navigator was already mounted.
+  // use initialRouteName to land on the right first screen. Each screen calls
+  // navigation.replace() to move to the next step, which React Navigation handles
+  // correctly because the Navigator was already mounted.
   if (!user) {
+    let initialRoute = 'Login';
+    if (showOnboarding && !wasAuthenticatedRef.current) initialRoute = 'Onboarding';
+    else if (!languageChosen) initialRoute = 'Language';
+
     return (
       <Stack.Navigator
         screenOptions={{ headerShown: false }}
-        initialRouteName={(showOnboarding && !wasAuthenticatedRef.current) ? 'Onboarding' : 'Login'}
+        initialRouteName={initialRoute}
       >
         <Stack.Screen name="Onboarding">
           {({ navigation }) => (
             <OnboardingScreen
               onDone={() => {
                 setShowOnboarding(false);
+                navigation.replace(!languageChosen ? 'Language' : 'Login');
+              }}
+            />
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Language">
+          {({ navigation }) => (
+            <LanguagePickerScreen
+              onDone={() => {
+                setLanguageChosen(true);
                 navigation.replace('Login');
               }}
             />
