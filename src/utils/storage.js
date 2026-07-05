@@ -60,7 +60,10 @@ export async function isOnboarded() {
     if (_onboardedCache) return true;
     return false;
   } catch {
-    return _onboardedCache ?? true;
+    // A read failure must never be mistaken for "already onboarded" — that
+    // would silently skip onboarding for a genuinely new install. Only trust
+    // a cache we've positively set to true; otherwise assume not onboarded.
+    return _onboardedCache === true;
   }
 }
 
