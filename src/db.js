@@ -398,6 +398,24 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_hire_requests_labour ON hire_requests(labour_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_hire_requests_contractor ON hire_requests(contractor_id)`);
 
+    // Pay-per-day contact unlock: a contractor pays ₹X/day to view a labourer's
+    // phone number for N days. Row = one purchase; contact stays visible to that
+    // contractor until expires_at.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_contact_unlocks (
+        id                   SERIAL PRIMARY KEY,
+        contractor_id        INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        labour_id            INTEGER REFERENCES labour_profiles(id) ON DELETE CASCADE,
+        days                 INTEGER NOT NULL,
+        amount               NUMERIC(10,2) NOT NULL,
+        cashfree_order_id    VARCHAR(100),
+        cashfree_payment_id  VARCHAR(100),
+        expires_at           TIMESTAMPTZ NOT NULL,
+        created_at           TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_contact_unlock_lookup ON labour_contact_unlocks(contractor_id, labour_id, expires_at)`);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS saved_jobs (
         id         SERIAL PRIMARY KEY,
