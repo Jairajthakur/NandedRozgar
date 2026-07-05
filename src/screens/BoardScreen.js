@@ -764,6 +764,10 @@ export default function BoardScreen({ route }) {
               </View>
             );
           }
+          if (item.type === 'ad') {
+            return <NativeAdCard />;
+          }
+          if (!item.data) return null;
           return (
             <JobCard
               job={item.data}
@@ -780,6 +784,9 @@ export default function BoardScreen({ route }) {
             action={isGiver ? () => nav.navigate('Post') : null}
             actionLabel={t('postAJob')}
           />
+        }
+        ListFooterComponent={
+          !isPremium && interleavedFeed.length > 0 ? <BannerAd /> : null
         }
       />
       {FilterModal}
