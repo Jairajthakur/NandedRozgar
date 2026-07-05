@@ -128,6 +128,7 @@ router.get('/:id', async (req, res) => {
       }
     }
 
+    const hasPhone = !!profile.user_phone;
     const safeProfile = { ...profile, user_phone: contactUnlocked ? profile.user_phone : null };
 
     res.json({
@@ -136,6 +137,7 @@ router.get('/:id', async (req, res) => {
       contactUnlocked,
       unlockExpiresAt,
       contactRatePerDay: CONTACT_RATE_PER_DAY,
+      hasPhone, // lets the client hide/disable the paid-unlock flow when there's nothing to unlock
     });
   } catch (err) {
     console.error('[labour] detail error:', err.message);
