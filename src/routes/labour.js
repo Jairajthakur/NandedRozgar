@@ -1,9 +1,26 @@
 const router = require('express').Router();
+const jwt = require('jsonwebtoken');
 const { pool, cache } = require('../db');
 const { auth } = require('../middleware/auth');
 
 const LIST_TTL   = 15_000;
 const DETAIL_TTL = 30_000;
+
+// Must match LABOUR_CONTACT_RATE_PER_DAY in routes/payments.js
+const CONTACT_RATE_PER_DAY = 8;
+
+// Best-effort decode of the Authorization header — does NOT reject the request
+// if missing/invalid, since profile browsing is public. Used only to determine
+// whether a viewer has already paid to unlock this profile's contact info.
+function getUserIdFromReq(req) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return null;
+  try {
+    return jwt.verify(header.slice(7), process.env.JWT_SECRET).id;
+  } catch {
+    return null;
+  }
+}
 
 // GET /api/labour — browse/search labour profiles
 router.get('/', async (req, res) => {
@@ -69,28 +86,57 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/labour/:id — profile detail
+// GET /api/labour/:id — profile detail (phone number hidden until unlocked)
 router.get('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (!id) return res.status(400).json({ ok: false, error: 'Invalid id' });
 
     const cacheKey = `labour:detail:${id}`;
-    const hit = await cache.get(cacheKey);
-    if (hit) return res.json(hit);
+    let profile = await cache.get(cacheKey);
 
-    const result = await pool.query(`
-      SELECT l.*, u.name AS user_name, u.phone AS user_phone
-      FROM labour_profiles l
-      LEFT JOIN users u ON u.id = l.user_id
-      WHERE l.id = $1 AND l.status = 'active'
-    `, [id]);
+    if (!profile) {
+      const result = await pool.query(`
+        SELECT l.*, u.name AS user_name, u.phone AS user_phone
+        FROM labour_profiles l
+        LEFT JOIN users u ON u.id = l.user_id
+        WHERE l.id = $1 AND l.status = 'active'
+      `, [id]);
 
-    if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+      if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+      profile = result.rows[0];
+      // Cached server-side only — phone is masked per-request below, never cached unmasked to clients.
+      await cache.set(cacheKey, profile, DETAIL_TTL);
+    }
 
-    const payload = { ok: true, profile: result.rows[0] };
-    await cache.set(cacheKey, payload, DETAIL_TTL);
-    res.json(payload);
+    const userId = getUserIdFromReq(req);
+    let contactUnlocked = false;
+    let unlockExpiresAt = null;
+
+    if (userId && userId === profile.user_id) {
+      contactUnlocked = true; // labourer viewing their own profile
+    } else if (userId) {
+      const { rows } = await pool.query(
+        `SELECT expires_at FROM labour_contact_unlocks
+         WHERE contractor_id = $1 AND labour_id = $2 AND expires_at > NOW()
+         ORDER BY expires_at DESC LIMIT 1`,
+        [userId, id]
+      );
+      if (rows.length) {
+        contactUnlocked = true;
+        unlockExpiresAt = rows[0].expires_at;
+      }
+    }
+
+    const safeProfile = { ...profile, user_phone: contactUnlocked ? profile.user_phone : null };
+
+    res.json({
+      ok: true,
+      profile: safeProfile,
+      contactUnlocked,
+      unlockExpiresAt,
+      contactRatePerDay: CONTACT_RATE_PER_DAY,
+    });
   } catch (err) {
     console.error('[labour] detail error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to load profile' });
