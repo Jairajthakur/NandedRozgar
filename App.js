@@ -38,7 +38,8 @@ import LabourDetailScreen from './src/screens/LabourDetailScreen';
 import PostLabourProfileScreen from './src/screens/PostLabourProfileScreen';
 import PostItemScreen   from './src/screens/PostItemScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
-import { isOnboarded } from './src/utils/storage';
+import { isOnboarded, hasSeenInstagramBanner, markInstagramBannerSeen } from './src/utils/storage';
+import InstagramFollowModal from './src/components/InstagramFollowModal';
 import { initAds } from './src/components/ads/initAds';
 import ReferralScreen from './src/screens/ReferralScreen';
 import MyApplicationsScreen from './src/screens/MyApplicationsScreen';
@@ -700,6 +701,25 @@ function RootNavigator() {
     isOnboarded().then(done => setShowOnboarding(!done));
   }, []);
 
+  // ── Instagram follow popup — shown exactly once ever, right after login ────
+  // Fires the first time `user` becomes truthy. hasSeenInstagramBanner() reads
+  // a persisted flag (AsyncStorage/localStorage), so this stays hidden on every
+  // future login/app-restart once the user has dismissed or acted on it once.
+  const [showInstagramModal, setShowInstagramModal] = React.useState(false);
+  React.useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    hasSeenInstagramBanner().then(seen => {
+      if (!seen && !cancelled) setShowInstagramModal(true);
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const dismissInstagramModal = React.useCallback(() => {
+    setShowInstagramModal(false);
+    markInstagramBannerSeen().catch(() => {});
+  }, []);
+
   // Must run once before any <BannerAd> / native ad request — see initAds.js.
   React.useEffect(() => {
     initAds();
@@ -856,6 +876,7 @@ function RootNavigator() {
   // which meant every page load / app restart landed on the Admin panel.
   // Admins can still reach AdminPanel via the ProfileScreen menu (AdminPanelGuard).
   return (
+    <>
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Main" component={MainTabs} />
       <Stack.Screen name="JobDetail"  component={_JobDetailScreen}  options={{ headerShown: true, headerTitle: t('jobDetails'), ...HEADER }} />
@@ -890,6 +911,8 @@ function RootNavigator() {
       <Stack.Screen name="ChatList"        component={_ChatListScreen}        options={{ headerShown: true, headerTitle: t('headerMessages'),        ...HEADER }} />
       <Stack.Screen name="SavedJobs"       component={_SavedJobsScreen}       options={{ headerShown: true, headerTitle: t('headerSavedJobs'),       ...HEADER }} />
     </Stack.Navigator>
+    <InstagramFollowModal visible={showInstagramModal} onClose={dismissInstagramModal} />
+    </>
   );
 }
 
