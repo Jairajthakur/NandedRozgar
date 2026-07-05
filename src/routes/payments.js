@@ -988,4 +988,136 @@ router.get('/monthly-plan/status', auth, async (req, res) => {
   }
 });
 
+// ── Labour contact unlock (pay-per-day) ────────────────────────────────────
+// A contractor pays a flat rate per day to reveal a labourer's phone number.
+// Price scales with the number of days they need the worker for.
+const LABOUR_CONTACT_RATE_PER_DAY = 8; // ₹/day (within the ₹5–10 target range)
+
+// POST /api/payments/order/labour-contact — Step 1: create Cashfree order for a contact unlock
+router.post('/order/labour-contact', auth, async (req, res) => {
+  try {
+    const labourId = parseInt(req.body.labourId);
+    const days = Math.max(1, parseInt(req.body.days) || 1);
+    if (!labourId) return res.json({ ok: false, error: 'labourId is required.' });
+
+    const { rows: labourRows } = await pool.query(
+      `SELECT id, user_id FROM labour_profiles WHERE id = $1 AND status = 'active'`,
+      [labourId]
+    );
+    if (!labourRows.length) return res.json({ ok: false, error: 'Labour profile not found.' });
+    if (labourRows[0].user_id === req.user.id) {
+      return res.json({ ok: false, error: 'You cannot pay to unlock your own profile.' });
+    }
+
+    const amount = days * LABOUR_CONTACT_RATE_PER_DAY;
+
+    const { rows: userRows } = await pool.query(
+      'SELECT name, phone, email FROM users WHERE id = $1', [req.user.id]
+    );
+    const user = userRows[0];
+
+    if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
+      return res.json({ ok: false, error: 'Payment gateway is not configured. Please contact support.' });
+    }
+
+    const orderId = `NRLC_${req.user.id}_${Date.now()}`;
+
+    const orderPayload = {
+      order_id:       orderId,
+      order_amount:   amount,
+      order_currency: 'INR',
+      order_note:     `Unlock labour contact #${labourId} — ${days} day(s)`,
+      customer_details: {
+        customer_id:    String(req.user.id),
+        customer_name:  user?.name  || 'User',
+        customer_phone: user?.phone || '9999999999',
+        customer_email: user?.email || req.user.email || 'user@example.com',
+      },
+      order_meta: {
+        return_url: `${process.env.APP_URL || 'https://thecityplus.in'}/payment/callback?order_id={order_id}&status={payment_status}`,
+        notify_url: `${process.env.APP_URL || 'https://thecityplus.in'}/api/payments/cashfree-webhook`,
+      },
+    };
+
+    const cfRes = await axios.post(`${CF_BASE}/orders`, orderPayload, { headers: cfHeaders() });
+    const cfOrder = cfRes.data;
+    if (!cfOrder?.payment_session_id) {
+      console.error('Cashfree order error (labour-contact):', cfOrder);
+      return res.json({ ok: false, error: 'Failed to create payment order.' });
+    }
+
+    res.json({
+      ok:                 true,
+      payment_session_id: cfOrder.payment_session_id,
+      order_id:           orderId,
+      amount,
+      labourId,
+      days,
+      ratePerDay:         LABOUR_CONTACT_RATE_PER_DAY,
+    });
+  } catch (err) {
+    console.error('Labour contact order error:', err?.response?.data || err);
+    res.json({ ok: false, error: 'Failed to create payment order.' });
+  }
+});
+
+// POST /api/payments/verify/labour-contact — Step 2: verify payment → unlock contact for N days
+router.post('/verify/labour-contact', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { cashfree_order_id, labourId, days } = req.body;
+    const id      = parseInt(labourId);
+    const numDays = Math.max(1, parseInt(days) || 1);
+    if (!cashfree_order_id || !id) {
+      return res.json({ ok: false, error: 'Missing order or labour id.' });
+    }
+
+    await client.query('BEGIN');
+
+    const dup = await rejectIfDuplicatePayment(client, cashfree_order_id);
+    if (dup) { await client.query('ROLLBACK'); return res.json(dup); }
+
+    const verification = await verifyCashfreePayment(cashfree_order_id);
+    if (!verification.ok) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: verification.error });
+    }
+
+    const expectedAmount = numDays * LABOUR_CONTACT_RATE_PER_DAY;
+    if (Math.abs(verification.amount - expectedAmount) > 0.5) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: false, error: 'Payment amount mismatch.' });
+    }
+
+    await savePayment(client, req.user.id, {
+      amountRupees:      verification.amount,
+      plan:              `labour_contact_${numDays}d`,
+      cashfreeOrderId:   cashfree_order_id,
+      cashfreePaymentId: verification.paymentId,
+    });
+
+    const expiresAt = new Date(Date.now() + numDays * 24 * 60 * 60 * 1000);
+    await client.query(`
+      INSERT INTO labour_contact_unlocks
+        (contractor_id, labour_id, days, amount, cashfree_order_id, cashfree_payment_id, expires_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+    `, [req.user.id, id, numDays, verification.amount, cashfree_order_id, verification.paymentId, expiresAt]);
+
+    const { rows } = await client.query(`
+      SELECT l.*, u.name AS user_name, u.phone AS user_phone
+      FROM labour_profiles l LEFT JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1
+    `, [id]);
+
+    await client.query('COMMIT');
+    res.json({ ok: true, profile: rows[0], expiresAt, days: numDays });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Labour contact verify error:', err?.response?.data || err.message);
+    res.json({ ok: false, error: 'Failed to verify payment.' });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
