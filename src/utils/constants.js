@@ -23,6 +23,9 @@ const _rawApiUrl =
   'https://thecityplus.in';
 export const BASE_URL = _rawApiUrl.startsWith('http') ? _rawApiUrl : `https://${_rawApiUrl}`;
 
+// TODO: replace with the real handle for thecityplus.in
+export const INSTAGRAM_URL = 'https://instagram.com/thecityplus.in';
+
 // ── Razorpay ──────────────────────────────────────────────────────────────────
 // Read from process.env first (available when running via `expo start` with a
 // local .env file), then fall back to Constants.expoConfig.extra which is
