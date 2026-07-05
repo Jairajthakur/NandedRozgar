@@ -13,7 +13,8 @@ import { BannerAd as GoogleBannerAd, BannerAdSize } from 'react-native-google-mo
 import { BANNER_AD_UNIT_ID, ADS_SUPPORTED } from './adConfig';
 
 // TEMPORARY debug switch — see NativeAdCard.js for details.
-const DEBUG_ADS = true;
+// FLIPPED 2026-07-05: real ads are now live — see NativeAdCard.js note.
+const DEBUG_ADS = false;
 
 export default function BannerAd({ style }) {
   const [failed, setFailed] = useState(false);
