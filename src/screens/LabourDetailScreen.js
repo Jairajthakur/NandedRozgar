@@ -61,6 +61,7 @@ export default function LabourDetailScreen() {
   const [ratePerDay, setRatePerDay]           = useState(8);
   const [days, setDays]                       = useState(1);
   const [unlocking, setUnlocking]             = useState(false);
+  const [hasPhone, setHasPhone]               = useState(true);
 
   const load = async () => {
     setLoading(true);
@@ -71,6 +72,7 @@ export default function LabourDetailScreen() {
       setContactUnlocked(!!res.contactUnlocked);
       setUnlockExpiresAt(res.unlockExpiresAt || null);
       if (res.contactRatePerDay) setRatePerDay(res.contactRatePerDay);
+      setHasPhone(res.hasPhone !== false);
     } else {
       setError(res?.error || 'Could not load this profile.');
     }
@@ -80,6 +82,7 @@ export default function LabourDetailScreen() {
   useEffect(() => { if (id) load(); }, [id]);
 
   const unlockContact = async () => {
+    if (!hasPhone) return; // nothing to unlock — button should be hidden, but guard anyway
     if (!user) {
       Alert.alert('Login required', 'Please log in to unlock this contact.', [
         { text: 'Cancel', style: 'cancel' },
@@ -201,7 +204,7 @@ export default function LabourDetailScreen() {
                 {profile.skill_category}
                 {profile.experience_years ? ` · ${profile.experience_years} yrs experience` : ''}
               </Text>
-              {!!profile.rating_avg && (
+              {!!profile.rating_count && Number(profile.rating_count) > 0 && (
                 <View style={s.ratingRow}>
                   <Ionicons name="star" size={12} color="#f59e0b" />
                   <Text style={s.ratingTxt}>{Number(profile.rating_avg).toFixed(1)} ({profile.rating_count || 0})</Text>
@@ -237,7 +240,14 @@ export default function LabourDetailScreen() {
         <FadeSlide delay={110} style={s.card}>
           <Text style={s.sectionTitle}>Contact</Text>
 
-          {contactUnlocked ? (
+          {!hasPhone ? (
+            <View style={s.unlockedRow}>
+              <Ionicons name="call-outline" size={16} color="#999" />
+              <Text style={s.unlockNote}>
+                No contact number on file yet for {(profile.full_name || 'this worker').split(' ')[0]} — try sending a hire request instead.
+              </Text>
+            </View>
+          ) : contactUnlocked ? (
             <View style={s.unlockedRow}>
               <Ionicons name="call" size={16} color={LABOUR_COLOR} />
               <Text style={s.phoneValue}>{profile.user_phone || 'Phone unavailable'}</Text>
