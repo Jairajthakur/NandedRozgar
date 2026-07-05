@@ -64,10 +64,14 @@ async function autoDetectDistrict() {
   try {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return 'nanded';
-    const loc = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-      timeInterval: 5000,
-    });
+    // Without internet, assisted-GPS can't speed up the fix, and a plain GPS
+    // lock can take a long time indoors (or never complete at all). Race it
+    // against a timeout so first launch never hangs on the splash screen —
+    // same silent fallback to 'nanded' as a permission denial or GPS error.
+    const loc = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('location-timeout')), 6000)),
+    ]);
     return detectDistrictFromCoords(loc.coords.latitude, loc.coords.longitude);
   } catch {
     return 'nanded';
