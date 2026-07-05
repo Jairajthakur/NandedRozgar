@@ -236,6 +236,8 @@ router.patch('/:id/availability', auth, async (req, res) => {
 });
 
 // POST /api/labour/:id/hire — contractor sends a hire request
+// Requires an active paid contact unlock: hiring is gated behind the same
+// pay-per-day contact purchase, so this can't be used to bypass that paywall.
 router.post('/:id/hire', auth, async (req, res) => {
   try {
     const labourId = parseInt(req.params.id);
@@ -245,6 +247,16 @@ router.post('/:id/hire', auth, async (req, res) => {
     if (!labour.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
     if (labour.rows[0].user_id === req.user.id) {
       return res.status(400).json({ ok: false, error: 'You cannot hire yourself' });
+    }
+
+    const { rows: unlockRows } = await pool.query(
+      `SELECT 1 FROM labour_contact_unlocks
+       WHERE contractor_id = $1 AND labour_id = $2 AND expires_at > NOW()
+       LIMIT 1`,
+      [req.user.id, labourId]
+    );
+    if (!unlockRows.length) {
+      return res.status(402).json({ ok: false, error: 'Unlock this worker\'s contact before sending a hire request.' });
     }
 
     const result = await pool.query(`
