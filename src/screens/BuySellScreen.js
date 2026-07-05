@@ -13,6 +13,10 @@ import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../co
 import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
 import { useDistrict } from '../context/DistrictContext';
+import NativeAdCard from '../components/ads/NativeAdCard';
+import BannerAd from '../components/ads/BannerAd';
+import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
+import { useIsPremium } from '../hooks/useIsPremium';
 
 const ORANGE  = '#f97316';
 const IS_WEB  = Platform.OS === 'web';
@@ -410,6 +414,7 @@ export default function BuySellScreen({ route }) {
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
   const [promos,      setPromos]      = useState([]);
+  const isPremium = useIsPremium();
 
   const showSidebar = IS_WEB && winW >= 900;
 
@@ -501,13 +506,30 @@ export default function BuySellScreen({ route }) {
   }, [items, activeCat, search, condition, priceRange]);
 
   const interleavedFeed = useMemo(() => {
-    if (promos.length === 0) {
-      return filtered.map(r => ({ type: 'item', data: r, id: 'item_' + r.id }));
-    }
-    const itemRows  = filtered.map(r => ({ type: 'item',  data: r, id: 'item_'  + r.id, ts: r.postedAt || 0 }));
-    const promoRows = promos.map(p  => ({ type: 'promo', data: p, id: 'promo_' + p.id, ts: new Date(p.createdAt).getTime() }));
-    return [...itemRows, ...promoRows].sort((a, b) => b.ts - a.ts);
-  }, [filtered, promos]);
+    const merged = promos.length === 0
+      ? filtered.map(r => ({ type: 'item', data: r, id: 'item_' + r.id }))
+      : (() => {
+          const itemRows  = filtered.map(r => ({ type: 'item',  data: r, id: 'item_'  + r.id, ts: r.postedAt || 0 }));
+          const promoRows = promos.map(p  => ({ type: 'promo', data: p, id: 'promo_' + p.id, ts: new Date(p.createdAt).getTime() }));
+          return [...itemRows, ...promoRows].sort((a, b) => b.ts - a.ts);
+        })();
+
+    // Insert one native ad card after every NATIVE_AD_FREQUENCY real items —
+    // skipped for premium users and on web (ADS_SUPPORTED is native-only).
+    if (!ADS_SUPPORTED || isPremium) return merged;
+
+    const withAds = [];
+    let sinceLastAd = 0;
+    merged.forEach(item => {
+      withAds.push(item);
+      sinceLastAd++;
+      if (sinceLastAd >= NATIVE_AD_FREQUENCY) {
+        withAds.push({ type: 'ad', id: 'ad_' + withAds.length });
+        sinceLastAd = 0;
+      }
+    });
+    return withAds;
+  }, [filtered, promos, isPremium]);
 
   const activeFilters = [
     activeCat !== 'All'        ? activeCat        : null,
@@ -921,8 +943,15 @@ export default function BuySellScreen({ route }) {
               </View>
             );
           }
+          if (item.type === 'ad') {
+            return <NativeAdCard />;
+          }
+          if (!item.data) return null;
           return <ItemCard item={item.data} index={index} onPress={() => nav.navigate('BuySellDetail', { item: item.data })} />;
         }}
+        ListFooterComponent={
+          !isPremium && interleavedFeed.length > 0 ? <BannerAd /> : null
+        }
       />
 
       {FilterModal}
