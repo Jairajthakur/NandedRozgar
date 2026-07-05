@@ -1,7 +1,11 @@
 /**
- * LabourDetailScreen.js — view a labourer's profile + send a hire request
+ * LabourDetailScreen.js — view a labourer's profile, pay-per-day to unlock
+ * their phone number, and optionally send a formal hire request.
  *
- * Reads GET /api/labour/:id and posts to /api/labour/:id/hire.
+ * Reads GET /api/labour/:id (phone comes back masked until unlocked).
+ * Unlock flow: POST /api/payments/order/labour-contact → Cashfree checkout
+ * → POST /api/payments/verify/labour-contact → phone number revealed.
+ *
  * Place at: src/screens/LabourDetailScreen.js
  */
 
@@ -18,6 +22,7 @@ import Toast from 'react-native-toast-message';
 
 import { http } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useRazorpayCheckout } from '../utils/cashfree';
 
 const ORANGE = '#f97316';
 const LABOUR_COLOR = '#b45309';
@@ -40,6 +45,7 @@ export default function LabourDetailScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { id } = route.params || {};
+  const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http });
 
   const [profile, setProfile]   = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -49,16 +55,69 @@ export default function LabourDetailScreen() {
   const [wage, setWage]         = useState('');
   const [sending, setSending]   = useState(false);
 
+  // Pay-per-day contact unlock
+  const [contactUnlocked, setContactUnlocked] = useState(false);
+  const [unlockExpiresAt, setUnlockExpiresAt] = useState(null);
+  const [ratePerDay, setRatePerDay]           = useState(8);
+  const [days, setDays]                       = useState(1);
+  const [unlocking, setUnlocking]             = useState(false);
+
   const load = async () => {
     setLoading(true);
     setError(null);
     const res = await http('GET', `/api/labour/${id}`);
-    if (res?.ok) setProfile(res.profile);
-    else setError(res?.error || 'Could not load this profile.');
+    if (res?.ok) {
+      setProfile(res.profile);
+      setContactUnlocked(!!res.contactUnlocked);
+      setUnlockExpiresAt(res.unlockExpiresAt || null);
+      if (res.contactRatePerDay) setRatePerDay(res.contactRatePerDay);
+    } else {
+      setError(res?.error || 'Could not load this profile.');
+    }
     setLoading(false);
   };
 
   useEffect(() => { if (id) load(); }, [id]);
+
+  const unlockContact = async () => {
+    if (!user) {
+      Alert.alert('Login required', 'Please log in to unlock this contact.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log in', onPress: () => nav.navigate('Login') },
+      ]);
+      return;
+    }
+    setUnlocking(true);
+    const payResult = await initiatePayment({
+      description:   `Unlock ${profile?.full_name || 'labour'} contact — ${days} day(s)`,
+      orderEndpoint: '/api/payments/order/labour-contact',
+      orderBody:     { labourId: id, days },
+    });
+
+    if (!payResult.success) {
+      setUnlocking(false);
+      if (!payResult.cancelled) {
+        Toast.show({ type: 'error', text1: 'Payment failed', text2: payResult.error || 'Please try again.' });
+      }
+      return;
+    }
+
+    const verifyRes = await http('POST', '/api/payments/verify/labour-contact', {
+      cashfree_order_id: payResult.cashfree_order_id,
+      labourId: id,
+      days,
+    });
+    setUnlocking(false);
+
+    if (verifyRes?.ok) {
+      setProfile(verifyRes.profile);
+      setContactUnlocked(true);
+      setUnlockExpiresAt(verifyRes.expiresAt);
+      Toast.show({ type: 'success', text1: 'Contact unlocked!', text2: `Valid for ${days} day${days > 1 ? 's' : ''}.` });
+    } else {
+      Toast.show({ type: 'error', text1: 'Could not verify payment', text2: verifyRes?.error || 'Please contact support.' });
+    }
+  };
 
   const sendHireRequest = async () => {
     if (!user) {
@@ -111,10 +170,12 @@ export default function LabourDetailScreen() {
   }
 
   const initials = (profile.full_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const price = days * ratePerDay;
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      {RazorpayCheckout}
 
       <View style={s.topBar}>
         <TouchableOpacity onPress={() => nav.goBack()} style={s.backBtn} activeOpacity={0.7}>
@@ -172,8 +233,64 @@ export default function LabourDetailScreen() {
           </Text>
         </FadeSlide>
 
+        {/* ── Pay-per-day contact unlock ─────────────────────────────────── */}
+        <FadeSlide delay={110} style={s.card}>
+          <Text style={s.sectionTitle}>Contact</Text>
+
+          {contactUnlocked ? (
+            <View style={s.unlockedRow}>
+              <Ionicons name="call" size={16} color={LABOUR_COLOR} />
+              <Text style={s.phoneValue}>{profile.user_phone || 'Phone unavailable'}</Text>
+              {unlockExpiresAt && (
+                <Text style={s.unlockNote}>
+                  · unlocked until {new Date(unlockExpiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                </Text>
+              )}
+            </View>
+          ) : (
+            <View>
+              <Text style={s.bioTxt}>
+                Pay ₹{ratePerDay}/day to reveal {(profile.full_name || 'this worker').split(' ')[0]}'s phone number —
+                the price scales with how many days you need them for.
+              </Text>
+
+              <View style={s.stepperRow}>
+                <Text style={s.stepperLabel}>Days needed</Text>
+                <View style={s.stepper}>
+                  <TouchableOpacity
+                    style={s.stepperBtn}
+                    onPress={() => setDays(d => Math.max(1, d - 1))}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="remove" size={16} color={LABOUR_COLOR} />
+                  </TouchableOpacity>
+                  <Text style={s.daysValue}>{days}</Text>
+                  <TouchableOpacity
+                    style={s.stepperBtn}
+                    onPress={() => setDays(d => Math.min(30, d + 1))}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="add" size={16} color={LABOUR_COLOR} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[s.unlockBtn, unlocking && { opacity: 0.7 }]}
+                onPress={unlockContact}
+                disabled={unlocking}
+                activeOpacity={0.88}
+              >
+                {unlocking
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.unlockBtnTxt}>Unlock contact — ₹{price}</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
+        </FadeSlide>
+
         {Array.isArray(profile.skills) && profile.skills.length > 0 && (
-          <FadeSlide delay={120} style={s.card}>
+          <FadeSlide delay={140} style={s.card}>
             <Text style={s.sectionTitle}>Other skills</Text>
             <View style={s.chipRow}>
               {profile.skills.map((sk, i) => (
@@ -184,14 +301,14 @@ export default function LabourDetailScreen() {
         )}
 
         {!!profile.bio && (
-          <FadeSlide delay={150} style={s.card}>
+          <FadeSlide delay={170} style={s.card}>
             <Text style={s.sectionTitle}>About</Text>
             <Text style={s.bioTxt}>{profile.bio}</Text>
           </FadeSlide>
         )}
 
         {!!profile.location && (
-          <FadeSlide delay={180} style={s.card}>
+          <FadeSlide delay={200} style={s.card}>
             <Text style={s.sectionTitle}>Location</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="location-outline" size={15} color="#888" />
@@ -232,7 +349,7 @@ export default function LabourDetailScreen() {
 
       {/* Sticky action bar */}
       <View style={[s.actionBar, { paddingBottom: insets.bottom + 12 }]}>
-        {profile.user_phone && (
+        {contactUnlocked && profile.user_phone && (
           <TouchableOpacity style={s.callBtn} onPress={callPhone} activeOpacity={0.85}>
             <Ionicons name="call" size={18} color={LABOUR_COLOR} />
           </TouchableOpacity>
@@ -299,6 +416,26 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 12, fontWeight: '700', color: '#999', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 },
   wageValue: { fontSize: 20, fontWeight: '900', color: '#111' },
   bioTxt: { fontSize: 13, color: '#444', lineHeight: 19 },
+
+  unlockedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  phoneValue: { fontSize: 16, fontWeight: '800', color: '#111' },
+  unlockNote: { fontSize: 11, color: '#999', fontWeight: '600' },
+
+  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
+  stepperLabel: { fontSize: 12, fontWeight: '700', color: '#666' },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  stepperBtn: {
+    width: 30, height: 30, borderRadius: 15,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: LABOUR_COLOR + '18', borderWidth: 1, borderColor: LABOUR_COLOR + '33',
+  },
+  daysValue: { fontSize: 15, fontWeight: '800', color: '#111', minWidth: 18, textAlign: 'center' },
+
+  unlockBtn: {
+    marginTop: 14, backgroundColor: LABOUR_COLOR, borderRadius: 12,
+    paddingVertical: 13, alignItems: 'center', justifyContent: 'center',
+  },
+  unlockBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 14 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   skillPill: { backgroundColor: '#f9f9f9', borderWidth: 1, borderColor: '#eee', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6 },
