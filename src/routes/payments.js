@@ -1001,12 +1001,18 @@ router.post('/order/labour-contact', auth, async (req, res) => {
     if (!labourId) return res.json({ ok: false, error: 'labourId is required.' });
 
     const { rows: labourRows } = await pool.query(
-      `SELECT id, user_id FROM labour_profiles WHERE id = $1 AND status = 'active'`,
+      `SELECT l.id, l.user_id, u.phone AS labourer_phone
+       FROM labour_profiles l
+       LEFT JOIN users u ON u.id = l.user_id
+       WHERE l.id = $1 AND l.status = 'active'`,
       [labourId]
     );
     if (!labourRows.length) return res.json({ ok: false, error: 'Labour profile not found.' });
     if (labourRows[0].user_id === req.user.id) {
       return res.json({ ok: false, error: 'You cannot pay to unlock your own profile.' });
+    }
+    if (!labourRows[0].labourer_phone) {
+      return res.json({ ok: false, error: 'This profile does not have a contact number on file yet.' });
     }
 
     const amount = days * LABOUR_CONTACT_RATE_PER_DAY;
