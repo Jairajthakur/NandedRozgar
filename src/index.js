@@ -69,7 +69,8 @@ if (helmet) {
         scriptSrc:       ["'self'", "'unsafe-inline'", "'unsafe-hashes'",
                           'https://static.cloudflareinsights.com',
                           'https://apis.google.com',               // Google Sign-In SDK
-                          'https://accounts.google.com'],          // Google OAuth
+                          'https://accounts.google.com',           // Google OAuth
+                          'https://sdk.cashfree.com'],             // Cashfree Drop-in checkout SDK
         // FIX: Helmet 8 sets script-src-attr to 'none' by default, which overrides
         // scriptSrc for inline event handlers (onclick=, onerror=, onsubmit= etc.).
         // 'unsafe-hashes' alone in scriptSrc is not enough — must be repeated here.
@@ -96,6 +97,9 @@ if (helmet) {
           'https://oauth2.googleapis.com',                 // Google OAuth2 endpoints
           'https://apis.google.com',                       // Google APIs (gen_204 ping, GSI)
           'https://www.googleapis.com',                    // Google userinfo / token endpoints
+          'https://api.cashfree.com',                      // Cashfree Drop-in — order/session calls
+          'https://sandbox.cashfree.com',                  // Cashfree sandbox testing
+          'https://payments.cashfree.com',                 // Cashfree Drop-in checkout backend
         ],
         // FIX: Google Sign-In loads its UI in an iframe from accounts.google.com.
         // Without frameSrc, the browser blocks the iframe and auth/internal-error is thrown.
@@ -104,6 +108,8 @@ if (helmet) {
           'https://thecityplus.firebaseapp.com',           // Firebase auth redirect handler
           'https://cityplus-7ac75.firebaseapp.com',        // Firebase project auth handler
           'https://thecityplus.in',                        // Own domain /__/auth/iframe proxy
+          'https://payments.cashfree.com',                 // Cashfree Drop-in checkout modal iframe
+          'https://sandbox.cashfree.com',                  // Cashfree sandbox checkout modal iframe
         ],
         frameAncestors:  ["'none'"],
         formAction:      ["'self'", 'https://api.cashfree.com', 'https://sandbox.cashfree.com'],
