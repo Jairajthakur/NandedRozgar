@@ -98,8 +98,8 @@ if (helmet) {
           'https://apis.google.com',                       // Google APIs (gen_204 ping, GSI)
           'https://www.googleapis.com',                    // Google userinfo / token endpoints
           'https://api.cashfree.com',                      // Cashfree Drop-in — order/session calls
-          'https://sandbox.cashfree.com',                  // Cashfree sandbox testing
           'https://payments.cashfree.com',                 // Cashfree Drop-in checkout backend
+          'https://*.cashfree.com',                        // Cashfree's checkout spans several subdomains
         ],
         // FIX: Google Sign-In loads its UI in an iframe from accounts.google.com.
         // Without frameSrc, the browser blocks the iframe and auth/internal-error is thrown.
@@ -109,7 +109,7 @@ if (helmet) {
           'https://cityplus-7ac75.firebaseapp.com',        // Firebase project auth handler
           'https://thecityplus.in',                        // Own domain /__/auth/iframe proxy
           'https://payments.cashfree.com',                 // Cashfree Drop-in checkout modal iframe
-          'https://sandbox.cashfree.com',                  // Cashfree sandbox checkout modal iframe
+          'https://*.cashfree.com',                        // covers other Cashfree checkout subdomains
         ],
         frameAncestors:  ["'none'"],
         formAction:      ["'self'", 'https://api.cashfree.com', 'https://sandbox.cashfree.com'],
