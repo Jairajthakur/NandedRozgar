@@ -971,6 +971,10 @@ const LangContext = createContext(null);
 export function LangProvider({ children }) {
   const [lang, setLang] = useState(getDefaultLang);
   const [loaded, setLoaded] = useState(false);
+  // True once we've confirmed the user has an explicitly saved language choice
+  // in storage (as opposed to just the auto-detected device default). Used by
+  // App.js to decide whether to show the first-launch language picker.
+  const [hasSavedLang, setHasSavedLang] = useState(false);
 
   // On mount, restore the user's saved language preference
   useEffect(() => {
@@ -978,6 +982,7 @@ export function LangProvider({ children }) {
       .then(saved => {
         if (saved && STRINGS[saved]) {
           setLang(saved);
+          setHasSavedLang(true);
         }
       })
       .catch(() => {/* ignore read errors — fall back to device default */})
@@ -986,6 +991,7 @@ export function LangProvider({ children }) {
 
   function changeLang(code) {
     setLang(code);
+    setHasSavedLang(true);
     storage.setItem(LANG_STORAGE_KEY, code).catch(() => {});
   }
 
@@ -996,7 +1002,7 @@ export function LangProvider({ children }) {
   if (!loaded) return null;
 
   return (
-    <LangContext.Provider value={{ lang, changeLang, t }}>
+    <LangContext.Provider value={{ lang, changeLang, t, hasSavedLang }}>
       {children}
     </LangContext.Provider>
   );
