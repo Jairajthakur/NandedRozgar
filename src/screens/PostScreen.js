@@ -87,6 +87,18 @@ const CARDS = [
     badge: { label: '✨ NEW', bg: '#fdf2f8', border: '#fbcfe8', color: '#be185d' },
     route: 'PromoteBusiness',
   },
+  {
+    id: 'labour',
+    title: 'Post Labour Profile',
+    desc: 'List your skills & get hired by contractors',
+    icon: 'construct-outline',
+    iconColor: '#b45309',
+    iconBg: '#fef3e2',
+    accent: '#b45309',
+    cardBg: '#fffdfa',
+    badge: { label: 'Free', bg: '#fef3e2', border: '#fcd9a8', color: '#b45309' },
+    route: 'PostLabourProfile',
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
