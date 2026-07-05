@@ -39,6 +39,7 @@ import PostLabourProfileScreen from './src/screens/PostLabourProfileScreen';
 import PostItemScreen   from './src/screens/PostItemScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import { isOnboarded } from './src/utils/storage';
+import { initAds } from './src/components/ads/initAds';
 import ReferralScreen from './src/screens/ReferralScreen';
 import MyApplicationsScreen from './src/screens/MyApplicationsScreen';
 import SeekerProfileScreen  from './src/screens/SeekerProfileScreen';
@@ -697,6 +698,11 @@ function RootNavigator() {
 
   React.useEffect(() => {
     isOnboarded().then(done => setShowOnboarding(!done));
+  }, []);
+
+  // Must run once before any <BannerAd> / native ad request — see initAds.js.
+  React.useEffect(() => {
+    initAds();
   }, []);
 
   React.useEffect(() => {
