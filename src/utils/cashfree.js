@@ -394,13 +394,15 @@ export function useRazorpayCheckout({ http: httpFn }) {
     }
   }
 
-  async function initiatePayment({ description, listingType, plan, couponId }) {
+  async function initiatePayment({ description, listingType, plan, couponId, orderEndpoint, orderBody }) {
     return new Promise(async (resolve) => {
       resolverRef.current = resolve;
       try {
-        const orderRes = await httpFn('POST', '/api/payments/order', {
-          description, listingType, plan, couponId,
-        });
+        const orderRes = await httpFn(
+          'POST',
+          orderEndpoint || '/api/payments/order',
+          orderBody || { description, listingType, plan, couponId },
+        );
 
         if (!orderRes?.ok) {
           resolverRef.current = null;
