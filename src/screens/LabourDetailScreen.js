@@ -81,7 +81,7 @@ export default function LabourDetailScreen() {
 
   useEffect(() => { if (id) load(); }, [id]);
 
-  const unlockContact = async () => {
+  const unlockContact = async (openHireAfter = false) => {
     if (!hasPhone) return; // nothing to unlock — button should be hidden, but guard anyway
     if (!user) {
       Alert.alert('Login required', 'Please log in to unlock this contact.', [
@@ -117,9 +117,25 @@ export default function LabourDetailScreen() {
       setContactUnlocked(true);
       setUnlockExpiresAt(verifyRes.expiresAt);
       Toast.show({ type: 'success', text1: 'Contact unlocked!', text2: `Valid for ${days} day${days > 1 ? 's' : ''}.` });
+      if (openHireAfter) setHireOpen(true);
     } else {
       Toast.show({ type: 'error', text1: 'Could not verify payment', text2: verifyRes?.error || 'Please contact support.' });
     }
+  };
+
+  // "Hire now" now gates on a paid contact unlock — you can't send a hire
+  // request until you've paid to unlock the phone number.
+  const handleHirePress = () => {
+    if (hireOpen) { setHireOpen(false); return; }
+    if (!hasPhone) {
+      Toast.show({ type: 'error', text1: 'No contact number on file', text2: `${(profile?.full_name || 'This worker').split(' ')[0]} hasn't added one yet.` });
+      return;
+    }
+    if (!contactUnlocked) {
+      unlockContact(true); // pay first, then open the hire form automatically
+      return;
+    }
+    setHireOpen(true);
   };
 
   const sendHireRequest = async () => {
@@ -366,10 +382,17 @@ export default function LabourDetailScreen() {
         )}
         <TouchableOpacity
           style={s.hireBtn}
-          onPress={() => setHireOpen(o => !o)}
+          onPress={handleHirePress}
+          disabled={unlocking}
           activeOpacity={0.88}
         >
-          <Text style={s.hireBtnTxt}>{hireOpen ? 'Cancel' : 'Hire now'}</Text>
+          {unlocking
+            ? <ActivityIndicator color="#fff" />
+            : (
+              <Text style={s.hireBtnTxt}>
+                {hireOpen ? 'Cancel' : (contactUnlocked || !hasPhone) ? 'Hire now' : `Unlock & hire — ₹${price}`}
+              </Text>
+            )}
         </TouchableOpacity>
       </View>
     </View>
