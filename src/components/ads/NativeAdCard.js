@@ -25,7 +25,10 @@ const ORANGE = '#f97316';
 // TEMPORARY debug switch — shows what's actually happening in this ad slot
 // (loading / failed + error message) instead of silently rendering nothing.
 // Set to false once ads are confirmed working.
-const DEBUG_ADS = true;
+// FLIPPED 2026-07-05: real ads are now live (FORCE_TEST_ADS=false in
+// adConfig.js) — real users must never see a raw "ad failed to load" debug
+// box on ordinary zero-fill. Flip back to true only while debugging.
+const DEBUG_ADS = false;
 
 export default function NativeAdCard() {
   const [nativeAd, setNativeAd] = useState(null);
