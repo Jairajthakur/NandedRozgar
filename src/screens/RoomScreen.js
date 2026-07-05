@@ -13,6 +13,10 @@ import PromoBanner, { BannerCard } from '../components/PromoBanner';
 import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
 import { useDistrict } from '../context/DistrictContext';
+import NativeAdCard from '../components/ads/NativeAdCard';
+import BannerAd from '../components/ads/BannerAd';
+import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
+import { useIsPremium } from '../hooks/useIsPremium';
 
 const ORANGE = '#f97316';
 const TEAL   = '#0d9488';
@@ -438,6 +442,7 @@ export default function RoomScreen({ route }) {
   const [rooms,      setRooms]      = useState(ROOMS);
   const [refreshing, setRefreshing] = useState(false);
   const [promos,     setPromos]     = useState([]);
+  const isPremium = useIsPremium();
 
   // FlatList ref — scroll to top when filters change
   const flatListRef = useRef(null);
@@ -586,8 +591,24 @@ export default function RoomScreen({ route }) {
       msAgo: p.createdAt ? now - new Date(p.createdAt).getTime() : now,
     }));
 
-    return [...roomItems, ...promoItems].sort((a, b) => a.msAgo - b.msAgo);
-  }, [filtered, promos]);
+    const merged = [...roomItems, ...promoItems].sort((a, b) => a.msAgo - b.msAgo);
+
+    // Insert one native ad card after every NATIVE_AD_FREQUENCY real items —
+    // skipped for premium users and on web (ADS_SUPPORTED is native-only).
+    if (!ADS_SUPPORTED || isPremium) return merged;
+
+    const withAds = [];
+    let sinceLastAd = 0;
+    merged.forEach(item => {
+      withAds.push(item);
+      sinceLastAd++;
+      if (sinceLastAd >= NATIVE_AD_FREQUENCY) {
+        withAds.push({ type: 'ad', id: 'ad_' + withAds.length });
+        sinceLastAd = 0;
+      }
+    });
+    return withAds;
+  }, [filtered, promos, isPremium]);
 
   const activeFiltersCount = (roomType !== 'All' ? 1 : 0) + (rentRange.label !== 'Any' ? 1 : 0);
 
@@ -994,8 +1015,15 @@ export default function RoomScreen({ route }) {
               </View>
             );
           }
+          if (item.type === 'ad') {
+            return <NativeAdCard />;
+          }
+          if (!item.data) return null;
           return <RoomCard item={item.data} index={index} onPress={() => nav.navigate('RoomDetail', { room: item.data })} />;
         }}
+        ListFooterComponent={
+          !isPremium && interleavedFeed.length > 0 ? <BannerAd /> : null
+        }
       />
       {FilterModal}
     </View>
