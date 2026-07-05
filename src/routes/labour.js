@@ -149,12 +149,32 @@ router.get('/:id', async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const {
-      full_name, skill_category, skills, experience_years,
+      full_name, phone, skill_category, skills, experience_years,
       daily_wage, district, location, bio, photo_url,
     } = req.body;
 
     if (!full_name || !skill_category) {
       return res.status(400).json({ ok: false, error: 'full_name and skill_category are required' });
+    }
+
+    // A labour listing with no contact number is useless to contractors (and
+    // can't actually be sold via the paid-unlock flow), so require one here —
+    // either freshly supplied or already present on the account.
+    const { rows: existingUserRows } = await pool.query('SELECT phone FROM users WHERE id = $1', [req.user.id]);
+    const existingPhone = existingUserRows[0]?.phone || null;
+
+    let cleanedPhone = existingPhone;
+    if (phone !== undefined && phone !== null && phone !== '') {
+      cleanedPhone = String(phone).replace(/\s+/g, '');
+      if (!/^[6-9]\d{9}$/.test(cleanedPhone)) {
+        return res.status(400).json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
+      }
+    }
+    if (!cleanedPhone) {
+      return res.status(400).json({ ok: false, error: 'A contact number is required so contractors can reach you' });
+    }
+    if (cleanedPhone !== existingPhone) {
+      await pool.query('UPDATE users SET phone = $1 WHERE id = $2', [cleanedPhone, req.user.id]);
     }
 
     const existing = await pool.query(
