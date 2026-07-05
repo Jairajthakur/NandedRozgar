@@ -66,6 +66,7 @@ export default function PostLabourProfileScreen() {
   const { district } = useDistrict();
 
   const [fullName, setFullName]   = useState(user?.name || '');
+  const [phone, setPhone]         = useState(user?.phone || '');
   const [skill, setSkill]         = useState(null);
   const [skillsText, setSkillsText] = useState('');
   const [experience, setExperience] = useState('');
@@ -102,6 +103,11 @@ export default function PostLabourProfileScreen() {
       Toast.show({ type: 'error', text1: 'Select your main skill' });
       return;
     }
+    const cleanedPhone = phone.replace(/\s+/g, '');
+    if (!/^[6-9]\d{9}$/.test(cleanedPhone)) {
+      Toast.show({ type: 'error', text1: 'Enter a valid 10-digit contact number', text2: 'Contractors need this to reach you.' });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -115,6 +121,7 @@ export default function PostLabourProfileScreen() {
 
       const res = await http('POST', '/api/labour', {
         full_name: fullName.trim(),
+        phone: cleanedPhone,
         skill_category: skill,
         skills,
         experience_years: experience ? parseInt(experience, 10) : null,
@@ -194,6 +201,21 @@ export default function PostLabourProfileScreen() {
               placeholder="e.g. Ramesh Patil"
               placeholderTextColor="#bbb"
             />
+          </FadeSlide>
+
+          {/* Contact number */}
+          <FadeSlide delay={135} style={s.section}>
+            <Text style={s.label}>Contact number *</Text>
+            <TextInput
+              style={s.input}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="10-digit mobile number"
+              placeholderTextColor="#bbb"
+              keyboardType="number-pad"
+              maxLength={10}
+            />
+            <Text style={s.hint}>Contractors pay to unlock this number, so it must be correct — this is how they'll reach you.</Text>
           </FadeSlide>
 
           {/* Skill category */}
@@ -349,6 +371,7 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', gap: 12 },
 
   label: { fontSize: 12, fontWeight: '700', color: '#555' },
+  hint: { fontSize: 11, color: '#999', marginTop: 6, lineHeight: 15 },
   input: {
     backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#ebebeb',
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11,
