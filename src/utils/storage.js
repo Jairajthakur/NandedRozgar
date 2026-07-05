@@ -71,3 +71,26 @@ export async function markOnboarded() {
   _onboardedCache = true;
   await storage.setItem(ONBOARDING_KEY, '1');
 }
+
+// ── Instagram follow banner (shown once ever, after first login) ─────────────
+const INSTAGRAM_BANNER_KEY = 'nr_instagram_banner_shown_v1';
+
+let _instagramBannerCache = null;
+
+export async function hasSeenInstagramBanner() {
+  try {
+    const v = await storage.getItem(INSTAGRAM_BANNER_KEY);
+    if (v === '1') { _instagramBannerCache = true; return true; }
+    if (_instagramBannerCache) return true;
+    return false;
+  } catch {
+    // Same reasoning as isOnboarded(): a read failure must never be treated
+    // as "already seen", or the banner would silently never show.
+    return _instagramBannerCache === true;
+  }
+}
+
+export async function markInstagramBannerSeen() {
+  _instagramBannerCache = true;
+  await storage.setItem(INSTAGRAM_BANNER_KEY, '1');
+}
