@@ -13,6 +13,10 @@ import PromoBanner, { BannerCard, BannerWithPicker, TemplatePicker } from '../co
 import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
 import { useDistrict } from '../context/DistrictContext';
+import NativeAdCard from '../components/ads/NativeAdCard';
+import BannerAd from '../components/ads/BannerAd';
+import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
+import { useIsPremium } from '../hooks/useIsPremium';
 
 const ORANGE  = '#f97316';
 const IS_WEB  = Platform.OS === 'web';
@@ -312,6 +316,7 @@ export default function CarsScreen({ route }) {
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
   const [promos,      setPromos]      = useState([]);
+  const isPremium = useIsPremium();
 
   const showSidebar = IS_WEB && winW >= 900;
 
@@ -448,8 +453,24 @@ export default function CarsScreen({ route }) {
       ts:   p.createdAt ? new Date(p.createdAt).getTime() : 0,
     }));
 
-    return [...carItems, ...promoItems].sort((a, b) => b.ts - a.ts);
-  }, [filtered, promos]);
+    const merged = [...carItems, ...promoItems].sort((a, b) => b.ts - a.ts);
+
+    // Insert one native ad card after every NATIVE_AD_FREQUENCY real items —
+    // skipped for premium users and on web (ADS_SUPPORTED is native-only).
+    if (!ADS_SUPPORTED || isPremium) return merged;
+
+    const withAds = [];
+    let sinceLastAd = 0;
+    merged.forEach(item => {
+      withAds.push(item);
+      sinceLastAd++;
+      if (sinceLastAd >= NATIVE_AD_FREQUENCY) {
+        withAds.push({ type: 'ad', id: 'ad_' + withAds.length });
+        sinceLastAd = 0;
+      }
+    });
+    return withAds;
+  }, [filtered, promos, isPremium]);
 
   const Header = (
     <View style={IS_WEB ? ws.header : s.header}>
@@ -808,8 +829,15 @@ export default function CarsScreen({ route }) {
               </View>
             );
           }
+          if (item.type === 'ad') {
+            return <NativeAdCard />;
+          }
+          if (!item.data) return null;
           return <VehicleCard item={item.data} index={index} onPress={() => nav.navigate('CarDetail', { car: item.data })} />;
         }}
+        ListFooterComponent={
+          !isPremium && interleavedFeed.length > 0 ? <BannerAd /> : null
+        }
       />
       {FilterModal}
     </View>
