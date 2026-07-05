@@ -12,6 +12,10 @@ import { Empty } from '../components/UI';
 
 import { useLang } from '../utils/i18n';
 import { useDistrict } from '../context/DistrictContext';
+import NativeAdCard from '../components/ads/NativeAdCard';
+import BannerAd from '../components/ads/BannerAd';
+import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
+import { useIsPremium } from '../hooks/useIsPremium';
 
 const ORANGE = '#f97316';
 const TEAL   = '#0d9488';
@@ -238,6 +242,25 @@ export default function LabourScreen() {
     });
   }, [labourers, activeSkill, wageRange, availability, search]);
 
+  const isPremium = useIsPremium();
+
+  // Insert one native ad card after every NATIVE_AD_FREQUENCY real profiles —
+  // skipped for premium users and on web (ADS_SUPPORTED is native-only).
+  const feedWithAds = useMemo(() => {
+    if (!ADS_SUPPORTED || isPremium) return filtered;
+    const withAds = [];
+    let sinceLastAd = 0;
+    filtered.forEach(item => {
+      withAds.push(item);
+      sinceLastAd++;
+      if (sinceLastAd >= NATIVE_AD_FREQUENCY) {
+        withAds.push({ __isAd: true, id: 'ad_' + withAds.length });
+        sinceLastAd = 0;
+      }
+    });
+    return withAds;
+  }, [filtered, isPremium]);
+
   const activeFiltersCount =
     (wageRange.label !== 'Any' ? 1 : 0) + (availability !== 'All' ? 1 : 0);
 
@@ -382,9 +405,10 @@ export default function LabourScreen() {
     </Modal>
   );
 
-  const renderCard = ({ item, index }) => (
-    <LabourCard item={item} index={index} onPress={() => nav.navigate('LabourDetail', { id: item.id })} />
-  );
+  const renderCard = ({ item, index }) => {
+    if (item.__isAd) return <NativeAdCard />;
+    return <LabourCard item={item} index={index} onPress={() => nav.navigate('LabourDetail', { id: item.id })} />;
+  };
 
   const EmptyState = (
     <Empty
@@ -456,8 +480,8 @@ export default function LabourScreen() {
 
           <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
             <FlatList
-              data={filtered}
-              keyExtractor={item => String(item.id)}
+              data={feedWithAds}
+              keyExtractor={item => item.__isAd ? item.id : String(item.id)}
               contentContainerStyle={ws.list}
               showsVerticalScrollIndicator={false}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
@@ -528,14 +552,17 @@ export default function LabourScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f7f7" />
       <FlatList
-        data={filtered}
-        keyExtractor={item => String(item.id)}
+        data={feedWithAds}
+        keyExtractor={item => item.__isAd ? item.id : String(item.id)}
         contentContainerStyle={s.list}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
         ListHeaderComponent={Header}
         renderItem={renderCard}
         ListEmptyComponent={!loading && EmptyState}
+        ListFooterComponent={
+          !isPremium && feedWithAds.length > 0 ? <BannerAd /> : null
+        }
       />
       {FilterModal}
     </View>
