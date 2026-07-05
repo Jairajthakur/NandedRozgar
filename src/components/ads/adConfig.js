@@ -26,7 +26,13 @@ const IS_DEV = __DEV__;
 // devices. Keep this `true` until the app is publicly available (open
 // testing or production) and AdMob verification has cleared — then flip
 // it to `false` so real builds serve real ads.
-const FORCE_TEST_ADS = true;
+//
+// FLIPPED 2026-07-05: pipeline confirmed working end-to-end (test ads
+// rendering correctly on a real device build), switching to live ad units.
+// If real ads show zero fill, that means AdMob verification (app-ads.txt +
+// app readiness review) hasn't cleared yet — check the AdMob console for
+// unit/account status before assuming it's a code problem again.
+const FORCE_TEST_ADS = false;
 
 // ── Your real AdMob ad unit IDs (from the AdMob console) ───────────────────
 const REAL_NATIVE_AD_UNIT_ID = {
@@ -66,8 +72,10 @@ export const BANNER_AD_UNIT_ID = pick(REAL_BANNER_AD_UNIT_ID, TEST_BANNER_AD_UNI
 export const ADS_SUPPORTED = Platform.OS === 'android' || Platform.OS === 'ios';
 
 // Show one ad card after every N real listings in a feed.
-// TEMPORARILY set low (3) for easier testing — raise back to 8 once confirmed working.
-export const NATIVE_AD_FREQUENCY = 3;
+// RAISED 2026-07-05: was temporarily 3 for easier testing; pipeline is now
+// confirmed working (test ads rendered successfully) and real ads are live,
+// so this is back to a normal, less intrusive frequency.
+export const NATIVE_AD_FREQUENCY = 8;
 
 // ── Startup diagnostics ─────────────────────────────────────────────────
 // Logs once at import time so `adb logcat -s ReactNativeJS` (or the EAS
