@@ -588,11 +588,19 @@ function ExpoVoiceListener({ onResult, onPartial, onEnd, onError }) {
   // eslint-disable-next-line react-hooks/rules-of-hooks
   // Accumulate partial transcripts; only call onResult when speech is final
   // This prevents the modal from processing/closing on every partial word.
+  //
+  // BUGFIX: `isFinal` lives on the EVENT itself (e.isFinal), not on each
+  // item inside e.results[]. Individual results only carry
+  // { transcript, confidence, segments } — there is no per-result
+  // `isFinal` field. Checking `result?.isFinal` was always `undefined`,
+  // so onResult() (which triggers the AI call that fills the form) never
+  // fired automatically — only the manual "Done Speaking" stop button
+  // (which uses the last partial transcript) ever completed the flow.
   ExpoSpeech.useSpeechRecognitionEvent('result', e => {
     const result = e.results?.[0];
     const text   = result?.transcript || '';
-    if (text) onPartial(text);          // show live text in UI
-    if (result?.isFinal && text) onResult(text);   // FIX: only fire on final
+    if (text) onPartial(text);      // show live text in UI
+    if (e.isFinal && text) onResult(text);   // fire once the OS marks this result final
   });
 
   // FIX: handle 'end' event — fires when OS stops recognition (silence timeout)
