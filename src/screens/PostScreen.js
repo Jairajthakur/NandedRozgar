@@ -18,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import MonthlyPlanBanner from '../components/MonthlyPlanBanner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { FEATURES } from '../utils/constants';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -96,7 +97,9 @@ const CARDS = [
     iconBg: '#fef3e2',
     accent: '#b45309',
     cardBg: '#fffdfa',
-    badge: { label: 'Free', bg: '#fef3e2', border: '#fcd9a8', color: '#b45309' },
+    badge: FEATURES.LABOUR_ENABLED
+      ? { label: 'Free', bg: '#fef3e2', border: '#fcd9a8', color: '#b45309' }
+      : { label: '🚧 Coming Soon', bg: '#fef3e2', border: '#fcd9a8', color: '#b45309' },
     route: 'PostLabourProfile',
   },
 ];
