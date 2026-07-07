@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
-import { C, CAT_ICONS } from '../utils/constants';
+import { C, CAT_ICONS, FEATURES } from '../utils/constants';
 import { useLang, LANGUAGES } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
 import { timeAgo, http } from '../utils/api';
@@ -816,7 +816,7 @@ export default function HomeScreen() {
                 <ExploreCard icon="home-outline"       title={t('sideNavRooms')}    subtitle={`${stats.rooms}+ ${t('roomsListings')}`}     color={TEAL}    onPress={() => nav.navigate('Rooms')}   compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
                 <ExploreCard icon="car-sport-outline"  title={t('sideNavVehicles')} subtitle={`${stats.vehicles}+ ${t('vehiclesForRent')}`} color={PURPLE}  onPress={() => nav.navigate('Cars')}    compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
                 <ExploreCard icon="pricetag-outline"   title={t('sideNavBuySell')}  subtitle={`${stats.items}+ ${t('itemsCount')}`}        color='#0ea5e9' onPress={() => nav.navigate('BuySell')} compact={isSmWeb} style={[{ flex: 1, marginRight: 10 }, isSmWeb && { minWidth: '46%', marginRight: 0 }]} />
-                <ExploreCard icon="hammer-outline"     title={t('sideNavLabour')}   subtitle={`${stats.labour}+ ${t('labourAvailable')}`}  color='#e11d48' onPress={() => nav.navigate('Labour')}  compact={isSmWeb} style={[{ flex: 1 }, isSmWeb && { minWidth: '46%' }]} />
+                <ExploreCard icon="hammer-outline"     title={t('sideNavLabour')}   subtitle={FEATURES.LABOUR_ENABLED ? `${stats.labour}+ ${t('labourAvailable')}` : 'Coming Soon 🚧'}  color='#e11d48' onPress={() => nav.navigate('Labour')}  compact={isSmWeb} style={[{ flex: 1 }, isSmWeb && { minWidth: '46%' }]} />
               </View>
             </FadeSlide>
 
@@ -1123,7 +1123,7 @@ export default function HomeScreen() {
            <ExploreCard icon="pricetag-outline"  title={t('sideNavBuySell')}  subtitle={`${stats.items}+ ${t('itemsCount')}`}       color='#0ea5e9' onPress={() => nav.navigate('BuySell')} />
           </View>
           <View style={[s.exploreGrid, { marginTop: 10 }]}>
-            <ExploreCard icon="hammer-outline" title={t('sideNavLabour')} subtitle={`${stats.labour}+ ${t('labourAvailable')}`} color='#e11d48' onPress={() => nav.navigate('Labour')} style={{ flex: 1 }} />
+            <ExploreCard icon="hammer-outline" title={t('sideNavLabour')} subtitle={FEATURES.LABOUR_ENABLED ? `${stats.labour}+ ${t('labourAvailable')}` : 'Coming Soon 🚧'} color='#e11d48' onPress={() => nav.navigate('Labour')} style={{ flex: 1 }} />
           </View>
         </FadeSlide>
 
