@@ -1,5 +1,13 @@
 import Constants from 'expo-constants';
 
+// ── Feature flags ─────────────────────────────────────────────────────────────
+// Flip a flag to `true` to launch that feature app-wide. While `false`, every
+// screen/route tied to it renders the shared <ComingSoonScreen> instead
+// (see App.js) — no other code needs to change to go live later.
+export const FEATURES = {
+  LABOUR_ENABLED: false, // Labour marketplace (list/browse/hire workers) — build is done, just gated for now
+};
+
 export const C = {
   orange: '#f97316',
   black:  '#111111',
