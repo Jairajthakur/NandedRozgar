@@ -36,6 +36,8 @@ import BuySellDetailScreen from './src/screens/BuySellDetailScreen';
 import LabourScreen     from './src/screens/LabourScreen';
 import LabourDetailScreen from './src/screens/LabourDetailScreen';
 import PostLabourProfileScreen from './src/screens/PostLabourProfileScreen';
+import ComingSoonScreen from './src/components/ComingSoonScreen';
+import { FEATURES } from './src/utils/constants';
 import PostItemScreen   from './src/screens/PostItemScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import LanguagePickerScreen from './src/screens/LanguagePickerScreen';
@@ -660,9 +662,21 @@ _PostCarScreen         = withScreenErrorBoundary(PostCarScreen,         'PostCar
 _PostRoomScreen        = withScreenErrorBoundary(PostRoomScreen,        'PostRoomScreen');
 _BuySellScreen         = withScreenErrorBoundary(BuySellScreen,         'BuySellScreen');
 _BuySellDetailScreen   = withScreenErrorBoundary(BuySellDetailScreen,   'BuySellDetailScreen');
-_LabourScreen          = withScreenErrorBoundary(LabourScreen,          'LabourScreen');
-_LabourDetailScreen    = withScreenErrorBoundary(LabourDetailScreen,    'LabourDetailScreen');
-_PostLabourProfileScreen = withScreenErrorBoundary(PostLabourProfileScreen, 'PostLabourProfileScreen');
+// ── Labour feature gate ───────────────────────────────────────────────────────
+// Build is complete (screens + backend routes) but not yet launched. Flip
+// FEATURES.LABOUR_ENABLED to `true` in src/utils/constants.js when ready —
+// every entry point (Home cards, Post screen, More tab) already routes here,
+// so nothing else needs to change to go live.
+const LabourComingSoon = (props) => (
+  <ComingSoonScreen {...props} title="Labour Marketplace" subtitle="Browse and hire skilled workers near you — launching soon!" icon="hammer-outline" />
+);
+const PostLabourComingSoon = (props) => (
+  <ComingSoonScreen {...props} title="Post Labour Profile" subtitle="List your skills and get hired by contractors — launching soon!" icon="construct-outline" />
+);
+
+_LabourScreen          = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? LabourScreen : LabourComingSoon,          'LabourScreen');
+_LabourDetailScreen    = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? LabourDetailScreen : LabourComingSoon,    'LabourDetailScreen');
+_PostLabourProfileScreen = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? PostLabourProfileScreen : PostLabourComingSoon, 'PostLabourProfileScreen');
 _PostItemScreen        = withScreenErrorBoundary(PostItemScreen,        'PostItemScreen');
 _LoginScreen           = withScreenErrorBoundary(LoginScreen,           'LoginScreen');
 _ReferralScreen        = withScreenErrorBoundary(ReferralScreen,        'ReferralScreen');
