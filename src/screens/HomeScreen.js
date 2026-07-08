@@ -442,7 +442,7 @@ function QuickAction({ icon, label, color, onPress }) {
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const nav = useNavigation();
-  const { jobs, user } = useAuth();
+  const { jobs, user, jobPagination } = useAuth();
   const isAdmin = user?.role === 'admin';
   const { lang, changeLang, t, tDistrict } = useLang();
   const insets = useSafeAreaInsets();
@@ -516,7 +516,11 @@ export default function HomeScreen() {
       ]);
       if (roomRes?.ok && Array.isArray(roomRes.rooms))           setRooms(roomRes.rooms);
       if (vehicleRes?.ok && Array.isArray(vehicleRes.vehicles)) setVehicles(vehicleRes.vehicles);
-      const liveJobs     = jobs?.filter(j => j.status === 'active').length || 0;
+      // Use the backend's real total (from pagination), not jobs.length —
+      // jobs.length only reflects however many pages have been loaded into
+      // memory so far (e.g. 20 right after the first page loads), which made
+      // the homepage stat freeze at "20+" even once more jobs existed.
+      const liveJobs     = jobPagination?.total ?? (jobs?.filter(j => j.status === 'active').length || 0);
       const liveRooms    = roomRes?.rooms?.length    || 0;
       const liveVehicles = vehicleRes?.vehicles?.length || 0;
       const liveItems    = buysellCountRes?.ok ? (buysellCountRes.count ?? 0) : 0;
@@ -529,7 +533,7 @@ export default function HomeScreen() {
         labour:   liveLabour   > 0 ? liveLabour   : prev.labour,
       }));
     } catch {}
-  }, [jobs, currentDistrict]);
+  }, [jobs, jobPagination, currentDistrict]);
 
   // Reload jobs & home data whenever district changes
   useEffect(() => {
