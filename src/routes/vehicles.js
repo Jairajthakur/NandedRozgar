@@ -124,8 +124,8 @@ router.post('/', auth, async (req, res) => {
       ? (askingPrice || price)
       : (dailyRate   || price);
 
-    if (!title || !resolvedPrice || !whatsapp)
-      return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
+    if (!title || !whatsapp)
+      return res.json({ ok: false, error: 'Title and WhatsApp are required' });
 
     const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
     if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
