@@ -315,14 +315,6 @@ export default function PostCarScreen() {
 
   function next() {
     if (step === 1 && !form.vehicleType) { Alert.alert('Required', 'Select vehicle type'); return; }
-    if (step === 2) {
-      if (listingPurpose === 'rent' && !form.dailyRate) {
-        Alert.alert('Required', 'Enter daily rental rate'); return;
-      }
-      if (listingPurpose === 'sell' && !form.askingPrice) {
-        Alert.alert('Required', 'Enter asking price'); return;
-      }
-    }
     if (step === 3 && !form.whatsapp) { Alert.alert('Required', 'Enter WhatsApp number'); return; }
     if (step < TOTAL) animateStep('next', () => setStep(s => s + 1));
   }
@@ -331,9 +323,8 @@ export default function PostCarScreen() {
   }
 
   async function submit() {
-    const missingRent = listingPurpose === 'rent' && (!form.dailyRate || !form.pickupLocation);
-    const missingSell = listingPurpose === 'sell' && !form.askingPrice;
-    if (missingRent || missingSell || !form.whatsapp) {
+    const missingRent = listingPurpose === 'rent' && !form.pickupLocation;
+    if (missingRent || !form.whatsapp) {
       Alert.alert('Missing Info', 'Please fill all required fields'); return;
     }
     if (form.brand === 'Other' && !customBrand.trim()) {
@@ -566,10 +557,10 @@ export default function PostCarScreen() {
           {step === 2 && <>
             {listingPurpose === 'rent' ? <>
               {/* ── RENT fields ── */}
-              <Lbl>DAILY RENTAL RATE (₹) *</Lbl>
+              <Lbl>DAILY RENTAL RATE (₹)</Lbl>
               <View style={s.prefixRow}>
                 <Text style={s.prefix}>₹</Text>
-                <TextInput style={s.prefixField} placeholder="e.g. 800 per day"
+                <TextInput style={s.prefixField} placeholder="Leave empty if you'd rather discuss on call"
                   keyboardType="numeric" value={form.dailyRate}
                   onChangeText={v => set('dailyRate', v)} />
               </View>
@@ -590,10 +581,10 @@ export default function PostCarScreen() {
               ))}
             </> : <>
               {/* ── SELL fields ── */}
-              <Lbl>ASKING PRICE (₹) *</Lbl>
+              <Lbl>ASKING PRICE (₹)</Lbl>
               <View style={s.prefixRow}>
                 <Text style={s.prefix}>₹</Text>
-                <TextInput style={s.prefixField} placeholder="e.g. 350000"
+                <TextInput style={s.prefixField} placeholder="Leave empty if you'd rather discuss on call"
                   keyboardType="numeric" value={form.askingPrice}
                   onChangeText={v => set('askingPrice', v)} />
               </View>
