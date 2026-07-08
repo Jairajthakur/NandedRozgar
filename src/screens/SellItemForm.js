@@ -307,7 +307,6 @@ export default function SellItemForm() {
   function validate(s) {
     const e = {};
     if (s === 1 && !form.title.trim()) e.title = "Item title is required";
-    if (s === 2 && !form.price.trim()) e.price = "Selling price is required";
     if (s === 3 && !form.whatsapp.trim()) e.whatsapp = "WhatsApp number is required";
     if (s === 3 && form.whatsapp.trim().length !== 10) e.whatsapp = "Enter a valid 10-digit number";
     return e;
@@ -329,8 +328,8 @@ export default function SellItemForm() {
   }
 
   async function submit() {
-    if (!form.title || !form.price || !form.whatsapp) {
-      setErrors({ submit: "Title, price and WhatsApp are required" });
+    if (!form.title || !form.whatsapp) {
+      setErrors({ submit: "Title and WhatsApp are required" });
       return;
     }
     if (form.category === "Other" && !customCategory.trim()) {
@@ -473,10 +472,10 @@ export default function SellItemForm() {
   function Step2() {
     return (
       <div style={{ padding: "20px 24px" }}>
-        <Label text="Selling Price (₹)" required />
+        <Label text="Selling Price (₹)" />
         <Input
           value={form.price} onChange={v => { set("price", v.replace(/[^0-9]/g, "")); setErrors({}); }}
-          placeholder="e.g. 5000" type="text" prefix="₹"
+          placeholder="Leave empty if you'd rather discuss with buyers" type="text" prefix="₹"
         />
         {errors.price && <div style={{ color: "#ef4444", fontSize: 12, marginBottom: 12 }}>{errors.price}</div>}
         <div style={{ height: 8 }} />
