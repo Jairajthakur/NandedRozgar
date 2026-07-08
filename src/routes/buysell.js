@@ -122,8 +122,8 @@ router.get('/:id', async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { title, category, condition, age, price, negotiable, area, description, whatsapp, photos, plan, district } = req.body; // planDays intentionally not accepted from client
-    if (!title || !price || !whatsapp)
-      return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
+    if (!title || !whatsapp)
+      return res.json({ ok: false, error: 'Title and WhatsApp are required' });
 
     const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
     if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
