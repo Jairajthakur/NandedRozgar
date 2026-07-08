@@ -320,8 +320,6 @@ export default function PostRoomScreen() {
   function next() {
     if (step===1 && listingPurpose==='rent'  && !form.roomType)        { Alert.alert('Required','Select room type'); return; }
     if (step===1 && listingPurpose==='sale'  && !form.salePropertyType){ Alert.alert('Required','Select property type'); return; }
-    if (step===2 && listingPurpose==='rent'  && !form.rent)            { Alert.alert('Required','Enter monthly rent'); return; }
-    if (step===2 && listingPurpose==='sale'  && !form.salePrice)       { Alert.alert('Required','Enter sale price'); return; }
     if (step===3 && !form.whatsapp){ Alert.alert('Required','Enter WhatsApp number'); return; }
     if (step<TOTAL) animateStep('next',()=>setStep(s=>s+1));
   }
@@ -330,9 +328,6 @@ export default function PostRoomScreen() {
   }
 
   async function submit() {
-    const isSale = listingPurpose === 'sale';
-    if (isSale && !form.salePrice){ Alert.alert('Missing Info','Sale price is required'); return; }
-    if (!isSale && !form.rent)    { Alert.alert('Missing Info','Rent is required'); return; }
     if (!form.area || !form.whatsapp){
       Alert.alert('Missing Info','Area and WhatsApp are required'); return;
     }
@@ -567,10 +562,10 @@ export default function PostRoomScreen() {
               value={form.landmark} onChangeText={v=>set('landmark',v)}/>
 
             {listingPurpose==='rent' ? <>
-              <Lbl style={{marginTop:16}}>MONTHLY RENT (₹) *</Lbl>
+              <Lbl style={{marginTop:16}}>MONTHLY RENT (₹)</Lbl>
               <View style={s.prefixRow}>
                 <Text style={s.prefix}>₹</Text>
-                <TextInput style={s.prefixField} placeholder="e.g. 5500"
+                <TextInput style={s.prefixField} placeholder="Leave empty if you'd rather discuss on call"
                   keyboardType="numeric" value={form.rent}
                   onChangeText={v=>set('rent',v)}/>
               </View>
@@ -590,10 +585,10 @@ export default function PostRoomScreen() {
                   onPress={()=>set('availableFrom',a.label)} color={ORANGE}/>
               ))}
             </> : <>
-              <Lbl style={{marginTop:16}}>SALE PRICE (₹) *</Lbl>
+              <Lbl style={{marginTop:16}}>SALE PRICE (₹)</Lbl>
               <View style={s.prefixRow}>
                 <Text style={s.prefix}>₹</Text>
-                <TextInput style={s.prefixField} placeholder="e.g. 4500000 (45 Lakh)"
+                <TextInput style={s.prefixField} placeholder="Leave empty if you'd rather discuss on call"
                   keyboardType="numeric" value={form.salePrice}
                   onChangeText={v=>set('salePrice',v)}/>
               </View>
