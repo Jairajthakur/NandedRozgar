@@ -103,8 +103,8 @@ router.post('/', auth, async (req, res) => {
       landmark, ownerName, whatsapp, description, photos,
       plan, district, // planDays intentionally not accepted from client
     } = req.body;
-    if (!title || !rent || !whatsapp)
-      return res.json({ ok: false, error: 'Title, rent and WhatsApp are required' });
+    if (!title || !whatsapp)
+      return res.json({ ok: false, error: 'Title and WhatsApp are required' });
 
     const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
     if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
