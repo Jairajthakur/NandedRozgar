@@ -72,10 +72,13 @@ export const BANNER_AD_UNIT_ID = pick(REAL_BANNER_AD_UNIT_ID, TEST_BANNER_AD_UNI
 export const ADS_SUPPORTED = Platform.OS === 'android' || Platform.OS === 'ios';
 
 // Show one ad card after every N real listings in a feed.
-// RAISED 2026-07-05: was temporarily 3 for easier testing; pipeline is now
-// confirmed working (test ads rendered successfully) and real ads are live,
-// so this is back to a normal, less intrusive frequency.
-export const NATIVE_AD_FREQUENCY = 8;
+// TUNED 2026-07-08: every 3 listings, per explicit request for more
+// impressions. This is noticeably more frequent than typical marketplace
+// apps (most stay in the 5-8 range) — worth watching session length /
+// retention after this ships, since ad density is one of the more common
+// silent causes of drop-off. If retention dips, 5 is a reasonable middle
+// ground before going back to 6-8.
+export const NATIVE_AD_FREQUENCY = 3;
 
 // ── Startup diagnostics ─────────────────────────────────────────────────
 // Logs once at import time so `adb logcat -s ReactNativeJS` (or the EAS
