@@ -23,6 +23,8 @@ import Toast from 'react-native-toast-message';
 import { http } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useRazorpayCheckout } from '../utils/cashfree';
+import BannerAd from '../components/ads/BannerAd';
+import { useIsPremium } from '../hooks/useIsPremium';
 
 const ORANGE = '#f97316';
 const LABOUR_COLOR = '#b45309';
@@ -46,6 +48,7 @@ export default function LabourDetailScreen() {
   const { user } = useAuth();
   const { id } = route.params || {};
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http });
+  const isPremium = useIsPremium();
 
   const [profile, setProfile]   = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -371,6 +374,9 @@ export default function LabourDetailScreen() {
             </TouchableOpacity>
           </FadeSlide>
         )}
+
+        {/* Banner ad — inline in the scroll content, never overlaps the sticky hire bar */}
+        {!isPremium && <BannerAd style={{ marginTop: 4 }} />}
       </ScrollView>
 
       {/* Sticky action bar */}
