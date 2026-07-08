@@ -4,6 +4,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { http } from '../utils/api';
+import BannerAd from '../components/ads/BannerAd';
+import { useIsPremium } from '../hooks/useIsPremium';
 
 const ORANGE = '#f97316';
 
@@ -26,6 +28,7 @@ function StatusBadge({ status }) {
 }
 
 export default function MyApplicationsScreen({ navigation }) {
+  const isPremium = useIsPremium();
   const [apps, setApps]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -105,6 +108,9 @@ export default function MyApplicationsScreen({ navigation }) {
           ))}
         </View>
       )}
+
+      {/* Footer banner ad — only shows once there's real content to scroll past */}
+      {!isPremium && apps.length > 0 && <BannerAd style={{ marginTop: 4 }} />}
     </ScrollView>
   );
 }
