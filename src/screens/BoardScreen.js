@@ -1,9 +1,10 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, RefreshControl, Modal,
   Animated, Easing, StatusBar, Platform, useWindowDimensions,
-  Dimensions,
+  Dimensions, ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -138,7 +139,14 @@ function QuickAction({ icon, label, color, onPress }) {
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function BoardScreen({ route }) {
-  const { jobs, loadJobs, role } = useAuth();
+  const { jobs, loadJobs, loadMoreJobs, jobPagination, role } = useAuth();
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const handleEndReached = async () => {
+    if (loadingMore || !jobPagination?.hasNext) return;
+    setLoadingMore(true);
+    try { await loadMoreJobs(); } finally { setLoadingMore(false); }
+  };
   const isPremium = useIsPremium();
   const { t } = useLang();
   const nav    = useNavigation();
@@ -652,8 +660,17 @@ export default function BoardScreen({ route }) {
                   actionLabel={t('postAJob')}
                 />
               }
+              onEndReached={handleEndReached}
+              onEndReachedThreshold={0.5}
               ListFooterComponent={
-                !isPremium && interleavedFeed.length > 0 ? <BannerAd /> : null
+                <>
+                  {!isPremium && interleavedFeed.length > 0 ? <BannerAd /> : null}
+                  {loadingMore && (
+                    <View style={{ paddingVertical: 20 }}>
+                      <ActivityIndicator size="small" color={ORANGE} />
+                    </View>
+                  )}
+                </>
               }
             />
           </View>
@@ -785,8 +802,17 @@ export default function BoardScreen({ route }) {
             actionLabel={t('postAJob')}
           />
         }
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
         ListFooterComponent={
-          !isPremium && interleavedFeed.length > 0 ? <BannerAd /> : null
+          <>
+            {!isPremium && interleavedFeed.length > 0 ? <BannerAd /> : null}
+            {loadingMore && (
+              <View style={{ paddingVertical: 20 }}>
+                <ActivityIndicator size="small" color={ORANGE} />
+              </View>
+            )}
+          </>
         }
       />
       {FilterModal}
