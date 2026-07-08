@@ -660,21 +660,23 @@ router.post('/post/room', async (req, res) => {
       landmark, ownerName, whatsapp, description, photos, district,
     } = req.body;
 
-    if (!title || !rent || !whatsapp)
-      return res.json({ ok: false, error: 'Title, rent and WhatsApp are required' });
+    if (!title || !whatsapp)
+      return res.json({ ok: false, error: 'Title and WhatsApp are required' });
 
     const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
     if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
       return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
 
     const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
+    const cleanRent = (rent === undefined || rent === null || String(rent).trim() === '')
+      ? null : parseInt(rent, 10);
 
     const { rows } = await pool.query(`
       INSERT INTO rooms (posted_by,title,type,bhk,rent,furnished,area,address,landmark,
                          owner_name,whatsapp,description,photos,plan,expires_at,district,status)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *
     `, [
-      req.user.id, title, type || '', bhk || '', rent, furnished || '',
+      req.user.id, title, type || '', bhk || '', cleanRent, furnished || '',
       area || '', address || '', landmark || '', ownerName || '', cleanWhatsapp,
       description || '', JSON.stringify(safePhotos),
       'admin', adminExpiry(), district || 'nanded', 'active',
@@ -696,14 +698,16 @@ router.post('/post/vehicle', async (req, res) => {
       price, area, address, ownerName, whatsapp, description, photos, district,
     } = req.body;
 
-    if (!title || !price || !whatsapp)
-      return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
+    if (!title || !whatsapp)
+      return res.json({ ok: false, error: 'Title and WhatsApp are required' });
 
     const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
     if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
       return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
 
     const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
+    const cleanPrice = (price === undefined || price === null || String(price).trim() === '')
+      ? null : parseInt(price, 10);
 
     const { rows } = await pool.query(`
       INSERT INTO vehicles (posted_by,name,title,type,brand,model,year,km_driven,fuel,transmission,
@@ -711,7 +715,7 @@ router.post('/post/vehicle', async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING *
     `, [
       req.user.id, title, title, type || '', brand || '', model || '', year || null, kmDriven || null,
-      fuel || '', transmission || '', price, area || '', address || '', ownerName || '', cleanWhatsapp,
+      fuel || '', transmission || '', cleanPrice, area || '', address || '', ownerName || '', cleanWhatsapp,
       description || '', JSON.stringify(safePhotos),
       'admin', adminExpiry(), district || 'nanded', 'active',
     ]);
@@ -732,14 +736,16 @@ router.post('/post/buysell', async (req, res) => {
       area, description, whatsapp, photos, district,
     } = req.body;
 
-    if (!title || !price || !whatsapp)
-      return res.json({ ok: false, error: 'Title, price and WhatsApp are required' });
+    if (!title || !whatsapp)
+      return res.json({ ok: false, error: 'Title and WhatsApp are required' });
 
     const cleanWhatsapp = String(whatsapp).replace(/\s+/g, '');
     if (!/^[6-9]\d{9}$/.test(cleanWhatsapp))
       return res.json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
 
     const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
+    const cleanPrice = (price === undefined || price === null || String(price).trim() === '')
+      ? null : parseInt(price, 10);
 
     const { rows } = await pool.query(`
       INSERT INTO buysell_items (posted_by,title,category,condition,age,price,negotiable,
@@ -747,7 +753,7 @@ router.post('/post/buysell', async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *
     `, [
       req.user.id, title, category || 'Other', condition || 'Good', age || '',
-      price, negotiable !== false && negotiable !== 'false', area || '', description || '', cleanWhatsapp,
+      cleanPrice, negotiable !== false && negotiable !== 'false', area || '', description || '', cleanWhatsapp,
       JSON.stringify(safePhotos),
       'admin', ADMIN_EXPIRY_DAYS, adminExpiry(), district || 'nanded', 'active',
     ]);
