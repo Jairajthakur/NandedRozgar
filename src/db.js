@@ -216,6 +216,8 @@ async function runMigrations() {
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS number_of_owners  VARCHAR(30)`,
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS advance_amt        VARCHAR(30)`,
       `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS min_booking        VARCHAR(30)`,
+      // FIX: price should be optional (owner may prefer to discuss on call)
+      `ALTER TABLE vehicles ALTER COLUMN price DROP NOT NULL`,
 
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS title           VARCHAR(200)`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS type            VARCHAR(50)`,
@@ -243,6 +245,8 @@ async function runMigrations() {
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS sale_price      BIGINT`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS carpet_area     VARCHAR(30)`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS property_age    VARCHAR(50)`,
+      // FIX: rent should be optional (owner may prefer to discuss on call)
+      `ALTER TABLE rooms ALTER COLUMN rent DROP NOT NULL`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS for_gender      VARCHAR(30)  DEFAULT 'Any'`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS floor           VARCHAR(20)`,
       `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS total_floors    VARCHAR(20)`,
@@ -304,6 +308,8 @@ async function runMigrations() {
 
       // Free-first-post tracking: plan_label on buysell_items was missing
       `ALTER TABLE buysell_items ADD COLUMN IF NOT EXISTS plan_label VARCHAR(30) DEFAULT 'free'`,
+      // FIX: price should be optional (seller may prefer to discuss on call)
+      `ALTER TABLE buysell_items ALTER COLUMN price DROP NOT NULL`,
 
       // JWT revocation — token_version must exist for auth middleware to work.
       // Without this column, every /api/auth/me call fails with a DB error → user gets logged out on every app open.
@@ -501,7 +507,7 @@ async function runMigrations() {
         km_driven     INTEGER,
         fuel          VARCHAR(30),
         transmission  VARCHAR(30),
-        price         INTEGER NOT NULL,
+        price         INTEGER,
         area          VARCHAR(100),
         address       TEXT,
         owner_name    VARCHAR(100),
@@ -530,7 +536,7 @@ async function runMigrations() {
         title         VARCHAR(200) NOT NULL,
         type          VARCHAR(50),
         bhk           VARCHAR(10),
-        rent          INTEGER NOT NULL,
+        rent          INTEGER,
         furnished     VARCHAR(30),
         area          VARCHAR(100),
         address       TEXT,
@@ -596,7 +602,7 @@ async function runMigrations() {
         category    VARCHAR(50)  DEFAULT 'Other',
         condition   VARCHAR(50)  DEFAULT 'Good',
         age         VARCHAR(50),
-        price       INTEGER      NOT NULL,
+        price       INTEGER,
         negotiable  BOOLEAN      DEFAULT TRUE,
         area        VARCHAR(100),
         description TEXT,
