@@ -9,6 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
+import BannerAd from '../components/ads/BannerAd';
+import { useIsPremium } from '../hooks/useIsPremium';
 
 const ORANGE   = '#f97316';
 const GREEN_WA = '#25d366';
@@ -242,6 +244,7 @@ export default function BuySellDetailScreen() {
   const route  = useRoute();
   const insets = useSafeAreaInsets();
   const { lang, t } = useLang();
+  const isPremium = useIsPremium();
   const item   = route.params?.item;
 
   const [saved, setSaved] = useState(false);
@@ -520,6 +523,9 @@ export default function BuySellDetailScreen() {
           <ActionBtn label="Chat on WhatsApp"  icon="logo-whatsapp"         color={GREEN_WA} onPress={openWhatsApp}  delay={80}  />
           <ActionBtn label="Share Listing"     icon="share-social-outline"  outline          onPress={shareItem}     delay={160} />
         </View>
+
+        {/* Banner ad — sits below the CTA buttons so it never blocks an action */}
+        {!isPremium && <BannerAd style={{ marginTop: 4 }} />}
 
       </ScrollView>
     </View>
