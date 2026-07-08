@@ -1005,7 +1005,7 @@ function buildPostForm(service) {
       <form id="admin-post-form" onsubmit="return false" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
         ${voiceFillBlock}
         ${field('Title *', inp('title','e.g. 2BHK Flat near Station','text',true))}
-        ${row(field('Rent (₹/month) *', inp('rent','','number',true)), field('BHK', sel('bhk',['1 RK','1 BHK','2 BHK','3 BHK','4+ BHK'],'Select')))}
+        ${row(field('Rent (₹/month)', inp('rent','Leave empty to discuss on call','number')), field('BHK', sel('bhk',['1 RK','1 BHK','2 BHK','3 BHK','4+ BHK'],'Select')))}
         ${row(field('Type', sel('type',['Apartment','Independent House','PG','Hostel','Shop','Office'],'Type')), field('Furnished', sel('furnished',['Furnished','Semi-Furnished','Unfurnished'],'Select')))}
         ${field('Address', inp('address','Full address'))}
         ${row(field('Area / Locality', inp('area','Locality')), field('Landmark', inp('landmark','Near…')))}
@@ -1023,7 +1023,7 @@ function buildPostForm(service) {
         ${row(field('Type', sel('type',['Bike','Car','Auto','Truck','Tractor','Other'],'Type')), field('Brand', inp('brand','e.g. Honda')))}
         ${row(field('Model', inp('model','e.g. Activa 6G')), field('Year', inp('year','e.g. 2020','number')))}
         ${row(field('KM Driven', inp('kmDriven','e.g. 12000','number')), field('Fuel', sel('fuel',['Petrol','Diesel','Electric','CNG'],'Fuel')))}
-        ${row(field('Price (₹) *', inp('price','','number',true)), field('Transmission', sel('transmission',['Manual','Automatic'],'Type')))}
+        ${row(field('Price (₹)', inp('price','Leave empty to discuss on call','number')), field('Transmission', sel('transmission',['Manual','Automatic'],'Type')))}
         ${row(field('Area', inp('area','Locality')), field('WhatsApp *', inp('whatsapp','10-digit','text',true)))}
         ${row(field('District *', sel('district',[['nanded','🏙️ Nanded']],'Select District *')), field('Listing Purpose', sel('listingPurpose',[['rent','For Rent'],['sale','For Sale']],'Purpose')))}
         ${field('Description', ta('description','Vehicle details…',3))}
@@ -1036,7 +1036,7 @@ function buildPostForm(service) {
         ${voiceFillBlock}
         ${field('Title *', inp('title','e.g. Samsung TV 43 inch','text',true))}
         ${row(field('Category', sel('category',['Electronics','Furniture','Clothes','Vehicles','Books','Sports','Other'],'Category')), field('Condition', sel('condition',['New','Like New','Good','Fair','Poor'],'Condition')))}
-        ${row(field('Price (₹) *', inp('price','','number',true)), field('Age', inp('age','e.g. 2 years')))}
+        ${row(field('Price (₹)', inp('price','Leave empty to discuss on call','number')), field('Age', inp('age','e.g. 2 years')))}
         ${row(field('Area / Locality', inp('area','Where is item located?')), field('District *', sel('district',[['nanded','🏙️ Nanded']],'Select District *')))}
         ${row(field('WhatsApp *', inp('whatsapp','10-digit','text',true)), field('Negotiable', sel('negotiable',[['true','Yes'],['false','No']],'Negotiable?')))}
         ${field('Description', ta('description','Item details…',3))}
