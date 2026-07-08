@@ -6,6 +6,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { http } from '../utils/api';
+import BannerAd from '../components/ads/BannerAd';
+import { useIsPremium } from '../hooks/useIsPremium';
 
 const ORANGE = '#f97316';
 const BG     = '#f4f4f6';
@@ -53,6 +55,7 @@ function JobCard({ job, onPress }) {
 
 export default function SavedJobsScreen() {
   const nav = useNavigation();
+  const isPremium = useIsPremium();
   const [jobs,      setJobs]      = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -127,6 +130,9 @@ export default function SavedJobsScreen() {
       ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
       ListHeaderComponent={
         <Text style={styles.count}>{jobs.length} saved job{jobs.length !== 1 ? 's' : ''}</Text>
+      }
+      ListFooterComponent={
+        !isPremium && jobs.length > 0 ? <BannerAd style={{ marginTop: 12 }} /> : null
       }
     />
   );
