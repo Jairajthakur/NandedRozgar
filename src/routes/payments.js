@@ -520,9 +520,6 @@ router.post('/verify', auth, (req, res) =>
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/room', auth, (req, res) => {
   const { room } = req.body;
-  const isSale = room?.listingPurpose === 'sale';
-  if (!isSale && !room?.rent) return res.json({ ok: false, error: 'Rent is required.' });
-  if (isSale && !room?.salePrice) return res.json({ ok: false, error: 'Sale price is required.' });
   if (!room?.area) return res.json({ ok: false, error: 'Area is required.' });
 
   // ── Phone validation ─────────────────────────────────────────────────────────
@@ -576,20 +573,6 @@ router.post('/verify/room', auth, (req, res) => {
 router.post('/verify/vehicle', auth, (req, res) => {
   const { vehicle } = req.body;
 
-  // FIX: Guard now branches on listingPurpose so sell listings aren't blocked
-  // by the old dailyRate check.
-  const isSell = (vehicle?.listingPurpose || 'rent') === 'sell';
-
-  if (isSell) {
-    if (!vehicle?.askingPrice) {
-      return res.json({ ok: false, error: 'Asking price is required for sell listings.' });
-    }
-  } else {
-    if (!vehicle?.dailyRate) {
-      return res.json({ ok: false, error: 'Daily rental rate is required.' });
-    }
-  }
-
   if (!vehicle?.area) {
     return res.json({ ok: false, error: 'Location / area is required.' });
   }
@@ -605,17 +588,11 @@ router.post('/verify/vehicle', auth, (req, res) => {
     if (!waClean.ok) throw Object.assign(new Error(waClean.error), { userError: true });
 
     // FIX: Resolve price based on listing purpose — sell → askingPrice, rent → dailyRate.
+    // Price is optional: if the poster left it blank, store 0 ("Contact for price").
     const isSellInner   = (vehicle?.listingPurpose || 'rent') === 'sell';
     const resolvedPrice = isSellInner
       ? parseInt(vehicle.askingPrice) || 0
       : parseInt(vehicle.dailyRate)   || 0;
-
-    if (!resolvedPrice) {
-      throw Object.assign(
-        new Error(isSellInner ? 'Asking price is required.' : 'Daily rental rate is required.'),
-        { userError: true }
-      );
-    }
 
     // FIX: INSERT now uses the correct column names that match the actual
     // vehicles table schema defined in db.js.
@@ -684,8 +661,8 @@ router.post('/verify/vehicle', auth, (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/verify/buysell', auth, (req, res) => {
   const { item } = req.body;
-  if (!item?.title || !item?.price) {
-    return res.json({ ok: false, error: 'Title and price are required.' });
+  if (!item?.title) {
+    return res.json({ ok: false, error: 'Title is required.' });
   }
   // ── Phone validation ─────────────────────────────────────────────────────────
   const waResult = requirePhone(item?.whatsapp, 'WhatsApp');
