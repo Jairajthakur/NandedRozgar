@@ -36,8 +36,6 @@ export default function LeaderboardStrip({ district, onPressWorker, style }) {
     return () => { alive = false; };
   }, [district]);
 
-  if (top !== null && top.length === 0) return null; // no hires yet this month — stay quiet
-
   return (
     <View style={[s.wrap, style]}>
       <View style={s.headerRow}>
@@ -45,26 +43,33 @@ export default function LeaderboardStrip({ district, onPressWorker, style }) {
         <Text style={s.headerTxt}>Top hired this month</Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row}>
-        {top === null
-          ? [1, 2, 3].map(i => <View key={i} style={[s.chip, s.chipSkeleton]} />)
-          : top.map((w, i) => (
-            <TouchableOpacity
-              key={w.id}
-              style={s.chip}
-              activeOpacity={0.85}
-              onPress={() => onPressWorker?.(w.id)}
-            >
-              <View style={[s.rank, { backgroundColor: RANK_COLORS[i] || '#e5e5e5' }]}>
-                <Text style={s.rankTxt}>{i + 1}</Text>
-              </View>
-              <View style={{ flexShrink: 1 }}>
-                <Text style={s.chipName} numberOfLines={1}>{w.full_name}</Text>
-                <Text style={s.chipMeta} numberOfLines={1}>{w.skill_category} · {w.hire_count} hire{w.hire_count === 1 ? '' : 's'}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-      </ScrollView>
+      {top !== null && top.length === 0 ? (
+        <View style={s.emptyRow}>
+          <Ionicons name="hourglass-outline" size={14} color="#c2854f" />
+          <Text style={s.emptyTxt}>No hires completed yet this month — be the first!</Text>
+        </View>
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row}>
+          {top === null
+            ? [1, 2, 3].map(i => <View key={i} style={[s.chip, s.chipSkeleton]} />)
+            : top.map((w, i) => (
+              <TouchableOpacity
+                key={w.id}
+                style={s.chip}
+                activeOpacity={0.85}
+                onPress={() => onPressWorker?.(w.id)}
+              >
+                <View style={[s.rank, { backgroundColor: RANK_COLORS[i] || '#e5e5e5' }]}>
+                  <Text style={s.rankTxt}>{i + 1}</Text>
+                </View>
+                <View style={{ flexShrink: 1 }}>
+                  <Text style={s.chipName} numberOfLines={1}>{w.full_name}</Text>
+                  <Text style={s.chipMeta} numberOfLines={1}>{w.skill_category} · {w.hire_count} hire{w.hire_count === 1 ? '' : 's'}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -76,6 +81,9 @@ const s = StyleSheet.create({
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
   headerTxt: { fontSize: 11.5, fontWeight: '800', color: '#9a3412', textTransform: 'uppercase', letterSpacing: 0.4 },
+
+  emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
+  emptyTxt: { fontSize: 11.5, color: '#9a6a3f', fontWeight: '600', flexShrink: 1 },
 
   row: { gap: 8, paddingRight: 4 },
   chip: {
