@@ -19,7 +19,8 @@ import NativeAdCard from '../components/ads/NativeAdCard';
 import BannerAd from '../components/ads/BannerAd';
 import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
 import { useIsPremium } from '../hooks/useIsPremium';
-import { LABOUR_COLORS, SKILL_ICONS, getSkillGradient } from '../constants/labourTheme';
+import { LABOUR_COLORS, getSkillGradient } from '../constants/labourTheme';
+import TradeIcon from '../components/TradeIcon';
 
 const ORANGE = LABOUR_COLORS.primary;
 const TEAL   = '#0d9488';
@@ -138,7 +139,7 @@ function LabourCard({ item, onPress, index = 0 }) {
 
           <View style={cs.subtitleRow}>
             <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
-              <Ionicons name={SKILL_ICONS[item.skill_category] || 'briefcase-outline'} size={11} color={gradStart} />
+              <TradeIcon name={item.skill_category} size={13} color={gradStart} />
               <Text style={[cs.tradeChipTxt, { color: gradStart }]}>{item.skill_category}</Text>
             </View>
             {isTeam && !!item.team_composition && (
@@ -385,11 +386,11 @@ export default function LabourScreen() {
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   style={[s.categoryIconBox, { shadowColor: catStart, shadowOpacity: 0.35 }]}
                 >
-                  <Ionicons name={SKILL_ICONS[cat]} size={26} color="#fff" />
+                  <TradeIcon name={cat} size={26} color="#fff" />
                 </LinearGradient>
               ) : (
                 <View style={[s.categoryIconBox, { backgroundColor: catStart + '14' }]}>
-                  <Ionicons name={SKILL_ICONS[cat]} size={26} color={catStart} />
+                  <TradeIcon name={cat} size={26} color={catStart} />
                 </View>
               )}
               <Text style={[s.categoryTileTxt, active && { color: catStart, fontWeight: '800' }]} numberOfLines={2}>
@@ -539,7 +540,7 @@ export default function LabourScreen() {
                       activeOpacity={0.75}
                     >
                       <View style={[ws.catIconWrap, { backgroundColor: tStart + '18' }]}>
-                        <Ionicons name={SKILL_ICONS[label]} size={14} color={tStart} />
+                        <TradeIcon name={label} size={16} color={tStart} />
                       </View>
                       <Text style={ws.catLabel}>{label}</Text>
                       <View style={ws.catCount}><Text style={ws.catCountTxt}>{count}</Text></View>
