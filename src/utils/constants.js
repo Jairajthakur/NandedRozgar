@@ -5,7 +5,7 @@ import Constants from 'expo-constants';
 // screen/route tied to it renders the shared <ComingSoonScreen> instead
 // (see App.js) — no other code needs to change to go live later.
 export const FEATURES = {
-  LABOUR_ENABLED: false, // Labour marketplace (list/browse/hire workers) — build is done, just gated for now
+  LABOUR_ENABLED: true, // TEMP: enabled for internal APK testing only — set back to false before any production/Play Store build
 };
 
 export const C = {
