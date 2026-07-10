@@ -91,3 +91,24 @@ export const SKILL_ICONS = {
   Helper: 'people-outline',
   Other: 'briefcase-outline',
 };
+
+// ── Per-trade color identity ────────────────────────────────────────────────
+// Gives every skill category its own color instead of everything being the
+// same orange — used for category tiles and for the initials-avatar on
+// profile cards that don't have a photo yet. Each entry is a [start, end]
+// pair for a subtle diagonal gradient.
+export const SKILL_GRADIENTS = {
+  All:         ['#f97316', '#c2410c'],
+  Mason:       ['#f97316', '#c2410c'],
+  Electrician: ['#3b82f6', '#1d4ed8'],
+  Plumber:     ['#06b6d4', '#0e7490'],
+  Painter:     ['#d946ef', '#a21caf'],
+  Carpenter:   ['#b45309', '#78350f'],
+  Welder:      ['#ef4444', '#b91c1c'],
+  Helper:      ['#22c55e', '#15803d'],
+  Other:       ['#64748b', '#334155'],
+};
+
+export function getSkillGradient(skill) {
+  return SKILL_GRADIENTS[skill] || SKILL_GRADIENTS.Other;
+}
