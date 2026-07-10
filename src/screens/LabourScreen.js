@@ -43,6 +43,7 @@ const WAGE_RANGES = [
   { label: 'Above ₹1,200', min: 1200, max: Infinity },
 ];
 const AVAILABILITY_OPTIONS = ['All', 'At Chowk Today', 'Available Now', 'Busy this week'];
+const PROFILE_TYPE_OPTIONS = ['All', 'Individuals', 'Teams'];
 
 function parseWage(raw) {
   const n = parseInt(String(raw || '').replace(/[^\d]/g, ''), 10);
@@ -83,28 +84,38 @@ function LabourCard({ item, onPress, index = 0 }) {
   const hasRating = !!item.rating_count && Number(item.rating_count) > 0;
   const isBusy = item.availability === 'busy';
   const atChowk = !!item.checked_in_today;
+  const isTeam = item.profile_type === 'team';
 
   return (
     <FadeIn delay={Math.min(index, 8) * 60}>
       <TouchableOpacity style={cs.card} onPress={onPress} activeOpacity={0.9}>
-        <View style={[cs.accentBar, { backgroundColor: atChowk ? '#16a34a' : isBusy ? '#9ca3af' : ORANGE }]} />
+        <View style={[cs.accentBar, { backgroundColor: atChowk ? '#16a34a' : isBusy ? '#9ca3af' : isTeam ? '#7c3aed' : ORANGE }]} />
         <View style={cs.cardInner}>
-          {atChowk ? (
-            <View style={[cs.badge, { backgroundColor: '#16a34a' }]}>
-              <Ionicons name="walk" size={9} color="#fff" />
-              <Text style={cs.badgeTxt}>AT THE CHOWK TODAY</Text>
-            </View>
-          ) : isBusy ? (
-            <View style={[cs.badge, { backgroundColor: '#9ca3af' }]}>
-              <Ionicons name="time-outline" size={9} color="#fff" />
-              <Text style={cs.badgeTxt}>BUSY THIS WEEK</Text>
-            </View>
-          ) : hasRating && Number(item.rating_avg) >= 4.5 ? (
-            <View style={[cs.badge, { backgroundColor: ORANGE }]}>
-              <Ionicons name="star" size={9} color="#fff" />
-              <Text style={cs.badgeTxt}>TOP RATED</Text>
-            </View>
-          ) : null}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {isTeam && (
+              <View style={[cs.badge, { backgroundColor: '#7c3aed', marginBottom: 0 }]}>
+                <Ionicons name="people" size={9} color="#fff" />
+                <Text style={cs.badgeTxt}>TEAM OF {item.team_size}</Text>
+              </View>
+            )}
+            {atChowk ? (
+              <View style={[cs.badge, { backgroundColor: '#16a34a', marginBottom: 0 }]}>
+                <Ionicons name="walk" size={9} color="#fff" />
+                <Text style={cs.badgeTxt}>AT THE CHOWK TODAY</Text>
+              </View>
+            ) : isBusy ? (
+              <View style={[cs.badge, { backgroundColor: '#9ca3af', marginBottom: 0 }]}>
+                <Ionicons name="time-outline" size={9} color="#fff" />
+                <Text style={cs.badgeTxt}>BUSY THIS WEEK</Text>
+              </View>
+            ) : hasRating && Number(item.rating_avg) >= 4.5 ? (
+              <View style={[cs.badge, { backgroundColor: ORANGE, marginBottom: 0 }]}>
+                <Ionicons name="star" size={9} color="#fff" />
+                <Text style={cs.badgeTxt}>TOP RATED</Text>
+              </View>
+            ) : null}
+          </View>
+          {(isTeam || atChowk || isBusy || (hasRating && Number(item.rating_avg) >= 4.5)) && <View style={{ height: 8 }} />}
 
           <View style={cs.titleRow}>
             <View style={{ flex: 1 }}>
@@ -114,7 +125,9 @@ function LabourCard({ item, onPress, index = 0 }) {
               </View>
             </View>
             <Text style={cs.wage}>
-              {item.daily_wage ? `₹${item.daily_wage}/day` : 'Contact for rate'}
+              {item.daily_wage
+                ? isTeam ? `₹${item.daily_wage}/day (crew)` : `₹${item.daily_wage}/day`
+                : 'Contact for rate'}
             </Text>
           </View>
 
@@ -123,7 +136,10 @@ function LabourCard({ item, onPress, index = 0 }) {
               <Ionicons name={SKILL_ICONS[item.skill_category] || 'briefcase-outline'} size={11} color={ORANGE} />
               <Text style={cs.tradeChipTxt}>{item.skill_category}</Text>
             </View>
-            {!!item.experience_years && (
+            {isTeam && !!item.team_composition && (
+              <Text style={cs.subtitle} numberOfLines={1}>{item.team_composition}</Text>
+            )}
+            {!isTeam && !!item.experience_years && (
               <Text style={cs.subtitle}>{item.experience_years} yrs experience</Text>
             )}
             {hasRating ? (
@@ -200,6 +216,7 @@ export default function LabourScreen() {
   const [activeSkill, setActiveSkill] = useState('All');
   const [wageRange, setWageRange] = useState(WAGE_RANGES[0]);
   const [availability, setAvailability] = useState('All');
+  const [profileTypeFilter, setProfileTypeFilter] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState(null);
 
@@ -240,13 +257,15 @@ export default function LabourScreen() {
       if (availability === 'At Chowk Today' && !l.checked_in_today) return false;
       if (availability === 'Available Now' && l.availability === 'busy') return false;
       if (availability === 'Busy this week' && l.availability !== 'busy') return false;
+      if (profileTypeFilter === 'Teams' && l.profile_type !== 'team') return false;
+      if (profileTypeFilter === 'Individuals' && l.profile_type === 'team') return false;
       if (search.trim()) {
         const hay = [l.full_name, l.skill_category].join(' ').toLowerCase();
         if (!hay.includes(search.trim().toLowerCase())) return false;
       }
       return true;
     });
-  }, [labourers, activeSkill, wageRange, availability, search]);
+  }, [labourers, activeSkill, wageRange, availability, profileTypeFilter, search]);
 
   const isPremium = useIsPremium();
 
@@ -268,7 +287,7 @@ export default function LabourScreen() {
   }, [filtered, isPremium]);
 
   const activeFiltersCount =
-    (wageRange.label !== 'Any' ? 1 : 0) + (availability !== 'All' ? 1 : 0);
+    (wageRange.label !== 'Any' ? 1 : 0) + (availability !== 'All' ? 1 : 0) + (profileTypeFilter !== 'All' ? 1 : 0);
 
   const tradeCounts = SKILL_CATEGORIES.map(cat => ({
     label: cat,
@@ -362,6 +381,12 @@ export default function LabourScreen() {
               <Ionicons name="close" size={11} color={ORANGE} />
             </TouchableOpacity>
           )}
+          {profileTypeFilter !== 'All' && (
+            <TouchableOpacity style={ws.activeChip} onPress={() => setProfileTypeFilter('All')}>
+              <Text style={ws.activeChipTxt}>{profileTypeFilter}</Text>
+              <Ionicons name="close" size={11} color={ORANGE} />
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
@@ -375,12 +400,24 @@ export default function LabourScreen() {
         <View style={s.sheetHandle} />
         <View style={s.sheetHeader}>
           <Text style={s.sheetTitle}>Filters</Text>
-          <TouchableOpacity onPress={() => { setWageRange(WAGE_RANGES[0]); setAvailability('All'); }}>
+          <TouchableOpacity onPress={() => { setWageRange(WAGE_RANGES[0]); setAvailability('All'); setProfileTypeFilter('All'); }}>
             <Text style={s.resetTxt}>Reset All</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={s.filterLabel}>Daily Wage</Text>
+        <Text style={s.filterLabel}>Listing Type</Text>
+        {PROFILE_TYPE_OPTIONS.map(pt => (
+          <TouchableOpacity
+            key={pt}
+            style={[s.rangeRow, profileTypeFilter === pt && s.rangeActive]}
+            onPress={() => setProfileTypeFilter(pt)}
+          >
+            <Text style={[s.rangeTxt, profileTypeFilter === pt && { color: ORANGE, fontWeight: '700' }]}>{pt}</Text>
+            {profileTypeFilter === pt && <Ionicons name="checkmark-circle" size={18} color={ORANGE} />}
+          </TouchableOpacity>
+        ))}
+
+        <Text style={[s.filterLabel, { marginTop: 20 }]}>Daily Wage</Text>
         {WAGE_RANGES.map(r => (
           <TouchableOpacity
             key={r.label}
