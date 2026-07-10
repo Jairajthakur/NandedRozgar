@@ -40,6 +40,14 @@ const WAGE_RANGES = [
 const AVAILABILITY_OPTIONS = ['All', 'At Chowk Today', 'Available Now', 'Busy this week'];
 const PROFILE_TYPE_OPTIONS = ['All', 'Individuals', 'Teams'];
 
+// Rich metadata for the "Listing Type" preference cards in the filter sheet —
+// icon + accent color + a couple of descriptive chips per tier, so the
+// picker reads like a real choice instead of a plain text list.
+const PROFILE_TYPE_META = {
+  Individuals: { icon: 'person-outline', color: LABOUR_COLORS.worker, chips: ['Solo hire', 'Direct rate'] },
+  Teams:       { icon: 'people-outline', color: LABOUR_COLORS.team,   chips: ['Crew hire', 'Group rate'] },
+};
+
 function parseWage(raw) {
   const n = parseInt(String(raw || '').replace(/[^\d]/g, ''), 10);
   return isNaN(n) ? 0 : n;
@@ -441,16 +449,41 @@ export default function LabourScreen() {
         </View>
 
         <Text style={s.filterLabel}>Listing Type</Text>
-        {PROFILE_TYPE_OPTIONS.map(pt => (
-          <TouchableOpacity
-            key={pt}
-            style={[s.rangeRow, profileTypeFilter === pt && s.rangeActive]}
-            onPress={() => setProfileTypeFilter(pt)}
-          >
-            <Text style={[s.rangeTxt, profileTypeFilter === pt && { color: ORANGE, fontWeight: '700' }]}>{pt}</Text>
-            {profileTypeFilter === pt && <Ionicons name="checkmark-circle" size={18} color={ORANGE} />}
-          </TouchableOpacity>
-        ))}
+        <View style={s.prefList}>
+          {['Individuals', 'Teams'].map((pt, idx) => {
+            const meta = PROFILE_TYPE_META[pt];
+            const active = profileTypeFilter === pt;
+            return (
+              <React.Fragment key={pt}>
+                <TouchableOpacity
+                  style={s.prefRow}
+                  activeOpacity={0.7}
+                  onPress={() => setProfileTypeFilter(active ? 'All' : pt)}
+                >
+                  <View style={[s.prefIconBox, { backgroundColor: meta.color + '18' }, active && { backgroundColor: meta.color }]}>
+                    <Ionicons name={meta.icon} size={28} color={active ? '#fff' : meta.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.prefTitle, active && { color: meta.color }]}>{pt}</Text>
+                    <View style={s.prefChipRow}>
+                      {meta.chips.map(c => (
+                        <View key={c} style={s.prefChip}>
+                          <Text style={s.prefChipTxt}>{c}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                  <Ionicons
+                    name={active ? 'checkmark-circle' : 'chevron-forward'}
+                    size={20}
+                    color={active ? meta.color : '#c4c4cc'}
+                  />
+                </TouchableOpacity>
+                {idx === 0 && <View style={s.prefDivider} />}
+              </React.Fragment>
+            );
+          })}
+        </View>
 
         <Text style={[s.filterLabel, { marginTop: 20 }]}>Daily Wage</Text>
         {WAGE_RANGES.map(r => (
@@ -709,6 +742,18 @@ const s = StyleSheet.create({
   },
   rangeActive: { borderColor: ORANGE, backgroundColor: '#fff8f3' },
   rangeTxt: { fontSize: 14, fontWeight: '600', color: '#333' },
+
+  prefList: { marginBottom: 4 },
+  prefRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16 },
+  prefIconBox: {
+    width: 64, height: 64, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  prefTitle: { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 7 },
+  prefChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  prefChip: { backgroundColor: '#f3f4f6', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10 },
+  prefChipTxt: { fontSize: 11, fontWeight: '700', color: '#666' },
+  prefDivider: { height: 1, backgroundColor: '#ececec' },
   applyFilterBtn: { backgroundColor: '#111', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 12 },
   applyFilterTxt: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
 });
