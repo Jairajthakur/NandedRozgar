@@ -5,6 +5,18 @@ import {
   TouchableOpacity, StyleSheet, Platform, useWindowDimensions,
   Animated, Easing, AppState, Image, Linking, Modal,
 } from 'react-native';
+
+// FIX: the app only ever ships a light theme, but browsers/Android WebViews
+// with system dark-mode on were auto-inverting the page (forced-dark
+// rendering) since nothing told them the site is light-only. This tells
+// the browser explicitly, so it stops guessing.
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  document.documentElement.style.colorScheme = 'light';
+  const meta = document.createElement('meta');
+  meta.name = 'color-scheme';
+  meta.content = 'light';
+  document.head.appendChild(meta);
+}
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
