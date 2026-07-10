@@ -761,8 +761,14 @@ const ws = StyleSheet.create({
   },
   filterBtnTxt: { fontSize: 13, fontWeight: '700', color: ORANGE },
 
-  categoryGrid: { gap: 18, paddingBottom: 20 },
-  categoryTile: { width: 92 },
+  categoryGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))',
+    columnGap: 18,
+    rowGap: 22,
+    paddingBottom: 20,
+  },
+  categoryTile: { width: 'auto', justifySelf: 'center' },
 
   activeFiltersRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   activeFiltersLabel: { fontSize: 11, color: '#bbb', fontWeight: '600' },
