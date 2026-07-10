@@ -463,6 +463,24 @@ async function runMigrations() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_contact_unlock_lookup ON labour_contact_unlocks(contractor_id, labour_id, expires_at)`);
 
+    // FIX (Critical): "Saved workers" — routes/labour.js reads/writes this table
+    // in 4 places (GET /:id detail check, POST/DELETE /:id/favourite, GET
+    // favourites list), but it was never created here. Every GET /api/labour/:id
+    // call made while logged in threw "relation labour_favourites does not
+    // exist" — caught by the route's generic catch block and surfaced to the
+    // app as "Failed to load profile" for every single profile.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_favourites (
+        id             SERIAL PRIMARY KEY,
+        contractor_id  INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        labour_id      INTEGER REFERENCES labour_profiles(id) ON DELETE CASCADE,
+        created_at     TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(contractor_id, labour_id)
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_favourites_contractor ON labour_favourites(contractor_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_favourites_labour ON labour_favourites(labour_id)`);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS saved_jobs (
         id         SERIAL PRIMARY KEY,
