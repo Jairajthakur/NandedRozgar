@@ -65,6 +65,9 @@ export default function LabourDetailScreen() {
   const [days, setDays]                       = useState(1);
   const [unlocking, setUnlocking]             = useState(false);
   const [hasPhone, setHasPhone]               = useState(true);
+  const [checkingIn, setCheckingIn]           = useState(false);
+
+  const isOwnProfile = !!(user && profile && user.id === profile.user_id);
 
   const load = async () => {
     setLoading(true);
@@ -169,6 +172,24 @@ export default function LabourDetailScreen() {
     if (profile?.user_phone) Linking.openURL(`tel:${profile.user_phone}`);
   };
 
+  const toggleCheckin = async () => {
+    if (checkingIn) return;
+    setCheckingIn(true);
+    const method = profile.checked_in_today ? 'DELETE' : 'POST';
+    const res = await http(method, `/api/labour/${id}/checkin`);
+    setCheckingIn(false);
+    if (res?.ok) {
+      setProfile(p => ({ ...p, checked_in_today: res.profile.checked_in_today, availability: res.profile.availability || p.availability }));
+      Toast.show({
+        type: 'success',
+        text1: res.profile.checked_in_today ? "You're checked in for today!" : 'Checked out',
+        text2: res.profile.checked_in_today ? 'You\'ll show up first in search results until midnight.' : undefined,
+      });
+    } else {
+      Toast.show({ type: 'error', text1: 'Could not update check-in', text2: res?.error || 'Please try again.' });
+    }
+  };
+
   if (loading) {
     return (
       <View style={[s.root, s.center]}>
@@ -233,6 +254,12 @@ export default function LabourDetailScreen() {
           </View>
 
           <View style={s.badgeRow}>
+            {profile.checked_in_today && (
+              <View style={s.chowkBadge}>
+                <Ionicons name="walk" size={12} color="#fff" />
+                <Text style={s.chowkTxt}>At the chowk today</Text>
+              </View>
+            )}
             <View style={[s.availBadge, { backgroundColor: profile.availability === 'busy' ? '#fef3c7' : '#f0fdf4' }]}>
               <View style={[s.availDot, { backgroundColor: profile.availability === 'busy' ? '#d97706' : '#16a34a' }]} />
               <Text style={[s.availTxt, { color: profile.availability === 'busy' ? '#92400e' : '#166534' }]}>
@@ -247,6 +274,41 @@ export default function LabourDetailScreen() {
             )}
           </View>
         </FadeSlide>
+
+        {/* ── Owner-only: daily chowk check-in ─────────────────────────────
+            Nothing else in the app surfaces this control, so it lives right
+            on the worker's own profile view — the same place they'd see
+            everything a contractor sees. */}
+        {isOwnProfile && (
+          <FadeSlide delay={70} style={s.card}>
+            <Text style={s.sectionTitle}>Standing at the chowk today?</Text>
+            <Text style={s.bioTxt}>
+              Check in each morning to jump to the top of search results for the day —
+              it clears itself automatically at midnight.
+            </Text>
+            <TouchableOpacity
+              style={[
+                s.checkinBtn,
+                profile.checked_in_today ? s.checkinBtnActive : null,
+                checkingIn && { opacity: 0.7 },
+              ]}
+              onPress={toggleCheckin}
+              disabled={checkingIn}
+              activeOpacity={0.88}
+            >
+              {checkingIn ? (
+                <ActivityIndicator color={profile.checked_in_today ? LABOUR_COLOR : '#fff'} />
+              ) : (
+                <>
+                  <Ionicons name={profile.checked_in_today ? 'checkmark-circle' : 'walk'} size={16} color={profile.checked_in_today ? LABOUR_COLOR : '#fff'} />
+                  <Text style={[s.checkinBtnTxt, profile.checked_in_today && { color: LABOUR_COLOR }]}>
+                    {profile.checked_in_today ? "You're checked in — tap to leave" : "I'm at the chowk today"}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </FadeSlide>
+        )}
 
         <FadeSlide delay={90} style={s.card}>
           <Text style={s.sectionTitle}>Daily wage</Text>
@@ -443,6 +505,17 @@ const s = StyleSheet.create({
   ratingTxt: { fontSize: 12, fontWeight: '700', color: '#111' },
 
   badgeRow: { flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' },
+  chowkBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#16a34a', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 100,
+  },
+  chowkTxt: { fontSize: 11, fontWeight: '800', color: '#fff' },
+  checkinBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginTop: 12, backgroundColor: LABOUR_COLOR, borderRadius: 12, paddingVertical: 13,
+  },
+  checkinBtnActive: { backgroundColor: '#f0fdf4', borderWidth: 1.5, borderColor: '#16a34a' },
+  checkinBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 14 },
   availBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 100 },
   availDot: { width: 7, height: 7, borderRadius: 4 },
   availTxt: { fontSize: 11, fontWeight: '700' },
