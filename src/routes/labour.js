@@ -5,6 +5,8 @@ const { auth } = require('../middleware/auth');
 
 const LIST_TTL   = 15_000;
 const DETAIL_TTL = 30_000;
+const WAGE_BOARD_TTL = 30 * 60_000; // going rates move slowly, refresh every 30 min
+const WAGE_BOARD_MIN_SAMPLES = 3;   // don't show a rate until enough listings back it up
 
 // Must match LABOUR_CONTACT_RATE_PER_DAY in routes/payments.js
 const CONTACT_RATE_PER_DAY = 8;
@@ -93,6 +95,63 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('[labour] list error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to load labour profiles' });
+  }
+});
+
+// GET /api/labour/wage-board — "today's going rate" per skill, chowk-style.
+// Median daily rate per skill_category among active listings, so contractors
+// have a reason to open the app even when they're not hiring right now.
+// Team listings carry a *combined* crew rate, so they're normalized to a
+// per-person figure (daily_wage / team_size) before being folded into the
+// same median as individual listings — a contractor comparing "what does a
+// mason cost today" doesn't care whether that mason posted solo or as part
+// of a crew.
+router.get('/wage-board', async (req, res) => {
+  try {
+    const district = req.query.district || null;
+    const cacheKey = `labour:wageboard:${district}`;
+    const hit = await cache.get(cacheKey);
+    if (hit) return res.json(hit);
+
+    const params = [];
+    const conditions = ["status='active'", "daily_wage IS NOT NULL", "daily_wage > 0"];
+    if (district) {
+      params.push(district);
+      conditions.push(`(district=$${params.length} OR district IS NULL)`);
+    }
+    const where = conditions.join(' AND ');
+
+    const { rows } = await pool.query(`
+      SELECT
+        skill_category,
+        COUNT(*)::int AS sample_size,
+        ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (
+          ORDER BY daily_wage / GREATEST(COALESCE(team_size, 1), 1)
+        ))::int AS median_wage,
+        MIN(ROUND(daily_wage / GREATEST(COALESCE(team_size, 1), 1)))::int AS min_wage,
+        MAX(ROUND(daily_wage / GREATEST(COALESCE(team_size, 1), 1)))::int AS max_wage
+      FROM labour_profiles
+      WHERE ${where}
+      GROUP BY skill_category
+      ORDER BY sample_size DESC
+    `, params);
+
+    const rates = rows
+      .filter(r => r.sample_size >= WAGE_BOARD_MIN_SAMPLES)
+      .map(r => ({
+        skill_category: r.skill_category,
+        median_wage: r.median_wage,
+        min_wage: r.min_wage,
+        max_wage: r.max_wage,
+        sample_size: r.sample_size,
+      }));
+
+    const payload = { ok: true, district, rates, generatedAt: new Date().toISOString() };
+    await cache.set(cacheKey, payload, WAGE_BOARD_TTL);
+    res.json(payload);
+  } catch (err) {
+    console.error('[labour] wage-board error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load wage board' });
   }
 });
 
