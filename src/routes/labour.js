@@ -31,8 +31,9 @@ router.get('/', async (req, res) => {
     const district = req.query.district || null;
     const skill    = req.query.skill_category || null;
     const q        = req.query.q || null;
+    const type     = ['individual', 'team'].includes(req.query.profile_type) ? req.query.profile_type : null;
 
-    const cacheKey = `labour:${page}:${limit}:${district}:${skill}:${q}`;
+    const cacheKey = `labour:${page}:${limit}:${district}:${skill}:${q}:${type}`;
     const hit = await cache.get(cacheKey);
     if (hit) return res.json(hit);
 
@@ -46,6 +47,10 @@ router.get('/', async (req, res) => {
     if (skill) {
       params.push(skill);
       conditions.push(`l.skill_category=$${params.length}`);
+    }
+    if (type) {
+      params.push(type);
+      conditions.push(`l.profile_type=$${params.length}`);
     }
     if (q) {
       params.push(`%${q}%`);
@@ -62,6 +67,7 @@ router.get('/', async (req, res) => {
         SELECT l.id, l.full_name, l.skill_category, l.skills, l.experience_years,
                l.daily_wage, l.district, l.location, l.availability, l.bio,
                l.photo_url, l.id_verified, l.rating_avg, l.rating_count, l.created_at,
+               l.profile_type, l.team_size, l.team_composition,
                (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) AS checked_in_today
         FROM labour_profiles l
         WHERE ${where}
@@ -160,11 +166,24 @@ router.post('/', auth, async (req, res) => {
     const {
       full_name, phone, skill_category, skills, experience_years,
       daily_wage, district, location, bio, photo_url,
+      profile_type, team_size, team_composition,
     } = req.body;
 
     if (!full_name || !skill_category) {
       return res.status(400).json({ ok: false, error: 'full_name and skill_category are required' });
     }
+
+    // Team profiles: a lead worker posting on behalf of a group needs a
+    // headcount of at least 2 — otherwise this is just an individual listing.
+    const cleanedType = profile_type === 'team' ? 'team' : 'individual';
+    let cleanedTeamSize = null;
+    if (cleanedType === 'team') {
+      cleanedTeamSize = parseInt(team_size, 10);
+      if (!cleanedTeamSize || cleanedTeamSize < 2) {
+        return res.status(400).json({ ok: false, error: 'Team profiles need a headcount of at least 2' });
+      }
+    }
+    const cleanedComposition = cleanedType === 'team' ? (team_composition || '').trim().slice(0, 200) || null : null;
 
     // A labour listing with no contact number is useless to contractors (and
     // can't actually be sold via the paid-unlock flow), so require one here —
@@ -196,22 +215,24 @@ router.post('/', auth, async (req, res) => {
       result = await pool.query(`
         UPDATE labour_profiles SET
           full_name = $1, skill_category = $2, skills = $3, experience_years = $4,
-          daily_wage = $5, district = $6, location = $7, bio = $8, photo_url = $9
-        WHERE user_id = $10
+          daily_wage = $5, district = $6, location = $7, bio = $8, photo_url = $9,
+          profile_type = $10, team_size = $11, team_composition = $12
+        WHERE user_id = $13
         RETURNING *
       `, [full_name, skill_category, skills || [], experience_years || null,
           daily_wage || null, district || 'nanded', location || null, bio || null,
-          photo_url || null, req.user.id]);
+          photo_url || null, cleanedType, cleanedTeamSize, cleanedComposition, req.user.id]);
     } else {
       result = await pool.query(`
         INSERT INTO labour_profiles
           (user_id, full_name, skill_category, skills, experience_years,
-           daily_wage, district, location, bio, photo_url)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+           daily_wage, district, location, bio, photo_url,
+           profile_type, team_size, team_composition)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
         RETURNING *
       `, [req.user.id, full_name, skill_category, skills || [], experience_years || null,
           daily_wage || null, district || 'nanded', location || null, bio || null,
-          photo_url || null]);
+          photo_url || null, cleanedType, cleanedTeamSize, cleanedComposition]);
     }
 
     await cache.delPrefix('labour:');
