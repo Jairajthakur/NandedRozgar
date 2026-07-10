@@ -353,23 +353,26 @@ export default function LabourScreen() {
         )}
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[s.pillsRow, IS_WEB && ws.pillsRow]}
-        style={{ maxHeight: 52 }}
-      >
-        {SKILL_CATEGORIES.map(cat => (
-          <TouchableOpacity
-            key={cat}
-            onPress={() => setActiveSkill(cat)}
-            style={[s.pill, IS_WEB && ws.pill, activeSkill === cat && s.pillActive]}
-          >
-            <Ionicons name={SKILL_ICONS[cat]} size={13} color={activeSkill === cat ? '#fff' : '#777'} style={{ marginRight: 5 }} />
-            <Text style={[s.pillTxt, activeSkill === cat && s.pillTxtActive]}>{cat}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={[s.categoryGrid, IS_WEB && ws.categoryGrid]}>
+        {SKILL_CATEGORIES.map(cat => {
+          const active = activeSkill === cat;
+          return (
+            <TouchableOpacity
+              key={cat}
+              onPress={() => setActiveSkill(cat)}
+              style={[s.categoryTile, IS_WEB && ws.categoryTile]}
+              activeOpacity={0.8}
+            >
+              <View style={[s.categoryIconBox, active && s.categoryIconBoxActive]}>
+                <Ionicons name={SKILL_ICONS[cat]} size={22} color={active ? '#fff' : ORANGE} />
+              </View>
+              <Text style={[s.categoryTileTxt, active && s.categoryTileTxtActive]} numberOfLines={2}>
+                {cat}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       {IS_WEB && activeFiltersCount > 0 && (
         <View style={ws.activeFiltersRow}>
@@ -644,15 +647,18 @@ const s = StyleSheet.create({
   },
   searchInput: { flex: 1, paddingHorizontal: 10, fontSize: 14, color: '#111' },
 
-  pillsRow: { paddingBottom: 14, gap: 8, alignItems: 'center' },
-  pill: {
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1.5, borderColor: '#d8d8d8', backgroundColor: '#fff',
-    paddingVertical: 7, paddingHorizontal: 16, borderRadius: 24,
+  categoryGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', paddingBottom: 16, gap: 12,
   },
-  pillActive: { backgroundColor: ORANGE, borderColor: ORANGE },
-  pillTxt: { fontSize: 13, fontWeight: '600', color: '#555' },
-  pillTxtActive: { color: '#fff', fontWeight: '700' },
+  categoryTile: { width: '22%', alignItems: 'center' },
+  categoryIconBox: {
+    width: 56, height: 56, borderRadius: 16, backgroundColor: '#fff7f0',
+    borderWidth: 1, borderColor: '#fde3c7',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+  },
+  categoryIconBoxActive: { backgroundColor: ORANGE, borderColor: ORANGE },
+  categoryTileTxt: { fontSize: 11.5, fontWeight: '600', color: '#555', textAlign: 'center', lineHeight: 14 },
+  categoryTileTxtActive: { color: ORANGE, fontWeight: '800' },
 
   list: { paddingHorizontal: 14, paddingTop: 0, paddingBottom: 40 },
 
@@ -725,8 +731,8 @@ const ws = StyleSheet.create({
   },
   filterBtnTxt: { fontSize: 13, fontWeight: '700', color: ORANGE },
 
-  pillsRow: { gap: 8, paddingBottom: 14, alignItems: 'center' },
-  pill: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#e0e0e0', backgroundColor: '#fff', paddingVertical: 7, paddingHorizontal: 18, borderRadius: 100 },
+  categoryGrid: { gap: 14, paddingBottom: 18 },
+  categoryTile: { width: 84 },
 
   activeFiltersRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   activeFiltersLabel: { fontSize: 11, color: '#bbb', fontWeight: '600' },
