@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  View, Text, FlatList, TextInput, TouchableOpacity,
+  View, Text, Image, FlatList, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, RefreshControl, Platform, StatusBar,
   Modal, Animated, Easing, useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
 import { Empty } from '../components/UI';
@@ -18,7 +19,7 @@ import NativeAdCard from '../components/ads/NativeAdCard';
 import BannerAd from '../components/ads/BannerAd';
 import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
 import { useIsPremium } from '../hooks/useIsPremium';
-import { LABOUR_COLORS, SKILL_ICONS } from '../constants/labourTheme';
+import { LABOUR_COLORS, SKILL_ICONS, getSkillGradient } from '../constants/labourTheme';
 
 const ORANGE = LABOUR_COLORS.primary;
 const TEAL   = '#0d9488';
@@ -78,11 +79,13 @@ function LabourCard({ item, onPress, index = 0 }) {
   const isBusy = item.availability === 'busy';
   const atChowk = !!item.checked_in_today;
   const isTeam = item.profile_type === 'team';
+  const initials = (item.full_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
 
   return (
     <FadeIn delay={Math.min(index, 8) * 60}>
       <TouchableOpacity style={cs.card} onPress={onPress} activeOpacity={0.9}>
-        <View style={[cs.accentBar, { backgroundColor: atChowk ? '#16a34a' : isBusy ? '#9ca3af' : isTeam ? '#7c3aed' : ORANGE }]} />
+        <View style={[cs.accentBar, { backgroundColor: atChowk ? '#16a34a' : isBusy ? '#9ca3af' : isTeam ? '#7c3aed' : gradStart }]} />
         <View style={cs.cardInner}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {isTeam && (
@@ -111,6 +114,15 @@ function LabourCard({ item, onPress, index = 0 }) {
           {(isTeam || atChowk || isBusy || (hasRating && Number(item.rating_avg) >= 4.5)) && <View style={{ height: 8 }} />}
 
           <View style={cs.titleRow}>
+            <View style={cs.avatar}>
+              {item.photo_url ? (
+                <Image source={{ uri: item.photo_url }} style={cs.avatarImg} />
+              ) : (
+                <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.avatarImg}>
+                  <Text style={cs.avatarTxt}>{initials}</Text>
+                </LinearGradient>
+              )}
+            </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                 <Text style={cs.title} numberOfLines={1}>{item.full_name}</Text>
@@ -125,9 +137,9 @@ function LabourCard({ item, onPress, index = 0 }) {
           </View>
 
           <View style={cs.subtitleRow}>
-            <View style={cs.tradeChip}>
-              <Ionicons name={SKILL_ICONS[item.skill_category] || 'briefcase-outline'} size={11} color={ORANGE} />
-              <Text style={cs.tradeChipTxt}>{item.skill_category}</Text>
+            <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
+              <Ionicons name={SKILL_ICONS[item.skill_category] || 'briefcase-outline'} size={11} color={gradStart} />
+              <Text style={[cs.tradeChipTxt, { color: gradStart }]}>{item.skill_category}</Text>
             </View>
             {isTeam && !!item.team_composition && (
               <Text style={cs.subtitle} numberOfLines={1}>{item.team_composition}</Text>
@@ -172,7 +184,10 @@ const cs = StyleSheet.create({
     borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8, marginBottom: 8,
   },
   badgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 },
+  avatar: { width: 46, height: 46, borderRadius: 23, overflow: 'hidden', flexShrink: 0 },
+  avatarImg: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  avatarTxt: { fontSize: 15, fontWeight: '800', color: '#fff' },
   title: { fontSize: 16, fontWeight: '700', color: '#111', flexShrink: 1 },
   wage: { fontSize: 13, fontWeight: '700', color: ORANGE, paddingTop: 2, textAlign: 'right' },
   subtitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
@@ -356,6 +371,7 @@ export default function LabourScreen() {
       <View style={[s.categoryGrid, IS_WEB && ws.categoryGrid]}>
         {SKILL_CATEGORIES.map(cat => {
           const active = activeSkill === cat;
+          const [catStart, catEnd] = getSkillGradient(cat);
           return (
             <TouchableOpacity
               key={cat}
@@ -363,10 +379,20 @@ export default function LabourScreen() {
               style={[s.categoryTile, IS_WEB && ws.categoryTile]}
               activeOpacity={0.8}
             >
-              <View style={[s.categoryIconBox, active && s.categoryIconBoxActive]}>
-                <Ionicons name={SKILL_ICONS[cat]} size={22} color={active ? '#fff' : ORANGE} />
-              </View>
-              <Text style={[s.categoryTileTxt, active && s.categoryTileTxtActive]} numberOfLines={2}>
+              {active ? (
+                <LinearGradient
+                  colors={[catStart, catEnd]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  style={s.categoryIconBox}
+                >
+                  <Ionicons name={SKILL_ICONS[cat]} size={22} color="#fff" />
+                </LinearGradient>
+              ) : (
+                <View style={[s.categoryIconBox, { backgroundColor: catStart + '18', borderColor: catStart + '35' }]}>
+                  <Ionicons name={SKILL_ICONS[cat]} size={22} color={catStart} />
+                </View>
+              )}
+              <Text style={[s.categoryTileTxt, active && { color: catStart, fontWeight: '800' }]} numberOfLines={2}>
                 {cat}
               </Text>
             </TouchableOpacity>
@@ -503,20 +529,23 @@ export default function LabourScreen() {
 
               <SideCard>
                 <Text style={ws.sideTitle}>Browse Trades</Text>
-                {tradeCounts.map(({ label, count }) => (
-                  <TouchableOpacity
-                    key={label}
-                    style={ws.catRow}
-                    onPress={() => setActiveSkill(label)}
-                    activeOpacity={0.75}
-                  >
-                    <View style={ws.catIconWrap}>
-                      <Ionicons name={SKILL_ICONS[label]} size={14} color={ORANGE} />
-                    </View>
-                    <Text style={ws.catLabel}>{label}</Text>
-                    <View style={ws.catCount}><Text style={ws.catCountTxt}>{count}</Text></View>
-                  </TouchableOpacity>
-                ))}
+                {tradeCounts.map(({ label, count }) => {
+                  const [tStart] = getSkillGradient(label);
+                  return (
+                    <TouchableOpacity
+                      key={label}
+                      style={ws.catRow}
+                      onPress={() => setActiveSkill(label)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={[ws.catIconWrap, { backgroundColor: tStart + '18' }]}>
+                        <Ionicons name={SKILL_ICONS[label]} size={14} color={tStart} />
+                      </View>
+                      <Text style={ws.catLabel}>{label}</Text>
+                      <View style={ws.catCount}><Text style={ws.catCountTxt}>{count}</Text></View>
+                    </TouchableOpacity>
+                  );
+                })}
               </SideCard>
 
               <SideCard>
