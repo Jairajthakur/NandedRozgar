@@ -7,6 +7,7 @@ const LIST_TTL   = 15_000;
 const DETAIL_TTL = 30_000;
 const WAGE_BOARD_TTL = 30 * 60_000; // going rates move slowly, refresh every 30 min
 const WAGE_BOARD_MIN_SAMPLES = 3;   // don't show a rate until enough listings back it up
+const REHIRE_FREE_DAYS = 3;         // free re-unlock window granted on a repeat hire
 
 // Must match LABOUR_CONTACT_RATE_PER_DAY in routes/payments.js
 const CONTACT_RATE_PER_DAY = 8;
@@ -181,6 +182,7 @@ router.get('/:id', async (req, res) => {
     const userId = getUserIdFromReq(req);
     let contactUnlocked = false;
     let unlockExpiresAt = null;
+    let previouslyHired = false;
 
     if (userId && userId === profile.user_id) {
       contactUnlocked = true; // labourer viewing their own profile
@@ -195,6 +197,15 @@ router.get('/:id', async (req, res) => {
         contactUnlocked = true;
         unlockExpiresAt = rows[0].expires_at;
       }
+
+      // Real chowk relationships are repeat relationships — once a contractor
+      // has actually finished a job with this worker, later visits don't need
+      // to re-charge for the same contact. See POST /:id/rehire-unlock.
+      const { rows: completedRows } = await pool.query(
+        `SELECT 1 FROM hire_requests WHERE contractor_id = $1 AND labour_id = $2 AND status = 'completed' LIMIT 1`,
+        [userId, id]
+      );
+      previouslyHired = completedRows.length > 0;
     }
 
     const hasPhone = !!profile.user_phone;
@@ -212,6 +223,8 @@ router.get('/:id', async (req, res) => {
       unlockExpiresAt,
       contactRatePerDay: CONTACT_RATE_PER_DAY,
       hasPhone, // lets the client hide/disable the paid-unlock flow when there's nothing to unlock
+      previouslyHired, // lets the client show a "Hire again" shortcut instead of the paid unlock flow
+      rehireFreeDays: REHIRE_FREE_DAYS,
     });
   } catch (err) {
     console.error('[labour] detail error:', err.message);
@@ -401,6 +414,75 @@ router.post('/:id/hire', auth, async (req, res) => {
   } catch (err) {
     console.error('[labour] hire error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to send hire request' });
+  }
+});
+
+// POST /api/labour/:id/rehire-unlock — "Hire again" shortcut.
+// Real chowk relationships are repeat relationships: a contractor who has
+// already finished a job with this worker shouldn't have to pay to unlock
+// the same phone number again. Grants a short free re-unlock window instead
+// of re-charging — gated strictly behind a genuine COMPLETED hire between
+// this exact contractor/labour pair, so it can't be used to skip paying the
+// first time.
+router.post('/:id/rehire-unlock', auth, async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    if (!labourId) return res.status(400).json({ ok: false, error: 'Invalid id' });
+
+    const labour = await pool.query(
+      "SELECT user_id FROM labour_profiles WHERE id = $1 AND status = 'active'",
+      [labourId]
+    );
+    if (!labour.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+    if (labour.rows[0].user_id === req.user.id) {
+      return res.status(400).json({ ok: false, error: 'This is your own profile' });
+    }
+
+    const { rows: completedRows } = await pool.query(
+      `SELECT 1 FROM hire_requests WHERE contractor_id = $1 AND labour_id = $2 AND status = 'completed' LIMIT 1`,
+      [req.user.id, labourId]
+    );
+    if (!completedRows.length) {
+      return res.status(403).json({ ok: false, error: "You haven't completed a hire with this worker yet." });
+    }
+
+    // Already unlocked (e.g. from a recent paid unlock or an earlier free
+    // grant that hasn't expired) — nothing to do, just report the existing window.
+    const { rows: activeRows } = await pool.query(
+      `SELECT expires_at FROM labour_contact_unlocks
+       WHERE contractor_id = $1 AND labour_id = $2 AND expires_at > NOW()
+       ORDER BY expires_at DESC LIMIT 1`,
+      [req.user.id, labourId]
+    );
+
+    let expiresAt;
+    if (activeRows.length) {
+      expiresAt = activeRows[0].expires_at;
+    } else {
+      expiresAt = new Date(Date.now() + REHIRE_FREE_DAYS * 24 * 60 * 60 * 1000);
+      await pool.query(`
+        INSERT INTO labour_contact_unlocks
+          (contractor_id, labour_id, days, amount, cashfree_order_id, expires_at)
+        VALUES ($1,$2,$3,0,$4,$5)
+      `, [req.user.id, labourId, REHIRE_FREE_DAYS, 'REPEAT_HIRE_FREE', expiresAt]);
+    }
+
+    const { rows } = await pool.query(`
+      SELECT l.*, u.name AS user_name, u.phone AS user_phone
+      FROM labour_profiles l LEFT JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1
+    `, [labourId]);
+
+    res.json({
+      ok: true,
+      profile: rows[0],
+      contactUnlocked: true,
+      unlockExpiresAt: expiresAt,
+      freeDays: REHIRE_FREE_DAYS,
+    });
+  } catch (err) {
+    console.error('[labour] rehire-unlock error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to unlock contact' });
   }
 });
 
