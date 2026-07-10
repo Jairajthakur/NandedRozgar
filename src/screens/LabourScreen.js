@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
 import { Empty } from '../components/UI';
+import WageBoardStrip from '../components/WageBoardStrip';
 
 import { useLang } from '../utils/i18n';
 import { useDistrict } from '../context/DistrictContext';
@@ -326,6 +327,11 @@ export default function LabourScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <WageBoardStrip
+        district={currentDistrict?.id}
+        onPressSkill={(skill) => setActiveSkill(SKILL_CATEGORIES.includes(skill) ? skill : 'All')}
+      />
 
       <View style={[s.searchWrap, IS_WEB && ws.searchWrap]}>
         <Ionicons name="search-outline" size={18} color="#bbb" style={{ marginLeft: 14 }} />
