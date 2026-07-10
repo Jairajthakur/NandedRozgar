@@ -389,6 +389,14 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_district_skill ON labour_profiles(district, skill_category) WHERE status='active'`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_labour_user ON labour_profiles(user_id)`);
 
+    // "Standing at the chowk today" — a same-day check-in that auto-expires at
+    // midnight IST, separate from the longer-lived `availability` flag. Lets a
+    // worker signal "I'm physically here right now" the way they would by
+    // showing up at the actual labour chowk each morning, and bumps them to
+    // the top of search results for the rest of that day only.
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS checked_in_until TIMESTAMPTZ`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_checked_in ON labour_profiles(checked_in_until) WHERE checked_in_until IS NOT NULL`);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS hire_requests (
         id               SERIAL PRIMARY KEY,
