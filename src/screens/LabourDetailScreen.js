@@ -25,9 +25,11 @@ import { useAuth } from '../context/AuthContext';
 import { useRazorpayCheckout } from '../utils/cashfree';
 import BannerAd from '../components/ads/BannerAd';
 import { useIsPremium } from '../hooks/useIsPremium';
+import { LABOUR_COLORS } from '../constants/labourTheme';
+import { SectionCard, HireFlowSteps } from '../components/labour/LabourUI';
 
-const ORANGE = '#f97316';
-const LABOUR_COLOR = '#b45309';
+const ORANGE = LABOUR_COLORS.primary;
+const LABOUR_COLOR = LABOUR_COLORS.worker;
 
 function FadeSlide({ children, delay = 0, style }) {
   const o = useRef(new Animated.Value(0)).current;
@@ -433,6 +435,16 @@ export default function LabourDetailScreen() {
                 )}
               </>
             )}
+          </FadeSlide>
+        )}
+
+        {/* ── Where you are in the hire journey — same 3 stages the
+             Hire Requests screen tracks, so the flow reads as one system ── */}
+        {!isOwnProfile && (
+          <FadeSlide delay={80}>
+            <SectionCard style={{ paddingVertical: 12 }}>
+              <HireFlowSteps activeKey={contactUnlocked ? 'request' : 'unlock'} />
+            </SectionCard>
           </FadeSlide>
         )}
 
