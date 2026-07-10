@@ -273,13 +273,22 @@ export default function LabourDetailScreen() {
 
   if (error || !profile) {
     return (
-      <View style={[s.root, s.center, { paddingTop: insets.top }]}>
+      <View style={[s.root, { paddingTop: insets.top }]}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-        <Ionicons name="alert-circle-outline" size={40} color="#ddd" />
-        <Text style={s.errorTitle}>{error || 'Profile not found'}</Text>
-        <TouchableOpacity onPress={load} style={s.retryBtn}>
-          <Text style={s.retryTxt}>Retry</Text>
-        </TouchableOpacity>
+        <View style={s.topBar}>
+          <TouchableOpacity onPress={() => nav.goBack()} style={s.backBtn} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={20} color="#111" />
+          </TouchableOpacity>
+          <Text style={s.topBarTitle}>Labour Profile</Text>
+          <View style={s.backBtn} />
+        </View>
+        <View style={[s.center, { flex: 1 }]}>
+          <Ionicons name="alert-circle-outline" size={40} color="#ddd" />
+          <Text style={s.errorTitle}>{error || 'Profile not found'}</Text>
+          <TouchableOpacity onPress={load} style={s.retryBtn}>
+            <Text style={s.retryTxt}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
