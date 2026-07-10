@@ -85,6 +85,20 @@ export default function PostLabourProfileScreen() {
   const [availability, setAvailability] = useState('available');
   const [photoUri, setPhotoUri]   = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [wageBoard, setWageBoard] = useState([]);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const params = new URLSearchParams();
+      if (district) params.set('district', district);
+      const res = await http('GET', `/api/labour/wage-board?${params.toString()}`);
+      if (alive && res?.ok) setWageBoard(res.rates || []);
+    })();
+    return () => { alive = false; };
+  }, [district]);
+
+  const goingRate = skill ? wageBoard.find(r => r.skill_category === skill) : null;
 
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -345,6 +359,11 @@ export default function PostLabourProfileScreen() {
                 placeholderTextColor="#bbb"
                 keyboardType="number-pad"
               />
+              {!!goingRate && !isTeam && (
+                <Text style={s.hint}>
+                  Today&apos;s going rate for {skill}: ₹{goingRate.median_wage}/day ({goingRate.sample_size} listings)
+                </Text>
+              )}
             </View>
           </FadeSlide>
 
