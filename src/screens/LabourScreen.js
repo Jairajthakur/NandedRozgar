@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
 import { Empty } from '../components/UI';
 import WageBoardStrip from '../components/WageBoardStrip';
+import LeaderboardStrip from '../components/labour/LeaderboardStrip';
 
 import { useLang } from '../utils/i18n';
 import { useDistrict } from '../context/DistrictContext';
@@ -324,6 +325,11 @@ export default function LabourScreen() {
         onPressSkill={(skill) => setActiveSkill(SKILL_CATEGORIES.includes(skill) ? skill : 'All')}
       />
 
+      <LeaderboardStrip
+        district={currentDistrict?.id}
+        onPressWorker={(id) => nav.navigate('LabourDetail', { id })}
+      />
+
       <View style={[s.searchWrap, IS_WEB && ws.searchWrap]}>
         <Ionicons name="search-outline" size={18} color="#bbb" style={{ marginLeft: 14 }} />
         <TextInput
@@ -339,10 +345,12 @@ export default function LabourScreen() {
             <Ionicons name="close-circle" size={18} color="#ccc" />
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={[s.searchFilterBtn, IS_WEB && ws.searchFilterBtn]} onPress={() => setShowFilters(true)}>
-          <Ionicons name="filter-outline" size={17} color={ORANGE} />
-          {IS_WEB && <Text style={ws.filterBtnTxt}>Filters</Text>}
-        </TouchableOpacity>
+        {IS_WEB && (
+          <TouchableOpacity style={ws.searchFilterBtn} onPress={() => setShowFilters(true)}>
+            <Ionicons name="filter-outline" size={17} color={ORANGE} />
+            <Text style={ws.filterBtnTxt}>Filters</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
@@ -635,10 +643,6 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
   searchInput: { flex: 1, paddingHorizontal: 10, fontSize: 14, color: '#111' },
-  searchFilterBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, height: 48, paddingHorizontal: 16,
-    backgroundColor: '#fff7f0', borderLeftWidth: 1, borderLeftColor: '#ebebeb',
-  },
 
   pillsRow: { paddingBottom: 14, gap: 8, alignItems: 'center' },
   pill: {
