@@ -61,10 +61,14 @@ router.get('/', async (req, res) => {
       pool.query(`
         SELECT l.id, l.full_name, l.skill_category, l.skills, l.experience_years,
                l.daily_wage, l.district, l.location, l.availability, l.bio,
-               l.photo_url, l.id_verified, l.rating_avg, l.rating_count, l.created_at
+               l.photo_url, l.id_verified, l.rating_avg, l.rating_count, l.created_at,
+               (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) AS checked_in_today
         FROM labour_profiles l
         WHERE ${where}
-        ORDER BY (l.availability = 'available') DESC, l.created_at DESC
+        ORDER BY
+          (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) DESC,
+          (l.availability = 'available') DESC,
+          l.created_at DESC
         LIMIT $${params.length - 1} OFFSET $${params.length}
       `, params),
     ]);
@@ -131,9 +135,14 @@ router.get('/:id', async (req, res) => {
     const hasPhone = !!profile.user_phone;
     const safeProfile = { ...profile, user_phone: contactUnlocked ? profile.user_phone : null };
 
+    // Computed fresh on every request (not cached) — checked_in_until itself
+    // is cached on `profile`, but whether it's still in the future can't be,
+    // same reasoning as contactUnlocked above.
+    const checkedInToday = !!(profile.checked_in_until && new Date(profile.checked_in_until) > new Date());
+
     res.json({
       ok: true,
-      profile: safeProfile,
+      profile: { ...safeProfile, checked_in_today: checkedInToday },
       contactUnlocked,
       unlockExpiresAt,
       contactRatePerDay: CONTACT_RATE_PER_DAY,
@@ -210,6 +219,49 @@ router.post('/', auth, async (req, res) => {
   } catch (err) {
     console.error('[labour] create/update error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to save profile' });
+  }
+});
+
+// POST /api/labour/:id/checkin — "I'm standing at the chowk today"
+// Sets a same-day expiry (midnight IST) that bumps this profile to the top
+// of search results until it lapses on its own — no cron job needed, every
+// read just checks checked_in_until > NOW(). Also nudges availability to
+// 'available' since checking in only makes sense if you're ready to work.
+router.post('/:id/checkin', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const result = await pool.query(`
+      UPDATE labour_profiles SET
+        checked_in_until = (date_trunc('day', (NOW() AT TIME ZONE 'Asia/Kolkata')) + INTERVAL '1 day') AT TIME ZONE 'Asia/Kolkata',
+        availability = 'available'
+      WHERE id = $1 AND user_id = $2
+      RETURNING *
+    `, [id, req.user.id]);
+    if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+
+    await cache.delPrefix('labour:');
+    res.json({ ok: true, profile: { ...result.rows[0], checked_in_today: true } });
+  } catch (err) {
+    console.error('[labour] checkin error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to check in' });
+  }
+});
+
+// DELETE /api/labour/:id/checkin — leave the chowk early (before midnight)
+router.delete('/:id/checkin', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const result = await pool.query(
+      'UPDATE labour_profiles SET checked_in_until = NULL WHERE id = $1 AND user_id = $2 RETURNING *',
+      [id, req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+
+    await cache.delPrefix('labour:');
+    res.json({ ok: true, profile: { ...result.rows[0], checked_in_today: false } });
+  } catch (err) {
+    console.error('[labour] checkout error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to check out' });
   }
 });
 
