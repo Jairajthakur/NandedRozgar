@@ -66,6 +66,8 @@ export default function LabourDetailScreen() {
   const [unlocking, setUnlocking]             = useState(false);
   const [hasPhone, setHasPhone]               = useState(true);
   const [checkingIn, setCheckingIn]           = useState(false);
+  const [previouslyHired, setPreviouslyHired] = useState(false);
+  const [rehiring, setRehiring]               = useState(false);
 
   const isOwnProfile = !!(user && profile && user.id === profile.user_id);
 
@@ -79,6 +81,7 @@ export default function LabourDetailScreen() {
       setUnlockExpiresAt(res.unlockExpiresAt || null);
       if (res.contactRatePerDay) setRatePerDay(res.contactRatePerDay);
       setHasPhone(res.hasPhone !== false);
+      setPreviouslyHired(!!res.previouslyHired);
     } else {
       setError(res?.error || 'Could not load this profile.');
     }
@@ -129,12 +132,41 @@ export default function LabourDetailScreen() {
     }
   };
 
+  // "Hire again" — for a contractor who has already completed a job with
+  // this worker, skip the paid unlock entirely and go straight to the free
+  // re-unlock + hire form.
+  const rehire = async (openHireAfter = true) => {
+    if (!user) {
+      Alert.alert('Login required', 'Please log in to hire this worker again.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log in', onPress: () => nav.navigate('Login') },
+      ]);
+      return;
+    }
+    setRehiring(true);
+    const res = await http('POST', `/api/labour/${id}/rehire-unlock`);
+    setRehiring(false);
+    if (res?.ok) {
+      setProfile(res.profile);
+      setContactUnlocked(true);
+      setUnlockExpiresAt(res.unlockExpiresAt);
+      Toast.show({ type: 'success', text1: 'Contact unlocked — no charge', text2: "You've worked together before, so this one's on the house." });
+      if (openHireAfter) setHireOpen(true);
+    } else {
+      Toast.show({ type: 'error', text1: 'Could not unlock contact', text2: res?.error || 'Please try again.' });
+    }
+  };
+
   // "Hire now" now gates on a paid contact unlock — you can't send a hire
   // request until you've paid to unlock the phone number.
   const handleHirePress = () => {
     if (hireOpen) { setHireOpen(false); return; }
     if (!hasPhone) {
       Toast.show({ type: 'error', text1: 'No contact number on file', text2: `${(profile?.full_name || 'This worker').split(' ')[0]} hasn't added one yet.` });
+      return;
+    }
+    if (!contactUnlocked && previouslyHired) {
+      rehire(true); // repeat relationship — free re-unlock instead of paid flow
       return;
     }
     if (!contactUnlocked) {
@@ -351,6 +383,26 @@ export default function LabourDetailScreen() {
                 </Text>
               )}
             </View>
+          ) : previouslyHired ? (
+            <View>
+              <View style={s.repeatBadge}>
+                <Ionicons name="refresh-outline" size={13} color="#15803d" />
+                <Text style={s.repeatBadgeTxt}>You've hired {(profile.full_name || 'this worker').split(' ')[0]} before</Text>
+              </View>
+              <Text style={s.bioTxt}>
+                No need to pay again — unlock their number for free and send another hire request.
+              </Text>
+              <TouchableOpacity
+                style={[s.unlockBtn, { backgroundColor: '#16a34a' }, rehiring && { opacity: 0.7 }]}
+                onPress={() => rehire(false)}
+                disabled={rehiring}
+                activeOpacity={0.88}
+              >
+                {rehiring
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.unlockBtnTxt}>Unlock free — hire again</Text>}
+              </TouchableOpacity>
+            </View>
           ) : (
             <View>
               <Text style={s.bioTxt}>
@@ -464,14 +516,17 @@ export default function LabourDetailScreen() {
         <TouchableOpacity
           style={s.hireBtn}
           onPress={handleHirePress}
-          disabled={unlocking}
+          disabled={unlocking || rehiring}
           activeOpacity={0.88}
         >
-          {unlocking
+          {(unlocking || rehiring)
             ? <ActivityIndicator color="#fff" />
             : (
               <Text style={s.hireBtnTxt}>
-                {hireOpen ? 'Cancel' : (contactUnlocked || !hasPhone) ? 'Hire now' : `Unlock & hire — ₹${price}`}
+                {hireOpen ? 'Cancel'
+                  : (contactUnlocked || !hasPhone) ? 'Hire now'
+                  : previouslyHired ? 'Hire again — free'
+                  : `Unlock & hire — ₹${price}`}
               </Text>
             )}
         </TouchableOpacity>
@@ -543,6 +598,12 @@ const s = StyleSheet.create({
   bioTxt: { fontSize: 13, color: '#444', lineHeight: 19 },
 
   unlockedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  repeatBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+    backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0',
+    borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 8,
+  },
+  repeatBadgeTxt: { fontSize: 11.5, fontWeight: '700', color: '#15803d' },
   phoneValue: { fontSize: 16, fontWeight: '800', color: '#111' },
   unlockNote: { fontSize: 11, color: '#999', fontWeight: '600' },
 
