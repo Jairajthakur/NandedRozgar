@@ -68,6 +68,10 @@ export default function LabourDetailScreen() {
   const [checkingIn, setCheckingIn]           = useState(false);
   const [previouslyHired, setPreviouslyHired] = useState(false);
   const [rehiring, setRehiring]               = useState(false);
+  const [favourited, setFavourited]           = useState(false);
+  const [favBusy, setFavBusy]                 = useState(false);
+  const [leaderboard, setLeaderboard]         = useState(null);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
   const isOwnProfile = !!(user && profile && user.id === profile.user_id);
 
@@ -82,6 +86,7 @@ export default function LabourDetailScreen() {
       if (res.contactRatePerDay) setRatePerDay(res.contactRatePerDay);
       setHasPhone(res.hasPhone !== false);
       setPreviouslyHired(!!res.previouslyHired);
+      setFavourited(!!res.isFavourited);
     } else {
       setError(res?.error || 'Could not load this profile.');
     }
@@ -89,6 +94,17 @@ export default function LabourDetailScreen() {
   };
 
   useEffect(() => { if (id) load(); }, [id]);
+
+  useEffect(() => {
+    if (!isOwnProfile) return;
+    setLeaderboardLoading(true);
+    const params = new URLSearchParams();
+    if (profile?.district) params.set('district', profile.district);
+    http('GET', `/api/labour/leaderboard?${params.toString()}`).then((res) => {
+      setLeaderboardLoading(false);
+      if (res?.ok) setLeaderboard(res);
+    });
+  }, [isOwnProfile, profile?.district]);
 
   const unlockContact = async (openHireAfter = false) => {
     if (!hasPhone) return; // nothing to unlock — button should be hidden, but guard anyway
@@ -200,6 +216,28 @@ export default function LabourDetailScreen() {
     }
   };
 
+  const toggleFavourite = async () => {
+    if (!user) {
+      Alert.alert('Login required', 'Please log in to save workers.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log in', onPress: () => nav.navigate('Login') },
+      ]);
+      return;
+    }
+    if (favBusy) return;
+    setFavBusy(true);
+    const wasFavourited = favourited;
+    setFavourited(!wasFavourited); // optimistic
+    const res = await http(wasFavourited ? 'DELETE' : 'POST', `/api/labour/${id}/favourite`);
+    setFavBusy(false);
+    if (res?.ok) {
+      Toast.show({ type: 'success', text1: wasFavourited ? 'Removed from saved workers' : 'Saved! Find them again in Saved Workers.' });
+    } else {
+      setFavourited(wasFavourited); // revert on failure
+      Toast.show({ type: 'error', text1: 'Could not update', text2: res?.error || 'Please try again.' });
+    }
+  };
+
   const callPhone = () => {
     if (profile?.user_phone) Linking.openURL(`tel:${profile.user_phone}`);
   };
@@ -257,7 +295,13 @@ export default function LabourDetailScreen() {
           <Ionicons name="arrow-back" size={20} color="#111" />
         </TouchableOpacity>
         <Text style={s.topBarTitle}>Labour Profile</Text>
-        <View style={s.backBtn} />
+        {isOwnProfile ? (
+          <View style={s.backBtn} />
+        ) : (
+          <TouchableOpacity onPress={toggleFavourite} style={s.backBtn} activeOpacity={0.7} disabled={favBusy}>
+            <Ionicons name={favourited ? 'heart' : 'heart-outline'} size={20} color={favourited ? '#e11d48' : '#111'} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
@@ -346,6 +390,49 @@ export default function LabourDetailScreen() {
                 </>
               )}
             </TouchableOpacity>
+          </FadeSlide>
+        )}
+
+        {isOwnProfile && (
+          <FadeSlide delay={80} style={s.card}>
+            <Text style={s.sectionTitle}>Chowk Leaderboard</Text>
+            {leaderboardLoading && !leaderboard ? (
+              <ActivityIndicator color={LABOUR_COLOR} style={{ marginVertical: 10 }} />
+            ) : (
+              <>
+                <View style={s.lbStatsRow}>
+                  <View style={s.lbStatBox}>
+                    <Text style={s.lbStatNum}>{leaderboard?.hiredToday ?? 0}</Text>
+                    <Text style={s.lbStatLabel}>Hired today</Text>
+                  </View>
+                  <View style={s.lbStatDivider} />
+                  <View style={s.lbStatBox}>
+                    <Text style={s.lbStatNum}>{leaderboard?.waitingToday ?? 0}</Text>
+                    <Text style={s.lbStatLabel}>Waiting today</Text>
+                  </View>
+                </View>
+
+                <Text style={[s.sectionTitle, { marginTop: 16 }]}>Top 5 this month</Text>
+                {leaderboard?.topThisMonth?.length ? (
+                  leaderboard.topThisMonth.map((w, i) => (
+                    <View key={w.id} style={s.lbRow}>
+                      <View style={[s.lbRank, i === 0 && s.lbRankGold, i === 1 && s.lbRankSilver, i === 2 && s.lbRankBronze]}>
+                        <Text style={[s.lbRankTxt, i < 3 && { color: '#fff' }]}>{i + 1}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.lbName} numberOfLines={1}>
+                          {w.id === profile.id ? 'You' : w.full_name}
+                        </Text>
+                        <Text style={s.lbSkill}>{w.skill_category}</Text>
+                      </View>
+                      <Text style={s.lbCount}>{w.hire_count} hire{w.hire_count === 1 ? '' : 's'}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={s.bioTxt}>No hires recorded yet this month — be the first!</Text>
+                )}
+              </>
+            )}
           </FadeSlide>
         )}
 
@@ -596,6 +683,24 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 12, fontWeight: '700', color: '#999', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 },
   wageValue: { fontSize: 20, fontWeight: '900', color: '#111' },
   bioTxt: { fontSize: 13, color: '#444', lineHeight: 19 },
+
+  lbStatsRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fafafa', borderRadius: 12, paddingVertical: 14 },
+  lbStatBox: { flex: 1, alignItems: 'center' },
+  lbStatDivider: { width: 1, alignSelf: 'stretch', backgroundColor: '#ebebeb' },
+  lbStatNum: { fontSize: 22, fontWeight: '900', color: LABOUR_COLOR },
+  lbStatLabel: { fontSize: 11, fontWeight: '700', color: '#999', marginTop: 2 },
+  lbRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#f5f5f5' },
+  lbRank: {
+    width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f0f0f0',
+  },
+  lbRankGold:   { backgroundColor: '#f59e0b' },
+  lbRankSilver: { backgroundColor: '#9ca3af' },
+  lbRankBronze: { backgroundColor: '#b45309' },
+  lbRankTxt: { fontSize: 12, fontWeight: '800', color: '#888' },
+  lbName: { fontSize: 13, fontWeight: '700', color: '#111' },
+  lbSkill: { fontSize: 11, color: '#999', fontWeight: '500', marginTop: 1 },
+  lbCount: { fontSize: 12, fontWeight: '800', color: LABOUR_COLOR },
 
   unlockedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   repeatBadge: {
