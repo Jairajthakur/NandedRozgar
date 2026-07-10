@@ -242,7 +242,8 @@ export default function LabourDetailScreen() {
               <Text style={s.name}>{profile.full_name}</Text>
               <Text style={s.meta}>
                 {profile.skill_category}
-                {profile.experience_years ? ` · ${profile.experience_years} yrs experience` : ''}
+                {profile.profile_type === 'team' ? ` · team of ${profile.team_size}` : ''}
+                {profile.profile_type !== 'team' && profile.experience_years ? ` · ${profile.experience_years} yrs experience` : ''}
               </Text>
               {!!profile.rating_count && Number(profile.rating_count) > 0 && (
                 <View style={s.ratingRow}>
@@ -254,6 +255,12 @@ export default function LabourDetailScreen() {
           </View>
 
           <View style={s.badgeRow}>
+            {profile.profile_type === 'team' && (
+              <View style={[s.verifiedBadge, { backgroundColor: '#f5f3ff' }]}>
+                <Ionicons name="people" size={12} color="#7c3aed" />
+                <Text style={[s.verifiedTxt, { color: '#7c3aed' }]}>Team of {profile.team_size}</Text>
+              </View>
+            )}
             {profile.checked_in_today && (
               <View style={s.chowkBadge}>
                 <Ionicons name="walk" size={12} color="#fff" />
@@ -311,10 +318,16 @@ export default function LabourDetailScreen() {
         )}
 
         <FadeSlide delay={90} style={s.card}>
-          <Text style={s.sectionTitle}>Daily wage</Text>
+          <Text style={s.sectionTitle}>{profile.profile_type === 'team' ? 'Combined day rate' : 'Daily wage'}</Text>
           <Text style={s.wageValue}>
             {profile.daily_wage ? `₹${profile.daily_wage}/day` : 'Contact for rate'}
           </Text>
+          {profile.profile_type === 'team' && !!profile.daily_wage && !!profile.team_size && (
+            <Text style={s.unlockNote}>≈ ₹{Math.round(profile.daily_wage / profile.team_size)}/day per person · {profile.team_size} people</Text>
+          )}
+          {profile.profile_type === 'team' && !!profile.team_composition && (
+            <Text style={[s.bioTxt, { marginTop: 8 }]}>{profile.team_composition}</Text>
+          )}
         </FadeSlide>
 
         {/* ── Pay-per-day contact unlock ─────────────────────────────────── */}
