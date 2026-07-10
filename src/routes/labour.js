@@ -272,7 +272,55 @@ router.post('/:id/hire', auth, async (req, res) => {
   }
 });
 
-// PATCH /api/hire-requests/:id — labourer accepts/declines a hire request
+// GET /api/labour/hire-requests/sent — hire requests I sent as a contractor
+router.get('/hire-requests/sent', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT hr.*, l.full_name AS labour_name, l.skill_category, l.photo_url,
+             EXISTS(
+               SELECT 1 FROM ratings r WHERE r.hire_request_id = hr.id AND r.rater_id = $1
+             ) AS already_rated
+      FROM hire_requests hr
+      JOIN labour_profiles l ON l.id = hr.labour_id
+      WHERE hr.contractor_id = $1
+      ORDER BY hr.created_at DESC
+    `, [req.user.id]);
+    res.json({ ok: true, hireRequests: rows });
+  } catch (err) {
+    console.error('[labour] hire-requests/sent error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load hire requests' });
+  }
+});
+
+// GET /api/labour/hire-requests/received — hire requests sent to my labour
+// profile. Returns an empty list (not an error) if the user has no profile,
+// since a contractor-only account visiting this tab is a normal case.
+router.get('/hire-requests/received', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT hr.*, u.name AS contractor_name
+      FROM hire_requests hr
+      JOIN labour_profiles l ON l.id = hr.labour_id
+      JOIN users u ON u.id = hr.contractor_id
+      WHERE l.user_id = $1
+      ORDER BY hr.created_at DESC
+    `, [req.user.id]);
+    res.json({ ok: true, hireRequests: rows });
+  } catch (err) {
+    console.error('[labour] hire-requests/received error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load hire requests' });
+  }
+});
+
+// PATCH /api/labour/hire-requests/:id — update a hire request's status
+//
+// FIX: previously ONLY the labourer could ever change status — there was no
+// way for the contractor who sent the request to mark it completed or
+// cancel it, which meant `status` could get stuck at 'accepted' forever and
+// the rating flow (which requires status='completed') was unreachable.
+// Now: the labourer can accept/decline a pending request or cancel one, and
+// either side can mark an accepted job completed or cancelled. Transitions
+// are also validated so e.g. a declined request can't be reopened.
 router.patch('/hire-requests/:id', auth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -281,14 +329,42 @@ router.patch('/hire-requests/:id', auth, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Invalid status' });
     }
 
-    const result = await pool.query(`
-      UPDATE hire_requests hr SET status = $1
-      FROM labour_profiles l
-      WHERE hr.id = $2 AND hr.labour_id = l.id AND l.user_id = $3
-      RETURNING hr.*
-    `, [status, id, req.user.id]);
+    const { rows } = await pool.query(`
+      SELECT hr.*, l.user_id AS labourer_user_id
+      FROM hire_requests hr
+      JOIN labour_profiles l ON l.id = hr.labour_id
+      WHERE hr.id = $1
+    `, [id]);
+    if (!rows.length) return res.status(404).json({ ok: false, error: 'Hire request not found' });
+    const hr = rows[0];
 
-    if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Hire request not found' });
+    const isLabourer   = hr.labourer_user_id === req.user.id;
+    const isContractor = hr.contractor_id === req.user.id;
+    if (!isLabourer && !isContractor) {
+      return res.status(403).json({ ok: false, error: 'Not authorized to update this hire request' });
+    }
+
+    // Who is allowed to set which target status
+    const labourerAllowed   = ['accepted', 'declined', 'completed', 'cancelled'];
+    const contractorAllowed = ['completed', 'cancelled'];
+    const allowed = isLabourer ? labourerAllowed : contractorAllowed;
+    if (!allowed.includes(status)) {
+      return res.status(403).json({ ok: false, error: 'Not authorized to set this status' });
+    }
+
+    // Valid forward transitions from the current status
+    const validFrom = {
+      pending:   ['accepted', 'declined', 'cancelled'],
+      accepted:  ['completed', 'cancelled'],
+    };
+    if (!validFrom[hr.status]?.includes(status)) {
+      return res.status(400).json({ ok: false, error: `Cannot change status from '${hr.status}' to '${status}'` });
+    }
+
+    const result = await pool.query(
+      'UPDATE hire_requests SET status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
     res.json({ ok: true, hireRequest: result.rows[0] });
   } catch (err) {
     console.error('[labour] hire-request update error:', err.message);
