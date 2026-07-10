@@ -17,24 +17,15 @@ import NativeAdCard from '../components/ads/NativeAdCard';
 import BannerAd from '../components/ads/BannerAd';
 import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
 import { useIsPremium } from '../hooks/useIsPremium';
+import { LABOUR_COLORS, SKILL_ICONS } from '../constants/labourTheme';
 
-const ORANGE = '#f97316';
+const ORANGE = LABOUR_COLORS.primary;
 const TEAL   = '#0d9488';
 const IS_WEB = Platform.OS === 'web';
 
 const SKILL_CATEGORIES = [
   'All', 'Mason', 'Electrician', 'Plumber', 'Painter', 'Carpenter', 'Welder', 'Helper',
 ];
-const SKILL_ICONS = {
-  All: 'apps-outline',
-  Mason: 'construct-outline',
-  Electrician: 'flash-outline',
-  Plumber: 'water-outline',
-  Painter: 'color-palette-outline',
-  Carpenter: 'hammer-outline',
-  Welder: 'flame-outline',
-  Helper: 'people-outline',
-};
 
 const WAGE_RANGES = [
   { label: 'Any',           min: 0,    max: Infinity },
