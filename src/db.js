@@ -397,6 +397,39 @@ async function runMigrations() {
     await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS checked_in_until TIMESTAMPTZ`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_checked_in ON labour_profiles(checked_in_until) WHERE checked_in_until IS NOT NULL`);
 
+    // Group/team hiring — a "team" profile is a lead worker representing a
+    // group (e.g. "3 masons + 2 helpers") with a headcount and a single
+    // combined day rate, instead of one person at one day rate. Contractors
+    // at a real chowk often need a crew, not an individual, so this lets a
+    // lead post on the group's behalf. `daily_wage` is reused as the
+    // *combined* rate for the whole crew when profile_type='team' (the
+    // per-person daily_wage meaning is unchanged for 'individual' profiles).
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS profile_type VARCHAR(20) DEFAULT 'individual'`);
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS team_size INTEGER`);
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS team_composition VARCHAR(200)`);
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'labour_profiles_profile_type_check'
+        ) THEN
+          ALTER TABLE labour_profiles
+            ADD CONSTRAINT labour_profiles_profile_type_check CHECK (profile_type IN ('individual', 'team'));
+        END IF;
+      END $$;
+    `);
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'labour_profiles_team_size_check'
+        ) THEN
+          ALTER TABLE labour_profiles
+            ADD CONSTRAINT labour_profiles_team_size_check
+            CHECK (profile_type = 'individual' OR (team_size IS NOT NULL AND team_size >= 2));
+        END IF;
+      END $$;
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_profile_type ON labour_profiles(profile_type) WHERE status='active'`);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS hire_requests (
         id               SERIAL PRIMARY KEY,
