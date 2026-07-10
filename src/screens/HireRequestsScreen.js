@@ -23,31 +23,16 @@ import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 
 import { http } from '../utils/api';
+import { LABOUR_COLORS, STATUS_META } from '../constants/labourTheme';
+import { StatusPill } from '../components/labour/LabourUI';
 
-const ORANGE  = '#f97316';
-const LABOUR  = '#b45309';
+const ORANGE  = LABOUR_COLORS.primary;
+const LABOUR  = LABOUR_COLORS.worker;
 const BG      = '#f4f4f6';
-const SURFACE = '#ffffff';
-const TEXT    = '#111118';
-const MUTED   = '#8e8ea0';
+const SURFACE = LABOUR_COLORS.surface;
+const TEXT    = LABOUR_COLORS.text;
+const MUTED   = LABOUR_COLORS.textMuted;
 const BORDER  = 'rgba(0,0,0,0.07)';
-
-const STATUS_META = {
-  pending:   { label: 'Pending',   bg: '#fef3c7', fg: '#b45309' },
-  accepted:  { label: 'Accepted',  bg: '#dbeafe', fg: '#1d4ed8' },
-  declined:  { label: 'Declined',  bg: '#fee2e2', fg: '#b91c1c' },
-  completed: { label: 'Completed', bg: '#dcfce7', fg: '#15803d' },
-  cancelled: { label: 'Cancelled', bg: '#f1f1f4', fg: '#71717a' },
-};
-
-function StatusPill({ status }) {
-  const meta = STATUS_META[status] || STATUS_META.pending;
-  return (
-    <View style={[st.pill, { backgroundColor: meta.bg }]}>
-      <Text style={[st.pillTxt, { color: meta.fg }]}>{meta.label}</Text>
-    </View>
-  );
-}
 
 function formatDate(d) {
   if (!d) return null;
@@ -381,8 +366,6 @@ const st = StyleSheet.create({
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaTxt: { fontSize: 12, color: MUTED, fontWeight: '600' },
 
-  pill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100 },
-  pillTxt: { fontSize: 11, fontWeight: '800' },
 
   actionBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
