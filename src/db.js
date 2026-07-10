@@ -462,16 +462,43 @@ async function runMigrations() {
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS ratings (
-        id         SERIAL PRIMARY KEY,
-        rater_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        rated_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        job_id     INTEGER REFERENCES jobs(id)  ON DELETE SET NULL,
-        score      INTEGER CHECK (score BETWEEN 1 AND 5),
-        comment    TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(rater_id, rated_id, job_id)
+        id              SERIAL PRIMARY KEY,
+        rater_id        INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        rated_id        INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        job_id          INTEGER REFERENCES jobs(id)          ON DELETE SET NULL,
+        hire_request_id INTEGER REFERENCES hire_requests(id) ON DELETE SET NULL,
+        stars           INTEGER CHECK (stars BETWEEN 1 AND 5),
+        comment         TEXT,
+        created_at      TIMESTAMPTZ DEFAULT NOW(),
+        CONSTRAINT ratings_target_check CHECK (job_id IS NOT NULL OR hire_request_id IS NOT NULL)
       );
     `);
+
+    // FIX (Critical): this table previously had a `score` column and a plain
+    // UNIQUE(rater_id, rated_id, job_id) constraint, while routes/ratings.js
+    // always read/wrote a `stars` column and upserted ON CONFLICT (job_id,
+    // rater_id). Every rating INSERT threw "column stars does not exist",
+    // which the route's catch block swallowed into a generic error — so no
+    // rating (employer or otherwise) was ever actually persisted. This also
+    // adds hire_request_id so labour hires (not just job applications) can
+    // be rated, with its own partial-unique arbiter for the upsert.
+    const ratingsAlters = [
+      `ALTER TABLE ratings ADD COLUMN IF NOT EXISTS stars INTEGER`,
+      `ALTER TABLE ratings ADD COLUMN IF NOT EXISTS hire_request_id INTEGER REFERENCES hire_requests(id) ON DELETE SET NULL`,
+      `UPDATE ratings SET stars = score WHERE stars IS NULL AND score IS NOT NULL`,
+      `ALTER TABLE ratings DROP CONSTRAINT IF EXISTS ratings_score_check`,
+      `ALTER TABLE ratings DROP CONSTRAINT IF EXISTS ratings_stars_check`,
+      `ALTER TABLE ratings ADD CONSTRAINT ratings_stars_check CHECK (stars BETWEEN 1 AND 5)`,
+      `ALTER TABLE ratings DROP CONSTRAINT IF EXISTS ratings_rater_id_rated_id_job_id_key`,
+      `ALTER TABLE ratings DROP CONSTRAINT IF EXISTS ratings_target_check`,
+      `ALTER TABLE ratings ADD CONSTRAINT ratings_target_check CHECK (job_id IS NOT NULL OR hire_request_id IS NOT NULL)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_ratings_job_unique  ON ratings(rater_id, job_id)          WHERE job_id IS NOT NULL`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_ratings_hire_unique ON ratings(rater_id, hire_request_id) WHERE hire_request_id IS NOT NULL`,
+      `CREATE INDEX IF NOT EXISTS idx_ratings_hire_request ON ratings(hire_request_id)`,
+    ];
+    for (const sql of ratingsAlters) {
+      try { await client.query(sql); } catch (e) { console.warn('Ratings alter warn (non-fatal):', e.message); }
+    }
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS job_alerts (
