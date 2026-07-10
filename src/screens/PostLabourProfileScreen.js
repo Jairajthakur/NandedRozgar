@@ -25,9 +25,11 @@ import { http } from '../utils/api';
 import { uriToBase64DataUri } from '../utils/imageUtils';
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
+import { LABOUR_COLORS } from '../constants/labourTheme';
+import { SectionCard, StepHeader } from '../components/labour/LabourUI';
 
-const ORANGE = '#f97316';
-const LABOUR_COLOR = '#b45309';
+const ORANGE = LABOUR_COLORS.primary;
+const LABOUR_COLOR = LABOUR_COLORS.worker;
 const IS_WEB = Platform.OS === 'web';
 
 const SKILLS = [
@@ -208,210 +210,227 @@ export default function PostLabourProfileScreen() {
             </Text>
           </FadeSlide>
 
-          {/* Photo */}
-          <FadeSlide delay={90} style={s.section}>
-            <TouchableOpacity style={s.photoPicker} onPress={pickPhoto} activeOpacity={0.85}>
-              {photoUri ? (
-                <Image source={{ uri: photoUri }} style={s.photoImg} />
-              ) : (
-                <View style={s.photoPlaceholder}>
-                  <Ionicons name="camera-outline" size={22} color={LABOUR_COLOR} />
+          {/* ── Step 1 — Basic details: photo, who this profile is for, name ── */}
+          <FadeSlide delay={90}>
+            <SectionCard>
+              <StepHeader number={1} title="Basic details" subtitle="How employers will identify you" />
+
+              <View style={s.field}>
+                <TouchableOpacity style={s.photoPicker} onPress={pickPhoto} activeOpacity={0.85}>
+                  {photoUri ? (
+                    <Image source={{ uri: photoUri }} style={s.photoImg} />
+                  ) : (
+                    <View style={s.photoPlaceholder}>
+                      <Ionicons name="camera-outline" size={22} color={LABOUR_COLOR} />
+                    </View>
+                  )}
+                  <Text style={s.photoLabel}>{photoUri ? 'Change photo' : 'Add a profile photo'}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={s.field}>
+                <Text style={s.label}>Who's this profile for?</Text>
+                <View style={s.row}>
+                  {PROFILE_TYPES.map(pt => {
+                    const active = profileType === pt.value;
+                    return (
+                      <TouchableOpacity
+                        key={pt.value}
+                        onPress={() => setProfileType(pt.value)}
+                        style={[s.typeCard, active && s.typeCardActive]}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name={pt.icon} size={18} color={active ? '#fff' : LABOUR_COLOR} />
+                        <Text style={[s.typeCardLabel, active && s.typeCardLabelActive]}>{pt.label}</Text>
+                        <Text style={[s.typeCardSub, active && s.typeCardSubActive]}>{pt.sub}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {isTeam && (
+                  <Text style={s.hint}>
+                    You'll be the point of contact. Contractors will hire the whole crew through you.
+                  </Text>
+                )}
+              </View>
+
+              <View style={s.field}>
+                <Text style={s.label}>{isTeam ? 'Team name / lead worker name *' : 'Full name *'}</Text>
+                <TextInput
+                  style={s.input}
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholder={isTeam ? "e.g. Ramesh's Mason Team" : 'e.g. Ramesh Patil'}
+                  placeholderTextColor="#bbb"
+                />
+              </View>
+
+              {isTeam && (
+                <View style={[s.field, s.row]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.label}>Team size *</Text>
+                    <TextInput
+                      style={s.input}
+                      value={teamSize}
+                      onChangeText={setTeamSize}
+                      placeholder="e.g. 5"
+                      placeholderTextColor="#bbb"
+                      keyboardType="number-pad"
+                    />
+                  </View>
+                  <View style={{ flex: 1.4 }}>
+                    <Text style={s.label}>Team composition</Text>
+                    <TextInput
+                      style={s.input}
+                      value={teamComposition}
+                      onChangeText={setTeamComposition}
+                      placeholder="e.g. 3 masons + 2 helpers"
+                      placeholderTextColor="#bbb"
+                    />
+                  </View>
                 </View>
               )}
-              <Text style={s.photoLabel}>{photoUri ? 'Change photo' : 'Add a profile photo'}</Text>
-            </TouchableOpacity>
+            </SectionCard>
           </FadeSlide>
 
-          {/* Profile type: individual or team */}
-          <FadeSlide delay={105} style={s.section}>
-            <Text style={s.label}>Who's this profile for?</Text>
-            <View style={s.row}>
-              {PROFILE_TYPES.map(pt => {
-                const active = profileType === pt.value;
-                return (
-                  <TouchableOpacity
-                    key={pt.value}
-                    onPress={() => setProfileType(pt.value)}
-                    style={[s.typeCard, active && s.typeCardActive]}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name={pt.icon} size={18} color={active ? '#fff' : LABOUR_COLOR} />
-                    <Text style={[s.typeCardLabel, active && s.typeCardLabelActive]}>{pt.label}</Text>
-                    <Text style={[s.typeCardSub, active && s.typeCardSubActive]}>{pt.sub}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            {isTeam && (
-              <Text style={s.hint}>
-                You'll be the point of contact. Contractors will hire the whole crew through you.
-              </Text>
-            )}
-          </FadeSlide>
+          {/* ── Step 2 — Contact & trade: phone, skill, other skills ────────── */}
+          <FadeSlide delay={150}>
+            <SectionCard>
+              <StepHeader number={2} title="Contact & trade" subtitle="How and for what you'll get hired" />
 
-          {/* Name */}
-          <FadeSlide delay={120} style={s.section}>
-            <Text style={s.label}>{isTeam ? 'Team name / lead worker name *' : 'Full name *'}</Text>
-            <TextInput
-              style={s.input}
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder={isTeam ? "e.g. Ramesh's Mason Team" : 'e.g. Ramesh Patil'}
-              placeholderTextColor="#bbb"
-            />
-          </FadeSlide>
-
-          {/* Team headcount + composition */}
-          {isTeam && (
-            <FadeSlide delay={130} style={[s.section, s.row]}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.label}>Team size *</Text>
+              <View style={s.field}>
+                <Text style={s.label}>Contact number *</Text>
                 <TextInput
                   style={s.input}
-                  value={teamSize}
-                  onChangeText={setTeamSize}
-                  placeholder="e.g. 5"
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="10-digit mobile number"
                   placeholderTextColor="#bbb"
                   keyboardType="number-pad"
+                  maxLength={10}
                 />
+                <Text style={s.hint}>Contractors pay to unlock this number, so it must be correct — this is how they'll reach you.</Text>
               </View>
-              <View style={{ flex: 1.4 }}>
-                <Text style={s.label}>Team composition</Text>
+
+              <View style={s.field}>
+                <Text style={s.label}>{isTeam ? "Team's main trade *" : 'Main skill *'}</Text>
+                <View style={s.skillGrid}>
+                  {SKILLS.map(sk => {
+                    const active = skill === sk.label;
+                    return (
+                      <TouchableOpacity
+                        key={sk.label}
+                        onPress={() => setSkill(sk.label)}
+                        style={[s.skillChip, active && s.skillChipActive]}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name={sk.icon} size={14} color={active ? '#fff' : LABOUR_COLOR} />
+                        <Text style={[s.skillChipTxt, active && s.skillChipTxtActive]}>{sk.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={s.field}>
+                <Text style={s.label}>Other skills (optional)</Text>
                 <TextInput
                   style={s.input}
-                  value={teamComposition}
-                  onChangeText={setTeamComposition}
-                  placeholder="e.g. 3 masons + 2 helpers"
+                  value={skillsText}
+                  onChangeText={setSkillsText}
+                  placeholder="e.g. Tiling, Wiring, Painting (comma separated)"
                   placeholderTextColor="#bbb"
                 />
               </View>
-            </FadeSlide>
-          )}
-
-          {/* Contact number */}
-          <FadeSlide delay={135} style={s.section}>
-            <Text style={s.label}>Contact number *</Text>
-            <TextInput
-              style={s.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="10-digit mobile number"
-              placeholderTextColor="#bbb"
-              keyboardType="number-pad"
-              maxLength={10}
-            />
-            <Text style={s.hint}>Contractors pay to unlock this number, so it must be correct — this is how they'll reach you.</Text>
+            </SectionCard>
           </FadeSlide>
 
-          {/* Skill category */}
-          <FadeSlide delay={150} style={s.section}>
-            <Text style={s.label}>{isTeam ? "Team's main trade *" : 'Main skill *'}</Text>
-            <View style={s.skillGrid}>
-              {SKILLS.map(sk => {
-                const active = skill === sk.label;
-                return (
-                  <TouchableOpacity
-                    key={sk.label}
-                    onPress={() => setSkill(sk.label)}
-                    style={[s.skillChip, active && s.skillChipActive]}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name={sk.icon} size={14} color={active ? '#fff' : LABOUR_COLOR} />
-                    <Text style={[s.skillChipTxt, active && s.skillChipTxtActive]}>{sk.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+          {/* ── Step 3 — Rate & availability ─────────────────────────────────── */}
+          <FadeSlide delay={210}>
+            <SectionCard>
+              <StepHeader number={3} title="Rate & availability" subtitle="What you charge and when you're free" />
+
+              <View style={[s.field, s.row]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.label}>Experience (yrs)</Text>
+                  <TextInput
+                    style={s.input}
+                    value={experience}
+                    onChangeText={setExperience}
+                    placeholder="e.g. 5"
+                    placeholderTextColor="#bbb"
+                    keyboardType="number-pad"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.label}>{isTeam ? 'Combined day rate (₹)' : 'Daily wage (₹)'}</Text>
+                  <TextInput
+                    style={s.input}
+                    value={wage}
+                    onChangeText={setWage}
+                    placeholder={isTeam ? 'e.g. 3000 for the crew' : 'e.g. 600'}
+                    placeholderTextColor="#bbb"
+                    keyboardType="number-pad"
+                  />
+                  {!!goingRate && !isTeam && (
+                    <Text style={s.hint}>
+                      Today&apos;s going rate for {skill}: ₹{goingRate.median_wage}/day ({goingRate.sample_size} listings)
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              <View style={s.field}>
+                <Text style={s.label}>Availability</Text>
+                <View style={s.row}>
+                  {AVAILABILITY.map(a => {
+                    const active = availability === a.value;
+                    return (
+                      <TouchableOpacity
+                        key={a.value}
+                        onPress={() => setAvailability(a.value)}
+                        style={[s.availPill, active && { backgroundColor: a.color + '18', borderColor: a.color }]}
+                        activeOpacity={0.85}
+                      >
+                        <View style={[s.availDot, { backgroundColor: a.color }]} />
+                        <Text style={[s.availTxt, active && { color: a.color, fontWeight: '800' }]}>{a.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </SectionCard>
           </FadeSlide>
 
-          {/* Other skills */}
-          <FadeSlide delay={180} style={s.section}>
-            <Text style={s.label}>Other skills (optional)</Text>
-            <TextInput
-              style={s.input}
-              value={skillsText}
-              onChangeText={setSkillsText}
-              placeholder="e.g. Tiling, Wiring, Painting (comma separated)"
-              placeholderTextColor="#bbb"
-            />
-          </FadeSlide>
+          {/* ── Step 4 — Location & about ────────────────────────────────────── */}
+          <FadeSlide delay={270}>
+            <SectionCard>
+              <StepHeader number={4} title="Location & about" subtitle="Help employers find and know you (optional)" />
 
-          {/* Experience + wage */}
-          <FadeSlide delay={210} style={[s.section, s.row]}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.label}>Experience (yrs)</Text>
-              <TextInput
-                style={s.input}
-                value={experience}
-                onChangeText={setExperience}
-                placeholder="e.g. 5"
-                placeholderTextColor="#bbb"
-                keyboardType="number-pad"
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.label}>{isTeam ? 'Combined day rate (₹)' : 'Daily wage (₹)'}</Text>
-              <TextInput
-                style={s.input}
-                value={wage}
-                onChangeText={setWage}
-                placeholder={isTeam ? 'e.g. 3000 for the crew' : 'e.g. 600'}
-                placeholderTextColor="#bbb"
-                keyboardType="number-pad"
-              />
-              {!!goingRate && !isTeam && (
-                <Text style={s.hint}>
-                  Today&apos;s going rate for {skill}: ₹{goingRate.median_wage}/day ({goingRate.sample_size} listings)
-                </Text>
-              )}
-            </View>
-          </FadeSlide>
+              <View style={s.field}>
+                <Text style={s.label}>Area / locality</Text>
+                <TextInput
+                  style={s.input}
+                  value={location}
+                  onChangeText={setLocation}
+                  placeholder="e.g. Vazirabad, Nanded"
+                  placeholderTextColor="#bbb"
+                />
+              </View>
 
-          {/* Location */}
-          <FadeSlide delay={240} style={s.section}>
-            <Text style={s.label}>Area / locality</Text>
-            <TextInput
-              style={s.input}
-              value={location}
-              onChangeText={setLocation}
-              placeholder="e.g. Vazirabad, Nanded"
-              placeholderTextColor="#bbb"
-            />
-          </FadeSlide>
-
-          {/* Bio */}
-          <FadeSlide delay={270} style={s.section}>
-            <Text style={s.label}>About you (optional)</Text>
-            <TextInput
-              style={[s.input, s.textarea]}
-              value={bio}
-              onChangeText={setBio}
-              placeholder="A short line about your work — tools you carry, past projects, etc."
-              placeholderTextColor="#bbb"
-              multiline
-              numberOfLines={4}
-            />
-          </FadeSlide>
-
-          {/* Availability */}
-          <FadeSlide delay={300} style={s.section}>
-            <Text style={s.label}>Availability</Text>
-            <View style={s.row}>
-              {AVAILABILITY.map(a => {
-                const active = availability === a.value;
-                return (
-                  <TouchableOpacity
-                    key={a.value}
-                    onPress={() => setAvailability(a.value)}
-                    style={[s.availPill, active && { backgroundColor: a.color + '18', borderColor: a.color }]}
-                    activeOpacity={0.85}
-                  >
-                    <View style={[s.availDot, { backgroundColor: a.color }]} />
-                    <Text style={[s.availTxt, active && { color: a.color, fontWeight: '800' }]}>{a.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+              <View style={s.field}>
+                <Text style={s.label}>About you (optional)</Text>
+                <TextInput
+                  style={[s.input, s.textarea]}
+                  value={bio}
+                  onChangeText={setBio}
+                  placeholder="A short line about your work — tools you carry, past projects, etc."
+                  placeholderTextColor="#bbb"
+                  multiline
+                  numberOfLines={4}
+                />
+              </View>
+            </SectionCard>
           </FadeSlide>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -458,6 +477,7 @@ const s = StyleSheet.create({
   heroSub: { fontSize: 12, color: '#fde68a', marginTop: 6, lineHeight: 17 },
 
   section: { gap: 8 },
+  field: { marginBottom: 16 },
   row: { flexDirection: 'row', gap: 12 },
 
   label: { fontSize: 12, fontWeight: '700', color: '#555' },
