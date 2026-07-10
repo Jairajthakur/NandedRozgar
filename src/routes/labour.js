@@ -156,6 +156,67 @@ router.get('/wage-board', async (req, res) => {
   }
 });
 
+// GET /api/labour/leaderboard — "hired today" + "waiting today" counters and
+// the top 5 most-hired workers this calendar month. Shown only to workers
+// themselves (frontend gates this to a user's own labour profile view) —
+// this endpoint returns aggregate stats only, no contractor-identifying data.
+const LEADERBOARD_TTL = 5 * 60_000; // refresh every 5 min — a dashboard stat, not real-time
+router.get('/leaderboard', async (req, res) => {
+  try {
+    const district = req.query.district || null;
+    const cacheKey = `labour:leaderboard:${district}`;
+    const hit = await cache.get(cacheKey);
+    if (hit) return res.json(hit);
+
+    const districtCond = district ? `AND l.district = $1` : '';
+    const districtParams = district ? [district] : [];
+
+    const [hiredTodayRes, waitingTodayRes, topRes] = await Promise.all([
+      pool.query(`
+        SELECT COUNT(*)::int AS count
+        FROM hire_requests hr
+        JOIN labour_profiles l ON l.id = hr.labour_id
+        WHERE hr.status IN ('accepted', 'completed')
+          AND hr.created_at::date = CURRENT_DATE
+          ${districtCond}
+      `, districtParams),
+      pool.query(`
+        SELECT COUNT(*)::int AS count
+        FROM labour_profiles l
+        WHERE l.status = 'active'
+          AND l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()
+          ${districtCond}
+      `, districtParams),
+      pool.query(`
+        SELECT l.id, l.full_name, l.skill_category, l.photo_url,
+               COUNT(hr.id)::int AS hire_count
+        FROM hire_requests hr
+        JOIN labour_profiles l ON l.id = hr.labour_id
+        WHERE hr.status IN ('accepted', 'completed')
+          AND date_trunc('month', hr.created_at) = date_trunc('month', CURRENT_DATE)
+          ${districtCond}
+        GROUP BY l.id, l.full_name, l.skill_category, l.photo_url
+        ORDER BY hire_count DESC, l.id ASC
+        LIMIT 5
+      `, districtParams),
+    ]);
+
+    const payload = {
+      ok: true,
+      hiredToday: hiredTodayRes.rows[0]?.count || 0,
+      waitingToday: waitingTodayRes.rows[0]?.count || 0,
+      topThisMonth: topRes.rows,
+      generatedAt: new Date().toISOString(),
+    };
+
+    await cache.set(cacheKey, payload, LEADERBOARD_TTL);
+    res.json(payload);
+  } catch (err) {
+    console.error('[labour] leaderboard error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load leaderboard' });
+  }
+});
+
 // GET /api/labour/:id — profile detail (phone number hidden until unlocked)
 router.get('/:id', async (req, res) => {
   try {
@@ -208,6 +269,15 @@ router.get('/:id', async (req, res) => {
       previouslyHired = completedRows.length > 0;
     }
 
+    let isFavourited = false;
+    if (userId) {
+      const { rows: favRows } = await pool.query(
+        'SELECT 1 FROM labour_favourites WHERE contractor_id = $1 AND labour_id = $2',
+        [userId, id]
+      );
+      isFavourited = favRows.length > 0;
+    }
+
     const hasPhone = !!profile.user_phone;
     const safeProfile = { ...profile, user_phone: contactUnlocked ? profile.user_phone : null };
 
@@ -225,6 +295,7 @@ router.get('/:id', async (req, res) => {
       hasPhone, // lets the client hide/disable the paid-unlock flow when there's nothing to unlock
       previouslyHired, // lets the client show a "Hire again" shortcut instead of the paid unlock flow
       rehireFreeDays: REHIRE_FREE_DAYS,
+      isFavourited,
     });
   } catch (err) {
     console.error('[labour] detail error:', err.message);
@@ -483,6 +554,63 @@ router.post('/:id/rehire-unlock', auth, async (req, res) => {
   } catch (err) {
     console.error('[labour] rehire-unlock error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to unlock contact' });
+  }
+});
+
+// POST /api/labour/:id/favourite — save a worker to my favourites
+router.post('/:id/favourite', auth, async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    const labour = await pool.query('SELECT id FROM labour_profiles WHERE id = $1', [labourId]);
+    if (!labour.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+
+    await pool.query(`
+      INSERT INTO labour_favourites (contractor_id, labour_id)
+      VALUES ($1, $2)
+      ON CONFLICT (contractor_id, labour_id) DO NOTHING
+    `, [req.user.id, labourId]);
+
+    res.json({ ok: true, favourited: true });
+  } catch (err) {
+    console.error('[labour] favourite error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to save worker' });
+  }
+});
+
+// DELETE /api/labour/:id/favourite — remove a worker from my favourites
+router.delete('/:id/favourite', auth, async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    await pool.query(
+      'DELETE FROM labour_favourites WHERE contractor_id = $1 AND labour_id = $2',
+      [req.user.id, labourId]
+    );
+    res.json({ ok: true, favourited: false });
+  } catch (err) {
+    console.error('[labour] unfavourite error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to remove saved worker' });
+  }
+});
+
+// GET /api/labour/favourites/mine — my saved/favourited workers
+router.get('/favourites/mine', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT l.id, l.full_name, l.skill_category, l.skills, l.experience_years,
+             l.daily_wage, l.district, l.location, l.availability, l.bio,
+             l.photo_url, l.id_verified, l.rating_avg, l.rating_count,
+             l.profile_type, l.team_size, l.team_composition,
+             (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) AS checked_in_today,
+             f.created_at AS favourited_at
+      FROM labour_favourites f
+      JOIN labour_profiles l ON l.id = f.labour_id
+      WHERE f.contractor_id = $1 AND l.status = 'active'
+      ORDER BY f.created_at DESC
+    `, [req.user.id]);
+    res.json({ ok: true, labourers: rows, total: rows.length });
+  } catch (err) {
+    console.error('[labour] favourites/mine error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load saved workers' });
   }
 });
 
