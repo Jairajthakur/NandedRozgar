@@ -46,6 +46,11 @@ const AVAILABILITY = [
   { value: 'busy',       label: 'Busy this week', color: '#d97706' },
 ];
 
+const PROFILE_TYPES = [
+  { value: 'individual', label: 'Individual', icon: 'person-outline', sub: 'Just me' },
+  { value: 'team',       label: 'Team',       icon: 'people-outline', sub: 'I lead a group' },
+];
+
 // ── Small fade+slide wrapper, matches the pattern used across Post screens ────
 function FadeSlide({ children, delay = 0, style }) {
   const o = useRef(new Animated.Value(0)).current;
@@ -71,6 +76,10 @@ export default function PostLabourProfileScreen() {
   const [skillsText, setSkillsText] = useState('');
   const [experience, setExperience] = useState('');
   const [wage, setWage]           = useState('');
+  const [profileType, setProfileType] = useState('individual');
+  const [teamSize, setTeamSize]       = useState('');
+  const [teamComposition, setTeamComposition] = useState('');
+  const isTeam = profileType === 'team';
   const [location, setLocation]   = useState('');
   const [bio, setBio]             = useState('');
   const [availability, setAvailability] = useState('available');
@@ -108,6 +117,11 @@ export default function PostLabourProfileScreen() {
       Toast.show({ type: 'error', text1: 'Enter a valid 10-digit contact number', text2: 'Contractors need this to reach you.' });
       return;
     }
+    const parsedTeamSize = parseInt(teamSize, 10);
+    if (isTeam && (!parsedTeamSize || parsedTeamSize < 2)) {
+      Toast.show({ type: 'error', text1: 'Enter your team headcount', text2: 'A team needs at least 2 people — otherwise post as an individual.' });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -130,6 +144,9 @@ export default function PostLabourProfileScreen() {
         location: location.trim() || null,
         bio: bio.trim() || null,
         photo_url,
+        profile_type: profileType,
+        team_size: isTeam ? parsedTeamSize : null,
+        team_composition: isTeam ? teamComposition.trim() || null : null,
       });
 
       if (res?.ok) {
@@ -191,17 +208,71 @@ export default function PostLabourProfileScreen() {
             </TouchableOpacity>
           </FadeSlide>
 
+          {/* Profile type: individual or team */}
+          <FadeSlide delay={105} style={s.section}>
+            <Text style={s.label}>Who's this profile for?</Text>
+            <View style={s.row}>
+              {PROFILE_TYPES.map(pt => {
+                const active = profileType === pt.value;
+                return (
+                  <TouchableOpacity
+                    key={pt.value}
+                    onPress={() => setProfileType(pt.value)}
+                    style={[s.typeCard, active && s.typeCardActive]}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name={pt.icon} size={18} color={active ? '#fff' : LABOUR_COLOR} />
+                    <Text style={[s.typeCardLabel, active && s.typeCardLabelActive]}>{pt.label}</Text>
+                    <Text style={[s.typeCardSub, active && s.typeCardSubActive]}>{pt.sub}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {isTeam && (
+              <Text style={s.hint}>
+                You'll be the point of contact. Contractors will hire the whole crew through you.
+              </Text>
+            )}
+          </FadeSlide>
+
           {/* Name */}
           <FadeSlide delay={120} style={s.section}>
-            <Text style={s.label}>Full name *</Text>
+            <Text style={s.label}>{isTeam ? 'Team name / lead worker name *' : 'Full name *'}</Text>
             <TextInput
               style={s.input}
               value={fullName}
               onChangeText={setFullName}
-              placeholder="e.g. Ramesh Patil"
+              placeholder={isTeam ? "e.g. Ramesh's Mason Team" : 'e.g. Ramesh Patil'}
               placeholderTextColor="#bbb"
             />
           </FadeSlide>
+
+          {/* Team headcount + composition */}
+          {isTeam && (
+            <FadeSlide delay={130} style={[s.section, s.row]}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.label}>Team size *</Text>
+                <TextInput
+                  style={s.input}
+                  value={teamSize}
+                  onChangeText={setTeamSize}
+                  placeholder="e.g. 5"
+                  placeholderTextColor="#bbb"
+                  keyboardType="number-pad"
+                />
+              </View>
+              <View style={{ flex: 1.4 }}>
+                <Text style={s.label}>Team composition</Text>
+                <TextInput
+                  style={s.input}
+                  value={teamComposition}
+                  onChangeText={setTeamComposition}
+                  placeholder="e.g. 3 masons + 2 helpers"
+                  placeholderTextColor="#bbb"
+                />
+              </View>
+            </FadeSlide>
+          )}
 
           {/* Contact number */}
           <FadeSlide delay={135} style={s.section}>
@@ -220,7 +291,7 @@ export default function PostLabourProfileScreen() {
 
           {/* Skill category */}
           <FadeSlide delay={150} style={s.section}>
-            <Text style={s.label}>Main skill *</Text>
+            <Text style={s.label}>{isTeam ? "Team's main trade *" : 'Main skill *'}</Text>
             <View style={s.skillGrid}>
               {SKILLS.map(sk => {
                 const active = skill === sk.label;
@@ -265,12 +336,12 @@ export default function PostLabourProfileScreen() {
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.label}>Daily wage (₹)</Text>
+              <Text style={s.label}>{isTeam ? 'Combined day rate (₹)' : 'Daily wage (₹)'}</Text>
               <TextInput
                 style={s.input}
                 value={wage}
                 onChangeText={setWage}
-                placeholder="e.g. 600"
+                placeholder={isTeam ? 'e.g. 3000 for the crew' : 'e.g. 600'}
                 placeholderTextColor="#bbb"
                 keyboardType="number-pad"
               />
@@ -388,6 +459,17 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: LABOUR_COLOR + '33', borderStyle: 'dashed',
   },
   photoLabel: { fontSize: 13, fontWeight: '700', color: LABOUR_COLOR },
+
+  typeCard: {
+    flex: 1, alignItems: 'center', gap: 4,
+    paddingVertical: 14, borderRadius: 14,
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#ebebeb',
+  },
+  typeCardActive: { backgroundColor: LABOUR_COLOR, borderColor: LABOUR_COLOR },
+  typeCardLabel: { fontSize: 13, fontWeight: '800', color: '#111' },
+  typeCardLabelActive: { color: '#fff' },
+  typeCardSub: { fontSize: 10, fontWeight: '600', color: '#999' },
+  typeCardSubActive: { color: '#fde68a' },
 
   skillGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   skillChip: {
