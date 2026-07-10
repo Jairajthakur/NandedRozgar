@@ -383,13 +383,13 @@ export default function LabourScreen() {
                 <LinearGradient
                   colors={[catStart, catEnd]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                  style={s.categoryIconBox}
+                  style={[s.categoryIconBox, { shadowColor: catStart, shadowOpacity: 0.35 }]}
                 >
-                  <Ionicons name={SKILL_ICONS[cat]} size={22} color="#fff" />
+                  <Ionicons name={SKILL_ICONS[cat]} size={26} color="#fff" />
                 </LinearGradient>
               ) : (
-                <View style={[s.categoryIconBox, { backgroundColor: catStart + '18', borderColor: catStart + '35' }]}>
-                  <Ionicons name={SKILL_ICONS[cat]} size={22} color={catStart} />
+                <View style={[s.categoryIconBox, { backgroundColor: catStart + '14' }]}>
+                  <Ionicons name={SKILL_ICONS[cat]} size={26} color={catStart} />
                 </View>
               )}
               <Text style={[s.categoryTileTxt, active && { color: catStart, fontWeight: '800' }]} numberOfLines={2}>
@@ -677,16 +677,16 @@ const s = StyleSheet.create({
   searchInput: { flex: 1, paddingHorizontal: 10, fontSize: 14, color: '#111' },
 
   categoryGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', paddingBottom: 16, gap: 12,
+    flexDirection: 'row', flexWrap: 'wrap', paddingBottom: 18, gap: 14,
   },
-  categoryTile: { width: '22%', alignItems: 'center' },
+  categoryTile: { width: '21%', alignItems: 'center' },
   categoryIconBox: {
-    width: 56, height: 56, borderRadius: 16, backgroundColor: '#fff7f0',
-    borderWidth: 1, borderColor: '#fde3c7',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+    width: 64, height: 64, borderRadius: 20, backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
   categoryIconBoxActive: { backgroundColor: ORANGE, borderColor: ORANGE },
-  categoryTileTxt: { fontSize: 11.5, fontWeight: '600', color: '#555', textAlign: 'center', lineHeight: 14 },
+  categoryTileTxt: { fontSize: 12, fontWeight: '600', color: '#555', textAlign: 'center', lineHeight: 15 },
   categoryTileTxtActive: { color: ORANGE, fontWeight: '800' },
 
   list: { paddingHorizontal: 14, paddingTop: 0, paddingBottom: 40 },
@@ -760,8 +760,8 @@ const ws = StyleSheet.create({
   },
   filterBtnTxt: { fontSize: 13, fontWeight: '700', color: ORANGE },
 
-  categoryGrid: { gap: 14, paddingBottom: 18 },
-  categoryTile: { width: 84 },
+  categoryGrid: { gap: 18, paddingBottom: 20 },
+  categoryTile: { width: 92 },
 
   activeFiltersRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   activeFiltersLabel: { fontSize: 11, color: '#bbb', fontWeight: '600' },
