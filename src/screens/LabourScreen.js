@@ -42,7 +42,7 @@ const WAGE_RANGES = [
   { label: '₹800–₹1,200', min: 800,  max: 1200 },
   { label: 'Above ₹1,200', min: 1200, max: Infinity },
 ];
-const AVAILABILITY_OPTIONS = ['All', 'Available Now', 'Busy this week'];
+const AVAILABILITY_OPTIONS = ['All', 'At Chowk Today', 'Available Now', 'Busy this week'];
 
 function parseWage(raw) {
   const n = parseInt(String(raw || '').replace(/[^\d]/g, ''), 10);
@@ -82,24 +82,29 @@ function QuickAction({ icon, label, color, onPress }) {
 function LabourCard({ item, onPress, index = 0 }) {
   const hasRating = !!item.rating_count && Number(item.rating_count) > 0;
   const isBusy = item.availability === 'busy';
+  const atChowk = !!item.checked_in_today;
 
   return (
     <FadeIn delay={Math.min(index, 8) * 60}>
       <TouchableOpacity style={cs.card} onPress={onPress} activeOpacity={0.9}>
-        <View style={[cs.accentBar, { backgroundColor: isBusy ? '#9ca3af' : ORANGE }]} />
+        <View style={[cs.accentBar, { backgroundColor: atChowk ? '#16a34a' : isBusy ? '#9ca3af' : ORANGE }]} />
         <View style={cs.cardInner}>
-          {isBusy && (
+          {atChowk ? (
+            <View style={[cs.badge, { backgroundColor: '#16a34a' }]}>
+              <Ionicons name="walk" size={9} color="#fff" />
+              <Text style={cs.badgeTxt}>AT THE CHOWK TODAY</Text>
+            </View>
+          ) : isBusy ? (
             <View style={[cs.badge, { backgroundColor: '#9ca3af' }]}>
               <Ionicons name="time-outline" size={9} color="#fff" />
               <Text style={cs.badgeTxt}>BUSY THIS WEEK</Text>
             </View>
-          )}
-          {!isBusy && hasRating && Number(item.rating_avg) >= 4.5 && (
+          ) : hasRating && Number(item.rating_avg) >= 4.5 ? (
             <View style={[cs.badge, { backgroundColor: ORANGE }]}>
               <Ionicons name="star" size={9} color="#fff" />
               <Text style={cs.badgeTxt}>TOP RATED</Text>
             </View>
-          )}
+          ) : null}
 
           <View style={cs.titleRow}>
             <View style={{ flex: 1 }}>
@@ -232,6 +237,7 @@ export default function LabourScreen() {
       const wage = parseWage(l.daily_wage);
       if (l.daily_wage && (wage < wageRange.min || wage > wageRange.max)) return false;
       if (!l.daily_wage && wageRange.label !== 'Any') return false;
+      if (availability === 'At Chowk Today' && !l.checked_in_today) return false;
       if (availability === 'Available Now' && l.availability === 'busy') return false;
       if (availability === 'Busy this week' && l.availability !== 'busy') return false;
       if (search.trim()) {
