@@ -7,6 +7,13 @@
  * POST /api/payments/verify/vehicle   — Step 2: verify + create VEHICLE listing (rent OR sell)
  * POST /api/payments/verify/buysell   — Step 2: verify + create BUY-SELL listing
  * POST /api/payments/verify/promotion — Step 2: verify + create PROMOTION listing
+ * GET  /api/payments/wallet/balance        — current in-app wallet balance
+ * GET  /api/payments/wallet/transactions   — wallet ledger (top-ups + spends)
+ * POST /api/payments/wallet/topup/order    — Step 1: create Cashfree order for a wallet top-up
+ * POST /api/payments/wallet/topup/verify   — Step 2: verify + credit wallet
+ *
+ * NOTE: labour contact unlocks no longer go through Cashfree directly — they
+ * debit the wallet instantly. See POST /api/labour/:id/unlock in routes/labour.js.
  *
  * ⚠️  Requires these Railway env vars:
  *     CASHFREE_APP_ID      — from Cashfree Dashboard → Credentials
@@ -965,39 +972,52 @@ router.get('/monthly-plan/status', auth, async (req, res) => {
   }
 });
 
-// ── Labour contact unlock (pay-per-day) ────────────────────────────────────
-// A contractor pays a flat rate per day to reveal a labourer's phone number.
-// Price scales with the number of days they need the worker for.
-const LABOUR_CONTACT_RATE_PER_DAY = 8; // ₹/day (within the ₹5–10 target range)
+// ── Wallet (top-up via Cashfree, spent in-app on things like labour contact
+// unlocks — see POST /api/labour/:id/unlock in routes/labour.js) ─────────────
+// REMOVED: the old per-unlock Cashfree flow (POST /order/labour-contact +
+// POST /verify/labour-contact) that ran a full Cashfree checkout every single
+// time a contractor wanted to unlock one worker's phone number. Replaced with
+// a wallet: top up once here (still via Cashfree), then every labour contact
+// unlock is an instant in-app balance debit — no gateway round-trip, no
+// waiting on UPI confirmation, no leaving the hire flow. See routes/labour.js
+// for the debit side.
+const WALLET_TOPUP_MIN = 20;   // ₹ — matches the cheapest realistic unlock (few days at ₹8/day)
+const WALLET_TOPUP_MAX = 5000; // ₹ — sanity ceiling, not a real spending limit
 
-// POST /api/payments/order/labour-contact — Step 1: create Cashfree order for a contact unlock
-router.post('/order/labour-contact', auth, async (req, res) => {
+// GET /api/payments/wallet/balance
+router.get('/wallet/balance', auth, async (req, res) => {
   try {
-    const labourId = parseInt(req.body.labourId);
-    const days = Math.max(1, parseInt(req.body.days) || 1);
-    if (!labourId) return res.json({ ok: false, error: 'labourId is required.' });
+    const { rows } = await pool.query('SELECT wallet_balance FROM users WHERE id = $1', [req.user.id]);
+    res.json({ ok: true, balance: parseFloat(rows[0]?.wallet_balance || 0) });
+  } catch (err) {
+    console.error('wallet/balance error:', err.message);
+    res.json({ ok: false, error: 'Failed to load wallet balance' });
+  }
+});
 
-    // LOOPHOLE FIX: this only checked labour_profiles.status, not whether the
-    // owning user account was still active. An admin ban never cascaded here,
-    // so contractors could keep paying to unlock a banned worker's phone
-    // number and the money-changing-hands step of the whole flow stayed open
-    // even though the read endpoints above are now locked down.
-    const { rows: labourRows } = await pool.query(
-      `SELECT l.id, l.user_id, u.phone AS labourer_phone
-       FROM labour_profiles l
-       JOIN users u ON u.id = l.user_id
-       WHERE l.id = $1 AND l.status = 'active' AND u.active = true`,
-      [labourId]
+// GET /api/payments/wallet/transactions — recent ledger entries (top-ups + spends)
+router.get('/wallet/transactions', auth, async (req, res) => {
+  try {
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 30));
+    const { rows } = await pool.query(
+      `SELECT id, type, amount, balance_after, reason, reference_type, reference_id, created_at
+       FROM wallet_transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      [req.user.id, limit]
     );
-    if (!labourRows.length) return res.json({ ok: false, error: 'Labour profile not found.' });
-    if (labourRows[0].user_id === req.user.id) {
-      return res.json({ ok: false, error: 'You cannot pay to unlock your own profile.' });
-    }
-    if (!labourRows[0].labourer_phone) {
-      return res.json({ ok: false, error: 'This profile does not have a contact number on file yet.' });
-    }
+    res.json({ ok: true, transactions: rows });
+  } catch (err) {
+    console.error('wallet/transactions error:', err.message);
+    res.json({ ok: false, error: 'Failed to load wallet history' });
+  }
+});
 
-    const amount = days * LABOUR_CONTACT_RATE_PER_DAY;
+// POST /api/payments/wallet/topup/order — Step 1: create Cashfree order for a wallet top-up
+router.post('/wallet/topup/order', auth, async (req, res) => {
+  try {
+    const amount = Math.round(parseFloat(req.body.amount));
+    if (!amount || amount < WALLET_TOPUP_MIN || amount > WALLET_TOPUP_MAX) {
+      return res.json({ ok: false, error: `Enter an amount between ₹${WALLET_TOPUP_MIN} and ₹${WALLET_TOPUP_MAX}.` });
+    }
 
     const { rows: userRows } = await pool.query(
       'SELECT name, phone, email FROM users WHERE id = $1', [req.user.id]
@@ -1008,13 +1028,13 @@ router.post('/order/labour-contact', auth, async (req, res) => {
       return res.json({ ok: false, error: 'Payment gateway is not configured. Please contact support.' });
     }
 
-    const orderId = `NRLC_${req.user.id}_${Date.now()}`;
+    const orderId = `NRWT_${req.user.id}_${Date.now()}`;
 
     const orderPayload = {
       order_id:       orderId,
       order_amount:   amount,
       order_currency: 'INR',
-      order_note:     `Unlock labour contact #${labourId} — ${days} day(s)`,
+      order_note:     `Wallet top-up — ₹${amount}`,
       customer_details: {
         customer_id:    String(req.user.id),
         customer_name:  user?.name  || 'User',
@@ -1030,7 +1050,7 @@ router.post('/order/labour-contact', auth, async (req, res) => {
     const cfRes = await axios.post(`${CF_BASE}/orders`, orderPayload, { headers: cfHeaders() });
     const cfOrder = cfRes.data;
     if (!cfOrder?.payment_session_id) {
-      console.error('Cashfree order error (labour-contact):', cfOrder);
+      console.error('Cashfree order error (wallet-topup):', cfOrder);
       return res.json({ ok: false, error: 'Failed to create payment order.' });
     }
 
@@ -1039,25 +1059,23 @@ router.post('/order/labour-contact', auth, async (req, res) => {
       payment_session_id: cfOrder.payment_session_id,
       order_id:           orderId,
       amount,
-      labourId,
-      days,
-      ratePerDay:         LABOUR_CONTACT_RATE_PER_DAY,
     });
   } catch (err) {
-    console.error('Labour contact order error:', err?.response?.data || err);
+    console.error('Wallet topup order error:', err?.response?.data || err);
     res.json({ ok: false, error: 'Failed to create payment order.' });
   }
 });
 
-// POST /api/payments/verify/labour-contact — Step 2: verify payment → unlock contact for N days
-router.post('/verify/labour-contact', auth, async (req, res) => {
+// POST /api/payments/wallet/topup/verify — Step 2: verify payment → credit wallet
+// Credits the amount Cashfree actually confirms (verification.amount), never
+// a client-supplied figure, so this can't be used to credit more than was paid.
+router.post('/wallet/topup/verify', auth, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { cashfree_order_id, labourId, days } = req.body;
-    const id      = parseInt(labourId);
-    const numDays = Math.max(1, parseInt(days) || 1);
-    if (!cashfree_order_id || !id) {
-      return res.json({ ok: false, error: 'Missing order or labour id.' });
+    const { cashfree_order_id } = req.body;
+    if (!cashfree_order_id) {
+      client.release();
+      return res.json({ ok: false, error: 'Missing order id.' });
     }
 
     await client.query('BEGIN');
@@ -1071,37 +1089,30 @@ router.post('/verify/labour-contact', auth, async (req, res) => {
       return res.json({ ok: false, error: verification.error });
     }
 
-    const expectedAmount = numDays * LABOUR_CONTACT_RATE_PER_DAY;
-    if (Math.abs(verification.amount - expectedAmount) > 0.5) {
-      await client.query('ROLLBACK');
-      return res.json({ ok: false, error: 'Payment amount mismatch.' });
-    }
-
     await savePayment(client, req.user.id, {
       amountRupees:      verification.amount,
-      plan:              `labour_contact_${numDays}d`,
+      plan:              'wallet_topup',
       cashfreeOrderId:   cashfree_order_id,
       cashfreePaymentId: verification.paymentId,
     });
 
-    const expiresAt = new Date(Date.now() + numDays * 24 * 60 * 60 * 1000);
-    await client.query(`
-      INSERT INTO labour_contact_unlocks
-        (contractor_id, labour_id, days, amount, cashfree_order_id, cashfree_payment_id, expires_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
-    `, [req.user.id, id, numDays, verification.amount, cashfree_order_id, verification.paymentId, expiresAt]);
+    const { rows: balRows } = await client.query(
+      `UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2 RETURNING wallet_balance`,
+      [verification.amount, req.user.id]
+    );
+    const newBalance = balRows[0].wallet_balance;
 
-    const { rows } = await client.query(`
-      SELECT l.*, u.name AS user_name, u.phone AS user_phone
-      FROM labour_profiles l LEFT JOIN users u ON u.id = l.user_id
-      WHERE l.id = $1
-    `, [id]);
+    await client.query(`
+      INSERT INTO wallet_transactions
+        (user_id, type, amount, balance_after, reason, reference_type, cashfree_order_id, cashfree_payment_id)
+      VALUES ($1, 'credit', $2, $3, 'topup', 'cashfree_topup', $4, $5)
+    `, [req.user.id, verification.amount, newBalance, cashfree_order_id, verification.paymentId]);
 
     await client.query('COMMIT');
-    res.json({ ok: true, profile: rows[0], expiresAt, days: numDays });
+    res.json({ ok: true, balance: parseFloat(newBalance), credited: verification.amount });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Labour contact verify error:', err?.response?.data || err.message);
+    console.error('Wallet topup verify error:', err?.response?.data || err.message);
     res.json({ ok: false, error: 'Failed to verify payment.' });
   } finally {
     client.release();
