@@ -25,6 +25,29 @@ function getUserIdFromReq(req) {
   }
 }
 
+// GET /api/labour/localities — distinct micro-neighbourhoods with active
+// listings in a district, for the "hyper-local discovery" area dropdown.
+router.get('/localities', async (req, res) => {
+  try {
+    const district = req.query.district || null;
+    const params = [];
+    let where = "status='active' AND location IS NOT NULL AND location <> ''";
+    if (district) {
+      params.push(district);
+      where += ` AND (district=$${params.length} OR district IS NULL)`;
+    }
+    const { rows } = await pool.query(
+      `SELECT location, COUNT(*) AS count FROM labour_profiles WHERE ${where}
+       GROUP BY location ORDER BY count DESC LIMIT 30`,
+      params
+    );
+    res.json({ ok: true, localities: rows.map(r => ({ name: r.location, count: parseInt(r.count) })) });
+  } catch (err) {
+    console.error('localities error:', err.message);
+    res.status(500).json({ ok: false, error: 'Could not load localities' });
+  }
+});
+
 // GET /api/labour — browse/search labour profiles
 router.get('/', async (req, res) => {
   try {
@@ -35,8 +58,9 @@ router.get('/', async (req, res) => {
     const skill    = req.query.skill_category || null;
     const q        = req.query.q || null;
     const type     = ['individual', 'team'].includes(req.query.profile_type) ? req.query.profile_type : null;
+    const locality = req.query.locality || null; // micro-neighbourhood, e.g. "Shivaji Nagar"
 
-    const cacheKey = `labour:${page}:${limit}:${district}:${skill}:${q}:${type}`;
+    const cacheKey = `labour:${page}:${limit}:${district}:${skill}:${q}:${type}:${locality}`;
     const hit = await cache.get(cacheKey);
     if (hit) return res.json(hit);
 
@@ -55,6 +79,10 @@ router.get('/', async (req, res) => {
       params.push(type);
       conditions.push(`l.profile_type=$${params.length}`);
     }
+    if (locality) {
+      params.push(locality);
+      conditions.push(`l.location=$${params.length}`);
+    }
     if (q) {
       params.push(`%${q}%`);
       conditions.push(`(l.full_name ILIKE $${params.length} OR l.skill_category ILIKE $${params.length})`);
@@ -71,7 +99,9 @@ router.get('/', async (req, res) => {
                l.daily_wage, l.district, l.location, l.availability, l.bio,
                l.photo_url, l.id_verified, l.rating_avg, l.rating_count, l.created_at,
                l.profile_type, l.team_size, l.team_composition,
-               (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) AS checked_in_today
+               (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) AS checked_in_today,
+               (SELECT COUNT(DISTINCT hr.contractor_id) FROM hire_requests hr
+                  WHERE hr.labour_id = l.id AND hr.status = 'completed') AS trusted_count
         FROM labour_profiles l
         WHERE ${where}
         ORDER BY
