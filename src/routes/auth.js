@@ -643,6 +643,27 @@ router.get('/me', auth, async (req, res) => {
   res.json({ ok: true, user: safeUser(req.user) });
 });
 
+// ── PATCH /api/auth/labour-role ─────────────────────────────────────────────────
+// Sets which side of the Labour marketplace this user is ("hirer" or "worker").
+// Called once by the onboarding gate the first time someone opens the Labour
+// tab, and again any time they use "Switch mode" from Settings.
+router.patch('/labour-role', auth, async (req, res) => {
+  try {
+    const { labour_role } = req.body;
+    if (!['hirer', 'worker'].includes(labour_role)) {
+      return res.status(400).json({ ok: false, error: "labour_role must be 'hirer' or 'worker'" });
+    }
+    const { rows } = await pool.query(
+      'UPDATE users SET labour_role = $1 WHERE id = $2 RETURNING *',
+      [labour_role, req.user.id]
+    );
+    res.json({ ok: true, user: safeUser(rows[0]) });
+  } catch (err) {
+    console.error('labour-role update error:', err.message);
+    res.status(500).json({ ok: false, error: 'Could not update labour role' });
+  }
+});
+
 // ── POST /api/auth/change-password ────────────────────────────────────────────
 router.post('/change-password', changePasswordLimiter, auth, async (req, res) => {
   try {
