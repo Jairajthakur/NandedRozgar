@@ -39,6 +39,13 @@ router.patch('/users/:id/toggle', async (req, res) => {
     );
     // Evict auth cache so a banned user loses access immediately (not after 60 s TTL)
     await cache.del(`auth:${req.params.id}`);
+    // LOOPHOLE FIX: banning previously only evicted the auth cache. Every
+    // labour_profiles read is now gated on users.active, but cached
+    // listings/wage-board/leaderboard/detail responses generated *before*
+    // the ban could still serve a banned worker for up to their TTL
+    // (15-30 min for the wage board). Flush them so the ban takes effect
+    // immediately across the labour marketplace too.
+    await cache.delPrefix('labour:');
     res.json({ ok: true, user: rows[0] });
   } catch (err) {
     console.error(err);
