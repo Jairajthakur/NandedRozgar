@@ -122,56 +122,59 @@ function LabourCard({ item, onPress, index = 0 }) {
           </View>
           {(isTeam || atChowk || isBusy || (hasRating && Number(item.rating_avg) >= 4.5)) && <View style={{ height: 8 }} />}
 
-          <View style={cs.titleRow}>
-            <View style={cs.avatar}>
-              {item.photo_url ? (
-                <Image source={{ uri: item.photo_url }} style={cs.avatarImg} />
+          <View style={cs.bodyRow}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={cs.nameRow}>
+                <View style={cs.avatar}>
+                  {item.photo_url ? (
+                    <Image source={{ uri: item.photo_url }} style={cs.avatarImg} />
+                  ) : (
+                    <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.avatarImg}>
+                      <Text style={cs.avatarTxt}>{initials}</Text>
+                    </LinearGradient>
+                  )}
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Text style={cs.title} numberOfLines={1}>{item.full_name}</Text>
+                    {!!item.id_verified && <Ionicons name="shield-checkmark" size={14} color="#2563eb" />}
+                  </View>
+                </View>
+              </View>
+
+              <View style={cs.metaRow}>
+                <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
+                  <TradeIcon name={item.skill_category} size={13} color={gradStart} />
+                  <Text style={[cs.tradeChipTxt, { color: gradStart }]}>{item.skill_category}</Text>
+                </View>
+                {isTeam && !!item.team_composition && (
+                  <Text style={cs.subtitle} numberOfLines={1}>{item.team_composition}</Text>
+                )}
+                {!isTeam && !!item.experience_years && (
+                  <Text style={cs.subtitle}>{item.experience_years} yrs experience</Text>
+                )}
+              </View>
+            </View>
+
+            <View style={cs.rightCol}>
+              <Text style={cs.wage}>
+                {item.daily_wage
+                  ? isTeam ? `₹${item.daily_wage}/day (crew)` : `₹${item.daily_wage}/day`
+                  : 'Contact for rate'}
+              </Text>
+              {hasRating ? (
+                <View style={cs.ratingWrap}>
+                  <Ionicons name="star" size={11} color="#f59e0b" />
+                  <Text style={cs.ratingTxt}>{Number(item.rating_avg).toFixed(1)} ({item.rating_count})</Text>
+                </View>
               ) : (
-                <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.avatarImg}>
-                  <Text style={cs.avatarTxt}>{initials}</Text>
-                </LinearGradient>
+                <View style={cs.newPill}><Text style={cs.newPillTxt}>New</Text></View>
               )}
+              <TouchableOpacity style={cs.hireBtn} onPress={onPress} activeOpacity={0.85}>
+                <Text style={cs.hireTxt}>Hire now</Text>
+                <Ionicons name="arrow-forward" size={13} color="#fff" />
+              </TouchableOpacity>
             </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Text style={cs.title} numberOfLines={1}>{item.full_name}</Text>
-                {!!item.id_verified && <Ionicons name="shield-checkmark" size={14} color="#2563eb" />}
-              </View>
-            </View>
-            <Text style={cs.wage}>
-              {item.daily_wage
-                ? isTeam ? `₹${item.daily_wage}/day (crew)` : `₹${item.daily_wage}/day`
-                : 'Contact for rate'}
-            </Text>
-          </View>
-
-          <View style={cs.subtitleRow}>
-            <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
-              <TradeIcon name={item.skill_category} size={13} color={gradStart} />
-              <Text style={[cs.tradeChipTxt, { color: gradStart }]}>{item.skill_category}</Text>
-            </View>
-            {isTeam && !!item.team_composition && (
-              <Text style={cs.subtitle} numberOfLines={1}>{item.team_composition}</Text>
-            )}
-            {!isTeam && !!item.experience_years && (
-              <Text style={cs.subtitle}>{item.experience_years} yrs experience</Text>
-            )}
-            {hasRating ? (
-              <View style={cs.ratingWrap}>
-                <Ionicons name="star" size={11} color="#f59e0b" />
-                <Text style={cs.ratingTxt}>{Number(item.rating_avg).toFixed(1)} ({item.rating_count})</Text>
-              </View>
-            ) : (
-              <View style={cs.newPill}><Text style={cs.newPillTxt}>New</Text></View>
-            )}
-          </View>
-
-          <View style={cs.footer}>
-            <View style={{ flex: 1 }} />
-            <TouchableOpacity style={cs.hireBtn} onPress={onPress} activeOpacity={0.85}>
-              <Text style={cs.hireTxt}>Hire now</Text>
-              <Ionicons name="arrow-forward" size={13} color="#fff" />
-            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -194,6 +197,10 @@ const cs = StyleSheet.create({
   },
   badgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 },
+  bodyRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  rightCol: { alignItems: 'flex-end', gap: 6, flexShrink: 0 },
   avatar: { width: 46, height: 46, borderRadius: 23, overflow: 'hidden', flexShrink: 0 },
   avatarImg: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   avatarTxt: { fontSize: 15, fontWeight: '800', color: '#fff' },
