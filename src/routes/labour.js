@@ -8,8 +8,11 @@ const DETAIL_TTL = 30_000;
 const WAGE_BOARD_TTL = 30 * 60_000; // going rates move slowly, refresh every 30 min
 const WAGE_BOARD_MIN_SAMPLES = 3;   // don't show a rate until enough listings back it up
 const REHIRE_FREE_DAYS = 3;         // free re-unlock window granted on a repeat hire
+const MAX_UNLOCK_DAYS = 30;         // sanity cap on a single wallet debit, not a real limit
 
-// Must match LABOUR_CONTACT_RATE_PER_DAY in routes/payments.js
+// Single source of truth for the contact-unlock rate — the old duplicate in
+// routes/payments.js is gone now that unlocks are a wallet debit handled
+// entirely here instead of a separate Cashfree checkout per unlock.
 const CONTACT_RATE_PER_DAY = 8;
 
 // Best-effort decode of the Authorization header — does NOT reject the request
@@ -525,6 +528,99 @@ router.patch('/:id/availability', auth, async (req, res) => {
   } catch (err) {
     console.error('[labour] availability error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to update availability' });
+  }
+});
+
+// POST /api/labour/:id/unlock — pay-per-day contact unlock, paid from the
+// in-app wallet instead of a per-unlock Cashfree checkout.
+// Replaces the old two-step POST /api/payments/order+verify/labour-contact
+// flow: no gateway round-trip, no waiting on a UPI confirmation — the wallet
+// balance is checked and debited in one locked transaction, so this either
+// succeeds immediately or fails immediately with a clear "top up" error.
+router.post('/:id/unlock', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const labourId = parseInt(req.params.id);
+    const days = Math.min(MAX_UNLOCK_DAYS, Math.max(1, parseInt(req.body.days) || 1));
+    if (!labourId) return res.status(400).json({ ok: false, error: 'Invalid id' });
+
+    // Same active-profile / active-owner guard as every other labour read —
+    // can't pay to unlock a hidden, banned, or deactivated worker.
+    const { rows: labourRows } = await pool.query(`
+      SELECT l.id, l.user_id, u.phone AS labourer_phone
+      FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1 AND l.status = 'active' AND u.active = true
+    `, [labourId]);
+    if (!labourRows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+    if (labourRows[0].user_id === req.user.id) {
+      return res.status(400).json({ ok: false, error: 'You cannot pay to unlock your own profile.' });
+    }
+    if (!labourRows[0].labourer_phone) {
+      return res.status(400).json({ ok: false, error: 'This profile does not have a contact number on file yet.' });
+    }
+
+    const amount = days * CONTACT_RATE_PER_DAY;
+
+    await client.query('BEGIN');
+
+    // Row lock on the wallet for the duration of the transaction — without
+    // this, two concurrent unlock requests could both read a balance that
+    // covers the debit, and both go through, taking the wallet negative.
+    const { rows: balRows } = await client.query(
+      'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE', [req.user.id]
+    );
+    const balance = parseFloat(balRows[0]?.wallet_balance || 0);
+    if (balance < amount) {
+      await client.query('ROLLBACK');
+      return res.status(402).json({
+        ok: false,
+        error: `Insufficient wallet balance. You need ₹${amount} but have ₹${balance.toFixed(2)}.`,
+        balance,
+        required: amount,
+      });
+    }
+
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const { rows: unlockRows } = await client.query(`
+      INSERT INTO labour_contact_unlocks
+        (contractor_id, labour_id, days, amount, cashfree_order_id, expires_at)
+      VALUES ($1,$2,$3,$4,'WALLET',$5)
+      RETURNING id
+    `, [req.user.id, labourId, days, amount, expiresAt]);
+
+    const { rows: newBalRows } = await client.query(
+      'UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2 RETURNING wallet_balance',
+      [amount, req.user.id]
+    );
+    const newBalance = newBalRows[0].wallet_balance;
+
+    await client.query(`
+      INSERT INTO wallet_transactions
+        (user_id, type, amount, balance_after, reason, reference_type, reference_id)
+      VALUES ($1, 'debit', $2, $3, 'labour_contact_unlock', 'labour_contact_unlocks', $4)
+    `, [req.user.id, amount, newBalance, unlockRows[0].id]);
+
+    const { rows: profileRows } = await client.query(`
+      SELECT l.*, u.name AS user_name, u.phone AS user_phone
+      FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1
+    `, [labourId]);
+
+    await client.query('COMMIT');
+    res.json({
+      ok: true,
+      profile: profileRows[0],
+      expiresAt,
+      days,
+      amount,
+      walletBalance: parseFloat(newBalance),
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[labour] unlock error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to unlock contact' });
+  } finally {
+    client.release();
   }
 });
 
