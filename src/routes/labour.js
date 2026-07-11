@@ -247,6 +247,27 @@ router.get('/leaderboard', async (req, res) => {
   }
 });
 
+// GET /api/labour/mine — the logged-in user's own labour profile, if any.
+// Powers the worker dashboard header (name/skill/rating/availability/
+// check-in state) so it doesn't have to be looked up by id. Registered
+// before GET /:id so "mine" is never swallowed as an :id param.
+router.get('/mine', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM labour_profiles WHERE user_id = $1',
+      [req.user.id]
+    );
+    if (!rows.length) return res.json({ ok: true, profile: null });
+
+    const profile = rows[0];
+    const checkedInToday = !!(profile.checked_in_until && new Date(profile.checked_in_until) > new Date());
+    res.json({ ok: true, profile: { ...profile, checked_in_today: checkedInToday } });
+  } catch (err) {
+    console.error('[labour] mine error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load your profile' });
+  }
+});
+
 // GET /api/labour/:id — profile detail (phone number hidden until unlocked)
 router.get('/:id', async (req, res) => {
   try {
