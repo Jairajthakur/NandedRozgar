@@ -163,6 +163,11 @@ async function runMigrations() {
       // Profile > Switch mode. NULL means "hasn't chosen yet" and triggers
       // the gate screen the next time they open the Labour tab.
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS labour_role     VARCHAR(10)`,
+      // In-app wallet balance — replaces the per-unlock Cashfree checkout for
+      // labour contact unlocks. Topped up via /api/payments/wallet/topup
+      // (still Cashfree under the hood, but a single generic top-up flow
+      // instead of a Cashfree round-trip on every single unlock/hire).
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_balance  NUMERIC(10,2) NOT NULL DEFAULT 0`,
       `ALTER TABLE users ALTER COLUMN email    DROP NOT NULL`,
       `ALTER TABLE users ALTER COLUMN password DROP NOT NULL`,
 
@@ -486,6 +491,40 @@ async function runMigrations() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_favourites_contractor ON labour_favourites(contractor_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_favourites_labour ON labour_favourites(labour_id)`);
+
+    // DB-level safety net: wallet_balance should never go negative even if an
+    // app-level bug lets a debit through without checking the balance first.
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'users_wallet_balance_nonneg'
+        ) THEN
+          ALTER TABLE users ADD CONSTRAINT users_wallet_balance_nonneg CHECK (wallet_balance >= 0);
+        END IF;
+      END $$;
+    `);
+
+    // Wallet ledger — every credit (top-up) and debit (e.g. a labour contact
+    // unlock) gets a row here, with the resulting balance snapshotted at
+    // balance_after. Source of truth for "what happened to my wallet",
+    // independent of whatever the current users.wallet_balance says, and
+    // self-heals if a balance ever needs to be recomputed/audited.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wallet_transactions (
+        id                   SERIAL PRIMARY KEY,
+        user_id              INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        type                 VARCHAR(10) NOT NULL CHECK (type IN ('credit', 'debit')),
+        amount               NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+        balance_after        NUMERIC(10,2) NOT NULL,
+        reason               VARCHAR(40) NOT NULL,
+        reference_type       VARCHAR(40),
+        reference_id         INTEGER,
+        cashfree_order_id    VARCHAR(100),
+        cashfree_payment_id  VARCHAR(100),
+        created_at           TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_tx_user ON wallet_transactions(user_id, created_at DESC)`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS saved_jobs (
