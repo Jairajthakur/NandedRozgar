@@ -31,14 +31,22 @@ router.get('/localities', async (req, res) => {
   try {
     const district = req.query.district || null;
     const params = [];
-    let where = "status='active' AND location IS NOT NULL AND location <> ''";
+    // LOOPHOLE FIX: a banned/deactivated worker account (users.active=false)
+    // previously kept showing up here (and everywhere else in this file) as
+    // long as their labour_profiles.status stayed 'active' — admin bans never
+    // touched labour_profiles, so a banned worker's listing, wage-board entry,
+    // leaderboard spot, and profile stayed fully live and hireable. Every
+    // read below now requires the owning user to still be active.
+    let where = "l.status='active' AND l.location IS NOT NULL AND l.location <> '' AND u.active = true";
     if (district) {
       params.push(district);
-      where += ` AND (district=$${params.length} OR district IS NULL)`;
+      where += ` AND (l.district=$${params.length} OR l.district IS NULL)`;
     }
     const { rows } = await pool.query(
-      `SELECT location, COUNT(*) AS count FROM labour_profiles WHERE ${where}
-       GROUP BY location ORDER BY count DESC LIMIT 30`,
+      `SELECT l.location, COUNT(*) AS count
+       FROM labour_profiles l JOIN users u ON u.id = l.user_id
+       WHERE ${where}
+       GROUP BY l.location ORDER BY count DESC LIMIT 30`,
       params
     );
     res.json({ ok: true, localities: rows.map(r => ({ name: r.location, count: parseInt(r.count) })) });
@@ -64,7 +72,9 @@ router.get('/', async (req, res) => {
     const hit = await cache.get(cacheKey);
     if (hit) return res.json(hit);
 
-    const conditions = ["l.status='active'"];
+    // LOOPHOLE FIX: exclude banned/deactivated worker accounts — see note in
+    // GET /localities above.
+    const conditions = ["l.status='active'", "u.active = true"];
     const params = [];
 
     if (district) {
@@ -93,7 +103,7 @@ router.get('/', async (req, res) => {
     params.push(limit, offset);
 
     const [countRes, dataRes] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM labour_profiles l WHERE ${where}`, countParams),
+      pool.query(`SELECT COUNT(*) FROM labour_profiles l JOIN users u ON u.id = l.user_id WHERE ${where}`, countParams),
       pool.query(`
         SELECT l.id, l.full_name, l.skill_category, l.skills, l.experience_years,
                l.daily_wage, l.district, l.location, l.availability, l.bio,
@@ -102,7 +112,7 @@ router.get('/', async (req, res) => {
                (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) AS checked_in_today,
                (SELECT COUNT(DISTINCT hr.contractor_id) FROM hire_requests hr
                   WHERE hr.labour_id = l.id AND hr.status = 'completed') AS trusted_count
-        FROM labour_profiles l
+        FROM labour_profiles l JOIN users u ON u.id = l.user_id
         WHERE ${where}
         ORDER BY
           (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) DESC,
@@ -145,25 +155,27 @@ router.get('/wage-board', async (req, res) => {
     if (hit) return res.json(hit);
 
     const params = [];
-    const conditions = ["status='active'", "daily_wage IS NOT NULL", "daily_wage > 0"];
+    // LOOPHOLE FIX: exclude banned/deactivated worker accounts — see note in
+    // GET /localities above.
+    const conditions = ["l.status='active'", "l.daily_wage IS NOT NULL", "l.daily_wage > 0", "u.active = true"];
     if (district) {
       params.push(district);
-      conditions.push(`(district=$${params.length} OR district IS NULL)`);
+      conditions.push(`(l.district=$${params.length} OR l.district IS NULL)`);
     }
     const where = conditions.join(' AND ');
 
     const { rows } = await pool.query(`
       SELECT
-        skill_category,
+        l.skill_category,
         COUNT(*)::int AS sample_size,
         ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (
-          ORDER BY daily_wage / GREATEST(COALESCE(team_size, 1), 1)
+          ORDER BY l.daily_wage / GREATEST(COALESCE(l.team_size, 1), 1)
         ))::int AS median_wage,
-        MIN(ROUND(daily_wage / GREATEST(COALESCE(team_size, 1), 1)))::int AS min_wage,
-        MAX(ROUND(daily_wage / GREATEST(COALESCE(team_size, 1), 1)))::int AS max_wage
-      FROM labour_profiles
+        MIN(ROUND(l.daily_wage / GREATEST(COALESCE(l.team_size, 1), 1)))::int AS min_wage,
+        MAX(ROUND(l.daily_wage / GREATEST(COALESCE(l.team_size, 1), 1)))::int AS max_wage
+      FROM labour_profiles l JOIN users u ON u.id = l.user_id
       WHERE ${where}
-      GROUP BY skill_category
+      GROUP BY l.skill_category
       ORDER BY sample_size DESC
     `, params);
 
@@ -201,20 +213,26 @@ router.get('/leaderboard', async (req, res) => {
     const districtCond = district ? `AND l.district = $1` : '';
     const districtParams = district ? [district] : [];
 
+    // LOOPHOLE FIX: exclude banned/deactivated worker accounts from every
+    // public-facing count/showcase — see note in GET /localities above.
     const [hiredTodayRes, waitingTodayRes, topRes] = await Promise.all([
       pool.query(`
         SELECT COUNT(*)::int AS count
         FROM hire_requests hr
         JOIN labour_profiles l ON l.id = hr.labour_id
+        JOIN users u ON u.id = l.user_id
         WHERE hr.status IN ('accepted', 'completed')
           AND hr.created_at::date = CURRENT_DATE
+          AND u.active = true
           ${districtCond}
       `, districtParams),
       pool.query(`
         SELECT COUNT(*)::int AS count
         FROM labour_profiles l
+        JOIN users u ON u.id = l.user_id
         WHERE l.status = 'active'
           AND l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()
+          AND u.active = true
           ${districtCond}
       `, districtParams),
       pool.query(`
@@ -222,8 +240,10 @@ router.get('/leaderboard', async (req, res) => {
                COUNT(hr.id)::int AS hire_count
         FROM hire_requests hr
         JOIN labour_profiles l ON l.id = hr.labour_id
+        JOIN users u ON u.id = l.user_id
         WHERE hr.status IN ('accepted', 'completed')
           AND date_trunc('month', hr.created_at) = date_trunc('month', CURRENT_DATE)
+          AND u.active = true
           ${districtCond}
         GROUP BY l.id, l.full_name, l.skill_category, l.photo_url
         ORDER BY hire_count DESC, l.id ASC
@@ -278,11 +298,17 @@ router.get('/:id', async (req, res) => {
     let profile = await cache.get(cacheKey);
 
     if (!profile) {
+      // LOOPHOLE FIX: was a LEFT JOIN with only l.status checked, so a banned/
+      // deactivated owner's profile (u.active = false) still loaded in full —
+      // paid unlocks and hire requests against a banned worker kept working.
+      // Now an inner join gated on u.active = true, same as every other
+      // public read in this file — a banned worker's profile 404s like a
+      // deleted one instead of silently staying live.
       const result = await pool.query(`
         SELECT l.*, u.name AS user_name, u.phone AS user_phone
         FROM labour_profiles l
-        LEFT JOIN users u ON u.id = l.user_id
-        WHERE l.id = $1 AND l.status = 'active'
+        JOIN users u ON u.id = l.user_id
+        WHERE l.id = $1 AND l.status = 'active' AND u.active = true
       `, [id]);
 
       if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
@@ -510,7 +536,14 @@ router.post('/:id/hire', auth, async (req, res) => {
     const labourId = parseInt(req.params.id);
     const { work_description, proposed_wage, work_date } = req.body;
 
-    const labour = await pool.query('SELECT user_id FROM labour_profiles WHERE id = $1', [labourId]);
+    // LOOPHOLE FIX: this previously didn't check labour_profiles.status or
+    // the owning user's active flag at all — a hire request (and the whole
+    // rehire-free-unlock chain it feeds) could be sent to a hidden, banned,
+    // or already-deactivated worker.
+    const labour = await pool.query(`
+      SELECT l.user_id FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1 AND l.status = 'active' AND u.active = true
+    `, [labourId]);
     if (!labour.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
     if (labour.rows[0].user_id === req.user.id) {
       return res.status(400).json({ ok: false, error: 'You cannot hire yourself' });
@@ -551,10 +584,12 @@ router.post('/:id/rehire-unlock', auth, async (req, res) => {
     const labourId = parseInt(req.params.id);
     if (!labourId) return res.status(400).json({ ok: false, error: 'Invalid id' });
 
-    const labour = await pool.query(
-      "SELECT user_id FROM labour_profiles WHERE id = $1 AND status = 'active'",
-      [labourId]
-    );
+    // LOOPHOLE FIX: was scoped to labour_profiles.status only, so a banned
+    // worker's owner could still be re-unlocked for free.
+    const labour = await pool.query(`
+      SELECT l.user_id FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1 AND l.status = 'active' AND u.active = true
+    `, [labourId]);
     if (!labour.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
     if (labour.rows[0].user_id === req.user.id) {
       return res.status(400).json({ ok: false, error: 'This is your own profile' });
@@ -655,7 +690,8 @@ router.get('/favourites/mine', auth, async (req, res) => {
              f.created_at AS favourited_at
       FROM labour_favourites f
       JOIN labour_profiles l ON l.id = f.labour_id
-      WHERE f.contractor_id = $1 AND l.status = 'active'
+      JOIN users u ON u.id = l.user_id
+      WHERE f.contractor_id = $1 AND l.status = 'active' AND u.active = true
       ORDER BY f.created_at DESC
     `, [req.user.id]);
     res.json({ ok: true, labourers: rows, total: rows.length });
