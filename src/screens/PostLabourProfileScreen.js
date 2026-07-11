@@ -69,7 +69,7 @@ function FadeSlide({ children, delay = 0, style }) {
 export default function PostLabourProfileScreen() {
   const nav = useNavigation();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { district } = useDistrict();
 
   const [fullName, setFullName]   = useState(user?.name || '');
@@ -167,6 +167,9 @@ export default function PostLabourProfileScreen() {
 
       if (res?.ok) {
         Toast.show({ type: 'success', text1: 'Profile posted!', text2: 'Contractors in your area can now find you.' });
+        // So the Labour tab routes straight to the worker dashboard next
+        // time, without waiting on a full /api/auth/me round trip.
+        updateUser({ has_labour_profile: true });
         if (res.profile?.id) nav.replace('LabourDetail', { id: res.profile.id });
         else nav.goBack();
       } else if (res?.status === 401) {
