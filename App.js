@@ -73,6 +73,7 @@ import ChatScreen           from './src/screens/ChatScreen';
 import ChatListScreen       from './src/screens/ChatListScreen';
 import SavedJobsScreen      from './src/screens/SavedJobsScreen';
 import HireRequestsScreen   from './src/screens/HireRequestsScreen';
+import LabourEarningsScreen from './src/screens/LabourEarningsScreen';
 import { registerForPushNotifications, addNotificationResponseListener } from './src/utils/notifications';
 import { emitPaymentResult } from './src/utils/payment_bridge';
 
@@ -95,7 +96,8 @@ let _HomeScreen, _BoardScreen, _JobDetailScreen, _PostScreen, _PostJobScreen,
     _ReferralScreen, _MyApplicationsScreen, _SeekerProfileScreen,
     _AnalyticsScreen, _AlertsScreen, _PromoteBusinessScreen,
     _HelpSupportScreen, _SellItemForm, _AboutScreen, _ChatScreen, _ChatListScreen, _SavedJobsScreen,
-    _MonthlyPlanScreen, _LabourScreen, _LabourDetailScreen, _PostLabourProfileScreen, _HireRequestsScreen;
+    _MonthlyPlanScreen, _LabourScreen, _LabourDetailScreen, _PostLabourProfileScreen, _HireRequestsScreen,
+    _LabourEarningsScreen;
 
 // ── Online / offline detection ────────────────────────────────────────────────
 // FIX: The previous version pinged our own backend server (/health) to decide
@@ -692,6 +694,7 @@ _LabourScreen          = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? Labou
 _LabourDetailScreen    = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? LabourDetailScreen : LabourComingSoon,    'LabourDetailScreen');
 _PostLabourProfileScreen = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? PostLabourProfileScreen : PostLabourComingSoon, 'PostLabourProfileScreen');
 _HireRequestsScreen    = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? HireRequestsScreen : LabourComingSoon,    'HireRequestsScreen');
+_LabourEarningsScreen  = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? LabourEarningsScreen : LabourComingSoon,  'LabourEarningsScreen');
 _PostItemScreen        = withScreenErrorBoundary(PostItemScreen,        'PostItemScreen');
 _LoginScreen           = withScreenErrorBoundary(LoginScreen,           'LoginScreen');
 _ReferralScreen        = withScreenErrorBoundary(ReferralScreen,        'ReferralScreen');
@@ -960,6 +963,7 @@ function RootNavigator() {
       <Stack.Screen name="ChatList"        component={_ChatListScreen}        options={{ headerShown: true, headerTitle: t('headerMessages'),        ...HEADER }} />
       <Stack.Screen name="SavedJobs"       component={_SavedJobsScreen}       options={{ headerShown: true, headerTitle: t('headerSavedJobs'),       ...HEADER }} />
       <Stack.Screen name="HireRequests"    component={_HireRequestsScreen}    options={{ headerShown: true, headerTitle: 'Hire Requests',             ...HEADER }} />
+      <Stack.Screen name="LabourEarnings"  component={_LabourEarningsScreen}  options={{ headerShown: true, headerTitle: 'My Earnings',                ...HEADER }} />
     </Stack.Navigator>
     <InstagramFollowModal visible={showInstagramModal} onClose={dismissInstagramModal} />
     </>
