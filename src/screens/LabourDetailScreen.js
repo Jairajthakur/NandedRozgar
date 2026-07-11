@@ -3,8 +3,11 @@
  * their phone number, and optionally send a formal hire request.
  *
  * Reads GET /api/labour/:id (phone comes back masked until unlocked).
- * Unlock flow: POST /api/payments/order/labour-contact → Cashfree checkout
- * → POST /api/payments/verify/labour-contact → phone number revealed.
+ * Unlock flow: POST /api/labour/:id/unlock — an instant in-app wallet debit,
+ * no gateway checkout. If the wallet balance is too low, we top it up first
+ * via the generic Cashfree wallet flow (POST /api/payments/wallet/topup/order
+ * → checkout → POST /api/payments/wallet/topup/verify) and then retry the
+ * unlock automatically.
  *
  * Place at: src/screens/LabourDetailScreen.js
  */
@@ -74,6 +77,8 @@ export default function LabourDetailScreen() {
   const [favBusy, setFavBusy]                 = useState(false);
   const [leaderboard, setLeaderboard]         = useState(null);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [walletBalance, setWalletBalance]     = useState(null);
+  const [toppingUp, setToppingUp]             = useState(false);
 
   const isOwnProfile = !!(user && profile && user.id === profile.user_id);
 
@@ -108,6 +113,42 @@ export default function LabourDetailScreen() {
     });
   }, [isOwnProfile, profile?.district]);
 
+  useEffect(() => {
+    if (!user) return;
+    http('GET', '/api/payments/wallet/balance').then((res) => {
+      if (res?.ok) setWalletBalance(res.balance);
+    });
+  }, [user?.id]);
+
+  // Tops up the wallet via the generic Cashfree flow (same modal/hook used
+  // everywhere else in the app), then resolves with the fresh balance.
+  const topUpWallet = async (amount) => {
+    setToppingUp(true);
+    const payResult = await initiatePayment({
+      description:   `Wallet top-up — ₹${amount}`,
+      orderEndpoint: '/api/payments/wallet/topup/order',
+      orderBody:     { amount },
+    });
+    if (!payResult.success) {
+      setToppingUp(false);
+      if (!payResult.cancelled) {
+        Toast.show({ type: 'error', text1: 'Top-up failed', text2: payResult.error || 'Please try again.' });
+      }
+      return null;
+    }
+    const verifyRes = await http('POST', '/api/payments/wallet/topup/verify', {
+      cashfree_order_id: payResult.cashfree_order_id,
+    });
+    setToppingUp(false);
+    if (verifyRes?.ok) {
+      setWalletBalance(verifyRes.balance);
+      Toast.show({ type: 'success', text1: 'Wallet topped up!', text2: `₹${verifyRes.credited} added.` });
+      return verifyRes.balance;
+    }
+    Toast.show({ type: 'error', text1: 'Could not verify top-up', text2: verifyRes?.error || 'Please contact support.' });
+    return null;
+  };
+
   const unlockContact = async (openHireAfter = false) => {
     if (!hasPhone) return; // nothing to unlock — button should be hidden, but guard anyway
     if (!user) {
@@ -118,35 +159,43 @@ export default function LabourDetailScreen() {
       return;
     }
     setUnlocking(true);
-    const payResult = await initiatePayment({
-      description:   `Unlock ${profile?.full_name || 'labour'} contact — ${days} day(s)`,
-      orderEndpoint: '/api/payments/order/labour-contact',
-      orderBody:     { labourId: id, days },
-    });
+    let res = await http('POST', `/api/labour/${id}/unlock`, { days });
 
-    if (!payResult.success) {
+    // Instant wallet debit came up short — top up the shortfall (rounded up
+    // to a clean ₹10) and retry the same unlock once, automatically.
+    if (!res?.ok && res?.status === 402) {
       setUnlocking(false);
-      if (!payResult.cancelled) {
-        Toast.show({ type: 'error', text1: 'Payment failed', text2: payResult.error || 'Please try again.' });
-      }
-      return;
+      const shortfall = Math.max(20, Math.ceil((res.required - res.balance) / 10) * 10);
+      const proceed = await new Promise((resolve) => {
+        Alert.alert(
+          'Top up your wallet',
+          `You need ₹${res.required} to unlock this contact but your wallet has ₹${res.balance.toFixed(2)}. Add ₹${shortfall} to your wallet now?`,
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: `Add ₹${shortfall}`, onPress: () => resolve(true) },
+          ],
+        );
+      });
+      if (!proceed) return;
+
+      const newBalance = await topUpWallet(shortfall);
+      if (newBalance == null) return; // top-up failed/cancelled, already toasted
+
+      setUnlocking(true);
+      res = await http('POST', `/api/labour/${id}/unlock`, { days });
     }
 
-    const verifyRes = await http('POST', '/api/payments/verify/labour-contact', {
-      cashfree_order_id: payResult.cashfree_order_id,
-      labourId: id,
-      days,
-    });
     setUnlocking(false);
 
-    if (verifyRes?.ok) {
-      setProfile(verifyRes.profile);
+    if (res?.ok) {
+      setProfile(res.profile);
       setContactUnlocked(true);
-      setUnlockExpiresAt(verifyRes.expiresAt);
+      setUnlockExpiresAt(res.expiresAt);
+      setWalletBalance(res.walletBalance);
       Toast.show({ type: 'success', text1: 'Contact unlocked!', text2: `Valid for ${days} day${days > 1 ? 's' : ''}.` });
       if (openHireAfter) setHireOpen(true);
     } else {
-      Toast.show({ type: 'error', text1: 'Could not verify payment', text2: verifyRes?.error || 'Please contact support.' });
+      Toast.show({ type: 'error', text1: 'Could not unlock contact', text2: res?.error || 'Please try again.' });
     }
   };
 
@@ -539,13 +588,17 @@ export default function LabourDetailScreen() {
                 </View>
               </View>
 
+              {walletBalance != null && (
+                <Text style={s.unlockNote}>Wallet balance: ₹{walletBalance.toFixed(2)}</Text>
+              )}
+
               <TouchableOpacity
-                style={[s.unlockBtn, unlocking && { opacity: 0.7 }]}
-                onPress={unlockContact}
-                disabled={unlocking}
+                style={[s.unlockBtn, (unlocking || toppingUp) && { opacity: 0.7 }]}
+                onPress={() => unlockContact(false)}
+                disabled={unlocking || toppingUp}
                 activeOpacity={0.88}
               >
-                {unlocking
+                {(unlocking || toppingUp)
                   ? <ActivityIndicator color="#fff" />
                   : <Text style={s.unlockBtnTxt}>Unlock contact — ₹{price}</Text>}
               </TouchableOpacity>
