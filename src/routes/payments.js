@@ -977,11 +977,16 @@ router.post('/order/labour-contact', auth, async (req, res) => {
     const days = Math.max(1, parseInt(req.body.days) || 1);
     if (!labourId) return res.json({ ok: false, error: 'labourId is required.' });
 
+    // LOOPHOLE FIX: this only checked labour_profiles.status, not whether the
+    // owning user account was still active. An admin ban never cascaded here,
+    // so contractors could keep paying to unlock a banned worker's phone
+    // number and the money-changing-hands step of the whole flow stayed open
+    // even though the read endpoints above are now locked down.
     const { rows: labourRows } = await pool.query(
       `SELECT l.id, l.user_id, u.phone AS labourer_phone
        FROM labour_profiles l
-       LEFT JOIN users u ON u.id = l.user_id
-       WHERE l.id = $1 AND l.status = 'active'`,
+       JOIN users u ON u.id = l.user_id
+       WHERE l.id = $1 AND l.status = 'active' AND u.active = true`,
       [labourId]
     );
     if (!labourRows.length) return res.json({ ok: false, error: 'Labour profile not found.' });
