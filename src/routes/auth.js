@@ -86,6 +86,25 @@ function safeUser(u) {
   return rest;
 }
 
+// Attaches has_labour_profile so the client can route the Labour tab straight
+// to the worker dashboard (if they've already posted a profile) or the
+// browse-workers marketplace (if they haven't) without asking "hire vs find
+// work" up front.
+async function withLabourFlag(u) {
+  const user = safeUser(u);
+  try {
+    const { rows } = await pool.query(
+      'SELECT 1 FROM labour_profiles WHERE user_id = $1 LIMIT 1',
+      [u.id]
+    );
+    user.has_labour_profile = rows.length > 0;
+  } catch (e) {
+    console.warn('withLabourFlag error:', e.message);
+    user.has_labour_profile = false;
+  }
+  return user;
+}
+
 // ── POST /api/auth/register ────────────────────────────────────────────────────
 // FIX (Bug #8): All error responses now return the semantically correct HTTP
 // status code alongside the JSON body.  Previously every error returned 200,
@@ -154,7 +173,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     await log('register', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: user.email });
-    return res.status(201).json({ ok: true, token: makeToken(user), user: safeUser(user) });
+    return res.status(201).json({ ok: true, token: makeToken(user), user: await withLabourFlag(user) });
   } catch (err) {
     if (err.code === '23505') {
       await log('register_failed', { status: 'failed', ip: getIP(req), userAgent: getUA(req), detail: `Duplicate email: ${req.body.email}` });
@@ -207,7 +226,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         admin.role = 'admin';
       }
       await log('login', { userId: admin.id, ip: getIP(req), userAgent: getUA(req), detail: `Admin login: ${ADMIN_EMAIL}` });
-      return res.json({ ok: true, token: makeToken(admin), user: safeUser(admin) });
+      return res.json({ ok: true, token: makeToken(admin), user: await withLabourFlag(admin) });
     }
 
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
@@ -237,7 +256,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(() => {});
     await log('login', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: user.email });
-    return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
+    return res.json({ ok: true, token: makeToken(user), user: await withLabourFlag(user) });
   } catch (err) {
     console.error('login error:', err.message);
     return res.status(500).json({ ok: false, error: 'Login failed' });
@@ -369,7 +388,7 @@ router.post('/google', loginLimiter, async (req, res) => {
 
     if (!user.active) return res.status(403).json({ ok: false, error: 'This account has been suspended' });
     await log('login', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: `Google: ${email}` });
-    return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
+    return res.json({ ok: true, token: makeToken(user), user: await withLabourFlag(user) });
   } catch (err) {
     console.error('google auth error:', err.message);
     return res.status(500).json({ ok: false, error: 'Google sign-in failed' });
@@ -528,7 +547,7 @@ router.post('/verify-firebase-otp', otpLimiter, async (req, res) => {
     if (!user.active) return res.status(403).json({ ok: false, error: 'This account has been suspended' });
     await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(() => {});
     await log('login', { userId: user.id, ip: getIP(req), userAgent: getUA(req), detail: `OTP: ${phoneLocal}` });
-    return res.json({ ok: true, token: makeToken(user), user: safeUser(user) });
+    return res.json({ ok: true, token: makeToken(user), user: await withLabourFlag(user) });
   } catch (err) {
     console.error('verify-firebase-otp error:', err.message);
     return res.status(500).json({ ok: false, error: 'OTP verification failed' });
@@ -640,7 +659,7 @@ router.post('/reset-password', resetLimiter, async (req, res) => {
 // ── GET /api/auth/me ───────────────────────────────────────────────────────────
 router.get('/me', auth, async (req, res) => {
   log('app_open', { userId: req.user.id, ip: getIP(req), userAgent: getUA(req), detail: 'Session resumed' }).catch(() => {});
-  res.json({ ok: true, user: safeUser(req.user) });
+  res.json({ ok: true, user: await withLabourFlag(req.user) });
 });
 
 // ── PATCH /api/auth/labour-role ─────────────────────────────────────────────────
@@ -657,7 +676,7 @@ router.patch('/labour-role', auth, async (req, res) => {
       'UPDATE users SET labour_role = $1 WHERE id = $2 RETURNING *',
       [labour_role, req.user.id]
     );
-    res.json({ ok: true, user: safeUser(rows[0]) });
+    res.json({ ok: true, user: await withLabourFlag(rows[0]) });
   } catch (err) {
     console.error('labour-role update error:', err.message);
     res.status(500).json({ ok: false, error: 'Could not update labour role' });
