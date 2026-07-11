@@ -15,6 +15,26 @@ const MAX_UNLOCK_DAYS = 30;         // sanity cap on a single wallet debit, not 
 // entirely here instead of a separate Cashfree checkout per unlock.
 const CONTACT_RATE_PER_DAY = 8;
 
+// ── Labour earnings pipeline ────────────────────────────────────────────────
+// Charged to the contractor when a hire request is ACCEPTED (not when sent —
+// charging on send would let someone spam requests for free profile
+// visibility with no intent to hire).
+const HIRE_FEE = 10;
+// Credited to the labourer when a hire request is COMPLETED (not accepted —
+// crediting on accept would let a contractor/labourer pair farm commissions
+// via accept-then-cancel with no work ever done).
+const LABOUR_COMMISSION = 5;
+// Hold window before a commission is withdrawable, so a job disputed shortly
+// after being marked "completed" can still be clawed back.
+const PAYOUT_HOLD_HOURS = 48;
+const MIN_WITHDRAWAL = 50;
+// Velocity cap: max commission-eligible completions per contractor↔labourer
+// pair per day. Farming a ₹5 commission via a repeated same-pair accept→
+// complete loop nets the colluding pair a net LOSS (they pay ₹10, get ₹5
+// back) so it isn't directly profitable — but capping the pair's daily rate
+// still bounds exposure and flags unusual velocity for review.
+const MAX_PAIR_COMPLETIONS_PER_DAY = 3;
+
 // Best-effort decode of the Authorization header — does NOT reject the request
 // if missing/invalid, since profile browsing is public. Used only to determine
 // whether a viewer has already paid to unlock this profile's contact info.
@@ -661,7 +681,14 @@ router.post('/:id/hire', auth, async (req, res) => {
       RETURNING *
     `, [labourId, req.user.id, work_description || null, proposed_wage || null, work_date || null]);
 
-    res.json({ ok: true, hireRequest: result.rows[0] });
+    res.json({
+      ok: true,
+      hireRequest: result.rows[0],
+      // No money moves yet — this just tells the app what to show upfront
+      // ("Hire fee: ₹10, charged if the worker accepts") so it's never a
+      // surprise deduction later.
+      hireFeeInfo: { amount: HIRE_FEE, chargedWhen: 'accepted' },
+    });
   } catch (err) {
     console.error('[labour] hire error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to send hire request' });
@@ -847,6 +874,7 @@ router.get('/hire-requests/received', auth, async (req, res) => {
 // either side can mark an accepted job completed or cancelled. Transitions
 // are also validated so e.g. a declined request can't be reopened.
 router.patch('/hire-requests/:id', auth, async (req, res) => {
+  const client = await pool.connect();
   try {
     const id = parseInt(req.params.id);
     const { status } = req.body;
@@ -860,7 +888,9 @@ router.patch('/hire-requests/:id', auth, async (req, res) => {
       JOIN labour_profiles l ON l.id = hr.labour_id
       WHERE hr.id = $1
     `, [id]);
-    if (!rows.length) return res.status(404).json({ ok: false, error: 'Hire request not found' });
+    if (!rows.length) {
+      return res.status(404).json({ ok: false, error: 'Hire request not found' });
+    }
     const hr = rows[0];
 
     const isLabourer   = hr.labourer_user_id === req.user.id;
@@ -886,14 +916,213 @@ router.patch('/hire-requests/:id', auth, async (req, res) => {
       return res.status(400).json({ ok: false, error: `Cannot change status from '${hr.status}' to '${status}'` });
     }
 
-    const result = await pool.query(
+    await client.query('BEGIN');
+
+    // ── pending → accepted: charge the contractor's wallet the hire fee ──
+    // The labourer is the one making this call, but it's the contractor's
+    // wallet that gets debited — lock their balance row for the duration of
+    // the transaction so two near-simultaneous accepts can't both succeed
+    // against a balance that only covers one.
+    let hireFeeCharged = null;
+    if (status === 'accepted') {
+      const { rows: balRows } = await client.query(
+        'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE', [hr.contractor_id]
+      );
+      const balance = parseFloat(balRows[0]?.wallet_balance || 0);
+      if (balance < HIRE_FEE) {
+        await client.query('ROLLBACK');
+        return res.status(402).json({
+          ok: false,
+          error: `Contractor's wallet doesn't have enough balance for the ₹${HIRE_FEE} hire fee yet. Ask them to top up their wallet, then try accepting again.`,
+        });
+      }
+
+      const { rows: newBalRows } = await client.query(
+        'UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2 RETURNING wallet_balance',
+        [HIRE_FEE, hr.contractor_id]
+      );
+      await client.query(`
+        INSERT INTO wallet_transactions
+          (user_id, type, amount, balance_after, reason, reference_type, reference_id)
+        VALUES ($1, 'debit', $2, $3, 'labour_hire_fee', 'hire_requests', $4)
+      `, [hr.contractor_id, HIRE_FEE, newBalRows[0].wallet_balance, id]);
+      hireFeeCharged = HIRE_FEE;
+    }
+
+    // ── accepted → completed: credit the labourer's held commission ──
+    let commissionCredited = null;
+    if (status === 'completed') {
+      // Only pay a commission if this hire request actually had its fee
+      // charged (it should always be true via the accepted step above, but
+      // this keeps the payout strictly tied to real revenue rather than
+      // trusting the status column alone).
+      const { rows: feeRows } = await client.query(
+        `SELECT 1 FROM wallet_transactions WHERE reference_type = 'hire_requests' AND reference_id = $1 AND reason = 'labour_hire_fee' LIMIT 1`,
+        [id]
+      );
+
+      const { rows: pairRows } = await client.query(
+        `SELECT COUNT(*)::int AS n FROM labour_payouts p
+         JOIN hire_requests hr2 ON hr2.id = p.hire_request_id
+         WHERE hr2.contractor_id = $1 AND hr2.labour_id = $2 AND p.created_at >= CURRENT_DATE`,
+        [hr.contractor_id, hr.labour_id]
+      );
+      const underDailyCap = pairRows[0].n < MAX_PAIR_COMPLETIONS_PER_DAY;
+
+      if (feeRows.length && underDailyCap) {
+        const availableAt = new Date(Date.now() + PAYOUT_HOLD_HOURS * 60 * 60 * 1000);
+        await client.query(`
+          INSERT INTO labour_payouts (hire_request_id, labour_user_id, amount, status, available_at)
+          VALUES ($1, $2, $3, 'pending', $4)
+          ON CONFLICT (hire_request_id) DO NOTHING
+        `, [id, hr.labourer_user_id, LABOUR_COMMISSION, availableAt]);
+        commissionCredited = LABOUR_COMMISSION;
+      }
+    }
+
+    const result = await client.query(
       'UPDATE hire_requests SET status = $1 WHERE id = $2 RETURNING *',
       [status, id]
     );
-    res.json({ ok: true, hireRequest: result.rows[0] });
+
+    await client.query('COMMIT');
+    res.json({
+      ok: true,
+      hireRequest: result.rows[0],
+      hireFeeCharged,
+      commissionCredited,
+    });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('[labour] hire-request update error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to update hire request' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/labour/payouts/mine — a labourer's earnings dashboard: held
+// balance, withdrawable balance, recent commissions, and withdrawal history.
+// Lazily flips any 'pending' payouts past their hold window to 'available'
+// on read, instead of a background job.
+router.get('/payouts/mine', auth, async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE labour_payouts SET status = 'available' WHERE labour_user_id = $1 AND status = 'pending' AND available_at <= NOW()`,
+      [req.user.id]
+    );
+
+    const { rows: balRows } = await pool.query(`
+      SELECT
+        COALESCE(SUM(amount) FILTER (WHERE status = 'pending'), 0)   AS held_balance,
+        COALESCE(SUM(amount) FILTER (WHERE status = 'available'), 0) AS available_balance,
+        COALESCE(SUM(amount) FILTER (WHERE status = 'requested'), 0) AS requested_balance,
+        COALESCE(SUM(amount) FILTER (WHERE status = 'paid'), 0)      AS lifetime_paid
+      FROM labour_payouts WHERE labour_user_id = $1
+    `, [req.user.id]);
+
+    const { rows: ledger } = await pool.query(`
+      SELECT p.id, p.hire_request_id, p.amount, p.status, p.available_at, p.created_at,
+             u.name AS contractor_name
+      FROM labour_payouts p
+      JOIN hire_requests hr ON hr.id = p.hire_request_id
+      JOIN users u ON u.id = hr.contractor_id
+      WHERE p.labour_user_id = $1
+      ORDER BY p.created_at DESC LIMIT 50
+    `, [req.user.id]);
+
+    const { rows: withdrawals } = await pool.query(`
+      SELECT id, amount, upi_id, status, utr_reference, admin_note, requested_at, processed_at
+      FROM labour_withdrawals WHERE user_id = $1 ORDER BY requested_at DESC LIMIT 20
+    `, [req.user.id]);
+
+    const { rows: userRows } = await pool.query('SELECT labour_upi_id FROM users WHERE id = $1', [req.user.id]);
+
+    res.json({
+      ok: true,
+      heldBalance: parseFloat(balRows[0].held_balance),
+      availableBalance: parseFloat(balRows[0].available_balance),
+      requestedBalance: parseFloat(balRows[0].requested_balance),
+      lifetimePaid: parseFloat(balRows[0].lifetime_paid),
+      upiId: userRows[0]?.labour_upi_id || null,
+      minWithdrawal: MIN_WITHDRAWAL,
+      holdHours: PAYOUT_HOLD_HOURS,
+      ledger,
+      withdrawals,
+    });
+  } catch (err) {
+    console.error('[labour] payouts/mine error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load earnings' });
+  }
+});
+
+// PATCH /api/labour/payouts/upi — set/update the UPI ID commissions get paid to.
+router.patch('/payouts/upi', auth, async (req, res) => {
+  try {
+    const upiId = (req.body.upiId || '').trim();
+    if (!/^[\w.\-]{2,256}@[a-zA-Z]{2,64}$/.test(upiId)) {
+      return res.status(400).json({ ok: false, error: 'Enter a valid UPI ID, e.g. name@bank' });
+    }
+    await pool.query('UPDATE users SET labour_upi_id = $1 WHERE id = $2', [upiId, req.user.id]);
+    res.json({ ok: true, upiId });
+  } catch (err) {
+    console.error('[labour] payouts/upi error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to save UPI ID' });
+  }
+});
+
+// POST /api/labour/payouts/withdraw — request a cash-out of the available
+// (past-hold) balance to the UPI ID on file. Locks and claims 'available'
+// payout rows atomically so a double-tap can't create two withdrawal
+// requests against the same money.
+router.post('/payouts/withdraw', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { rows: userRows } = await pool.query('SELECT labour_upi_id FROM users WHERE id = $1', [req.user.id]);
+    const upiId = userRows[0]?.labour_upi_id;
+    if (!upiId) {
+      return res.status(400).json({ ok: false, error: 'Add a UPI ID before requesting a withdrawal.' });
+    }
+
+    await client.query('BEGIN');
+
+    // Flip anything past its hold window, then lock and claim it.
+    await client.query(
+      `UPDATE labour_payouts SET status = 'available' WHERE labour_user_id = $1 AND status = 'pending' AND available_at <= NOW()`,
+      [req.user.id]
+    );
+    const { rows: claimRows } = await client.query(
+      `SELECT id, amount FROM labour_payouts WHERE labour_user_id = $1 AND status = 'available' FOR UPDATE`,
+      [req.user.id]
+    );
+    const total = claimRows.reduce((sum, r) => sum + parseFloat(r.amount), 0);
+
+    if (total < MIN_WITHDRAWAL) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        ok: false,
+        error: `Minimum withdrawal is ₹${MIN_WITHDRAWAL}. Available balance: ₹${total.toFixed(2)}.`,
+      });
+    }
+
+    const { rows: wRows } = await client.query(`
+      INSERT INTO labour_withdrawals (user_id, amount, upi_id, status)
+      VALUES ($1, $2, $3, 'requested') RETURNING *
+    `, [req.user.id, total, upiId]);
+
+    await client.query(
+      `UPDATE labour_payouts SET status = 'requested', withdrawal_id = $1 WHERE id = ANY($2::int[])`,
+      [wRows[0].id, claimRows.map(r => r.id)]
+    );
+
+    await client.query('COMMIT');
+    res.json({ ok: true, withdrawal: wRows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[labour] payouts/withdraw error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to request withdrawal' });
+  } finally {
+    client.release();
   }
 });
 
