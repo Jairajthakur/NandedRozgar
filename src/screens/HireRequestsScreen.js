@@ -451,6 +451,20 @@ export default function HireRequestsScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* ── Earnings teaser ─────────────────────────────────────────── */}
+        <TouchableOpacity style={st.statusCard} activeOpacity={0.85} onPress={() => nav.navigate('LabourEarnings')}>
+          <View style={st.statusRow}>
+            <View style={[st.statusIconWrap, { backgroundColor: LABOUR + '15' }]}>
+              <Ionicons name="wallet-outline" size={16} color={LABOUR} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={st.statusLabel}>My Earnings</Text>
+              <Text style={st.statusSub}>₹5 per completed hire — view balance & withdraw</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={MUTED} />
+          </View>
+        </TouchableOpacity>
       </View>
     );
   };
