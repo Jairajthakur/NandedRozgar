@@ -88,6 +88,37 @@ export default function PostLabourProfileScreen() {
   const [photoUri, setPhotoUri]   = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [wageBoard, setWageBoard] = useState([]);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // If the user already has a profile, load it so editing doesn't blank out
+  // fields (skill, wage, bio, etc.) they'd filled in previously.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const res = await http('GET', '/api/labour/mine');
+      if (!alive) return;
+      if (res?.ok && res.profile) {
+        const p = res.profile;
+        setIsEditing(true);
+        setFullName(p.full_name || user?.name || '');
+        setPhone(user?.phone || '');
+        setSkill(p.skill_category || null);
+        setSkillsText(Array.isArray(p.skills) ? p.skills.join(', ') : '');
+        setExperience(p.experience_years != null ? String(p.experience_years) : '');
+        setWage(p.daily_wage != null ? String(p.daily_wage) : '');
+        setProfileType(p.profile_type || 'individual');
+        setTeamSize(p.team_size != null ? String(p.team_size) : '');
+        setTeamComposition(p.team_composition || '');
+        setLocation(p.location || '');
+        setBio(p.bio || '');
+        setAvailability(p.availability || 'available');
+        if (p.photo_url) setPhotoUri(p.photo_url);
+      }
+      setLoadingProfile(false);
+    })();
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -195,10 +226,16 @@ export default function PostLabourProfileScreen() {
         <TouchableOpacity onPress={() => nav.goBack()} style={s.backBtn} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color="#111" />
         </TouchableOpacity>
-        <Text style={s.topBarTitle}>Post your profile</Text>
+        <Text style={s.topBarTitle}>{isEditing ? 'Edit your profile' : 'Post your profile'}</Text>
         <View style={s.backBtn} />
       </View>
 
+      {loadingProfile ? (
+        <View style={s.loadingBox}>
+          <ActivityIndicator size="large" color={LABOUR_COLOR} />
+        </View>
+      ) : (
+      <>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 100 }]}
@@ -207,9 +244,11 @@ export default function PostLabourProfileScreen() {
         >
           <FadeSlide delay={40} style={s.heroCard}>
             <Text style={s.heroEyebrow}>LABOUR DIRECTORY</Text>
-            <Text style={s.heroTitle}>Get hired faster</Text>
+            <Text style={s.heroTitle}>{isEditing ? 'Keep your listing fresh' : 'Get hired faster'}</Text>
             <Text style={s.heroSub}>
-              List your skills, daily wage & availability — contractors nearby can find and hire you directly.
+              {isEditing
+                ? 'Update your rate, availability, or details — changes go live right away.'
+                : 'List your skills, daily wage & availability — contractors nearby can find and hire you directly.'}
             </Text>
           </FadeSlide>
 
@@ -448,15 +487,18 @@ export default function PostLabourProfileScreen() {
         >
           {submitting
             ? <ActivityIndicator color="#fff" />
-            : <Text style={s.submitBtnTxt}>Post my profile — it&apos;s free</Text>}
+            : <Text style={s.submitBtnTxt}>{isEditing ? 'Save changes' : "Post my profile — it's free"}</Text>}
         </TouchableOpacity>
       </View>
+      </>
+      )}
     </View>
   );
 }
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f7f7f7' },
+  loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
