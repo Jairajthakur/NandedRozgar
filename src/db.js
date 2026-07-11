@@ -157,6 +157,12 @@ async function runMigrations() {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen       TIMESTAMPTZ`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token      TEXT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at      TIMESTAMPTZ`,
+      // Which side of the Labour marketplace this user identifies as —
+      // set once via the onboarding gate ("I Want to Hire" / "I Want to
+      // Find Work"), remembered forever, and changeable later from
+      // Profile > Switch mode. NULL means "hasn't chosen yet" and triggers
+      // the gate screen the next time they open the Labour tab.
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS labour_role     VARCHAR(10)`,
       `ALTER TABLE users ALTER COLUMN email    DROP NOT NULL`,
       `ALTER TABLE users ALTER COLUMN password DROP NOT NULL`,
 
@@ -835,6 +841,9 @@ async function runMigrations() {
     await client.query(`UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin')`);
     await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
     await client.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'))`);
+
+    await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_labour_role_check`);
+    await client.query(`ALTER TABLE users ADD CONSTRAINT users_labour_role_check CHECK (labour_role IS NULL OR labour_role IN ('hirer', 'worker'))`);
 
     // Seed admin
     // FIX (Low): Refuse to start in production with the default admin password.
