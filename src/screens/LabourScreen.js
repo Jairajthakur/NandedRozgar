@@ -30,6 +30,13 @@ const SKILL_CATEGORIES = [
   'All', 'Mason', 'Electrician', 'Plumber', 'Painter', 'Carpenter', 'Welder', 'Helper',
 ];
 
+// Bilingual labels for the micro-skill grid — shown as English / मराठी so the
+// grid reads for both audiences without needing a language switch.
+const SKILL_LABELS_MR = {
+  All: 'सर्व', Mason: 'गवंडी', Electrician: 'इलेक्ट्रीशियन', Plumber: 'प्लंबर',
+  Painter: 'पेंटर', Carpenter: 'सुतार', Welder: 'वेल्डर', Helper: 'मदतनीस',
+};
+
 const WAGE_RANGES = [
   { label: 'Any',           min: 0,    max: Infinity },
   { label: 'Under ₹500',   min: 0,    max: 500 },
@@ -93,11 +100,11 @@ function LabourCard({ item, onPress, index = 0 }) {
 
   const statusChip = atChowk
     ? { bg: '#16a34a', icon: 'walk', label: 'At the chowk today' }
-    : isBusy
-    ? { bg: '#9ca3af', icon: 'time-outline', label: 'Busy this week' }
     : hasRating && Number(item.rating_avg) >= 4.5
     ? { bg: ORANGE, icon: 'star', label: 'Top rated' }
     : null;
+
+  const trustedCount = parseInt(item.trusted_count) || 0;
 
   return (
     <FadeIn delay={Math.min(index, 8) * 60}>
@@ -137,12 +144,20 @@ function LabourCard({ item, onPress, index = 0 }) {
             ) : !isTeam && !!item.experience_years ? (
               <View style={cs.plainChip}><Text style={cs.plainChipTxt}>{item.experience_years} yrs experience</Text></View>
             ) : null}
-            {hasRating && (
+            <View style={[cs.plainChip, isBusy ? cs.busyChip : cs.availableChip]}>
+              <Text style={cs.plainChipTxt}>{isBusy ? '🔴 Busy' : '🟢 Available Today'}</Text>
+            </View>
+            {trustedCount > 0 ? (
+              <View style={[cs.plainChip, cs.trustChip]}>
+                <Ionicons name="people" size={10} color="#0d9488" />
+                <Text style={[cs.plainChipTxt, { color: '#0d9488' }]}> Trusted by {trustedCount} {trustedCount === 1 ? 'family' : 'families'} in your area</Text>
+              </View>
+            ) : hasRating ? (
               <View style={cs.plainChip}>
                 <Ionicons name="star" size={10} color="#f59e0b" />
                 <Text style={cs.plainChipTxt}> {Number(item.rating_avg).toFixed(1)} ({item.rating_count})</Text>
               </View>
-            )}
+            ) : null}
             {statusChip && (
               <View style={[cs.plainChip, { backgroundColor: statusChip.bg + '18' }]}>
                 <Ionicons name={statusChip.icon} size={10} color={statusChip.bg} />
@@ -182,6 +197,9 @@ const cs = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#f3f4f6', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10,
   },
+  availableChip: { backgroundColor: '#f0fdf4' },
+  busyChip: { backgroundColor: '#f4f4f5' },
+  trustChip: { backgroundColor: '#f0fdfa' },
   plainChipTxt: { fontSize: 11, fontWeight: '700', color: '#666' },
 });
 
@@ -201,6 +219,8 @@ export default function LabourScreen() {
   const [wageRange, setWageRange] = useState(WAGE_RANGES[0]);
   const [availability, setAvailability] = useState('All');
   const [profileTypeFilter, setProfileTypeFilter] = useState('All');
+  const [localityFilter, setLocalityFilter] = useState('All');
+  const [showLocalityPicker, setShowLocalityPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState(null);
 
@@ -243,13 +263,25 @@ export default function LabourScreen() {
       if (availability === 'Busy this week' && l.availability !== 'busy') return false;
       if (profileTypeFilter === 'Teams' && l.profile_type !== 'team') return false;
       if (profileTypeFilter === 'Individuals' && l.profile_type === 'team') return false;
+      if (localityFilter !== 'All' && l.location !== localityFilter) return false;
       if (search.trim()) {
         const hay = [l.full_name, l.skill_category].join(' ').toLowerCase();
         if (!hay.includes(search.trim().toLowerCase())) return false;
       }
       return true;
     });
-  }, [labourers, activeSkill, wageRange, availability, profileTypeFilter, search]);
+  }, [labourers, activeSkill, wageRange, availability, profileTypeFilter, localityFilter, search]);
+
+  // Micro-neighbourhoods with active listings, most common first — powers the
+  // "hyper-local discovery" area dropdown in the header.
+  const localityOptions = useMemo(() => {
+    const counts = {};
+    labourers.forEach(l => { if (l.location) counts[l.location] = (counts[l.location] || 0) + 1; });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([name, count]) => ({ name, count }));
+  }, [labourers]);
 
   const isPremium = useIsPremium();
 
@@ -299,6 +331,13 @@ export default function LabourScreen() {
             {filtered.length} profile{filtered.length === 1 ? '' : 's'} found
             {currentDistrict?.name ? ` in ${currentDistrict.name}` : ''}
           </Text>
+          <TouchableOpacity style={s.localityBtn} onPress={() => setShowLocalityPicker(true)} activeOpacity={0.8}>
+            <Ionicons name="location-outline" size={13} color={ORANGE} />
+            <Text style={s.localityBtnTxt} numberOfLines={1}>
+              {localityFilter === 'All' ? 'All areas' : localityFilter}
+            </Text>
+            <Ionicons name="chevron-down" size={13} color={ORANGE} />
+          </TouchableOpacity>
         </View>
         <TouchableOpacity
           style={[s.iconBtn, activeFiltersCount > 0 && s.iconBtnActive, IS_WEB && ws.iconBtn]}
@@ -368,8 +407,11 @@ export default function LabourScreen() {
                   <TradeIcon name={cat} size={26} color={catStart} />
                 </View>
               )}
-              <Text style={[s.categoryTileTxt, active && { color: catStart, fontWeight: '800' }]} numberOfLines={2}>
+              <Text style={[s.categoryTileTxt, active && { color: catStart, fontWeight: '800' }]} numberOfLines={1}>
                 {cat}
+              </Text>
+              <Text style={[s.categoryTileTxtMr, active && { color: catStart }]} numberOfLines={1}>
+                {SKILL_LABELS_MR[cat] || ''}
               </Text>
             </TouchableOpacity>
           );
@@ -480,6 +522,41 @@ export default function LabourScreen() {
           <Text style={s.applyFilterTxt}>Show {filtered.length} Profiles</Text>
         </TouchableOpacity>
       </Animated.View>
+    </Modal>
+  );
+
+  // ── Locality picker (micro-neighbourhood dropdown) ─────────────────────────
+  const LocalityModal = (
+    <Modal visible={showLocalityPicker} transparent animationType="fade" onRequestClose={() => setShowLocalityPicker(false)}>
+      <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowLocalityPicker(false)} />
+      <View style={[s.localitySheet, IS_WEB && ws.centeredModal]}>
+        <View style={s.sheetHandle} />
+        <Text style={s.sheetTitle}>Choose your area</Text>
+        <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+          <TouchableOpacity
+            style={[s.rangeRow, localityFilter === 'All' && s.rangeActive]}
+            onPress={() => { setLocalityFilter('All'); setShowLocalityPicker(false); }}
+          >
+            <Text style={[s.rangeTxt, localityFilter === 'All' && { color: ORANGE, fontWeight: '700' }]}>All areas</Text>
+            {localityFilter === 'All' && <Ionicons name="checkmark-circle" size={18} color={ORANGE} />}
+          </TouchableOpacity>
+          {localityOptions.map(loc => (
+            <TouchableOpacity
+              key={loc.name}
+              style={[s.rangeRow, localityFilter === loc.name && s.rangeActive]}
+              onPress={() => { setLocalityFilter(loc.name); setShowLocalityPicker(false); }}
+            >
+              <Text style={[s.rangeTxt, localityFilter === loc.name && { color: ORANGE, fontWeight: '700' }]}>{loc.name}</Text>
+              <Text style={s.localityCount}>{loc.count}</Text>
+            </TouchableOpacity>
+          ))}
+          {localityOptions.length === 0 && (
+            <Text style={{ color: '#999', fontSize: 13, paddingVertical: 20, textAlign: 'center' }}>
+              No area data yet for this district.
+            </Text>
+          )}
+        </ScrollView>
+      </View>
     </Modal>
   );
 
@@ -624,6 +701,7 @@ export default function LabourScreen() {
         </View>
 
         {FilterModal}
+        {LocalityModal}
       </View>
     );
   }
@@ -646,6 +724,7 @@ export default function LabourScreen() {
         }
       />
       {FilterModal}
+      {LocalityModal}
     </View>
   );
 }
@@ -658,6 +737,11 @@ const s = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingTop: 20, paddingBottom: 10, gap: 10 },
   pageTitle: { fontSize: 24, fontWeight: '900', color: '#111', letterSpacing: -0.5 },
   pageCount: { fontSize: 13, color: '#999', fontWeight: '500', marginTop: 4 },
+  localityBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    backgroundColor: '#fff7f0', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, marginTop: 10,
+  },
+  localityBtnTxt: { fontSize: 12.5, fontWeight: '700', color: ORANGE, maxWidth: 160 },
 
   iconBtn: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#ececec',
@@ -688,6 +772,7 @@ const s = StyleSheet.create({
   },
   categoryIconBoxActive: { backgroundColor: ORANGE, borderColor: ORANGE },
   categoryTileTxt: { fontSize: 12, fontWeight: '600', color: '#555', textAlign: 'center', lineHeight: 15 },
+  categoryTileTxtMr: { fontSize: 10.5, fontWeight: '500', color: '#999', textAlign: 'center', lineHeight: 13 },
   categoryTileTxtActive: { color: ORANGE, fontWeight: '800' },
 
   list: { paddingHorizontal: 14, paddingTop: 0, paddingBottom: 40 },
@@ -698,6 +783,12 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 44,
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: -4 }, elevation: 24,
   },
+  localitySheet: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff',
+    borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 32,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: -4 }, elevation: 24,
+  },
+  localityCount: { fontSize: 12, fontWeight: '700', color: '#bbb' },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#e0e0e0', alignSelf: 'center', marginBottom: 18 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   sheetTitle: { fontSize: 18, fontWeight: '800', color: '#111' },
