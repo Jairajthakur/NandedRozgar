@@ -894,4 +894,118 @@ router.patch('/banners/:id/status', async (req, res) => {
   }
 });
 
+// ── LABOUR EARNINGS PIPELINE ──────────────────────────────────────────────────
+
+// GET /api/admin/labour/revenue — gross hire fees collected vs commissions
+// paid out vs net platform revenue, plus a snapshot of money currently sitting
+// in each payout stage. `since` optionally filters to the last N days.
+router.get('/labour/revenue', async (req, res) => {
+  try {
+    const days = Math.max(1, parseInt(req.query.days) || 30);
+
+    const { rows: feeRows } = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) AS gross_fees, COUNT(*)::int AS hires
+       FROM wallet_transactions
+       WHERE reason = 'labour_hire_fee' AND created_at >= NOW() - ($1 || ' days')::interval`,
+      [days]
+    );
+    const { rows: commissionRows } = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) AS commissions, COUNT(*)::int AS completions
+       FROM labour_payouts
+       WHERE created_at >= NOW() - ($1 || ' days')::interval`,
+      [days]
+    );
+    const { rows: stageRows } = await pool.query(`
+      SELECT status, COALESCE(SUM(amount), 0) AS total FROM labour_payouts GROUP BY status
+    `);
+    const { rows: withdrawalRows } = await pool.query(`
+      SELECT status, COALESCE(SUM(amount), 0) AS total, COUNT(*)::int AS n
+      FROM labour_withdrawals GROUP BY status
+    `);
+
+    const grossFees = parseFloat(feeRows[0].gross_fees);
+    const commissions = parseFloat(commissionRows[0].commissions);
+
+    res.json({
+      ok: true,
+      periodDays: days,
+      grossFees,
+      hires: feeRows[0].hires,
+      commissionsOwed: commissions,
+      completions: commissionRows[0].completions,
+      netRevenue: grossFees - commissions,
+      payoutStages: Object.fromEntries(stageRows.map(r => [r.status, parseFloat(r.total)])),
+      withdrawals: Object.fromEntries(withdrawalRows.map(r => [r.status, { total: parseFloat(r.total), count: r.n }])),
+    });
+  } catch (err) {
+    console.error('GET /admin/labour/revenue error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to load labour revenue.' });
+  }
+});
+
+// GET /api/admin/labour/withdrawals — queue of withdrawal requests to process,
+// filterable by status (defaults to 'requested' — the actionable queue).
+router.get('/labour/withdrawals', async (req, res) => {
+  try {
+    const status = req.query.status || 'requested';
+    const { rows } = await pool.query(`
+      SELECT w.*, u.name AS labourer_name, u.phone AS labourer_phone
+      FROM labour_withdrawals w JOIN users u ON u.id = w.user_id
+      WHERE w.status = $1
+      ORDER BY w.requested_at ASC
+    `, [status]);
+    res.json({ ok: true, withdrawals: rows });
+  } catch (err) {
+    console.error('GET /admin/labour/withdrawals error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to load withdrawals.' });
+  }
+});
+
+// PATCH /api/admin/labour/withdrawals/:id — mark a withdrawal paid (with UTR)
+// or rejected (which releases the claimed payout rows back to 'available' so
+// the labourer can request again rather than the money vanishing).
+router.patch('/labour/withdrawals/:id', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { status, utrReference, adminNote } = req.body;
+    if (!['paid', 'rejected'].includes(status)) {
+      return res.status(400).json({ ok: false, error: "Status must be 'paid' or 'rejected'." });
+    }
+    if (status === 'paid' && !utrReference) {
+      return res.status(400).json({ ok: false, error: 'UTR reference is required to mark a withdrawal paid.' });
+    }
+
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `UPDATE labour_withdrawals SET status = $1, utr_reference = $2, admin_note = $3, processed_at = NOW()
+       WHERE id = $4 AND status = 'requested' RETURNING *`,
+      [status, utrReference || null, adminNote || null, id]
+    );
+    if (!rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ ok: false, error: 'Withdrawal not found or already processed.' });
+    }
+
+    if (status === 'paid') {
+      await client.query(`UPDATE labour_payouts SET status = 'paid' WHERE withdrawal_id = $1`, [id]);
+    } else {
+      // Rejected: release the money back to 'available' so it isn't stuck.
+      await client.query(
+        `UPDATE labour_payouts SET status = 'available', withdrawal_id = NULL WHERE withdrawal_id = $1`,
+        [id]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ ok: true, withdrawal: rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('PATCH /admin/labour/withdrawals/:id error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to process withdrawal.' });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
