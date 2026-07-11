@@ -16,7 +16,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, TextInput, Alert, Image,
+  ActivityIndicator, RefreshControl, TextInput, Alert, Image, Switch, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -55,7 +55,7 @@ export default function HireRequestsScreen() {
   const [busyId, setBusyId]       = useState(null); // hire request currently being updated
 
   const [myProfile, setMyProfile]       = useState(null);
-  const [profileBusy, setProfileBusy]   = useState(false); // availability/check-in in flight
+  const [profileBusy, setProfileBusy]   = useState(null); // 'availability' | 'checkin' | null
 
   // Rating modal
   const [rateTarget, setRateTarget]   = useState(null); // the hire request being rated
@@ -131,9 +131,9 @@ export default function HireRequestsScreen() {
   const toggleAvailability = async () => {
     if (!myProfile || profileBusy) return;
     const next = myProfile.availability === 'available' ? 'busy' : 'available';
-    setProfileBusy(true);
+    setProfileBusy('availability');
     const res = await http('PATCH', `/api/labour/${myProfile.id}/availability`, { availability: next });
-    setProfileBusy(false);
+    setProfileBusy(null);
     if (res?.ok) {
       setMyProfile(p => ({ ...p, availability: next }));
     } else {
@@ -143,11 +143,11 @@ export default function HireRequestsScreen() {
 
   const toggleCheckin = async () => {
     if (!myProfile || profileBusy) return;
-    setProfileBusy(true);
+    setProfileBusy('checkin');
     const res = myProfile.checked_in_today
       ? await http('DELETE', `/api/labour/${myProfile.id}/checkin`)
       : await http('POST', `/api/labour/${myProfile.id}/checkin`);
-    setProfileBusy(false);
+    setProfileBusy(null);
     if (res?.ok && res.profile) {
       setMyProfile(p => ({
         ...p,
@@ -288,73 +288,120 @@ export default function HireRequestsScreen() {
 
   const data = tab === 'sent' ? sent : received;
 
+  const completedCount = received.filter(r => r.status === 'completed').length;
+
+  const initials = (myProfile?.full_name || '')
+    .split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+
   const renderDashboardHeader = () => {
     if (!myProfile) return null;
     const [gradStart, gradEnd] = getSkillGradient(myProfile.skill_category);
     const available = myProfile.availability === 'available';
-    return (
-      <View style={st.dashCard}>
-        <View style={st.dashTop}>
-          {myProfile.photo_url ? (
-            <Image source={{ uri: myProfile.photo_url }} style={st.dashAvatarImg} />
-          ) : (
-            <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.dashAvatarImg}>
-              <Ionicons name={SKILL_ICONS[myProfile.skill_category] || 'person-outline'} size={22} color="#fff" />
-            </LinearGradient>
-          )}
+    const checkedIn = myProfile.checked_in_today;
 
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={st.dashName} numberOfLines={1}>{myProfile.full_name}</Text>
-            <Text style={st.dashMeta} numberOfLines={1}>
-              {myProfile.skill_category}
-              {myProfile.daily_wage ? ` · ₹${myProfile.daily_wage}/day` : ''}
-            </Text>
-            {myProfile.rating_count > 0 && (
-              <View style={st.dashRatingRow}>
-                <Ionicons name="star" size={12} color="#f59e0b" />
-                <Text style={st.dashRatingTxt}>{myProfile.rating_avg} ({myProfile.rating_count})</Text>
+    return (
+      <View style={st.dashWrap}>
+        {/* ── Hero identity card ─────────────────────────────────────────── */}
+        <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.hero}>
+          <View style={st.heroTop}>
+            {myProfile.photo_url ? (
+              <Image source={{ uri: myProfile.photo_url }} style={st.heroAvatar} />
+            ) : (
+              <View style={st.heroAvatarFallback}>
+                <Text style={st.heroInitials}>{initials || '?'}</Text>
               </View>
+            )}
+
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={st.heroName} numberOfLines={1}>{myProfile.full_name}</Text>
+              <View style={st.heroBadgeRow}>
+                <View style={st.heroSkillPill}>
+                  <Ionicons name={SKILL_ICONS[myProfile.skill_category] || 'briefcase-outline'} size={11} color="#fff" />
+                  <Text style={st.heroSkillTxt}>{myProfile.skill_category}</Text>
+                </View>
+                {myProfile.rating_count > 0 && (
+                  <View style={st.heroSkillPill}>
+                    <Ionicons name="star" size={11} color="#fde68a" />
+                    <Text style={st.heroSkillTxt}>{myProfile.rating_avg} ({myProfile.rating_count})</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={st.heroEditBtn}
+              onPress={() => nav.navigate('PostLabourProfile')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="create-outline" size={17} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={st.heroStatsRow}>
+            <View style={st.heroStat}>
+              <Text style={st.heroStatValue}>{completedCount}</Text>
+              <Text style={st.heroStatLabel}>Jobs done</Text>
+            </View>
+            <View style={st.heroStatDivider} />
+            <View style={st.heroStat}>
+              <Text style={st.heroStatValue}>{received.length}</Text>
+              <Text style={st.heroStatLabel}>Requests</Text>
+            </View>
+            <View style={st.heroStatDivider} />
+            <View style={st.heroStat}>
+              <Text style={st.heroStatValue}>{myProfile.daily_wage ? `₹${myProfile.daily_wage}` : '—'}</Text>
+              <Text style={st.heroStatLabel}>Per day</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* ── Duty status card (Uber/Ola-style toggle) ───────────────────── */}
+        <View style={st.statusCard}>
+          <View style={st.statusRow}>
+            <View style={[st.statusIconWrap, { backgroundColor: available ? '#f0fdf4' : '#fef3c7' }]}>
+              <View style={[st.statusDot, { backgroundColor: available ? '#16a34a' : '#d97706' }]} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={st.statusLabel}>{available ? "You're Available" : "You're marked Busy"}</Text>
+              <Text style={st.statusSub}>
+                {available ? 'Contractors can find and hire you' : 'You won\u2019t show up in urgent searches'}
+              </Text>
+            </View>
+            {profileBusy === 'availability' ? (
+              <ActivityIndicator size="small" color={LABOUR} />
+            ) : (
+              <Switch
+                value={available}
+                onValueChange={toggleAvailability}
+                disabled={!!profileBusy}
+                trackColor={{ false: '#e5e7eb', true: '#bbf7d0' }}
+                thumbColor={Platform.OS === 'android' ? (available ? '#16a34a' : '#f4f4f5') : undefined}
+                ios_backgroundColor="#e5e7eb"
+              />
             )}
           </View>
 
-          <TouchableOpacity
-            style={st.dashEditBtn}
-            onPress={() => nav.navigate('PostLabourProfile')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="create-outline" size={16} color={LABOUR} />
-          </TouchableOpacity>
-        </View>
+          <View style={st.statusDivider} />
 
-        <View style={st.dashActionsRow}>
-          <TouchableOpacity
-            style={[st.dashPill, available ? st.dashPillAvailable : st.dashPillBusy]}
-            onPress={toggleAvailability}
-            disabled={profileBusy}
-            activeOpacity={0.85}
-          >
-            <View style={[st.dashDot, { backgroundColor: available ? '#16a34a' : '#d97706' }]} />
-            <Text style={[st.dashPillTxt, { color: available ? '#16a34a' : '#d97706' }]}>
-              {available ? 'Available' : 'Busy this week'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[st.dashPill, myProfile.checked_in_today ? st.dashPillCheckedIn : st.dashPillGhost]}
-            onPress={toggleCheckin}
-            disabled={profileBusy}
-            activeOpacity={0.85}
-          >
-            {profileBusy
-              ? <ActivityIndicator size="small" color={myProfile.checked_in_today ? '#fff' : LABOUR} />
-              : (
-                <>
-                  <Ionicons name="location" size={13} color={myProfile.checked_in_today ? '#fff' : LABOUR} />
-                  <Text style={[st.dashPillTxt, { color: myProfile.checked_in_today ? '#fff' : LABOUR }]}>
-                    {myProfile.checked_in_today ? 'Checked in today' : 'Check in'}
-                  </Text>
-                </>
-              )}
+          <TouchableOpacity style={st.statusRow} onPress={toggleCheckin} activeOpacity={0.75} disabled={!!profileBusy}>
+            <View style={[st.statusIconWrap, { backgroundColor: checkedIn ? LABOUR + '22' : '#f5f5f5' }]}>
+              <Ionicons name="location" size={16} color={checkedIn ? LABOUR : MUTED} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={st.statusLabel}>{checkedIn ? "Checked in for today" : 'Check in at the chowk'}</Text>
+              <Text style={st.statusSub}>
+                {checkedIn ? 'You\u2019re boosted to the top until midnight' : 'Boost your visibility for today'}
+              </Text>
+            </View>
+            {profileBusy === 'checkin' ? (
+              <ActivityIndicator size="small" color={LABOUR} />
+            ) : (
+              <View style={[st.checkinBtn, checkedIn && st.checkinBtnActive]}>
+                <Text style={[st.checkinBtnTxt, checkedIn && st.checkinBtnTxtActive]}>
+                  {checkedIn ? 'Check out' : 'Check in'}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -457,32 +504,59 @@ const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  dashCard: {
-    backgroundColor: SURFACE, margin: 14, marginBottom: 0, borderRadius: 16,
-    borderWidth: 1, borderColor: BORDER, padding: 14,
+  dashWrap: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 6, gap: 12 },
+
+  hero: {
+    borderRadius: 20, padding: 16,
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
-  dashTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  dashAvatarImg: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  dashName: { fontSize: 15, fontWeight: '800', color: TEXT },
-  dashMeta: { fontSize: 12, color: MUTED, fontWeight: '600', marginTop: 2, textTransform: 'capitalize' },
-  dashRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  dashRatingTxt: { fontSize: 12, color: '#b45309', fontWeight: '700' },
-  dashEditBtn: {
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heroAvatar: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
+  heroAvatarFallback: {
+    width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)',
+  },
+  heroInitials: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  heroName: { fontSize: 17, fontWeight: '900', color: '#fff' },
+  heroBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
+  heroSkillPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 100,
+    paddingHorizontal: 9, paddingVertical: 3.5,
+  },
+  heroSkillTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  heroEditBtn: {
     width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: LABOUR + '15', borderWidth: 1, borderColor: LABOUR + '33',
+    backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)',
   },
 
-  dashActionsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  dashPill: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 9, borderRadius: 10, borderWidth: 1.5,
+  heroStatsRow: {
+    flexDirection: 'row', alignItems: 'center', marginTop: 16,
+    backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 14, paddingVertical: 10,
   },
-  dashDot: { width: 7, height: 7, borderRadius: 3.5 },
-  dashPillTxt: { fontSize: 12.5, fontWeight: '800' },
-  dashPillAvailable: { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' },
-  dashPillBusy: { backgroundColor: '#fef3c7', borderColor: '#fde68a' },
-  dashPillGhost: { backgroundColor: LABOUR + '10', borderColor: LABOUR + '33' },
-  dashPillCheckedIn: { backgroundColor: LABOUR, borderColor: LABOUR },
+  heroStat: { flex: 1, alignItems: 'center' },
+  heroStatValue: { fontSize: 15, fontWeight: '900', color: '#fff' },
+  heroStatLabel: { fontSize: 10.5, fontWeight: '600', color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  heroStatDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.25)' },
+
+  statusCard: {
+    backgroundColor: SURFACE, borderRadius: 18, borderWidth: 1, borderColor: BORDER,
+    paddingHorizontal: 14, paddingVertical: 4,
+  },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13 },
+  statusIconWrap: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  statusDot: { width: 10, height: 10, borderRadius: 5 },
+  statusLabel: { fontSize: 13.5, fontWeight: '800', color: TEXT },
+  statusSub: { fontSize: 11.5, color: MUTED, fontWeight: '500', marginTop: 1 },
+  statusDivider: { height: 1, backgroundColor: BORDER },
+
+  checkinBtn: {
+    paddingHorizontal: 13, paddingVertical: 7, borderRadius: 9,
+    backgroundColor: LABOUR + '15', borderWidth: 1, borderColor: LABOUR + '33',
+  },
+  checkinBtnActive: { backgroundColor: LABOUR, borderColor: LABOUR },
+  checkinBtnTxt: { fontSize: 12, fontWeight: '800', color: LABOUR },
+  checkinBtnTxtActive: { color: '#fff' },
 
   tabBar: {
     flexDirection: 'row', backgroundColor: SURFACE,
