@@ -247,10 +247,19 @@ export function AuthProvider({ children }) {
     setUser(prev => (prev ? { ...prev, ...patch } : prev));
   }
 
+  // Sets which side of the Labour marketplace this user is — called once by
+  // the onboarding gate, and again from Settings > Switch mode.
+  async function setLabourRole(labourRole) {
+    const r = await http('PATCH', '/api/auth/labour-role', { labour_role: labourRole });
+    if (r?.ok && r.user) setUser(r.user);
+    return r;
+  }
+
   return (
     <AuthContext.Provider value={{
       user,
       updateUser,
+      setLabourRole,
       role: user?.role ?? null,
       jobs, loadJobs, loadMoreJobs,
       jobPagination, jobPage,
