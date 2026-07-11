@@ -46,6 +46,7 @@ import PostRoomScreen   from './src/screens/PostRoomScreen';
 import BuySellScreen    from './src/screens/BuySellScreen';
 import BuySellDetailScreen from './src/screens/BuySellDetailScreen';
 import LabourScreen     from './src/screens/LabourScreen';
+import LabourEntryScreen from './src/screens/LabourEntryScreen';
 import LabourDetailScreen from './src/screens/LabourDetailScreen';
 import PostLabourProfileScreen from './src/screens/PostLabourProfileScreen';
 import ComingSoonScreen from './src/components/ComingSoonScreen';
@@ -687,7 +688,7 @@ const PostLabourComingSoon = (props) => (
   <ComingSoonScreen {...props} title="Post Labour Profile" subtitle="List your skills and get hired by contractors — launching soon!" icon="construct-outline" />
 );
 
-_LabourScreen          = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? LabourScreen : LabourComingSoon,          'LabourScreen');
+_LabourScreen          = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? LabourEntryScreen : LabourComingSoon,      'LabourScreen');
 _LabourDetailScreen    = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? LabourDetailScreen : LabourComingSoon,    'LabourDetailScreen');
 _PostLabourProfileScreen = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? PostLabourProfileScreen : PostLabourComingSoon, 'PostLabourProfileScreen');
 _HireRequestsScreen    = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? HireRequestsScreen : LabourComingSoon,    'HireRequestsScreen');
