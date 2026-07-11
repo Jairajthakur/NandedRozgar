@@ -474,6 +474,58 @@ async function runMigrations() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_contact_unlock_lookup ON labour_contact_unlocks(contractor_id, labour_id, expires_at)`);
 
+    // Labour earnings pipeline (₹10 hire fee from contractor / ₹5 commission
+    // to labourer). Deliberately kept SEPARATE from users.wallet_balance,
+    // which is the contractor's *spend* wallet — a labourer's commission is
+    // real cash owed to them, not spendable in-app credit, so it gets its
+    // own ledger rather than being mixed into wallet_transactions.
+    //
+    // Lifecycle per row: 'pending' (within the anti-dispute hold window) →
+    // 'available' (past hold, withdrawable) → 'requested' (claimed by a
+    // labour_withdrawals row) → 'paid'. No cron job flips pending→available;
+    // it's computed lazily off available_at wherever balance is read/spent,
+    // same pattern as the "standing at the chowk" check-in expiry.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_payouts (
+        id               SERIAL PRIMARY KEY,
+        hire_request_id  INTEGER REFERENCES hire_requests(id) ON DELETE CASCADE,
+        labour_user_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        amount           NUMERIC(10,2) NOT NULL,
+        status           VARCHAR(20) NOT NULL DEFAULT 'pending'
+                           CHECK (status IN ('pending', 'available', 'requested', 'paid')),
+        available_at     TIMESTAMPTZ NOT NULL,
+        withdrawal_id    INTEGER,
+        created_at       TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(hire_request_id)
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_payouts_user_status ON labour_payouts(labour_user_id, status)`);
+
+    // One withdrawal request = one UPI payout a human admin processes and
+    // marks paid with a UTR reference. No auto-payout gateway wired up yet —
+    // starting manual on purpose so fraud patterns can be eyeballed while
+    // volume is low, same reasoning as Cashfree webhook review elsewhere.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_withdrawals (
+        id             SERIAL PRIMARY KEY,
+        user_id        INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        amount         NUMERIC(10,2) NOT NULL,
+        upi_id         VARCHAR(100) NOT NULL,
+        status         VARCHAR(20) NOT NULL DEFAULT 'requested'
+                         CHECK (status IN ('requested', 'processing', 'paid', 'rejected')),
+        utr_reference  VARCHAR(100),
+        admin_note     TEXT,
+        requested_at   TIMESTAMPTZ DEFAULT NOW(),
+        processed_at   TIMESTAMPTZ
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_withdrawals_user ON labour_withdrawals(user_id, status)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_withdrawals_status ON labour_withdrawals(status)`);
+
+    // KYC: a labourer must have a UPI ID on file before their first
+    // withdrawal request — this is the only "identity" we collect for cash-out.
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS labour_upi_id VARCHAR(100)`);
+
     // FIX (Critical): "Saved workers" — routes/labour.js reads/writes this table
     // in 4 places (GET /:id detail check, POST/DELETE /:id/favourite, GET
     // favourites list), but it was never created here. Every GET /api/labour/:id
