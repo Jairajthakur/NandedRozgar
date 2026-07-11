@@ -153,7 +153,7 @@ function MenuRow({ item, isLast, index }) {
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const nav = useNavigation();
-  const { user, signOut, jobs, setLabourRole } = useAuth();
+  const { user, signOut, jobs } = useAuth();
   const { t } = useLang();
   const [stats,      setStats]      = useState({ applied: 0, saved: 0 });
   const [loading,    setLoading]    = useState(true);
@@ -296,18 +296,14 @@ export default function ProfileScreen() {
     { icon: 'information-circle-outline', label: t('profileMenuAbout'),        onPress: () => nav.navigate('About') },
   ];
 
-  // Only shown once the person has actually chosen a Labour role — lets a
-  // labourer switch back to browsing as a hirer (or vice versa) without
-  // digging through account settings.
-  if (user?.labour_role === 'hirer' || user?.labour_role === 'worker') {
-    const nextRole = user.labour_role === 'hirer' ? 'worker' : 'hirer';
+  // Only shown once the person has actually posted a worker profile — the
+  // Labour tab defaults to their dashboard, so this gives them a quick way
+  // to peek at the browse-workers marketplace without losing that default.
+  if (user?.has_labour_profile) {
     commonMenu.splice(2, 0, {
       icon: 'swap-horizontal-outline',
-      label: user.labour_role === 'hirer' ? 'Switch to Find Work' : 'Switch to Hiring',
-      onPress: async () => {
-        await setLabourRole(nextRole);
-        nav.navigate('Main', { screen: 'Labour' });
-      },
+      label: 'Browse workers',
+      onPress: () => nav.navigate('Main', { screen: 'Labour', params: { forceBrowse: true } }),
     });
   }
 
