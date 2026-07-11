@@ -91,90 +91,64 @@ function LabourCard({ item, onPress, index = 0 }) {
   const initials = (item.full_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
 
+  const statusChip = atChowk
+    ? { bg: '#16a34a', icon: 'walk', label: 'At the chowk today' }
+    : isBusy
+    ? { bg: '#9ca3af', icon: 'time-outline', label: 'Busy this week' }
+    : hasRating && Number(item.rating_avg) >= 4.5
+    ? { bg: ORANGE, icon: 'star', label: 'Top rated' }
+    : null;
+
   return (
     <FadeIn delay={Math.min(index, 8) * 60}>
-      <TouchableOpacity style={cs.card} onPress={onPress} activeOpacity={0.9}>
-        <View style={[cs.accentBar, { backgroundColor: atChowk ? '#16a34a' : isBusy ? '#9ca3af' : isTeam ? '#7c3aed' : gradStart }]} />
-        <View style={cs.cardInner}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {isTeam && (
-              <View style={[cs.badge, { backgroundColor: '#7c3aed', marginBottom: 0 }]}>
-                <Ionicons name="people" size={9} color="#fff" />
-                <Text style={cs.badgeTxt}>TEAM OF {item.team_size}</Text>
+      <TouchableOpacity style={cs.row} onPress={onPress} activeOpacity={0.7}>
+        <View style={cs.photoTile}>
+          {item.photo_url ? (
+            <Image source={{ uri: item.photo_url }} style={cs.photoImg} />
+          ) : (
+            <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.photoImg}>
+              <Text style={cs.photoInitials}>{initials}</Text>
+            </LinearGradient>
+          )}
+          {isTeam && (
+            <View style={cs.teamBadge}>
+              <Ionicons name="people" size={10} color="#fff" />
+              <Text style={cs.teamBadgeTxt}>{item.team_size}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={cs.rowTitleLine}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}>
+              <Text style={cs.rowTitle} numberOfLines={1}>{item.full_name}</Text>
+              {!!item.id_verified && <Ionicons name="shield-checkmark" size={14} color="#2563eb" />}
+            </View>
+            <Ionicons name="chevron-forward" size={19} color="#c4c4cc" />
+          </View>
+
+          <View style={cs.chipRow}>
+            <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
+              <TradeIcon name={item.skill_category} size={13} color={gradStart} />
+              <Text style={[cs.tradeChipTxt, { color: gradStart }]}>{item.skill_category}</Text>
+            </View>
+            {isTeam && !!item.team_composition ? (
+              <View style={cs.plainChip}><Text style={cs.plainChipTxt} numberOfLines={1}>{item.team_composition}</Text></View>
+            ) : !isTeam && !!item.experience_years ? (
+              <View style={cs.plainChip}><Text style={cs.plainChipTxt}>{item.experience_years} yrs experience</Text></View>
+            ) : null}
+            {hasRating && (
+              <View style={cs.plainChip}>
+                <Ionicons name="star" size={10} color="#f59e0b" />
+                <Text style={cs.plainChipTxt}> {Number(item.rating_avg).toFixed(1)} ({item.rating_count})</Text>
               </View>
             )}
-            {atChowk ? (
-              <View style={[cs.badge, { backgroundColor: '#16a34a', marginBottom: 0 }]}>
-                <Ionicons name="walk" size={9} color="#fff" />
-                <Text style={cs.badgeTxt}>AT THE CHOWK TODAY</Text>
+            {statusChip && (
+              <View style={[cs.plainChip, { backgroundColor: statusChip.bg + '18' }]}>
+                <Ionicons name={statusChip.icon} size={10} color={statusChip.bg} />
+                <Text style={[cs.plainChipTxt, { color: statusChip.bg }]}> {statusChip.label}</Text>
               </View>
-            ) : isBusy ? (
-              <View style={[cs.badge, { backgroundColor: '#9ca3af', marginBottom: 0 }]}>
-                <Ionicons name="time-outline" size={9} color="#fff" />
-                <Text style={cs.badgeTxt}>BUSY THIS WEEK</Text>
-              </View>
-            ) : hasRating && Number(item.rating_avg) >= 4.5 ? (
-              <View style={[cs.badge, { backgroundColor: ORANGE, marginBottom: 0 }]}>
-                <Ionicons name="star" size={9} color="#fff" />
-                <Text style={cs.badgeTxt}>TOP RATED</Text>
-              </View>
-            ) : null}
-          </View>
-          {(isTeam || atChowk || isBusy || (hasRating && Number(item.rating_avg) >= 4.5)) && <View style={{ height: 8 }} />}
-
-          <View style={cs.bodyRow}>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <View style={cs.nameRow}>
-                <View style={cs.avatar}>
-                  {item.photo_url ? (
-                    <Image source={{ uri: item.photo_url }} style={cs.avatarImg} />
-                  ) : (
-                    <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.avatarImg}>
-                      <Text style={cs.avatarTxt}>{initials}</Text>
-                    </LinearGradient>
-                  )}
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    <Text style={cs.title} numberOfLines={1}>{item.full_name}</Text>
-                    {!!item.id_verified && <Ionicons name="shield-checkmark" size={14} color="#2563eb" />}
-                  </View>
-                </View>
-              </View>
-
-              <View style={cs.metaRow}>
-                <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
-                  <TradeIcon name={item.skill_category} size={13} color={gradStart} />
-                  <Text style={[cs.tradeChipTxt, { color: gradStart }]}>{item.skill_category}</Text>
-                </View>
-                {isTeam && !!item.team_composition && (
-                  <Text style={cs.subtitle} numberOfLines={1}>{item.team_composition}</Text>
-                )}
-                {!isTeam && !!item.experience_years && (
-                  <Text style={cs.subtitle}>{item.experience_years} yrs experience</Text>
-                )}
-              </View>
-            </View>
-
-            <View style={cs.rightCol}>
-              <Text style={cs.wage}>
-                {item.daily_wage
-                  ? isTeam ? `₹${item.daily_wage}/day (crew)` : `₹${item.daily_wage}/day`
-                  : 'Contact for rate'}
-              </Text>
-              {hasRating ? (
-                <View style={cs.ratingWrap}>
-                  <Ionicons name="star" size={11} color="#f59e0b" />
-                  <Text style={cs.ratingTxt}>{Number(item.rating_avg).toFixed(1)} ({item.rating_count})</Text>
-                </View>
-              ) : (
-                <View style={cs.newPill}><Text style={cs.newPillTxt}>New</Text></View>
-              )}
-              <TouchableOpacity style={cs.hireBtn} onPress={onPress} activeOpacity={0.85}>
-                <Text style={cs.hireTxt}>Hire now</Text>
-                <Ionicons name="arrow-forward" size={13} color="#fff" />
-              </TouchableOpacity>
-            </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -183,46 +157,32 @@ function LabourCard({ item, onPress, index = 0 }) {
 }
 
 const cs = StyleSheet.create({
-  card: {
-    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#ebebeb',
-    marginBottom: 12, overflow: 'hidden', flexDirection: 'row',
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+  row: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
+    paddingVertical: 16, paddingHorizontal: 4,
+    borderBottomWidth: 1, borderBottomColor: '#ececec',
   },
-  accentBar: { width: 4, alignSelf: 'stretch' },
-  cardInner: { flex: 1, padding: 16 },
-  badge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
-    borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8, marginBottom: 8,
+  photoTile: { width: 84, height: 84, borderRadius: 16, overflow: 'hidden', flexShrink: 0 },
+  photoImg: { width: 84, height: 84, alignItems: 'center', justifyContent: 'center' },
+  photoInitials: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  teamBadge: {
+    position: 'absolute', bottom: 4, right: 4, flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#7c3aed', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2,
   },
-  badgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 },
-  bodyRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  rightCol: { alignItems: 'flex-end', gap: 6, flexShrink: 0 },
-  avatar: { width: 46, height: 46, borderRadius: 23, overflow: 'hidden', flexShrink: 0 },
-  avatarImg: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  avatarTxt: { fontSize: 15, fontWeight: '800', color: '#fff' },
-  title: { fontSize: 16, fontWeight: '700', color: '#111', flexShrink: 1 },
-  wage: { fontSize: 13, fontWeight: '700', color: ORANGE, paddingTop: 2, textAlign: 'right' },
-  subtitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  teamBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingTop: 4 },
+  rowTitle: { fontSize: 16, fontWeight: '800', color: '#111', flexShrink: 1 },
+  chipRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   tradeChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#fff7f0', borderRadius: 6, paddingVertical: 3, paddingHorizontal: 7,
+    backgroundColor: '#fff7f0', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10,
   },
-  tradeChipTxt: { fontSize: 11, fontWeight: '700', color: ORANGE },
-  subtitle: { fontSize: 12, color: '#888', fontWeight: '500' },
-  ratingWrap: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 'auto' },
-  ratingTxt: { fontSize: 11, fontWeight: '700', color: '#111' },
-  newPill: { backgroundColor: '#ecfdf5', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, marginLeft: 'auto' },
-  newPillTxt: { fontSize: 10, fontWeight: '700', color: '#059669' },
-  footer: { flexDirection: 'row', alignItems: 'center' },
-  hireBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: ORANGE, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9,
+  tradeChipTxt: { fontSize: 12, fontWeight: '700' },
+  plainChip: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#f3f4f6', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10,
   },
-  hireTxt: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  plainChipTxt: { fontSize: 11, fontWeight: '700', color: '#666' },
 });
 
 // ── Main screen ─────────────────────────────────────────────────────────────
