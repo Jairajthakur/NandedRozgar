@@ -1,44 +1,37 @@
 /**
- * LabourEntryScreen.js — role router for the Labour tab.
+ * LabourEntryScreen.js — router for the Labour tab.
  *
- * Every existing `nav.navigate('Labour')` call site in the app keeps working
- * unchanged; this screen decides *what* renders under that tab:
+ * No more "I Want to Hire" / "I Want to Find Work" question. Instead:
  *
- *   - Not logged in, or logged in with no labour_role yet → LabourRoleGateScreen
- *     ("I Want to Hire" / "I Want to Find Work"). Guests are shown the hiring
- *     marketplace directly (browsing is public) rather than forcing a choice
- *     before they've even signed up.
- *   - labour_role === 'hirer' → LabourScreen (hiring marketplace, unchanged).
- *   - labour_role === 'worker' → HireRequestsScreen (their dashboard for
- *     managing incoming requests / posting their profile).
+ *   - User has already posted their own worker profile (a labour_profiles
+ *     row exists, reflected as user.has_labour_profile) → HireRequestsScreen,
+ *     their dashboard for managing incoming/outgoing hire requests.
+ *   - Everyone else — guests, and logged-in users who haven't posted a
+ *     profile yet — → LabourScreen, the browse-all-workers marketplace.
+ *     From there a "Post my profile" CTA lets them become a worker whenever
+ *     they're ready; the very next time they open the Labour tab they land
+ *     on their dashboard automatically.
  *
- * Profile > Switch mode calls setLabourRole(null-ish reset) then this screen
- * naturally shows the gate again next time the tab opens.
+ * Profile > "Browse workers" (see ProfileScreen) lets a worker peek at the
+ * marketplace without losing their dashboard as the default landing view,
+ * via the `forceBrowse` route param.
  *
  * Place at: src/screens/LabourEntryScreen.js
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import LabourRoleGateScreen from './LabourRoleGateScreen';
 import LabourScreen from './LabourScreen';
 import HireRequestsScreen from './HireRequestsScreen';
 
 export default function LabourEntryScreen(props) {
   const { user } = useAuth();
-  // Local override so the screen updates immediately after a choice,
-  // without waiting on a full AuthContext re-render round trip.
-  const [justChose, setJustChose] = useState(null);
+  const forceBrowse = props?.route?.params?.forceBrowse;
 
-  const labourRole = justChose || user?.labour_role;
-
-  if (user && !labourRole) {
-    return <LabourRoleGateScreen onChoose={(role) => setJustChose(role)} />;
-  }
-
-  if (labourRole === 'worker') {
+  if (user?.has_labour_profile && !forceBrowse) {
     return <HireRequestsScreen {...props} />;
   }
 
-  // Guests, and anyone who chose 'hirer', land on the marketplace.
+  // Guests, hirers with no posted profile yet, and anyone who tapped
+  // "Browse workers" land on the marketplace.
   return <LabourScreen {...props} />;
 }
