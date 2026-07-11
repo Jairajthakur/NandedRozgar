@@ -16,14 +16,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, TextInput, Alert,
+  ActivityIndicator, RefreshControl, TextInput, Alert, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 
 import { http } from '../utils/api';
-import { LABOUR_COLORS, STATUS_META } from '../constants/labourTheme';
+import { LABOUR_COLORS, STATUS_META, SKILL_ICONS, getSkillGradient } from '../constants/labourTheme';
 import { StatusPill } from '../components/labour/LabourUI';
 
 const ORANGE  = LABOUR_COLORS.primary;
@@ -53,6 +54,9 @@ export default function HireRequestsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId]       = useState(null); // hire request currently being updated
 
+  const [myProfile, setMyProfile]       = useState(null);
+  const [profileBusy, setProfileBusy]   = useState(false); // availability/check-in in flight
+
   // Rating modal
   const [rateTarget, setRateTarget]   = useState(null); // the hire request being rated
   const [rateStars, setRateStars]     = useState(0);
@@ -60,12 +64,14 @@ export default function HireRequestsScreen() {
   const [submittingRating, setSubmittingRating] = useState(false);
 
   const load = useCallback(async () => {
-    const [sentRes, receivedRes] = await Promise.all([
+    const [sentRes, receivedRes, mineRes] = await Promise.all([
       http('GET', '/api/labour/hire-requests/sent'),
       http('GET', '/api/labour/hire-requests/received'),
+      http('GET', '/api/labour/mine'),
     ]);
     if (sentRes?.ok) setSent(sentRes.hireRequests || []);
     if (receivedRes?.ok) setReceived(receivedRes.hireRequests || []);
+    if (mineRes?.ok) setMyProfile(mineRes.profile || null);
     setLoading(false);
     setRefreshing(false);
   }, []);
@@ -119,6 +125,38 @@ export default function HireRequestsScreen() {
       setRateTarget(null);
     } else {
       Toast.show({ type: 'error', text1: 'Could not submit rating', text2: res?.error || 'Please try again.' });
+    }
+  };
+
+  const toggleAvailability = async () => {
+    if (!myProfile || profileBusy) return;
+    const next = myProfile.availability === 'available' ? 'busy' : 'available';
+    setProfileBusy(true);
+    const res = await http('PATCH', `/api/labour/${myProfile.id}/availability`, { availability: next });
+    setProfileBusy(false);
+    if (res?.ok) {
+      setMyProfile(p => ({ ...p, availability: next }));
+    } else {
+      Toast.show({ type: 'error', text1: 'Could not update availability', text2: res?.error || 'Please try again.' });
+    }
+  };
+
+  const toggleCheckin = async () => {
+    if (!myProfile || profileBusy) return;
+    setProfileBusy(true);
+    const res = myProfile.checked_in_today
+      ? await http('DELETE', `/api/labour/${myProfile.id}/checkin`)
+      : await http('POST', `/api/labour/${myProfile.id}/checkin`);
+    setProfileBusy(false);
+    if (res?.ok && res.profile) {
+      setMyProfile(p => ({
+        ...p,
+        checked_in_today: res.profile.checked_in_today,
+        availability: res.profile.availability || p.availability,
+      }));
+      Toast.show({ type: 'success', text1: res.profile.checked_in_today ? "You're checked in for today" : 'Checked out' });
+    } else {
+      Toast.show({ type: 'error', text1: 'Could not update check-in', text2: res?.error || 'Please try again.' });
     }
   };
 
@@ -250,8 +288,83 @@ export default function HireRequestsScreen() {
 
   const data = tab === 'sent' ? sent : received;
 
+  const renderDashboardHeader = () => {
+    if (!myProfile) return null;
+    const [gradStart, gradEnd] = getSkillGradient(myProfile.skill_category);
+    const available = myProfile.availability === 'available';
+    return (
+      <View style={st.dashCard}>
+        <View style={st.dashTop}>
+          {myProfile.photo_url ? (
+            <Image source={{ uri: myProfile.photo_url }} style={st.dashAvatarImg} />
+          ) : (
+            <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.dashAvatarImg}>
+              <Ionicons name={SKILL_ICONS[myProfile.skill_category] || 'person-outline'} size={22} color="#fff" />
+            </LinearGradient>
+          )}
+
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={st.dashName} numberOfLines={1}>{myProfile.full_name}</Text>
+            <Text style={st.dashMeta} numberOfLines={1}>
+              {myProfile.skill_category}
+              {myProfile.daily_wage ? ` · ₹${myProfile.daily_wage}/day` : ''}
+            </Text>
+            {myProfile.rating_count > 0 && (
+              <View style={st.dashRatingRow}>
+                <Ionicons name="star" size={12} color="#f59e0b" />
+                <Text style={st.dashRatingTxt}>{myProfile.rating_avg} ({myProfile.rating_count})</Text>
+              </View>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={st.dashEditBtn}
+            onPress={() => nav.navigate('PostLabourProfile')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="create-outline" size={16} color={LABOUR} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={st.dashActionsRow}>
+          <TouchableOpacity
+            style={[st.dashPill, available ? st.dashPillAvailable : st.dashPillBusy]}
+            onPress={toggleAvailability}
+            disabled={profileBusy}
+            activeOpacity={0.85}
+          >
+            <View style={[st.dashDot, { backgroundColor: available ? '#16a34a' : '#d97706' }]} />
+            <Text style={[st.dashPillTxt, { color: available ? '#16a34a' : '#d97706' }]}>
+              {available ? 'Available' : 'Busy this week'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[st.dashPill, myProfile.checked_in_today ? st.dashPillCheckedIn : st.dashPillGhost]}
+            onPress={toggleCheckin}
+            disabled={profileBusy}
+            activeOpacity={0.85}
+          >
+            {profileBusy
+              ? <ActivityIndicator size="small" color={myProfile.checked_in_today ? '#fff' : LABOUR} />
+              : (
+                <>
+                  <Ionicons name="location" size={13} color={myProfile.checked_in_today ? '#fff' : LABOUR} />
+                  <Text style={[st.dashPillTxt, { color: myProfile.checked_in_today ? '#fff' : LABOUR }]}>
+                    {myProfile.checked_in_today ? 'Checked in today' : 'Check in'}
+                  </Text>
+                </>
+              )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={st.root}>
+      {renderDashboardHeader()}
+
       <View style={st.tabBar}>
         <TouchableOpacity
           style={[st.tabBtn, tab === 'sent' && st.tabBtnActive]}
@@ -287,7 +400,7 @@ export default function HireRequestsScreen() {
                   : "No one has sent you a hire request yet."}
               </Text>
               {tab === 'sent' && (
-                <TouchableOpacity style={st.emptyBtn} onPress={() => nav.navigate('Labour')}>
+                <TouchableOpacity style={st.emptyBtn} onPress={() => nav.navigate('Labour', { forceBrowse: true })}>
                   <Text style={st.emptyBtnTxt}>Browse workers</Text>
                 </TouchableOpacity>
               )}
@@ -343,6 +456,33 @@ export default function HireRequestsScreen() {
 const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  dashCard: {
+    backgroundColor: SURFACE, margin: 14, marginBottom: 0, borderRadius: 16,
+    borderWidth: 1, borderColor: BORDER, padding: 14,
+  },
+  dashTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  dashAvatarImg: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  dashName: { fontSize: 15, fontWeight: '800', color: TEXT },
+  dashMeta: { fontSize: 12, color: MUTED, fontWeight: '600', marginTop: 2, textTransform: 'capitalize' },
+  dashRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  dashRatingTxt: { fontSize: 12, color: '#b45309', fontWeight: '700' },
+  dashEditBtn: {
+    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: LABOUR + '15', borderWidth: 1, borderColor: LABOUR + '33',
+  },
+
+  dashActionsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  dashPill: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 9, borderRadius: 10, borderWidth: 1.5,
+  },
+  dashDot: { width: 7, height: 7, borderRadius: 3.5 },
+  dashPillTxt: { fontSize: 12.5, fontWeight: '800' },
+  dashPillAvailable: { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' },
+  dashPillBusy: { backgroundColor: '#fef3c7', borderColor: '#fde68a' },
+  dashPillGhost: { backgroundColor: LABOUR + '10', borderColor: LABOUR + '33' },
+  dashPillCheckedIn: { backgroundColor: LABOUR, borderColor: LABOUR },
 
   tabBar: {
     flexDirection: 'row', backgroundColor: SURFACE,
