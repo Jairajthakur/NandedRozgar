@@ -53,6 +53,7 @@ export default function HireRequestsScreen() {
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId]       = useState(null); // hire request currently being updated
+  const [error, setError]         = useState(null); // set when any of the 3 initial loads fail
 
   const [myProfile, setMyProfile]       = useState(null);
   const [profileBusy, setProfileBusy]   = useState(null); // 'availability' | 'checkin' | null
@@ -69,9 +70,20 @@ export default function HireRequestsScreen() {
       http('GET', '/api/labour/hire-requests/received'),
       http('GET', '/api/labour/mine'),
     ]);
+
+    let failed = false;
     if (sentRes?.ok) setSent(sentRes.hireRequests || []);
+    else failed = true;
     if (receivedRes?.ok) setReceived(receivedRes.hireRequests || []);
+    else failed = true;
     if (mineRes?.ok) setMyProfile(mineRes.profile || null);
+    else failed = true;
+
+    // Surface load failures instead of letting the screen quietly fall back
+    // to its "no requests yet" empty state, which would otherwise look
+    // identical to a genuinely empty inbox.
+    setError(failed ? (sentRes?.error || receivedRes?.error || mineRes?.error || 'Could not load your dashboard right now.') : null);
+
     setLoading(false);
     setRefreshing(false);
   }, []);
@@ -298,12 +310,20 @@ export default function HireRequestsScreen() {
     const [gradStart, gradEnd] = getSkillGradient(myProfile.skill_category);
     const available = myProfile.availability === 'available';
     const checkedIn = myProfile.checked_in_today;
+    const isTeam = myProfile.profile_type === 'team';
+    const perPersonWage = isTeam && myProfile.daily_wage && myProfile.team_size
+      ? Math.round(myProfile.daily_wage / myProfile.team_size)
+      : null;
 
     return (
       <View style={st.dashWrap}>
         {/* ── Hero identity card ─────────────────────────────────────────── */}
         <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.hero}>
-          <View style={st.heroTop}>
+          <TouchableOpacity
+            style={st.heroTop}
+            activeOpacity={0.85}
+            onPress={() => myProfile.id && nav.navigate('LabourDetail', { id: myProfile.id })}
+          >
             {myProfile.photo_url ? (
               <Image source={{ uri: myProfile.photo_url }} style={st.heroAvatar} />
             ) : (
@@ -313,12 +333,21 @@ export default function HireRequestsScreen() {
             )}
 
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={st.heroName} numberOfLines={1}>{myProfile.full_name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text style={st.heroName} numberOfLines={1}>{myProfile.full_name}</Text>
+                {!!myProfile.id_verified && <Ionicons name="shield-checkmark" size={15} color="#fff" />}
+              </View>
               <View style={st.heroBadgeRow}>
                 <View style={st.heroSkillPill}>
                   <Ionicons name={SKILL_ICONS[myProfile.skill_category] || 'briefcase-outline'} size={11} color="#fff" />
                   <Text style={st.heroSkillTxt}>{myProfile.skill_category}</Text>
                 </View>
+                {isTeam && (
+                  <View style={st.heroSkillPill}>
+                    <Ionicons name="people" size={11} color="#fff" />
+                    <Text style={st.heroSkillTxt}>Team of {myProfile.team_size}</Text>
+                  </View>
+                )}
                 {myProfile.rating_count > 0 && (
                   <View style={st.heroSkillPill}>
                     <Ionicons name="star" size={11} color="#fde68a" />
@@ -326,6 +355,9 @@ export default function HireRequestsScreen() {
                   </View>
                 )}
               </View>
+              {isTeam && !!myProfile.team_composition && (
+                <Text style={st.heroTeamComp} numberOfLines={1}>{myProfile.team_composition}</Text>
+              )}
             </View>
 
             <TouchableOpacity
@@ -335,7 +367,7 @@ export default function HireRequestsScreen() {
             >
               <Ionicons name="create-outline" size={17} color="#fff" />
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
 
           <View style={st.heroStatsRow}>
             <View style={st.heroStat}>
@@ -350,9 +382,24 @@ export default function HireRequestsScreen() {
             <View style={st.heroStatDivider} />
             <View style={st.heroStat}>
               <Text style={st.heroStatValue}>{myProfile.daily_wage ? `₹${myProfile.daily_wage}` : '—'}</Text>
-              <Text style={st.heroStatLabel}>Per day</Text>
+              <Text style={st.heroStatLabel}>{isTeam ? 'Team/day' : 'Per day'}</Text>
             </View>
           </View>
+
+          {perPersonWage != null && (
+            <Text style={st.heroPerPersonTxt}>
+              ≈ ₹{perPersonWage}/day per person · {myProfile.team_size} people
+            </Text>
+          )}
+
+          <TouchableOpacity
+            style={st.heroViewProfileRow}
+            activeOpacity={0.8}
+            onPress={() => myProfile.id && nav.navigate('LabourDetail', { id: myProfile.id })}
+          >
+            <Text style={st.heroViewProfileTxt}>View your public profile & today's chowk stats</Text>
+            <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.85)" />
+          </TouchableOpacity>
         </LinearGradient>
 
         {/* ── Duty status card (Uber/Ola-style toggle) ───────────────────── */}
@@ -411,6 +458,16 @@ export default function HireRequestsScreen() {
   return (
     <View style={st.root}>
       {renderDashboardHeader()}
+
+      {!!error && (
+        <View style={st.errorBanner}>
+          <Ionicons name="alert-circle" size={16} color="#b91c1c" />
+          <Text style={st.errorBannerTxt}>{error}</Text>
+          <TouchableOpacity onPress={() => { setLoading(true); load(); }} style={st.errorBannerBtn}>
+            <Text style={st.errorBannerBtnTxt}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={st.tabBar}>
         <TouchableOpacity
@@ -506,6 +563,15 @@ const st = StyleSheet.create({
 
   dashWrap: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 6, gap: 12 },
 
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: 14, marginTop: 10, padding: 10,
+    backgroundColor: '#fee2e2', borderRadius: 12, borderWidth: 1, borderColor: '#fecaca',
+  },
+  errorBannerTxt: { flex: 1, fontSize: 12.5, color: '#b91c1c', fontWeight: '600' },
+  errorBannerBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: '#b91c1c' },
+  errorBannerBtnTxt: { fontSize: 11.5, fontWeight: '800', color: '#fff' },
+
   hero: {
     borderRadius: 20, padding: 16,
     shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
@@ -538,6 +604,13 @@ const st = StyleSheet.create({
   heroStatValue: { fontSize: 15, fontWeight: '900', color: '#fff' },
   heroStatLabel: { fontSize: 10.5, fontWeight: '600', color: 'rgba(255,255,255,0.85)', marginTop: 2 },
   heroStatDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.25)' },
+
+  heroTeamComp: { fontSize: 10.5, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginTop: 4 },
+  heroPerPersonTxt: { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginTop: 8, textAlign: 'center' },
+  heroViewProfileRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 12,
+  },
+  heroViewProfileTxt: { fontSize: 11.5, color: 'rgba(255,255,255,0.9)', fontWeight: '700' },
 
   statusCard: {
     backgroundColor: SURFACE, borderRadius: 18, borderWidth: 1, borderColor: BORDER,
