@@ -864,7 +864,7 @@ router.get('/hire-requests/sent', auth, async (req, res) => {
 router.get('/hire-requests/received', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT hr.*, u.name AS contractor_name
+      SELECT hr.*, u.name AS contractor_name, u.phone AS contractor_phone
       FROM hire_requests hr
       JOIN labour_profiles l ON l.id = hr.labour_id
       JOIN users u ON u.id = hr.contractor_id
