@@ -17,6 +17,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl, TextInput, Alert, Image, Switch, Platform,
+  Linking, Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,6 +35,36 @@ const SURFACE = LABOUR_COLORS.surface;
 const TEXT    = LABOUR_COLORS.text;
 const MUTED   = LABOUR_COLORS.textMuted;
 const BORDER  = 'rgba(0,0,0,0.07)';
+
+// India's unified emergency helpline (police / fire / ambulance).
+const EMERGENCY_NUMBER = '112';
+
+async function callSOS() {
+  try {
+    await Linking.openURL(`tel:${EMERGENCY_NUMBER}`);
+  } catch {
+    Alert.alert('Could not open dialer', `Please dial ${EMERGENCY_NUMBER} directly.`);
+  }
+}
+
+// Lets a worker send the job location/contractor phone to a family member
+// before heading out — plain-text share sheet so it works over WhatsApp,
+// SMS, or any other app the person already has installed.
+async function shareHireDetails(item) {
+  const lines = [
+    'Heading for a job — sharing details via NandedRozgar:',
+    item.contractor_name ? `Contractor: ${item.contractor_name}` : null,
+    item.contractor_phone ? `Contact number: ${item.contractor_phone}` : null,
+    item.work_description ? `Work: ${item.work_description}` : null,
+    item.proposed_wage ? `Wage: ₹${item.proposed_wage}/day` : null,
+    formatDate(item.work_date) ? `Date: ${formatDate(item.work_date)}` : null,
+  ].filter(Boolean).join('\n');
+  try {
+    await Share.share({ message: lines });
+  } catch {
+    // user cancelled the share sheet — nothing to do
+  }
+}
 
 function formatDate(d) {
   if (!d) return null;
@@ -114,6 +145,17 @@ export default function HireRequestsScreen() {
     } else {
       doUpdate();
     }
+  };
+
+  const confirmSOS = () => {
+    Alert.alert(
+      'Call emergency helpline?',
+      `This will dial ${EMERGENCY_NUMBER}, India's emergency helpline (police / fire / ambulance).`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: `Call ${EMERGENCY_NUMBER}`, style: 'destructive', onPress: callSOS },
+      ]
+    );
   };
 
   const openRateModal = (hireRequest) => {
@@ -248,13 +290,27 @@ export default function HireRequestsScreen() {
     }
     if (item.status === 'accepted') {
       return (
-        <TouchableOpacity
-          style={[st.actionBtn, st.actionBtnPrimary]}
-          disabled={busy}
-          onPress={() => updateStatus(item, 'completed', 'Mark this work as completed?')}
-        >
-          {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.actionBtnPrimaryTxt}>Mark completed</Text>}
-        </TouchableOpacity>
+        <View>
+          <TouchableOpacity
+            style={[st.actionBtn, st.actionBtnPrimary]}
+            disabled={busy}
+            onPress={() => updateStatus(item, 'completed', 'Mark this work as completed?')}
+          >
+            {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.actionBtnPrimaryTxt}>Mark completed</Text>}
+          </TouchableOpacity>
+
+          {/* ── Safety row: before heading to the job ─────────────────────── */}
+          <View style={st.safetyRow}>
+            <TouchableOpacity style={st.safetyBtn} onPress={() => shareHireDetails(item)} activeOpacity={0.8}>
+              <Ionicons name="share-social-outline" size={14} color={LABOUR} />
+              <Text style={st.safetyBtnTxt}>Share job details</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[st.safetyBtn, st.sosBtn]} onPress={confirmSOS} activeOpacity={0.8}>
+              <Ionicons name="alert-circle" size={14} color="#dc2626" />
+              <Text style={[st.safetyBtnTxt, st.sosBtnTxt]}>SOS</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       );
     }
     return null;
@@ -359,6 +415,14 @@ export default function HireRequestsScreen() {
                 <Text style={st.heroTeamComp} numberOfLines={1}>{myProfile.team_composition}</Text>
               )}
             </View>
+
+            <TouchableOpacity
+              style={st.heroSosBtn}
+              onPress={confirmSOS}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="alert-circle" size={17} color="#fff" />
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={st.heroEditBtn}
@@ -609,6 +673,11 @@ const st = StyleSheet.create({
     width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)',
   },
+  heroSosBtn: {
+    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(220,38,38,0.35)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)',
+    marginRight: 8,
+  },
 
   heroStatsRow: {
     flexDirection: 'row', alignItems: 'center', marginTop: 16,
@@ -680,6 +749,16 @@ const st = StyleSheet.create({
 
   ratedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', paddingVertical: 6 },
   ratedTxt: { fontSize: 13, fontWeight: '700', color: '#15803d' },
+
+  safetyRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  safetyBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    paddingVertical: 8, borderRadius: 10,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER,
+  },
+  safetyBtnTxt: { fontSize: 12, fontWeight: '700', color: LABOUR },
+  sosBtn: { backgroundColor: '#fef2f2', borderColor: '#fecaca' },
+  sosBtnTxt: { color: '#dc2626' },
 
   empty: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 10 },
   emptyTxt: { fontSize: 13, color: MUTED, fontWeight: '600', textAlign: 'center', paddingHorizontal: 30 },
