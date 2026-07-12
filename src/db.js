@@ -182,6 +182,11 @@ async function runMigrations() {
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS status          VARCHAR(20)  DEFAULT 'active'`,
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS fresher_ok      BOOLEAN      DEFAULT FALSE`,
       `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS address         TEXT`,
+      // Optional precise coordinates (captured from the poster's device via
+      // expo-location) used for geo-fenced job alerts. Text `location`/
+      // `district` stay the primary fields; these are only used when present.
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS lat             DOUBLE PRECISION`,
+      `ALTER TABLE jobs  ADD COLUMN IF NOT EXISTS lng             DOUBLE PRECISION`,
 
       `ALTER TABLE applications ADD COLUMN IF NOT EXISTS status   VARCHAR(20)  DEFAULT 'applied'`,
 
@@ -553,6 +558,178 @@ async function runMigrations() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_favourites_contractor ON labour_favourites(contractor_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_favourites_labour ON labour_favourites(labour_id)`);
+
+    // ── Voice Bio — a 30s audio intro recorded in-app for laborers who find
+    // typing a written profile difficult. Stored the same way profile photos
+    // are (as a URL from the existing /api/upload pipeline), so no new
+    // storage integration is needed — just a place to point to it.
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS voice_bio_url TEXT`);
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS voice_bio_duration_sec INTEGER`);
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS voice_bio_lang VARCHAR(10) DEFAULT 'mr'`);
+
+    // ── "Available right now" live toggle — distinct from the longer-lived
+    // `availability` enum. This is the literal on/off switch a worker flips
+    // on their home screen to say "I'm ready to pack my tools and go right
+    // now", surfaced to contractors on the radar map below. Auto-expires via
+    // available_until so a worker who forgets to switch it off doesn't stay
+    // listed as available forever (checked lazily like checked_in_until).
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS is_available_now BOOLEAN DEFAULT FALSE`);
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS available_until TIMESTAMPTZ`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_available_now ON labour_profiles(is_available_now) WHERE is_available_now = TRUE`);
+
+    // ── Geo coordinates for the Contractor Radar Map / "Digital Labour
+    // Chowk". Distinct from the free-text `location` (micro-neighbourhood
+    // name) field — this is a precise lat/lng captured from the device so
+    // contractors can be shown workers within an actual radius, not just a
+    // name match.
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION`);
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION`);
+
+    // ── Geo-fenced job alerts — job_alerts previously matched only on
+    // category/keywords. These columns let a laborer say "only alert me for
+    // work within N km of my neighborhood" instead of the whole district.
+    await client.query(`ALTER TABLE job_alerts ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION`);
+    await client.query(`ALTER TABLE job_alerts ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION`);
+    await client.query(`ALTER TABLE job_alerts ADD COLUMN IF NOT EXISTS radius_km INTEGER DEFAULT 10`);
+    await client.query(`ALTER TABLE job_alerts ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT TRUE`);
+
+    // ── Daily Wage Attendance & Timekeeping ──────────────────────────────────
+    // One row per worker per day per hire. A contractor punches a worker in
+    // when they show up on site and punches out at end of day; this is the
+    // "digital sheet" replacing a paper muster roll. Tied to a hire_request
+    // so attendance always has a contractor + agreed wage context, but a
+    // hire_request can span several attendance rows if the same hire covers
+    // multiple days.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_attendance (
+        id               SERIAL PRIMARY KEY,
+        hire_request_id  INTEGER REFERENCES hire_requests(id) ON DELETE CASCADE,
+        labour_id        INTEGER REFERENCES labour_profiles(id) ON DELETE CASCADE,
+        contractor_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        work_date        DATE NOT NULL DEFAULT CURRENT_DATE,
+        punch_in_at      TIMESTAMPTZ,
+        punch_out_at     TIMESTAMPTZ,
+        punch_in_lat     DOUBLE PRECISION,
+        punch_in_lng     DOUBLE PRECISION,
+        punch_out_lat    DOUBLE PRECISION,
+        punch_out_lng    DOUBLE PRECISION,
+        status           VARCHAR(20) NOT NULL DEFAULT 'present'
+                           CHECK (status IN ('present', 'absent', 'half_day')),
+        wage_for_day     NUMERIC(10,2),
+        notes            TEXT,
+        created_at       TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(hire_request_id, work_date)
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_attendance_labour   ON labour_attendance(labour_id, work_date DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_attendance_contractor ON labour_attendance(contractor_id, work_date DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_attendance_hire     ON labour_attendance(hire_request_id)`);
+
+    // ── Group/Crew Team Creator ──────────────────────────────────────────────
+    // A lead worker (mistri) creates a crew and adds their regular helpers.
+    // Kept as its own table (rather than overloading the existing
+    // profile_type='team' single-profile pattern) so an individual worker can
+    // belong to more than one crew and a crew's membership can change over
+    // time without touching the leader's own labour_profiles row.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_crews (
+        id               SERIAL PRIMARY KEY,
+        leader_labour_id INTEGER REFERENCES labour_profiles(id) ON DELETE CASCADE,
+        name             VARCHAR(100) NOT NULL,
+        description      TEXT,
+        combined_wage    INTEGER,
+        status           VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disbanded')),
+        created_at       TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crews_leader ON labour_crews(leader_labour_id)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_crew_members (
+        id          SERIAL PRIMARY KEY,
+        crew_id     INTEGER REFERENCES labour_crews(id) ON DELETE CASCADE,
+        labour_id   INTEGER REFERENCES labour_profiles(id) ON DELETE CASCADE,
+        role_label  VARCHAR(50) DEFAULT 'Helper',
+        added_at    TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(crew_id, labour_id)
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crew_members_crew ON labour_crew_members(crew_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crew_members_labour ON labour_crew_members(labour_id)`);
+
+    // A crew can be hired as one unit — each member still gets their own
+    // hire_requests row (so existing attendance/payout/rating logic keeps
+    // working per-person unmodified), grouped by a shared crew_hire_id.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_crew_hires (
+        id            SERIAL PRIMARY KEY,
+        crew_id       INTEGER REFERENCES labour_crews(id) ON DELETE CASCADE,
+        contractor_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        work_date     DATE,
+        created_at    TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`ALTER TABLE hire_requests ADD COLUMN IF NOT EXISTS crew_hire_id INTEGER REFERENCES labour_crew_hires(id) ON DELETE SET NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_hire_requests_crew_hire ON hire_requests(crew_hire_id) WHERE crew_hire_id IS NOT NULL`);
+
+    // ── Micro-Skill Verification Badges ──────────────────────────────────────
+    // A contractor who completed a hire can endorse a specific named skill
+    // (e.g. "Tiling"). Once 3 DISTINCT contractors endorse the same skill for
+    // the same worker, that skill becomes a verified badge. One endorsement
+    // per contractor/labourer/skill/hire so it can't be farmed by repeat
+    // hiring of the same pair.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_skill_endorsements (
+        id              SERIAL PRIMARY KEY,
+        labour_id       INTEGER REFERENCES labour_profiles(id) ON DELETE CASCADE,
+        contractor_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        hire_request_id INTEGER REFERENCES hire_requests(id) ON DELETE CASCADE,
+        skill_name      VARCHAR(50) NOT NULL,
+        created_at      TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(contractor_id, labour_id, skill_name, hire_request_id)
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_skill_endorsements_labour ON labour_skill_endorsements(labour_id, skill_name)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_skill_badges (
+        id                 SERIAL PRIMARY KEY,
+        labour_id          INTEGER REFERENCES labour_profiles(id) ON DELETE CASCADE,
+        skill_name         VARCHAR(50) NOT NULL,
+        endorsement_count  INTEGER NOT NULL DEFAULT 0,
+        is_verified        BOOLEAN NOT NULL DEFAULT FALSE,
+        verified_at        TIMESTAMPTZ,
+        UNIQUE(labour_id, skill_name)
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_skill_badges_labour ON labour_skill_badges(labour_id) WHERE is_verified = TRUE`);
+
+    // ── Wage Guarantee / Escrow ───────────────────────────────────────────────
+    // A contractor funds the agreed wage for a hire_request UP FRONT from
+    // their wallet_balance (same wallet already used for contact unlocks —
+    // no new payment integration needed). Funds sit in `funded` status,
+    // invisible to the labourer as spendable, until the contractor confirms
+    // the day/week's work is done, at which point they're released straight
+    // into the existing labour_payouts pipeline (same 48h dispute hold that
+    // already governs a normal hire completion). If work never happens, the
+    // contractor can reclaim the deposit via refund.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS escrow_deposits (
+        id               SERIAL PRIMARY KEY,
+        hire_request_id  INTEGER NOT NULL UNIQUE REFERENCES hire_requests(id) ON DELETE CASCADE,
+        contractor_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        labour_id        INTEGER REFERENCES labour_profiles(id) ON DELETE CASCADE,
+        amount           NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+        status           VARCHAR(20) NOT NULL DEFAULT 'funded'
+                           CHECK (status IN ('funded', 'released', 'refunded')),
+        funded_at        TIMESTAMPTZ DEFAULT NOW(),
+        released_at      TIMESTAMPTZ,
+        refunded_at      TIMESTAMPTZ,
+        release_reason   TEXT
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_escrow_contractor ON escrow_deposits(contractor_id, status)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_escrow_labour ON escrow_deposits(labour_id, status)`);
 
     // DB-level safety net: wallet_balance should never go negative even if an
     // app-level bug lets a debit through without checking the balance first.
