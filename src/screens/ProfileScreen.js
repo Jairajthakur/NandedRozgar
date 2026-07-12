@@ -289,6 +289,7 @@ export default function ProfileScreen() {
     // Bug fix #13: ChatListScreen was registered in the Stack Navigator and
     // linking config but had no reachable entry point in the UI. Added here
     // so every user role (seeker, employer, admin) can access their messages.
+    { icon: 'wallet-outline',             label: t('profileMenuWallet'),       onPress: () => nav.navigate('Wallet') },
     { icon: 'flash-outline',              label: t('profileMenuMonthlyPlan'),  onPress: () => nav.navigate('MonthlyPlan') },
     { icon: 'chatbubbles-outline',        label: t('profileMenuMyMessages'),   onPress: () => nav.navigate('ChatList') },
     { icon: 'share-social-outline',       label: t('profileMenuReferEarn'),    onPress: () => nav.navigate('Referral') },
