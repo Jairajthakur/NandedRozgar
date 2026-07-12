@@ -555,6 +555,209 @@ router.patch('/:id/availability', auth, async (req, res) => {
   }
 });
 
+// PATCH /api/labour/:id/live-now — "Available right now" toggle for the
+// Digital Labour Chowk. Distinct from the longer-lived `availability` enum:
+// this is the on/off switch a worker flips to say "I'm ready to grab my
+// tools and come right now", auto-expiring at end of day (IST) so a forgotten
+// toggle doesn't leave them listed as available forever.
+router.patch('/:id/live-now', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { isAvailable, lat, lng } = req.body;
+
+    const availableUntil = isAvailable
+      ? new Date(new Date().setHours(23, 59, 59, 999))
+      : null;
+
+    const hasCoords = Number.isFinite(parseFloat(lat)) && Number.isFinite(parseFloat(lng));
+
+    const { rows } = await pool.query(`
+      UPDATE labour_profiles SET
+        is_available_now = $1,
+        available_until   = $2,
+        lat = COALESCE($3, lat),
+        lng = COALESCE($4, lng)
+      WHERE id = $5 AND user_id = $6
+      RETURNING *
+    `, [!!isAvailable, availableUntil, hasCoords ? parseFloat(lat) : null, hasCoords ? parseFloat(lng) : null, id, req.user.id]);
+
+    if (!rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+
+    await cache.delPrefix('labour:');
+    res.json({ ok: true, profile: rows[0] });
+  } catch (err) {
+    console.error('[labour] live-now error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to update live status' });
+  }
+});
+
+// GET /api/labour/radar — Contractor Radar Map: workers who are "Available
+// right now" within a radius (km) of the contractor's current location.
+// Falls back to district-only filtering if no lat/lng is supplied.
+router.get('/nearby/radar', async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const radiusKm = Math.min(25, Math.max(1, parseInt(req.query.radiusKm, 10) || 5));
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+    const params = [];
+    let distanceSelect = 'NULL AS distance_km';
+    let distanceFilter = '';
+    if (hasCoords) {
+      params.push(lat, lng);
+      distanceSelect = `(
+        6371 * acos(LEAST(1, GREATEST(-1,
+          cos(radians(l.lat)) * cos(radians($${params.length - 1})) *
+          cos(radians($${params.length}) - radians(l.lng)) +
+          sin(radians(l.lat)) * sin(radians($${params.length - 1}))
+        )))
+      ) AS distance_km`;
+      distanceFilter = `AND l.lat IS NOT NULL AND l.lng IS NOT NULL AND (
+        6371 * acos(LEAST(1, GREATEST(-1,
+          cos(radians(l.lat)) * cos(radians($${params.length - 1})) *
+          cos(radians($${params.length}) - radians(l.lng)) +
+          sin(radians(l.lat)) * sin(radians($${params.length - 1}))
+        )))
+      ) <= ${radiusKm}`;
+    }
+
+    const { rows } = await pool.query(`
+      SELECT l.id, l.full_name, l.skill_category, l.daily_wage, l.location,
+             l.district, l.photo_url, l.rating_avg, l.rating_count,
+             l.profile_type, l.team_size, ${distanceSelect}
+      FROM labour_profiles l
+      JOIN users u ON u.id = l.user_id
+      WHERE l.status = 'active' AND u.active = true
+        AND l.is_available_now = TRUE
+        AND (l.available_until IS NULL OR l.available_until > NOW())
+        ${distanceFilter}
+      ORDER BY ${hasCoords ? 'distance_km ASC' : 'l.created_at DESC'}
+      LIMIT 50
+    `, params);
+
+    res.json({ ok: true, workers: rows, radiusKm: hasCoords ? radiusKm : null });
+  } catch (err) {
+    console.error('[labour] radar error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load nearby workers' });
+  }
+});
+
+// POST /api/labour/:id/endorse-skill — Micro-Skill Verification Badges.
+// A contractor who completed a hire with this worker endorses a specific
+// named skill (e.g. "Tiling"). Once 3 distinct contractors have endorsed the
+// same skill, it becomes a verified badge shown on the worker's card.
+router.post('/:id/endorse-skill', auth, async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    const { skillName, hireRequestId } = req.body;
+    const skill = (skillName || '').trim().slice(0, 50);
+    if (!skill) return res.status(400).json({ ok: false, error: 'skillName is required' });
+    if (!hireRequestId) return res.status(400).json({ ok: false, error: 'hireRequestId is required' });
+
+    // Only the contractor on a COMPLETED hire with this worker can endorse —
+    // prevents strangers from padding a worker's badge count.
+    const { rows: hrRows } = await pool.query(
+      `SELECT id FROM hire_requests WHERE id = $1 AND labour_id = $2 AND contractor_id = $3 AND status = 'completed'`,
+      [hireRequestId, labourId, req.user.id]
+    );
+    if (!hrRows.length) {
+      return res.status(403).json({ ok: false, error: 'You can only endorse skills for a completed hire with this worker' });
+    }
+
+    await pool.query(`
+      INSERT INTO labour_skill_endorsements (labour_id, contractor_id, hire_request_id, skill_name)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (contractor_id, labour_id, skill_name, hire_request_id) DO NOTHING
+    `, [labourId, req.user.id, hireRequestId, skill]);
+
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(DISTINCT contractor_id)::int AS n FROM labour_skill_endorsements WHERE labour_id = $1 AND skill_name = $2`,
+      [labourId, skill]
+    );
+    const n = countRows[0].n;
+    const VERIFY_THRESHOLD = 3;
+
+    const { rows: badgeRows } = await pool.query(`
+      INSERT INTO labour_skill_badges (labour_id, skill_name, endorsement_count, is_verified, verified_at)
+      VALUES ($1, $2, $3, $4, CASE WHEN $4 THEN NOW() ELSE NULL END)
+      ON CONFLICT (labour_id, skill_name) DO UPDATE SET
+        endorsement_count = $3,
+        is_verified = $4,
+        verified_at = COALESCE(labour_skill_badges.verified_at, CASE WHEN $4 THEN NOW() ELSE NULL END)
+      RETURNING *
+    `, [labourId, skill, n, n >= VERIFY_THRESHOLD]);
+
+    res.json({ ok: true, badge: badgeRows[0] });
+  } catch (err) {
+    console.error('[labour] endorse-skill error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to endorse skill' });
+  }
+});
+
+// GET /api/labour/:id/badges — public list of a worker's verified skill badges
+router.get('/:id/badges', async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    const { rows } = await pool.query(
+      `SELECT skill_name, endorsement_count, is_verified, verified_at
+       FROM labour_skill_badges WHERE labour_id = $1 AND is_verified = TRUE ORDER BY verified_at ASC`,
+      [labourId]
+    );
+    res.json({ ok: true, badges: rows });
+  } catch (err) {
+    console.error('[labour] badges error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load badges' });
+  }
+});
+
+// PATCH /api/labour/:id/voice-bio — save the URL of a recorded audio intro
+// (uploaded beforehand via POST /api/upload) plus its duration/language.
+// Lets literacy-challenged workers speak their profile instead of typing it.
+router.patch('/:id/voice-bio', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { voiceBioUrl, durationSec, lang } = req.body;
+    if (!voiceBioUrl) return res.status(400).json({ ok: false, error: 'voiceBioUrl is required' });
+
+    const dur = Math.min(60, Math.max(1, parseInt(durationSec, 10) || 30));
+
+    const { rows } = await pool.query(`
+      UPDATE labour_profiles SET
+        voice_bio_url = $1,
+        voice_bio_duration_sec = $2,
+        voice_bio_lang = $3
+      WHERE id = $4 AND user_id = $5
+      RETURNING *
+    `, [voiceBioUrl, dur, (lang || 'mr').slice(0, 10), id, req.user.id]);
+
+    if (!rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+    await cache.delPrefix('labour:');
+    res.json({ ok: true, profile: rows[0] });
+  } catch (err) {
+    console.error('[labour] voice-bio error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to save voice bio' });
+  }
+});
+
+// DELETE /api/labour/:id/voice-bio — remove a recorded voice bio
+router.delete('/:id/voice-bio', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { rows } = await pool.query(
+      `UPDATE labour_profiles SET voice_bio_url = NULL, voice_bio_duration_sec = NULL
+       WHERE id = $1 AND user_id = $2 RETURNING *`,
+      [id, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+    await cache.delPrefix('labour:');
+    res.json({ ok: true, profile: rows[0] });
+  } catch (err) {
+    console.error('[labour] delete voice-bio error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to remove voice bio' });
+  }
+});
+
 // POST /api/labour/:id/unlock — pay-per-day contact unlock, paid from the
 // in-app wallet instead of a per-unlock Cashfree checkout.
 // Replaces the old two-step POST /api/payments/order+verify/labour-contact
