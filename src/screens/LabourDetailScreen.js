@@ -66,7 +66,7 @@ export default function LabourDetailScreen() {
   // Pay-per-day contact unlock
   const [contactUnlocked, setContactUnlocked] = useState(false);
   const [unlockExpiresAt, setUnlockExpiresAt] = useState(null);
-  const [ratePerDay, setRatePerDay]           = useState(8);
+  const [ratePerDay, setRatePerDay]           = useState(10);
   const [days, setDays]                       = useState(1);
   const [unlocking, setUnlocking]             = useState(false);
   const [hasPhone, setHasPhone]               = useState(true);
