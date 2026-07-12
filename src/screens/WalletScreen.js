@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 
 import { http } from '../utils/api';
@@ -54,6 +55,8 @@ function formatDateTime(d) {
 }
 
 export default function WalletScreen() {
+  const route = useRoute();
+  const suggestedAmount = route.params?.suggestedAmount;
   const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http });
 
   const [balance, setBalance]         = useState(null);
@@ -62,7 +65,7 @@ export default function WalletScreen() {
   const [refreshing, setRefreshing]   = useState(false);
   const [error, setError]             = useState(null);
 
-  const [customAmount, setCustomAmount] = useState('');
+  const [customAmount, setCustomAmount] = useState(suggestedAmount ? String(suggestedAmount) : '');
   const [toppingUp, setToppingUp]       = useState(false);
 
   const load = useCallback(async () => {
@@ -143,6 +146,13 @@ export default function WalletScreen() {
           <Text style={st.heroNote}>Used to unlock worker contacts & pay hire fees.</Text>
         </LinearGradient>
 
+        {!!suggestedAmount && (
+          <View style={st.suggestBanner}>
+            <Ionicons name="information-circle" size={16} color="#1d4ed8" />
+            <Text style={st.suggestBannerTxt}>Add ₹{suggestedAmount} to have enough for what you were about to pay for.</Text>
+          </View>
+        )}
+
         {/* ── Add money ────────────────────────────────────────────────── */}
         <View style={st.card}>
           <Text style={st.cardTitle}>Add money</Text>
@@ -222,6 +232,13 @@ const st = StyleSheet.create({
     backgroundColor: '#fee2e2', borderRadius: 12, borderWidth: 1, borderColor: '#fecaca',
   },
   errorBannerTxt: { flex: 1, fontSize: 12.5, color: '#b91c1c', fontWeight: '600' },
+
+  suggestBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginBottom: 10, padding: 10,
+    backgroundColor: '#eff6ff', borderRadius: 12, borderWidth: 1, borderColor: '#bfdbfe',
+  },
+  suggestBannerTxt: { flex: 1, fontSize: 12.5, color: '#1d4ed8', fontWeight: '600' },
 
   hero: {
     borderRadius: 20, padding: 18,
