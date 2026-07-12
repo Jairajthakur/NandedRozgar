@@ -13,7 +13,11 @@ const MAX_UNLOCK_DAYS = 30;         // sanity cap on a single wallet debit, not 
 // Single source of truth for the contact-unlock rate — the old duplicate in
 // routes/payments.js is gone now that unlocks are a wallet debit handled
 // entirely here instead of a separate Cashfree checkout per unlock.
-const CONTACT_RATE_PER_DAY = 8;
+// Contact unlock: ₹10/day total, split ₹5 platform / ₹5 to the labourer,
+// credited instantly (no hold — the contractor already got the phone number
+// they paid for, so unlike a hire completion there's nothing to dispute).
+const CONTACT_RATE_PER_DAY = 10;
+const CONTACT_COMMISSION_PER_DAY = 5;
 
 // ── Labour earnings pipeline ────────────────────────────────────────────────
 // Charged to the contractor when a hire request is ACCEPTED (not when sent —
@@ -620,6 +624,15 @@ router.post('/:id/unlock', auth, async (req, res) => {
       VALUES ($1, 'debit', $2, $3, 'labour_contact_unlock', 'labour_contact_unlocks', $4)
     `, [req.user.id, amount, newBalance, unlockRows[0].id]);
 
+    // Labourer's ₹5/day commission — instantly available, unlike the
+    // hire-completion commission which sits held for PAYOUT_HOLD_HOURS.
+    const commission = days * CONTACT_COMMISSION_PER_DAY;
+    await client.query(`
+      INSERT INTO labour_payouts (contact_unlock_id, labour_user_id, amount, status, available_at, source)
+      VALUES ($1, $2, $3, 'available', NOW(), 'contact_unlock')
+      ON CONFLICT (contact_unlock_id) WHERE contact_unlock_id IS NOT NULL DO NOTHING
+    `, [unlockRows[0].id, labourRows[0].user_id, commission]);
+
     const { rows: profileRows } = await client.query(`
       SELECT l.*, u.name AS user_name, u.phone AS user_phone
       FROM labour_profiles l JOIN users u ON u.id = l.user_id
@@ -633,6 +646,7 @@ router.post('/:id/unlock', auth, async (req, res) => {
       expiresAt,
       days,
       amount,
+      commissionCredited: commission,
       walletBalance: parseFloat(newBalance),
     });
   } catch (err) {
@@ -1022,11 +1036,13 @@ router.get('/payouts/mine', auth, async (req, res) => {
     `, [req.user.id]);
 
     const { rows: ledger } = await pool.query(`
-      SELECT p.id, p.hire_request_id, p.amount, p.status, p.available_at, p.created_at,
-             u.name AS contractor_name
+      SELECT p.id, p.hire_request_id, p.contact_unlock_id, p.source, p.amount, p.status, p.available_at, p.created_at,
+             COALESCE(hu.name, cu.name) AS contractor_name
       FROM labour_payouts p
-      JOIN hire_requests hr ON hr.id = p.hire_request_id
-      JOIN users u ON u.id = hr.contractor_id
+      LEFT JOIN hire_requests hr ON hr.id = p.hire_request_id
+      LEFT JOIN users hu ON hu.id = hr.contractor_id
+      LEFT JOIN labour_contact_unlocks lcu ON lcu.id = p.contact_unlock_id
+      LEFT JOIN users cu ON cu.id = lcu.contractor_id
       WHERE p.labour_user_id = $1
       ORDER BY p.created_at DESC LIMIT 50
     `, [req.user.id]);
