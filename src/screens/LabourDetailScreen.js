@@ -25,7 +25,6 @@ import Toast from 'react-native-toast-message';
 
 import { http } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { useRazorpayCheckout } from '../utils/cashfree';
 import BannerAd from '../components/ads/BannerAd';
 import { useIsPremium } from '../hooks/useIsPremium';
 import { LABOUR_COLORS } from '../constants/labourTheme';
@@ -52,7 +51,6 @@ export default function LabourDetailScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { id } = route.params || {};
-  const { RazorpayCheckout, initiatePayment } = useRazorpayCheckout({ http });
   const isPremium = useIsPremium();
 
   const [profile, setProfile]   = useState(null);
@@ -78,7 +76,6 @@ export default function LabourDetailScreen() {
   const [leaderboard, setLeaderboard]         = useState(null);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [walletBalance, setWalletBalance]     = useState(null);
-  const [toppingUp, setToppingUp]             = useState(false);
 
   const isOwnProfile = !!(user && profile && user.id === profile.user_id);
 
@@ -120,35 +117,6 @@ export default function LabourDetailScreen() {
     });
   }, [user?.id]);
 
-  // Tops up the wallet via the generic Cashfree flow (same modal/hook used
-  // everywhere else in the app), then resolves with the fresh balance.
-  const topUpWallet = async (amount) => {
-    setToppingUp(true);
-    const payResult = await initiatePayment({
-      description:   `Wallet top-up — ₹${amount}`,
-      orderEndpoint: '/api/payments/wallet/topup/order',
-      orderBody:     { amount },
-    });
-    if (!payResult.success) {
-      setToppingUp(false);
-      if (!payResult.cancelled) {
-        Toast.show({ type: 'error', text1: 'Top-up failed', text2: payResult.error || 'Please try again.' });
-      }
-      return null;
-    }
-    const verifyRes = await http('POST', '/api/payments/wallet/topup/verify', {
-      cashfree_order_id: payResult.cashfree_order_id,
-    });
-    setToppingUp(false);
-    if (verifyRes?.ok) {
-      setWalletBalance(verifyRes.balance);
-      Toast.show({ type: 'success', text1: 'Wallet topped up!', text2: `₹${verifyRes.credited} added.` });
-      return verifyRes.balance;
-    }
-    Toast.show({ type: 'error', text1: 'Could not verify top-up', text2: verifyRes?.error || 'Please contact support.' });
-    return null;
-  };
-
   const unlockContact = async (openHireAfter = false) => {
     if (!hasPhone) return; // nothing to unlock — button should be hidden, but guard anyway
     if (!user) {
@@ -159,33 +127,22 @@ export default function LabourDetailScreen() {
       return;
     }
     setUnlocking(true);
-    let res = await http('POST', `/api/labour/${id}/unlock`, { days });
-
-    // Instant wallet debit came up short — top up the shortfall (rounded up
-    // to a clean ₹10) and retry the same unlock once, automatically.
-    if (!res?.ok && res?.status === 402) {
-      setUnlocking(false);
-      const shortfall = Math.max(20, Math.ceil((res.required - res.balance) / 10) * 10);
-      const proceed = await new Promise((resolve) => {
-        Alert.alert(
-          'Top up your wallet',
-          `You need ₹${res.required} to unlock this contact but your wallet has ₹${res.balance.toFixed(2)}. Add ₹${shortfall} to your wallet now?`,
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-            { text: `Add ₹${shortfall}`, onPress: () => resolve(true) },
-          ],
-        );
-      });
-      if (!proceed) return;
-
-      const newBalance = await topUpWallet(shortfall);
-      if (newBalance == null) return; // top-up failed/cancelled, already toasted
-
-      setUnlocking(true);
-      res = await http('POST', `/api/labour/${id}/unlock`, { days });
-    }
-
+    const res = await http('POST', `/api/labour/${id}/unlock`, { days });
     setUnlocking(false);
+
+    // Instant wallet debit came up short — send them straight to the Wallet
+    // screen to top up, instead of an inline prompt. They can come back and
+    // tap Unlock again once their balance covers it.
+    if (!res?.ok && res?.status === 402) {
+      const shortfall = Math.max(20, Math.ceil((res.required - res.balance) / 10) * 10);
+      Toast.show({
+        type: 'info',
+        text1: 'Add money to your wallet',
+        text2: `You need ₹${res.required} to unlock this contact.`,
+      });
+      nav.navigate('Wallet', { suggestedAmount: shortfall });
+      return;
+    }
 
     if (res?.ok) {
       setProfile(res.profile);
@@ -348,7 +305,6 @@ export default function LabourDetailScreen() {
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      {RazorpayCheckout}
 
       <View style={s.topBar}>
         <TouchableOpacity onPress={() => nav.goBack()} style={s.backBtn} activeOpacity={0.7}>
@@ -596,12 +552,12 @@ export default function LabourDetailScreen() {
               )}
 
               <TouchableOpacity
-                style={[s.unlockBtn, (unlocking || toppingUp) && { opacity: 0.7 }]}
+                style={[s.unlockBtn, unlocking && { opacity: 0.7 }]}
                 onPress={() => unlockContact(false)}
-                disabled={unlocking || toppingUp}
+                disabled={unlocking}
                 activeOpacity={0.88}
               >
-                {(unlocking || toppingUp)
+                {unlocking
                   ? <ActivityIndicator color="#fff" />
                   : <Text style={s.unlockBtnTxt}>Unlock contact — ₹{price}</Text>}
               </TouchableOpacity>
