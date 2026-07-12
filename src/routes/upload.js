@@ -190,6 +190,86 @@ router.post('/image', auth, async (req, res) => {
   }
 });
 
+// ── Audio upload (Voice Bio) ───────────────────────────────────────────────────
+// Separate from the image pipeline above: audio can't be validated by the
+// same magic-byte sniffing (m4a/aac/mp4-container audio all share overlapping
+// signatures with video), so this checks declared MIME type + a hard size/
+// duration cap instead, and uploads to Cloudinary as resource_type: 'video'
+// (Cloudinary's catch-all bucket for anything with an audio/video track).
+const ALLOWED_AUDIO_MIME = new Set(['audio/m4a', 'audio/mp4', 'audio/aac', 'audio/x-m4a', 'audio/mpeg', 'audio/webm', 'audio/wav']);
+const MAX_VOICE_BIO_BYTES = 5 * 1024 * 1024; // ~30s of compressed speech audio comfortably fits under 5MB
+
+async function uploadAudioToCloudinary(buf, folder) {
+  return new Promise((resolve, reject) => {
+    const uploadFolder = folder ? `cityplus/${folder}` : 'cityplus/audio';
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: uploadFolder, resource_type: 'video' }, // Cloudinary uses 'video' for audio-only files too
+      (error, result) => {
+        if (error) return reject(error);
+        resolve({ url: result.secure_url, publicId: result.public_id });
+      }
+    );
+    stream.end(buf);
+  });
+}
+
+// POST /api/upload/audio — used by VoiceBio.js to upload a recorded intro.
+// multipart/form-data only, field "file" (+ optional "folder").
+router.post('/audio', auth, async (req, res) => {
+  const ct = req.headers['content-type'] || '';
+  if (!ct.includes('multipart/form-data')) {
+    return res.json({ ok: false, error: 'multipart/form-data with a "file" field is required' });
+  }
+  if (!cloudinary) {
+    return res.json({ ok: false, error: 'Audio upload is not configured on this server yet.' });
+  }
+
+  try {
+    const bb = busboy({ headers: req.headers, limits: { fileSize: MAX_VOICE_BIO_BYTES } });
+    let folder = null;
+    let mimeType = null;
+    const chunks = [];
+    let fileSeen = false;
+    let tooBig = false;
+
+    bb.on('field', (name, val) => { if (name === 'folder') folder = val; });
+
+    bb.on('file', (_name, stream, info) => {
+      fileSeen = true;
+      mimeType = info?.mimeType;
+      stream.on('data', d => chunks.push(d));
+      stream.on('limit', () => { tooBig = true; stream.resume(); });
+    });
+
+    bb.on('finish', async () => {
+      if (!fileSeen) return res.json({ ok: false, error: 'No audio file received.' });
+      if (tooBig)   return res.json({ ok: false, error: 'Voice bio too large. Keep it under 30 seconds.' });
+      if (mimeType && !ALLOWED_AUDIO_MIME.has(mimeType)) {
+        return res.json({ ok: false, error: 'Unsupported audio format.' });
+      }
+
+      const buf = Buffer.concat(chunks);
+      try {
+        const { url, publicId } = await uploadAudioToCloudinary(buf, folder || 'voice-bios');
+        return res.json({ ok: true, url, publicId });
+      } catch (err) {
+        console.error('[upload] audio upload error:', err.message);
+        return res.json({ ok: false, error: 'Voice bio upload failed. Please try again.' });
+      }
+    });
+
+    bb.on('error', err => {
+      console.error('[upload] audio busboy error:', err.message);
+      return res.json({ ok: false, error: 'Upload parsing failed.' });
+    });
+
+    req.pipe(bb);
+  } catch (err) {
+    console.error('[upload] audio setup error:', err.message);
+    return res.json({ ok: false, error: 'Upload failed.' });
+  }
+});
+
 // ── GET /api/upload/image/:id — legacy route for images stored in DB ──────────
 // New images go to Cloudinary and are served directly from Cloudinary CDN URLs.
 // This route only serves images that were stored as base64 in the DB before migration.
