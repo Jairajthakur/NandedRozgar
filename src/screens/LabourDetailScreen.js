@@ -589,7 +589,10 @@ export default function LabourDetailScreen() {
               </View>
 
               {walletBalance != null && (
-                <Text style={s.unlockNote}>Wallet balance: ₹{walletBalance.toFixed(2)}</Text>
+                <TouchableOpacity onPress={() => nav.navigate('Wallet')} activeOpacity={0.7} style={s.walletBalanceRow}>
+                  <Text style={s.unlockNote}>Wallet balance: ₹{walletBalance.toFixed(2)}</Text>
+                  <Text style={s.walletAddLink}>Add money</Text>
+                </TouchableOpacity>
               )}
 
               <TouchableOpacity
@@ -785,6 +788,8 @@ const s = StyleSheet.create({
   repeatBadgeTxt: { fontSize: 11.5, fontWeight: '700', color: '#15803d' },
   phoneValue: { fontSize: 16, fontWeight: '800', color: '#111' },
   unlockNote: { fontSize: 11, color: '#999', fontWeight: '600' },
+  walletBalanceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  walletAddLink: { fontSize: 11.5, color: LABOUR_COLOR, fontWeight: '800' },
 
   stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
   stepperLabel: { fontSize: 12, fontWeight: '700', color: '#666' },
