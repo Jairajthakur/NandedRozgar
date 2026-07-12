@@ -5,7 +5,7 @@
  * Supports Hindi / Marathi / English speech.
  *
  * Props:
- *   screenType  — 'job' | 'room' | 'item' | 'vehicle'
+ *   screenType  — 'job' | 'room' | 'item' | 'vehicle' | 'labour'
  *   onFill(fields) — called with extracted field values
  *
  * Speech recognition: uses expo-speech-recognition when installed.
@@ -164,6 +164,16 @@ const SCREEN_CONFIG = {
       'en-IN': '"Want to sell Samsung 42 inch TV. Price 8000 rupees. 2 years old, good condition."',
     },
     systemPrompt: (langLabel) => `You are a form-filling assistant for a buy/sell listing app in Maharashtra.\n\nUser spoke in ${langLabel}. Extract item details and return ONLY a valid JSON object:\n\n{\n  "title": "Item title in English e.g. Samsung 42 inch TV",\n  "price": "price as number string e.g. 8000",\n  "description": "item description in English (brand, model, condition, reason for selling)",\n  "area": "area or locality if mentioned"\n}\n\nRules: JSON only. Omit fields you are unsure about. Translate to English.`,
+  },
+
+  labour: {
+    title: 'Labour Profile',
+    hints: {
+      'mr-IN': '"मी इलेक्ट्रीशियन आहे. 5 वर्षांचा अनुभव, रोजंदारी 600 रुपये. Vazirabad भागात राहतो, आज उपलब्ध आहे."',
+      'hi-IN': '"Main electrician hoon. 5 saal ka experience, roz ka 600 rupaye. Vazirabad area mein rehta hoon, aaj available hoon."',
+      'en-IN': '"I am an electrician. 5 years experience, daily wage 600 rupees. I live in Vazirabad area, available today."',
+    },
+    systemPrompt: (langLabel) => `You are a form-filling assistant for a daily-wage labour profile app used by workers in tier-2 cities in Maharashtra (masons, electricians, plumbers, painters, carpenters, welders, helpers).\n\nUser spoke in ${langLabel}. Extract profile details and return ONLY a valid JSON object (no markdown, no extra text):\n\n{\n  "fullName": "worker's name if mentioned",\n  "skillCategory": "One of: Mason, Electrician, Plumber, Painter, Carpenter, Welder, Helper, Other",\n  "otherSkills": ["specific sub-skills mentioned, e.g. house wiring, AC repair, tiling, borewell — in English, comma-style list"],\n  "experienceYears": "number of years of experience as a plain number string, e.g. 5",\n  "dailyWage": "daily wage in rupees as a plain number string, e.g. 600",\n  "location": "area or locality if mentioned",\n  "availability": "One of: available, busy — based on whether they said they are free/available now or busy/booked",\n  "isTeam": "true only if they clearly describe leading a group/team of workers, otherwise false",\n  "teamSize": "number of people in the team if isTeam is true",\n  "bio": "1-2 sentence summary in English of tools/experience/specialty they mentioned, if any"\n}\n\nRules: JSON only. Omit fields you are unsure about. Translate everything to English. "5 saal ka experience" → experienceYears:"5". "roz ka 600" or "600 rupaye din ka" → dailyWage:"600".`,
   },
 
   vehicle: {
