@@ -286,7 +286,9 @@ export default function LabourEarningsScreen() {
                 <View key={item.id} style={st.rowItem}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={st.rowAmount}>+₹{parseFloat(item.amount).toFixed(2)}</Text>
-                    <Text style={st.rowMeta} numberOfLines={1}>From {item.contractor_name}</Text>
+                    <Text style={st.rowMeta} numberOfLines={1}>
+                      From {item.contractor_name} · {item.source === 'contact_unlock' ? 'Contact unlock' : 'Hire completed'}
+                    </Text>
                     <Text style={st.rowMeta}>{formatDateTime(item.created_at)}</Text>
                   </View>
                   <Badge meta={meta} />
