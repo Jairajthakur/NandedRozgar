@@ -27,6 +27,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
 import { LABOUR_COLORS } from '../constants/labourTheme';
 import { SectionCard, StepHeader } from '../components/labour/LabourUI';
+import VoicePostAssistant from '../components/VoicePostAssistant';
 
 const ORANGE = LABOUR_COLORS.primary;
 const LABOUR_COLOR = LABOUR_COLORS.worker;
@@ -250,6 +251,40 @@ export default function PostLabourProfileScreen() {
                 ? 'Update your rate, availability, or details — changes go live right away.'
                 : 'List your skills, daily wage & availability — contractors nearby can find and hire you directly.'}
             </Text>
+          </FadeSlide>
+
+          {/* ── Voice Post Assistant — speak your profile instead of typing ──── */}
+          <FadeSlide delay={70}>
+            <VoicePostAssistant
+              screenType="labour"
+              onFill={(fields) => {
+                const {
+                  fullName: vName, skillCategory: vSkill, otherSkills: vOtherSkills,
+                  experienceYears: vExp, dailyWage: vWage, location: vLoc,
+                  availability: vAvail, isTeam: vIsTeam, teamSize: vTeamSize, bio: vBio,
+                } = fields;
+
+                if (vName) setFullName(vName);
+                if (vSkill) {
+                  const match = SKILLS.find(sk => sk.label.toLowerCase() === String(vSkill).toLowerCase());
+                  setSkill(match ? match.label : vSkill);
+                }
+                if (Array.isArray(vOtherSkills) && vOtherSkills.length > 0) {
+                  setSkillsText(vOtherSkills.join(', '));
+                }
+                if (vExp) setExperience(String(vExp).replace(/[^\d]/g, ''));
+                if (vWage) setWage(String(vWage).replace(/[^\d]/g, ''));
+                if (vLoc) setLocation(vLoc);
+                if (vAvail === 'available' || vAvail === 'busy') setAvailability(vAvail);
+                if (vIsTeam === true || vIsTeam === 'true') {
+                  setProfileType('team');
+                  if (vTeamSize) setTeamSize(String(vTeamSize).replace(/[^\d]/g, ''));
+                }
+                if (vBio) setBio(vBio);
+
+                Toast.show({ type: 'success', text1: 'Filled from your voice', text2: 'Check the fields below and edit anything that needs fixing.' });
+              }}
+            />
           </FadeSlide>
 
           {/* ── Step 1 — Basic details: photo, who this profile is for, name ── */}
