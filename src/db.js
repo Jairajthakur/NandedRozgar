@@ -501,6 +501,16 @@ async function runMigrations() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_payouts_user_status ON labour_payouts(labour_user_id, status)`);
 
+    // A commission can come from two places: a completed hire (hire_request_id,
+    // held for PAYOUT_HOLD_HOURS to allow disputes) or a contact unlock
+    // (contact_unlock_id, paid out instantly — the contractor already got what
+    // they paid for the moment the number was revealed, so there's nothing to
+    // dispute). Exactly one of the two id columns is set per row; `source`
+    // just makes that explicit for ledger display instead of inferring it.
+    await client.query(`ALTER TABLE labour_payouts ADD COLUMN IF NOT EXISTS contact_unlock_id INTEGER REFERENCES labour_contact_unlocks(id) ON DELETE CASCADE`);
+    await client.query(`ALTER TABLE labour_payouts ADD COLUMN IF NOT EXISTS source VARCHAR(20) NOT NULL DEFAULT 'hire_fee'`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_labour_payouts_contact_unlock_unique ON labour_payouts(contact_unlock_id) WHERE contact_unlock_id IS NOT NULL`);
+
     // One withdrawal request = one UPI payout a human admin processes and
     // marks paid with a UTR reference. No auto-payout gateway wired up yet —
     // starting manual on purpose so fraud patterns can be eyeballed while
