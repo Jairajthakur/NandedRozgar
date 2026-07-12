@@ -140,6 +140,11 @@ function LabourCard({ item, onPress, index = 0 }) {
               <TradeIcon name={item.skill_category} size={13} color={gradStart} />
               <Text style={[cs.tradeChipTxt, { color: gradStart }]}>{item.skill_category}</Text>
             </View>
+            {Array.isArray(item.skills) && item.skills.slice(0, 2).map((sk, i) => (
+              <View key={`${sk}-${i}`} style={cs.plainChip}>
+                <Text style={cs.plainChipTxt} numberOfLines={1}>{sk}</Text>
+              </View>
+            ))}
             {isTeam && !!item.team_composition ? (
               <View style={cs.plainChip}><Text style={cs.plainChipTxt} numberOfLines={1}>{item.team_composition}</Text></View>
             ) : !isTeam && !!item.experience_years ? (
@@ -218,6 +223,7 @@ export default function LabourScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [activeSkill, setActiveSkill] = useState('All');
+  const [activeSubSkills, setActiveSubSkills] = useState([]); // e.g. ['house wiring', 'AC repair']
   const [wageRange, setWageRange] = useState(WAGE_RANGES[0]);
   const [availability, setAvailability] = useState('All');
   const [profileTypeFilter, setProfileTypeFilter] = useState('All');
@@ -264,7 +270,39 @@ export default function LabourScreen() {
 
   useEffect(() => { load(); }, [currentDistrict]);
 
+  // Sub-skill chip selection is scoped to the active category — reset it
+  // whenever the category changes so stale chips don't silently filter results.
+  useEffect(() => { setActiveSubSkills([]); }, [activeSkill]);
+
   const onRefresh = () => { setRefreshing(true); load({ silent: true }); };
+
+  // Sub-skill chips ("house wiring", "AC repair" for Electrician, etc.) —
+  // derived from the free-text skills[] array every profile already has,
+  // scoped to whatever main category is currently active so the chip list
+  // stays relevant instead of showing every sub-skill in the district.
+  const subSkillOptions = useMemo(() => {
+    const pool = activeSkill === 'All' ? labourers : labourers.filter(l => l.skill_category === activeSkill);
+    const counts = {};
+    pool.forEach(l => {
+      (Array.isArray(l.skills) ? l.skills : []).forEach(raw => {
+        const tag = String(raw || '').trim();
+        if (!tag) return;
+        const key = tag.toLowerCase();
+        if (!counts[key]) counts[key] = { label: tag, count: 0 };
+        counts[key].count++;
+      });
+    });
+    return Object.values(counts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 14);
+  }, [labourers, activeSkill]);
+
+  const toggleSubSkill = (label) => {
+    const key = label.toLowerCase();
+    setActiveSubSkills(prev =>
+      prev.includes(key) ? prev.filter(s => s !== key) : [...prev, key]
+    );
+  };
 
   const filtered = useMemo(() => {
     return labourers.filter(l => {
@@ -278,13 +316,19 @@ export default function LabourScreen() {
       if (profileTypeFilter === 'Teams' && l.profile_type !== 'team') return false;
       if (profileTypeFilter === 'Individuals' && l.profile_type === 'team') return false;
       if (localityFilter !== 'All' && l.location !== localityFilter) return false;
+      if (activeSubSkills.length > 0) {
+        const lowerSkills = (Array.isArray(l.skills) ? l.skills : []).map(s => String(s).toLowerCase());
+        const hasAll = activeSubSkills.every(tag => lowerSkills.includes(tag));
+        if (!hasAll) return false;
+      }
       if (search.trim()) {
-        const hay = [l.full_name, l.skill_category].join(' ').toLowerCase();
+        const hay = [l.full_name, l.skill_category, ...(Array.isArray(l.skills) ? l.skills : [])]
+          .join(' ').toLowerCase();
         if (!hay.includes(search.trim().toLowerCase())) return false;
       }
       return true;
     });
-  }, [labourers, activeSkill, wageRange, availability, profileTypeFilter, localityFilter, search]);
+  }, [labourers, activeSkill, activeSubSkills, wageRange, availability, profileTypeFilter, localityFilter, search]);
 
   // Micro-neighbourhoods with active listings, most common first — powers the
   // "hyper-local discovery" area dropdown in the header.
@@ -317,7 +361,8 @@ export default function LabourScreen() {
   }, [filtered, isPremium]);
 
   const activeFiltersCount =
-    (wageRange.label !== 'Any' ? 1 : 0) + (availability !== 'All' ? 1 : 0) + (profileTypeFilter !== 'All' ? 1 : 0);
+    (wageRange.label !== 'Any' ? 1 : 0) + (availability !== 'All' ? 1 : 0) + (profileTypeFilter !== 'All' ? 1 : 0)
+    + activeSubSkills.length;
 
   const tradeCounts = SKILL_CATEGORIES.map(cat => ({
     label: cat,
@@ -437,6 +482,35 @@ export default function LabourScreen() {
           );
         })}
       </View>
+
+      {subSkillOptions.length > 0 && (
+        <View>
+          <Text style={s.subSkillLabel}>Narrow it down</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.subSkillRow}
+          >
+            {subSkillOptions.map(opt => {
+              const key = opt.label.toLowerCase();
+              const active = activeSubSkills.includes(key);
+              return (
+                <TouchableOpacity
+                  key={key}
+                  onPress={() => toggleSubSkill(opt.label)}
+                  style={[s.subSkillChip, active && s.subSkillChipActive]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.subSkillChipTxt, active && s.subSkillChipTxtActive]} numberOfLines={1}>
+                    {opt.label}
+                  </Text>
+                  {active && <Ionicons name="close" size={12} color="#fff" style={{ marginLeft: 4 }} />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {IS_WEB && activeFiltersCount > 0 && (
         <View style={ws.activeFiltersRow}>
@@ -801,6 +875,20 @@ const s = StyleSheet.create({
   categoryTileTxt: { fontSize: 12, fontWeight: '600', color: '#555', textAlign: 'center', lineHeight: 15 },
   categoryTileTxtMr: { fontSize: 10.5, fontWeight: '500', color: '#999', textAlign: 'center', lineHeight: 13 },
   categoryTileTxtActive: { color: ORANGE, fontWeight: '800' },
+
+  subSkillLabel: {
+    fontSize: 11, fontWeight: '700', color: '#aaa', textTransform: 'uppercase',
+    letterSpacing: 0.7, marginBottom: 8, paddingHorizontal: 2,
+  },
+  subSkillRow: { flexDirection: 'row', gap: 8, paddingBottom: 16 },
+  subSkillChip: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 100,
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#ebebeb',
+  },
+  subSkillChipActive: { backgroundColor: ORANGE, borderColor: ORANGE },
+  subSkillChipTxt: { fontSize: 12, fontWeight: '600', color: '#555' },
+  subSkillChipTxtActive: { color: '#fff', fontWeight: '800' },
 
   list: { paddingHorizontal: 14, paddingTop: 0, paddingBottom: 40 },
 
