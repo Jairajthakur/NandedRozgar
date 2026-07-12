@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import { Empty } from '../components/UI';
 import WageBoardStrip from '../components/WageBoardStrip';
 import LeaderboardStrip from '../components/labour/LeaderboardStrip';
@@ -210,6 +211,7 @@ export default function LabourScreen() {
   const { t } = useLang();
   const { currentDistrict } = useDistrict();
   const { width } = useWindowDimensions();
+  const { user } = useAuth();
 
   const [labourers, setLabourers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -223,8 +225,20 @@ export default function LabourScreen() {
   const [showLocalityPicker, setShowLocalityPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(null);
 
   const showSidebar = IS_WEB && width >= 900;
+
+  // Contractors browsing this screen are the ones who need wallet balance to
+  // unlock contacts — surface it right in the header instead of burying it
+  // in Profile, so topping up doesn't require hitting an error first.
+  useEffect(() => {
+    if (!user) return;
+    http('GET', '/api/payments/wallet/balance').then((res) => {
+      if (res?.ok) setWalletBalance(res.balance);
+    });
+  }, [user?.id]);
+
 
   // Fetch the full list once (per district) — everything else filters client-side,
   // same pattern as the Jobs / Rooms / Cars boards.
@@ -348,6 +362,12 @@ export default function LabourScreen() {
             <View style={s.filterBadge}><Text style={s.filterBadgeTxt}>{activeFiltersCount}</Text></View>
           )}
         </TouchableOpacity>
+        {!!user && (
+          <TouchableOpacity style={s.walletChip} onPress={() => nav.navigate('Wallet')} activeOpacity={0.8}>
+            <Ionicons name="wallet-outline" size={14} color={ORANGE} />
+            <Text style={s.walletChipTxt}>₹{(walletBalance ?? 0).toFixed(0)}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <WageBoardStrip
@@ -753,6 +773,13 @@ const s = StyleSheet.create({
     backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center',
   },
   filterBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800' },
+
+  walletChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    height: 44, paddingHorizontal: 12, borderRadius: 22,
+    backgroundColor: ORANGE + '15', borderWidth: 1, borderColor: ORANGE + '33',
+  },
+  walletChipTxt: { fontSize: 13, fontWeight: '800', color: ORANGE },
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16,
