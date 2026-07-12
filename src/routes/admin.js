@@ -904,15 +904,17 @@ router.get('/labour/revenue', async (req, res) => {
     const days = Math.max(1, parseInt(req.query.days) || 30);
 
     const { rows: feeRows } = await pool.query(
-      `SELECT COALESCE(SUM(amount), 0) AS gross_fees, COUNT(*)::int AS hires
+      `SELECT reason, COALESCE(SUM(amount), 0) AS total, COUNT(*)::int AS n
        FROM wallet_transactions
-       WHERE reason = 'labour_hire_fee' AND created_at >= NOW() - ($1 || ' days')::interval`,
+       WHERE reason IN ('labour_hire_fee', 'labour_contact_unlock') AND created_at >= NOW() - ($1 || ' days')::interval
+       GROUP BY reason`,
       [days]
     );
     const { rows: commissionRows } = await pool.query(
-      `SELECT COALESCE(SUM(amount), 0) AS commissions, COUNT(*)::int AS completions
+      `SELECT source, COALESCE(SUM(amount), 0) AS total, COUNT(*)::int AS n
        FROM labour_payouts
-       WHERE created_at >= NOW() - ($1 || ' days')::interval`,
+       WHERE created_at >= NOW() - ($1 || ' days')::interval
+       GROUP BY source`,
       [days]
     );
     const { rows: stageRows } = await pool.query(`
@@ -923,17 +925,34 @@ router.get('/labour/revenue', async (req, res) => {
       FROM labour_withdrawals GROUP BY status
     `);
 
-    const grossFees = parseFloat(feeRows[0].gross_fees);
-    const commissions = parseFloat(commissionRows[0].commissions);
+    const feeByReason = Object.fromEntries(feeRows.map(r => [r.reason, { total: parseFloat(r.total), count: r.n }]));
+    const commissionBySource = Object.fromEntries(commissionRows.map(r => [r.source, { total: parseFloat(r.total), count: r.n }]));
+
+    const grossFees = (feeByReason.labour_hire_fee?.total || 0) + (feeByReason.labour_contact_unlock?.total || 0);
+    const commissions = (commissionBySource.hire_fee?.total || 0) + (commissionBySource.contact_unlock?.total || 0);
 
     res.json({
       ok: true,
       periodDays: days,
       grossFees,
-      hires: feeRows[0].hires,
       commissionsOwed: commissions,
-      completions: commissionRows[0].completions,
       netRevenue: grossFees - commissions,
+      // Breakdown so it's clear how much of the revenue/commission is coming
+      // from contact unlocks (₹10/day, ₹5 commission) vs hire completions
+      // (₹10 flat, ₹5 commission).
+      byType: {
+        contactUnlock: {
+          grossFees: feeByReason.labour_contact_unlock?.total || 0,
+          unlocks: feeByReason.labour_contact_unlock?.count || 0,
+          commissions: commissionBySource.contact_unlock?.total || 0,
+        },
+        hireCompletion: {
+          grossFees: feeByReason.labour_hire_fee?.total || 0,
+          hires: feeByReason.labour_hire_fee?.count || 0,
+          commissions: commissionBySource.hire_fee?.total || 0,
+          completions: commissionBySource.hire_fee?.count || 0,
+        },
+      },
       payoutStages: Object.fromEntries(stageRows.map(r => [r.status, parseFloat(r.total)])),
       withdrawals: Object.fromEntries(withdrawalRows.map(r => [r.status, { total: parseFloat(r.total), count: r.n }])),
     });
