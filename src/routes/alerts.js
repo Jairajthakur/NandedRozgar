@@ -19,16 +19,24 @@ router.get('/', auth, async (req, res) => {
 // POST /api/alerts — create or update alert for a category
 router.post('/', auth, async (req, res) => {
   try {
-    const { category, keywords, pushToken } = req.body;
+    const { category, keywords, pushToken, lat, lng, radiusKm } = req.body;
     if (!category) return res.json({ ok: false, error: 'Category is required' });
 
+    // Geo-fenced alerts: if the person shares their village/neighbourhood
+    // location, only ping them for jobs opening within radiusKm of it
+    // instead of the whole district. lat/lng are optional — omitting them
+    // keeps the original district-wide behaviour.
+    const alertLat = Number.isFinite(parseFloat(lat)) ? parseFloat(lat) : null;
+    const alertLng = Number.isFinite(parseFloat(lng)) ? parseFloat(lng) : null;
+    const radius   = Math.min(50, Math.max(1, parseInt(radiusKm, 10) || 10));
+
     const { rows } = await pool.query(`
-      INSERT INTO job_alerts (user_id, category, keywords, push_token, active)
-      VALUES ($1, $2, $3, $4, TRUE)
+      INSERT INTO job_alerts (user_id, category, keywords, push_token, active, lat, lng, radius_km)
+      VALUES ($1, $2, $3, $4, TRUE, $5, $6, $7)
       ON CONFLICT (user_id, category)
-      DO UPDATE SET keywords=$3, push_token=$4, active=TRUE
+      DO UPDATE SET keywords=$3, push_token=$4, active=TRUE, lat=$5, lng=$6, radius_km=$7
       RETURNING *
-    `, [req.user.id, category, keywords?.trim() || null, pushToken || null]);
+    `, [req.user.id, category, keywords?.trim() || null, pushToken || null, alertLat, alertLng, radius]);
 
     res.json({ ok: true, alert: rows[0] });
   } catch (err) {
