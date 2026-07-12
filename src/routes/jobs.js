@@ -168,8 +168,13 @@ router.post('/', auth, async (req, res) => {
       title, company, category, type, location, salary,
       phone, whatsapp, description, skills, requirements,
       education, experience, hours, openings, fresherOk, planDays, plan,
-      district, address,
+      district, address, lat, lng,
     } = req.body;
+
+    // Optional precise coordinates from the poster's device (expo-location).
+    // Only used for geo-fenced alert matching below; never required.
+    const jobLat = Number.isFinite(parseFloat(lat)) ? parseFloat(lat) : null;
+    const jobLng = Number.isFinite(parseFloat(lng)) ? parseFloat(lng) : null;
 
     if (!title || !location)
       return res.json({ ok: false, error: 'Title and location are required' });
@@ -225,8 +230,8 @@ router.post('/', auth, async (req, res) => {
         posted_by, title, company, address, category, type, location, salary,
         phone, whatsapp, description, skills, requirements,
         education, experience, hours, openings,
-        featured, urgent, fresher_ok, expires_at, district
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+        featured, urgent, fresher_ok, expires_at, district, lat, lng
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
       RETURNING *
     `, [
       req.user.id, title, company, address || '', category || 'General', type || 'Full-time', location, salary || '',
@@ -234,6 +239,7 @@ router.post('/', auth, async (req, res) => {
       education || '', experience || '', hours || '', openings || '1',
       false, false, isFresherOk, expiresAt,
       (process.env.VALID_DISTRICTS || 'nanded,latur').split(',').map(d=>d.trim()).includes(district) ? district : 'nanded',
+      jobLat, jobLng,
     ]);
 
     await cache.delPrefix('jobs:'); // bust list cache
@@ -244,10 +250,27 @@ router.post('/', auth, async (req, res) => {
     const newJob = rows[0];
     setImmediate(async () => {
       try {
+        // Localized "Geo-Fenced" Job Alerts: an alert with lat/lng/radius_km
+        // set only fires when the new job is within that radius (haversine,
+        // computed in SQL). An alert with no coordinates falls back to the
+        // original district-wide category match, so existing alerts keep
+        // working exactly as before for anyone who hasn't set a location.
         const { rows: alerts } = await pool.query(
           `SELECT ja.push_token FROM job_alerts ja
-           WHERE ja.category IN ($1, 'All') AND ja.push_token IS NOT NULL AND ja.active = TRUE`,
-          [newJob.category]
+           WHERE ja.category IN ($1, 'All') AND ja.push_token IS NOT NULL AND ja.active = TRUE
+             AND (
+               ja.lat IS NULL OR ja.lng IS NULL OR $2::double precision IS NULL OR $3::double precision IS NULL
+               OR (
+                 6371 * acos(
+                   LEAST(1, GREATEST(-1,
+                     cos(radians(ja.lat)) * cos(radians($2::double precision)) *
+                     cos(radians($3::double precision) - radians(ja.lng)) +
+                     sin(radians(ja.lat)) * sin(radians($2::double precision))
+                   ))
+                 ) <= COALESCE(ja.radius_km, 10)
+               )
+             )`,
+          [newJob.category, jobLat, jobLng]
         );
         if (!alerts.length) return;
 
