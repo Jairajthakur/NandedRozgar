@@ -24,6 +24,7 @@ import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
 import { useIsPremium } from '../hooks/useIsPremium';
 import { LABOUR_COLORS, getSkillGradient } from '../constants/labourTheme';
 import TradeIcon from '../components/TradeIcon';
+import BulkHireModal from '../components/labour/BulkHireModal';
 
 const ORANGE = LABOUR_COLORS.primary;
 const TEAL   = '#0d9488';
@@ -93,7 +94,7 @@ function QuickAction({ icon, label, color, onPress }) {
 }
 
 // ── Labour profile card — mirrors JobCard's look (accent bar + inner pad) ──
-function LabourCard({ item, onPress, index = 0 }) {
+function LabourCard({ item, onPress, index = 0, selectMode = false, selected = false, onToggleSelect }) {
   const hasRating = !!item.rating_count && Number(item.rating_count) > 0;
   const isBusy = item.availability === 'busy';
   const atChowk = !!item.checked_in_today;
@@ -111,7 +112,12 @@ function LabourCard({ item, onPress, index = 0 }) {
 
   return (
     <FadeIn delay={Math.min(index, 8) * 60}>
-      <TouchableOpacity style={cs.row} onPress={onPress} activeOpacity={0.7}>
+      <TouchableOpacity style={cs.row} onPress={selectMode ? onToggleSelect : onPress} activeOpacity={0.7}>
+        {selectMode && (
+          <View style={[cs.checkbox, selected && cs.checkboxChecked]}>
+            {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
+          </View>
+        )}
         <View style={cs.photoTile}>
           {item.photo_url ? (
             <Image source={{ uri: item.photo_url }} style={cs.photoImg} />
@@ -134,7 +140,7 @@ function LabourCard({ item, onPress, index = 0 }) {
               <Text style={cs.rowTitle} numberOfLines={1}>{item.full_name}</Text>
               {!!item.id_verified && <Ionicons name="shield-checkmark" size={14} color="#2563eb" />}
             </View>
-            <Ionicons name="chevron-forward" size={19} color="#c4c4cc" />
+            {!selectMode && <Ionicons name="chevron-forward" size={19} color="#c4c4cc" />}
           </View>
 
           <View style={cs.chipRow}>
@@ -186,6 +192,11 @@ const cs = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#ececec',
   },
   photoTile: { width: 84, height: 84, borderRadius: 16, overflow: 'hidden', flexShrink: 0 },
+  checkbox: {
+    width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#ccc',
+    alignItems: 'center', justifyContent: 'center', marginTop: 30, flexShrink: 0,
+  },
+  checkboxChecked: { backgroundColor: ORANGE, borderColor: ORANGE },
   photoImg: { width: 84, height: 84, alignItems: 'center', justifyContent: 'center' },
   photoInitials: { fontSize: 22, fontWeight: '800', color: '#fff' },
   teamBadge: {
@@ -234,6 +245,21 @@ export default function LabourScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState(null);
   const [walletBalance, setWalletBalance] = useState(null);
+
+  // ── Ad-hoc multi-select hire ── contractor picks any workers while
+  // browsing (not necessarily part of a pre-formed Crew) and hires them
+  // all in one action via POST /api/labour/hire-bulk.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+
+  const toggleSelectMode = () => {
+    setSelectMode(m => !m);
+    setSelectedIds([]);
+  };
+  const toggleSelectId = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
 
   const showSidebar = IS_WEB && width >= 900;
 
@@ -409,6 +435,14 @@ export default function LabourScreen() {
             <View style={s.filterBadge}><Text style={s.filterBadgeTxt}>{activeFiltersCount}</Text></View>
           )}
         </TouchableOpacity>
+        {!!user && (
+          <TouchableOpacity
+            style={[s.iconBtn, selectMode && s.iconBtnActive, IS_WEB && ws.iconBtn]}
+            onPress={toggleSelectMode}
+          >
+            <Ionicons name="checkbox-outline" size={18} color={selectMode ? '#fff' : '#444'} />
+          </TouchableOpacity>
+        )}
         {!!user && (
           <TouchableOpacity style={s.walletChip} onPress={() => nav.navigate('Wallet')} activeOpacity={0.8}>
             <Ionicons name="wallet-outline" size={14} color={ORANGE} />
@@ -669,7 +703,16 @@ export default function LabourScreen() {
 
   const renderCard = ({ item, index }) => {
     if (item.__isAd) return <NativeAdCard />;
-    return <LabourCard item={item} index={index} onPress={() => nav.navigate('LabourDetail', { id: item.id })} />;
+    return (
+      <LabourCard
+        item={item}
+        index={index}
+        selectMode={selectMode}
+        selected={selectedIds.includes(item.id)}
+        onPress={() => nav.navigate('LabourDetail', { id: item.id })}
+        onToggleSelect={() => toggleSelectId(item.id)}
+      />
+    );
   };
 
   const EmptyState = (
@@ -679,6 +722,32 @@ export default function LabourScreen() {
       sub={search || activeFiltersCount > 0 ? 'Try different filters' : 'Be the first to post a profile in this area.'}
       action={() => nav.navigate('PostLabourProfile')}
       actionLabel="Post your profile"
+    />
+  );
+
+  const selectedWorkers = labourers.filter(w => selectedIds.includes(w.id));
+
+  const SelectBar = selectMode && selectedIds.length > 0 ? (
+    <View style={s.selectBar}>
+      <Text style={s.selectBarTxt}>{selectedIds.length} selected</Text>
+      <TouchableOpacity style={s.selectBarBtn} onPress={() => setShowBulkModal(true)} activeOpacity={0.85}>
+        <Ionicons name="briefcase-outline" size={15} color="#fff" />
+        <Text style={s.selectBarBtnTxt}>Hire {selectedIds.length}</Text>
+      </TouchableOpacity>
+    </View>
+  ) : null;
+
+  const BulkModal = (
+    <BulkHireModal
+      visible={showBulkModal}
+      workers={selectedWorkers}
+      onClose={() => setShowBulkModal(false)}
+      onSuccess={() => {
+        setShowBulkModal(false);
+        setSelectMode(false);
+        setSelectedIds([]);
+        nav.navigate('HireRequests');
+      }}
     />
   );
 
@@ -809,6 +878,8 @@ export default function LabourScreen() {
 
         {FilterModal}
         {LocalityModal}
+        {SelectBar}
+        {BulkModal}
       </View>
     );
   }
@@ -832,6 +903,8 @@ export default function LabourScreen() {
       />
       {FilterModal}
       {LocalityModal}
+      {SelectBar}
+      {BulkModal}
     </View>
   );
 }
@@ -839,6 +912,19 @@ export default function LabourScreen() {
 // ── MOBILE STYLES ────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f7f7f7' },
+
+  selectBar: {
+    position: 'absolute', left: 16, right: 16, bottom: 20,
+    backgroundColor: '#111', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10,
+  },
+  selectBarTxt: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
+  selectBarBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: ORANGE, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14,
+  },
+  selectBarBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
 
   header: { backgroundColor: '#f7f7f7', paddingHorizontal: 16, paddingBottom: 6 },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingTop: 20, paddingBottom: 10, gap: 10 },
