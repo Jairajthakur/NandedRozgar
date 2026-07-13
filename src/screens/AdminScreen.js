@@ -569,6 +569,9 @@ export default function AdminScreen() {
   const [disputes, setDisputes] = useState([]);
   const [disputesLoading, setDisputesLoading] = useState(false);
   const [resolvingId, setResolvingId] = useState(null);
+  const [rewards, setRewards] = useState([]);
+  const [rewardsLoading, setRewardsLoading] = useState(false);
+  const [issuingId, setIssuingId] = useState(null);
   const [couponForm, setCouponForm] = useState({ code:'', type:'percent', value:'', maxUses:'', validUntil:'' });
   const [couponLoading, setCouponLoading] = useState(false);
 
@@ -938,6 +941,28 @@ export default function AdminScreen() {
 
   useEffect(() => { if (activeTab === 'disputes') loadDisputes(); }, [activeTab]);
 
+  // ── Milestone rewards fulfillment queue (ID card @ 5, T-shirt @ 10) ──
+  async function loadRewards() {
+    setRewardsLoading(true);
+    const d = await apiCall('GET', '/api/admin/labour/rewards?status=pending');
+    if (d.ok) setRewards(d.rewards || []);
+    setRewardsLoading(false);
+  }
+
+  async function issueReward(id) {
+    setIssuingId(id);
+    const d = await apiCall('PATCH', `/api/admin/labour/rewards/${id}`, { status: 'issued' });
+    setIssuingId(null);
+    if (d.ok) {
+      setRewards(prev => prev.filter(r => r.id !== id));
+      showToast('Marked as issued.');
+    } else {
+      showToast(d.error || 'Failed to update reward.', true);
+    }
+  }
+
+  useEffect(() => { if (activeTab === 'rewards') loadRewards(); }, [activeTab]);
+
   // ── Revenue calculations ──
   const paidPayments = payments.filter(p => p.status === 'paid');
   const totalRevenue = paidPayments.reduce((a, p) => a + parseInt(p.amount || 0), 0);
@@ -955,6 +980,7 @@ export default function AdminScreen() {
     { id: 'revenue', label: '₹ Revenue' },
     { id: 'payments', label: '🧾 Payments' },
     { id: 'disputes', label: `⚖️ Disputes${disputes.length ? ` (${disputes.length})` : ''}` },
+    { id: 'rewards', label: `🎁 Rewards${rewards.length ? ` (${rewards.length})` : ''}` },
     { id: 'coupons', label: '🎟 Coupons' },
     { id: 'growth', label: '🚀 Growth' },
   ];
@@ -1607,6 +1633,44 @@ export default function AdminScreen() {
                           : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12.5 }}>Refund contractor</Text>}
                       </TouchableOpacity>
                     </View>
+                  </View>
+                ))
+              )}
+            </Card>
+            <View style={{ height: 30 }} />
+          </View>
+        )}
+
+        {activeTab === 'rewards' && (
+          <View>
+            <Card title={`Pending Reward Fulfillment (${rewards.length})`} icon="🎁" iconColor={C.orange} iconBg={C.orangeLight}>
+              {rewardsLoading ? (
+                <ActivityIndicator color={C.orange} style={{ marginVertical: 20 }} />
+              ) : rewards.length === 0 ? (
+                <Text style={styles.emptyText}>No rewards waiting to be handed out.</Text>
+              ) : (
+                rewards.map((r) => (
+                  <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: C.border, paddingVertical: 12 }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: C.black }}>
+                        {r.reward_type === 'id_card' ? '🪪 ID Card' : '👕 T-Shirt'} · {r.full_name || r.labourer_name}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                        {r.labourer_phone || 'No phone on file'}{r.location ? ` · ${r.location}` : ''}
+                      </Text>
+                      <Text style={{ fontSize: 11.5, color: '#999', marginTop: 2 }}>
+                        Hit {r.milestone_bookings} bookings on {fmtDate(r.achieved_at)}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={{ backgroundColor: C.green, borderRadius: 8, paddingVertical: 9, paddingHorizontal: 14 }}
+                      disabled={issuingId === r.id}
+                      onPress={() => issueReward(r.id)}
+                    >
+                      {issuingId === r.id
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>Mark issued</Text>}
+                    </TouchableOpacity>
                   </View>
                 ))
               )}
