@@ -33,7 +33,7 @@ router.get('/labour/:labourId', async (req, res) => {
     if (!labourId) return res.json({ ok: false, error: 'Invalid labour profile id' });
 
     const { rows } = await pool.query(`
-      SELECT r.id, r.stars, r.comment, r.created_at,
+      SELECT r.id, r.stars, r.comment, r.audio_url, r.audio_duration_sec, r.created_at,
              u.name AS rater_name, hr.work_description
       FROM ratings r
       JOIN hire_requests hr ON hr.id = r.hire_request_id
@@ -115,7 +115,9 @@ router.post('/', auth, async (req, res) => {
 router.post('/labour', auth, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { hireRequestId, stars, comment } = req.body;
+    const { hireRequestId, stars, comment, audioUrl, audioDurationSec } = req.body;
+    const cleanAudioUrl = typeof audioUrl === 'string' && /^https?:\/\//.test(audioUrl) ? audioUrl : null;
+    const cleanAudioDuration = Number.isFinite(parseInt(audioDurationSec, 10)) ? parseInt(audioDurationSec, 10) : null;
 
     const s = parseInt(stars, 10);
     if (!s || s < 1 || s > 5) {
@@ -157,12 +159,12 @@ router.post('/labour', auth, async (req, res) => {
     await client.query('BEGIN');
 
     const { rows } = await client.query(`
-      INSERT INTO ratings (hire_request_id, rater_id, rated_id, stars, comment)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO ratings (hire_request_id, rater_id, rated_id, stars, comment, audio_url, audio_duration_sec)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT (rater_id, hire_request_id) WHERE hire_request_id IS NOT NULL
-      DO UPDATE SET stars = $4, comment = $5
+      DO UPDATE SET stars = $4, comment = $5, audio_url = $6, audio_duration_sec = $7
       RETURNING *
-    `, [hrId, req.user.id, hr.labourer_user_id, s, comment?.trim() || null]);
+    `, [hrId, req.user.id, hr.labourer_user_id, s, comment?.trim() || null, cleanAudioUrl, cleanAudioDuration]);
 
     // Recompute the labourer's aggregate rating from source-of-truth (ratings
     // table) rather than incrementing a running average, so it self-heals if
