@@ -948,7 +948,151 @@ router.delete('/labour/:id', async (req, res) => {
   }
 });
 
+// GET /api/admin/labour/stats — the full labour dashboard: how many workers
+// are active, how many have been hired, and a today / this-week / this-month
+// / last-month breakdown of new profiles, hires, and platform revenue.
+//
+// Period boundaries are computed once in JS (not in SQL) so "today" and
+// "this week" are anchored to the exact same instant across every query
+// below — computing NOW() separately per query risks a period boundary
+// shifting mid-request right at midnight.
+//
+// Hire counts/revenue per period are read from the immutable event logs
+// (wallet_transactions for the hire-fee charge, labour_payouts for the
+// commission payout, hire_requests.completed_at for completions) rather
+// than the mutable hire_requests.status column — a row's *current* status
+// can't tell you when a past event happened, only what state it's in now.
+router.get('/labour/stats', async (req, res) => {
+  try {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayOfWeek = (now.getDay() + 6) % 7; // Mon=0..Sun=6, so week starts on Monday
+    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - dayOfWeek);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const periods = [todayStart, weekStart, monthStart, lastMonthStart, monthStart];
+    // $1=today $2=weekStart $3=monthStart $4=lastMonthStart $5=lastMonthEnd(=monthStart)
+
+    const safe = async (label, fn, fallback) => {
+      try { return await fn(); }
+      catch (e) { console.error(`[admin/labour/stats] "${label}" query failed:`, e.message); return fallback; }
+    };
+
+    const zeroPeriod = { today: 0, this_week: 0, this_month: 0, last_month: 0 };
+
+    const [profiles, profilesByPeriod, hireStatus, hiresByPeriod, completedByPeriod, revenueByPeriod, topSkills, topDistricts] = await Promise.all([
+      safe('profiles', () => pool.query(`
+        SELECT
+          COUNT(*)                                     AS total,
+          COUNT(*) FILTER (WHERE status = 'active')    AS active,
+          COUNT(*) FILTER (WHERE status = 'hidden')    AS hidden,
+          COUNT(*) FILTER (WHERE status = 'banned')    AS banned,
+          COUNT(*) FILTER (WHERE id_verified)          AS verified,
+          COUNT(*) FILTER (WHERE is_available_now)     AS available_now
+        FROM labour_profiles
+      `), { rows: [{ total: 0, active: 0, hidden: 0, banned: 0, verified: 0, available_now: 0 }] }),
+
+      safe('profilesByPeriod', () => pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE created_at >= $1)                    AS today,
+          COUNT(*) FILTER (WHERE created_at >= $2)                    AS this_week,
+          COUNT(*) FILTER (WHERE created_at >= $3)                    AS this_month,
+          COUNT(*) FILTER (WHERE created_at >= $4 AND created_at < $5) AS last_month
+        FROM labour_profiles
+      `, periods), { rows: [zeroPeriod] }),
+
+      safe('hireStatus', () => pool.query(`
+        SELECT
+          COUNT(*)                                       AS total,
+          COUNT(*) FILTER (WHERE status = 'pending')     AS pending,
+          COUNT(*) FILTER (WHERE status = 'accepted')     AS accepted,
+          COUNT(*) FILTER (WHERE status = 'completed')    AS completed,
+          COUNT(*) FILTER (WHERE status = 'declined')     AS declined,
+          COUNT(*) FILTER (WHERE status = 'cancelled')    AS cancelled
+        FROM hire_requests
+      `), { rows: [{ total: 0, pending: 0, accepted: 0, completed: 0, declined: 0, cancelled: 0 }] }),
+
+      // "Hired" = the hire fee was actually charged (request accepted), read
+      // from the wallet ledger so this is a true per-period event count.
+      safe('hiresByPeriod', () => pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE created_at >= $1)                     AS today,
+          COUNT(*) FILTER (WHERE created_at >= $2)                     AS this_week,
+          COUNT(*) FILTER (WHERE created_at >= $3)                     AS this_month,
+          COUNT(*) FILTER (WHERE created_at >= $4 AND created_at < $5) AS last_month
+        FROM wallet_transactions WHERE reason = 'labour_hire_fee'
+      `, periods), { rows: [zeroPeriod] }),
+
+      safe('completedByPeriod', () => pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE completed_at >= $1)                     AS today,
+          COUNT(*) FILTER (WHERE completed_at >= $2)                     AS this_week,
+          COUNT(*) FILTER (WHERE completed_at >= $3)                     AS this_month,
+          COUNT(*) FILTER (WHERE completed_at >= $4 AND completed_at < $5) AS last_month
+        FROM hire_requests WHERE status = 'completed'
+      `, periods), { rows: [zeroPeriod] }),
+
+      // Platform revenue = hire fee collected minus commission paid out,
+      // per period — same ₹10-in / ₹5-out / ₹5-kept split used everywhere
+      // else, just bucketed by time here instead of a rolling window.
+      safe('revenueByPeriod', () => pool.query(`
+        SELECT
+          COALESCE(SUM(amount) FILTER (WHERE created_at >= $1), 0)                     AS today,
+          COALESCE(SUM(amount) FILTER (WHERE created_at >= $2), 0)                     AS this_week,
+          COALESCE(SUM(amount) FILTER (WHERE created_at >= $3), 0)                     AS this_month,
+          COALESCE(SUM(amount) FILTER (WHERE created_at >= $4 AND created_at < $5), 0) AS last_month
+        FROM wallet_transactions WHERE reason = 'labour_hire_fee'
+      `, periods), { rows: [zeroPeriod] }),
+
+      safe('topSkills', () => pool.query(`
+        SELECT skill_category, COUNT(*) AS count
+        FROM labour_profiles WHERE status = 'active'
+        GROUP BY skill_category ORDER BY count DESC LIMIT 5
+      `), { rows: [] }),
+
+      safe('topDistricts', () => pool.query(`
+        SELECT district, COUNT(*) AS count
+        FROM labour_profiles WHERE status = 'active'
+        GROUP BY district ORDER BY count DESC LIMIT 5
+      `), { rows: [] }),
+    ]);
+
+    const commissionByPeriod = await safe('commissionByPeriod', () => pool.query(`
+      SELECT
+        COALESCE(SUM(amount) FILTER (WHERE created_at >= $1), 0)                     AS today,
+        COALESCE(SUM(amount) FILTER (WHERE created_at >= $2), 0)                     AS this_week,
+        COALESCE(SUM(amount) FILTER (WHERE created_at >= $3), 0)                     AS this_month,
+        COALESCE(SUM(amount) FILTER (WHERE created_at >= $4 AND created_at < $5), 0) AS last_month
+      FROM labour_payouts WHERE source = 'hire_fee'
+    `, periods), { rows: [zeroPeriod] });
+
+    const toNum = (row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, Number(v) || 0]));
+    const gross = toNum(revenueByPeriod.rows[0]);
+    const commission = toNum(commissionByPeriod.rows[0]);
+    const platformRevenue = Object.fromEntries(Object.keys(gross).map(k => [k, gross[k] - commission[k]]));
+
+    res.json({
+      ok: true,
+      profiles: toNum(profiles.rows[0]),
+      profilesByPeriod: toNum(profilesByPeriod.rows[0]),
+      hireStatus: toNum(hireStatus.rows[0]),
+      hiresByPeriod: toNum(hiresByPeriod.rows[0]),
+      completedByPeriod: toNum(completedByPeriod.rows[0]),
+      grossFeesByPeriod: gross,
+      commissionByPeriod: commission,
+      platformRevenueByPeriod: platformRevenue,
+      topSkills: topSkills.rows,
+      topDistricts: topDistricts.rows,
+    });
+  } catch (err) {
+    console.error('GET /admin/labour/stats error:', err);
+    res.json({ ok: false, error: 'Failed to load labour stats' });
+  }
+});
+
 // ── LABOUR EARNINGS PIPELINE ──────────────────────────────────────────────────
+
 
 // GET /api/admin/labour/revenue — gross hire fees collected vs commissions
 // paid out vs net platform revenue, plus a snapshot of money currently sitting
