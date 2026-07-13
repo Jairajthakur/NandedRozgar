@@ -44,6 +44,11 @@ const MAX_PAIR_COMPLETIONS_PER_DAY = 3;
 // Counting is "fresh start" from labour_reward_settings.rewards_start_at
 // (see db.js) — only completions from when this feature shipped count, so
 // existing high-completion workers aren't instantly credited.
+// Ad-hoc multi-select hire: sanity cap on how many workers a contractor can
+// bundle into one bulk-hire action (a pre-formed Crew has no such cap since
+// its size is set by the leader when building the team).
+const MAX_BULK_HIRE = 20;
+
 const MILESTONE_REWARDS = [
   { reward_type: 'id_card', milestone_bookings: 5 },
   { reward_type: 'tshirt',  milestone_bookings: 10 },
@@ -970,6 +975,143 @@ router.post('/:id/hire', auth, async (req, res) => {
   } catch (err) {
     console.error('[labour] hire error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to send hire request' });
+  }
+});
+
+// POST /api/labour/hire-bulk — ad-hoc multi-select hire: a contractor picks
+// any set of individual workers while browsing (not necessarily part of a
+// pre-formed Crew) and hires them all in one action.
+//
+// Any selected worker the contractor hasn't already unlocked gets a 1-day
+// contact unlock charged automatically as part of this same transaction —
+// same ₹10/day rate and ₹5/day worker commission as a manual /:id/unlock,
+// just bundled so the contractor doesn't have to unlock each one first.
+// Workers already unlocked (including via the free re-hire window) aren't
+// charged again. One hire_requests row is created per worker either way.
+router.post('/hire-bulk', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { labourIds, work_description, proposed_wage, work_date } = req.body;
+    const ids = [...new Set((Array.isArray(labourIds) ? labourIds : []).map(id => parseInt(id, 10)).filter(Boolean))];
+
+    if (!ids.length) {
+      return res.status(400).json({ ok: false, error: 'Select at least one worker to hire.' });
+    }
+    if (ids.length > MAX_BULK_HIRE) {
+      return res.status(400).json({ ok: false, error: `You can hire up to ${MAX_BULK_HIRE} workers at once.` });
+    }
+
+    await client.query('BEGIN');
+
+    // Same active-profile / active-owner guard as a single hire, applied to
+    // every selected id at once. Any id that fails this (hidden, banned,
+    // deactivated, or the contractor's own profile) is silently dropped
+    // rather than failing the whole batch — the response reports which ids
+    // were skipped so the app can tell the contractor.
+    const { rows: validRows } = await client.query(`
+      SELECT l.id, l.user_id
+      FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      WHERE l.id = ANY($1::int[]) AND l.status = 'active' AND u.active = true AND l.user_id != $2
+    `, [ids, req.user.id]);
+
+    const validIds = validRows.map(r => r.id);
+    const skippedIds = ids.filter(id => !validIds.includes(id));
+    if (!validIds.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ ok: false, error: 'None of the selected workers are available to hire right now.' });
+    }
+
+    // Which of the valid ones already have an active unlock (manual or free
+    // rehire window) — only the rest need a fresh unlock charged.
+    const { rows: unlockedRows } = await client.query(`
+      SELECT DISTINCT labour_id FROM labour_contact_unlocks
+      WHERE contractor_id = $1 AND labour_id = ANY($2::int[]) AND expires_at > NOW()
+    `, [req.user.id, validIds]);
+    const alreadyUnlocked = new Set(unlockedRows.map(r => r.labour_id));
+    const needsUnlock = validIds.filter(id => !alreadyUnlocked.has(id));
+
+    const unlockCostEach = CONTACT_RATE_PER_DAY; // 1-day unlock, same as a manual unlock's minimum
+    const totalUnlockCost = needsUnlock.length * unlockCostEach;
+
+    if (totalUnlockCost > 0) {
+      const { rows: balRows } = await client.query(
+        'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE', [req.user.id]
+      );
+      const balance = parseFloat(balRows[0]?.wallet_balance || 0);
+      if (balance < totalUnlockCost) {
+        await client.query('ROLLBACK');
+        return res.status(402).json({
+          ok: false,
+          error: `Insufficient wallet balance. Unlocking contact for ${needsUnlock.length} new worker(s) costs ₹${totalUnlockCost}, but you have ₹${balance.toFixed(2)}.`,
+          balance,
+          required: totalUnlockCost,
+        });
+      }
+    }
+
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    let walletBalance = null;
+    for (const labourId of needsUnlock) {
+      const userIdForLabour = validRows.find(r => r.id === labourId).user_id;
+
+      const { rows: unlockRows } = await client.query(`
+        INSERT INTO labour_contact_unlocks
+          (contractor_id, labour_id, days, amount, cashfree_order_id, expires_at)
+        VALUES ($1, $2, 1, $3, 'WALLET', $4)
+        RETURNING id
+      `, [req.user.id, labourId, unlockCostEach, expiresAt]);
+
+      const { rows: newBalRows } = await client.query(
+        'UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2 RETURNING wallet_balance',
+        [unlockCostEach, req.user.id]
+      );
+      walletBalance = newBalRows[0].wallet_balance;
+
+      await client.query(`
+        INSERT INTO wallet_transactions
+          (user_id, type, amount, balance_after, reason, reference_type, reference_id)
+        VALUES ($1, 'debit', $2, $3, 'labour_contact_unlock', 'labour_contact_unlocks', $4)
+      `, [req.user.id, unlockCostEach, walletBalance, unlockRows[0].id]);
+
+      const commission = CONTACT_COMMISSION_PER_DAY;
+      await client.query(`
+        INSERT INTO labour_payouts (contact_unlock_id, labour_user_id, amount, status, available_at, source)
+        VALUES ($1, $2, $3, 'available', NOW(), 'contact_unlock')
+        ON CONFLICT (contact_unlock_id) WHERE contact_unlock_id IS NOT NULL DO NOTHING
+      `, [unlockRows[0].id, userIdForLabour, commission]);
+    }
+
+    const created = [];
+    for (const labourId of validIds) {
+      const { rows } = await client.query(`
+        INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, work_date)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+      `, [labourId, req.user.id, work_description || null, proposed_wage || null, work_date || null]);
+      created.push(rows[0]);
+    }
+
+    if (walletBalance === null) {
+      const { rows: balRows } = await client.query('SELECT wallet_balance FROM users WHERE id = $1', [req.user.id]);
+      walletBalance = balRows[0]?.wallet_balance;
+    }
+
+    await client.query('COMMIT');
+    res.json({
+      ok: true,
+      hireRequests: created,
+      skippedIds,
+      unlocksCharged: needsUnlock.length,
+      totalUnlockCost,
+      walletBalance: parseFloat(walletBalance),
+      hireFeeInfo: { amount: HIRE_FEE, chargedWhen: 'accepted', perWorker: true },
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[labour] hire-bulk error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to send hire requests' });
+  } finally {
+    client.release();
   }
 });
 
