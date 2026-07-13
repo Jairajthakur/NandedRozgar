@@ -49,6 +49,8 @@ import LabourScreen     from './src/screens/LabourScreen';
 import LabourEntryScreen from './src/screens/LabourEntryScreen';
 import LabourDetailScreen from './src/screens/LabourDetailScreen';
 import PostLabourProfileScreen from './src/screens/PostLabourProfileScreen';
+import ProjectsScreen from './src/screens/ProjectsScreen';
+import ProjectDetailScreen from './src/screens/ProjectDetailScreen';
 import ComingSoonScreen from './src/components/ComingSoonScreen';
 import { FEATURES } from './src/utils/constants';
 import PostItemScreen   from './src/screens/PostItemScreen';
@@ -98,7 +100,7 @@ let _HomeScreen, _BoardScreen, _JobDetailScreen, _PostScreen, _PostJobScreen,
     _AnalyticsScreen, _AlertsScreen, _PromoteBusinessScreen,
     _HelpSupportScreen, _SellItemForm, _AboutScreen, _ChatScreen, _ChatListScreen, _SavedJobsScreen,
     _MonthlyPlanScreen, _LabourScreen, _LabourDetailScreen, _PostLabourProfileScreen, _HireRequestsScreen,
-    _LabourEarningsScreen, _WalletScreen;
+    _LabourEarningsScreen, _WalletScreen, _ProjectsScreen, _ProjectDetailScreen;
 
 // ── Online / offline detection ────────────────────────────────────────────────
 // FIX: The previous version pinged our own backend server (/health) to decide
@@ -704,6 +706,8 @@ _LabourDetailScreen    = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? Labou
 _PostLabourProfileScreen = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? PostLabourProfileScreen : PostLabourComingSoon, 'PostLabourProfileScreen');
 _HireRequestsScreen    = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? HireRequestsScreen : LabourComingSoon,    'HireRequestsScreen');
 _LabourEarningsScreen  = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? LabourEarningsScreen : LabourComingSoon,  'LabourEarningsScreen');
+_ProjectsScreen         = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? ProjectsScreen : LabourComingSoon,       'ProjectsScreen');
+_ProjectDetailScreen    = withScreenErrorBoundary(FEATURES.LABOUR_ENABLED ? ProjectDetailScreen : LabourComingSoon,  'ProjectDetailScreen');
 _WalletScreen           = withScreenErrorBoundary(WalletScreen,           'WalletScreen');
 _PostItemScreen        = withScreenErrorBoundary(PostItemScreen,        'PostItemScreen');
 _LoginScreen           = withScreenErrorBoundary(LoginScreen,           'LoginScreen');
@@ -974,6 +978,8 @@ function RootNavigator() {
       <Stack.Screen name="SavedJobs"       component={_SavedJobsScreen}       options={{ headerShown: true, headerTitle: t('headerSavedJobs'),       ...HEADER }} />
       <Stack.Screen name="HireRequests"    component={_HireRequestsScreen}    options={{ headerShown: true, headerTitle: 'Hire Requests',             ...HEADER }} />
       <Stack.Screen name="LabourEarnings"  component={_LabourEarningsScreen}  options={{ headerShown: true, headerTitle: 'My Earnings',                ...HEADER }} />
+      <Stack.Screen name="Projects"        component={_ProjectsScreen}        options={{ headerShown: false }} />
+      <Stack.Screen name="ProjectDetail"   component={_ProjectDetailScreen}   options={{ headerShown: false }} />
       <Stack.Screen name="Wallet"          component={_WalletScreen}          options={{ headerShown: true, headerTitle: 'My Wallet',                  ...HEADER }} />
     </Stack.Navigator>
     <InstagramFollowModal visible={showInstagramModal} onClose={dismissInstagramModal} />
@@ -1009,6 +1015,8 @@ const linking = {
       PostRoom:        'post-room',
       BuySell:         'buy-sell',
       BuySellDetail:   'buy-sell/:id',
+      Projects:        'projects',
+      ProjectDetail:   'projects/:id',
       PostItem:        'post-item',
       PromoteBusiness: 'promote',
       Profile:         'profile',
