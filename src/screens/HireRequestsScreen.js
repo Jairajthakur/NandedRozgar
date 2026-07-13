@@ -30,6 +30,7 @@ import { LABOUR_COLORS, STATUS_META, SKILL_ICONS, getSkillGradient } from '../co
 import { StatusPill } from '../components/labour/LabourUI';
 import LabourAttendance from '../components/LabourAttendance';
 import DisputePanel from '../components/labour/DisputePanel';
+import RewardsProgress from '../components/labour/RewardsProgress';
 
 const ORANGE  = LABOUR_COLORS.primary;
 const LABOUR  = LABOUR_COLORS.worker;
@@ -581,6 +582,9 @@ export default function HireRequestsScreen() {
             <Ionicons name="chevron-forward" size={18} color={MUTED} />
           </View>
         </TouchableOpacity>
+
+        {/* ── Milestone rewards (ID card @ 5, T-shirt @ 10 bookings) ──── */}
+        <RewardsProgress />
       </View>
     );
   };
