@@ -1182,6 +1182,107 @@ async function runMigrations() {
       await client.query(`DELETE FROM payments WHERE id = 3 AND amount = 249`);
     } catch (e) { /* already deleted or doesn't exist — safe to ignore */ }
 
+    // ── Escrow Disputes — "Instant Dispute Resolution" ──────────────────────
+    // Either side of a FUNDED escrow can raise a dispute (contractor claims
+    // work is incomplete, or worker claims the contractor is stalling on
+    // release) and attach photo proof (uploaded via the existing
+    // /api/upload/image pipeline — only the URLs are stored here). A simple
+    // admin panel (not a full arbitration engine) resolves it one way or the
+    // other. Kept deliberately manual for now — same reasoning already used
+    // for labour_withdrawals: eyeball fraud patterns while volume is low.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS escrow_disputes (
+        id                 SERIAL PRIMARY KEY,
+        hire_request_id    INTEGER NOT NULL REFERENCES hire_requests(id) ON DELETE CASCADE,
+        raised_by          INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        reason             TEXT NOT NULL,
+        photo_urls         JSONB NOT NULL DEFAULT '[]',
+        counter_reason     TEXT,
+        counter_photo_urls JSONB NOT NULL DEFAULT '[]',
+        status             VARCHAR(20) NOT NULL DEFAULT 'open'
+                             CHECK (status IN ('open', 'resolved_worker', 'resolved_contractor', 'withdrawn')),
+        resolution_note    TEXT,
+        resolved_by        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        resolved_at        TIMESTAMPTZ,
+        created_at         TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_escrow_disputes_open ON escrow_disputes(hire_request_id) WHERE status = 'open'`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_escrow_disputes_status ON escrow_disputes(status)`);
+
+    // ── Geofenced Punch-In/Out ────────────────────────────────────────────
+    // Site coordinates for a hire, set once by the contractor. The worker's
+    // device compares its live GPS fix against this point; within
+    // GEOFENCE_RADIUS_M (50m, enforced in routes/attendance.js) triggers an
+    // automatic punch-in instead of requiring the contractor to tap a button.
+    await client.query(`ALTER TABLE hire_requests ADD COLUMN IF NOT EXISTS site_lat DOUBLE PRECISION`);
+    await client.query(`ALTER TABLE hire_requests ADD COLUMN IF NOT EXISTS site_lng DOUBLE PRECISION`);
+    await client.query(`ALTER TABLE hire_requests ADD COLUMN IF NOT EXISTS site_label VARCHAR(200)`);
+    await client.query(`ALTER TABLE labour_attendance ADD COLUMN IF NOT EXISTS punch_in_source  VARCHAR(20) DEFAULT 'manual'`);
+    await client.query(`ALTER TABLE labour_attendance ADD COLUMN IF NOT EXISTS punch_out_source VARCHAR(20) DEFAULT 'manual'`);
+
+    // ── Digital Expense Log ──────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_expenses (
+        id           SERIAL PRIMARY KEY,
+        user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        category     VARCHAR(30) NOT NULL DEFAULT 'other'
+                       CHECK (category IN ('tools', 'transport', 'meals', 'materials', 'other')),
+        amount       NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+        note         VARCHAR(200),
+        created_at   TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_expenses_user ON labour_expenses(user_id, expense_date DESC)`);
+
+    // ── Micro-Insurance (₹5/day accident cover toggle) ───────────────────
+    // Lazy daily charge (like checked_in_until — no cron needed) debits ₹5
+    // from wallet_balance for each calendar day while active.
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS labour_insurance_active BOOLEAN NOT NULL DEFAULT FALSE`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS labour_insurance_activated_at TIMESTAMPTZ`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_insurance_charges (
+        id           SERIAL PRIMARY KEY,
+        user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        charge_date  DATE NOT NULL,
+        amount       NUMERIC(10,2) NOT NULL DEFAULT 5,
+        created_at   TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(user_id, charge_date)
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_insurance_charges_user ON labour_insurance_charges(user_id, charge_date DESC)`);
+
+    // ── Audio-Based Feedback ──────────────────────────────────────────────
+    await client.query(`ALTER TABLE ratings ADD COLUMN IF NOT EXISTS audio_url TEXT`);
+    await client.query(`ALTER TABLE ratings ADD COLUMN IF NOT EXISTS audio_duration_sec INTEGER`);
+
+    // ── Emergency Alert / SOS ──────────────────────────────────────────────
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_contact_name   VARCHAR(100)`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_contact_phone  VARCHAR(15)`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_contact_phone2 VARCHAR(15)`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sos_alerts (
+        id               SERIAL PRIMARY KEY,
+        user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        hire_request_id  INTEGER REFERENCES hire_requests(id) ON DELETE SET NULL,
+        lat              DOUBLE PRECISION,
+        lng              DOUBLE PRECISION,
+        message          TEXT,
+        status           VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'resolved')),
+        created_at       TIMESTAMPTZ DEFAULT NOW(),
+        resolved_at      TIMESTAMPTZ
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sos_user   ON sos_alerts(user_id, created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sos_active ON sos_alerts(status) WHERE status = 'active'`);
+
+    // ── Job-Demand Heatmap ─────────────────────────────────────────────────
+    // Coordinates to cluster on already exist (jobs.lat/lng, hire_requests
+    // via the new site_lat/site_lng above) — just indexes for the query.
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_geo ON jobs(lat, lng) WHERE lat IS NOT NULL AND status = 'active'`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_hire_requests_site_geo ON hire_requests(site_lat, site_lng) WHERE site_lat IS NOT NULL`);
+
     console.log('✅ Database migrations complete.');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
