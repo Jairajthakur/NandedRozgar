@@ -263,9 +263,10 @@ export default function LabourScreen() {
 
   const showSidebar = IS_WEB && width >= 900;
 
-  // Contractors browsing this screen are the ones who need wallet balance to
-  // unlock contacts — surface it right in the header instead of burying it
-  // in Profile, so topping up doesn't require hitting an error first.
+  // Contractors browsing this screen are the ones who'll need wallet balance
+  // for the hire fee once a worker accepts (unlocking contacts is free) —
+  // surface it right in the header instead of burying it in Profile, so
+  // topping up doesn't require hitting an error first.
   useEffect(() => {
     if (!user) return;
     http('GET', '/api/payments/wallet/balance').then((res) => {
