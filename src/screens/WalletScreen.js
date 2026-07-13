@@ -143,7 +143,7 @@ export default function WalletScreen() {
         <LinearGradient colors={[ORANGE, '#c2410c']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.hero}>
           <Text style={st.heroLabel}>Wallet balance</Text>
           <Text style={st.heroAmount}>₹{(balance ?? 0).toFixed(2)}</Text>
-          <Text style={st.heroNote}>Used to unlock worker contacts & pay hire fees.</Text>
+          <Text style={st.heroNote}>Used to pay labour hire fees.</Text>
         </LinearGradient>
 
         {!!suggestedAmount && (
