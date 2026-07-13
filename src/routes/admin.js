@@ -1027,4 +1027,46 @@ router.patch('/labour/withdrawals/:id', async (req, res) => {
   }
 });
 
+// GET /api/admin/labour/rewards — queue of milestone rewards (ID card @ 5
+// bookings, T-shirt @ 10) to fulfill, filterable by status (defaults to
+// 'pending' — the actionable queue).
+router.get('/labour/rewards', async (req, res) => {
+  try {
+    const status = req.query.status || 'pending';
+    const { rows } = await pool.query(`
+      SELECT r.*, u.name AS labourer_name, u.phone AS labourer_phone,
+             lp.full_name, lp.location, lp.photo_url
+      FROM labour_milestone_rewards r
+      JOIN labour_profiles lp ON lp.id = r.labour_id
+      JOIN users u ON u.id = lp.user_id
+      WHERE r.status = $1
+      ORDER BY r.achieved_at ASC
+    `, [status]);
+    res.json({ ok: true, rewards: rows });
+  } catch (err) {
+    console.error('GET /admin/labour/rewards error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to load rewards.' });
+  }
+});
+
+// PATCH /api/admin/labour/rewards/:id — mark a reward issued once the ID
+// card/T-shirt has actually been handed to the worker.
+router.patch('/labour/rewards/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      `UPDATE labour_milestone_rewards SET status = 'issued', issued_at = NOW(), issued_by = $1
+       WHERE id = $2 AND status = 'pending' RETURNING *`,
+      [req.user.id, id]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ ok: false, error: 'Reward not found or already issued.' });
+    }
+    res.json({ ok: true, reward: rows[0] });
+  } catch (err) {
+    console.error('PATCH /admin/labour/rewards/:id error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to update reward.' });
+  }
+});
+
 module.exports = router;
