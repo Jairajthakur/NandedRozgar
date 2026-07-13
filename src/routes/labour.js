@@ -39,6 +39,16 @@ const MIN_WITHDRAWAL = 50;
 // still bounds exposure and flags unusual velocity for review.
 const MAX_PAIR_COMPLETIONS_PER_DAY = 3;
 
+// ── Milestone rewards ────────────────────────────────────────────────────
+// Physical items the platform hands a worker as they build a track record.
+// Counting is "fresh start" from labour_reward_settings.rewards_start_at
+// (see db.js) — only completions from when this feature shipped count, so
+// existing high-completion workers aren't instantly credited.
+const MILESTONE_REWARDS = [
+  { reward_type: 'id_card', milestone_bookings: 5 },
+  { reward_type: 'tshirt',  milestone_bookings: 10 },
+];
+
 // Best-effort decode of the Authorization header — does NOT reject the request
 // if missing/invalid, since profile browsing is public. Used only to determine
 // whether a viewer has already paid to unlock this profile's contact info.
@@ -1249,9 +1259,41 @@ router.patch('/hire-requests/:id', auth, async (req, res) => {
     }
 
     const result = await client.query(
-      'UPDATE hire_requests SET status = $1 WHERE id = $2 RETURNING *',
+      status === 'completed'
+        ? 'UPDATE hire_requests SET status = $1, completed_at = NOW() WHERE id = $2 RETURNING *'
+        : 'UPDATE hire_requests SET status = $1 WHERE id = $2 RETURNING *',
       [status, id]
     );
+
+    // ── Milestone rewards: award any newly-crossed threshold ──
+    let newlyAwardedRewards = [];
+    if (status === 'completed') {
+      const { rows: settingsRows } = await client.query(
+        'SELECT rewards_start_at FROM labour_reward_settings WHERE id = 1'
+      );
+      const rewardsStartAt = settingsRows[0]?.rewards_start_at;
+      if (rewardsStartAt) {
+        const { rows: countRows } = await client.query(
+          `SELECT COUNT(*)::int AS n FROM hire_requests
+           WHERE labour_id = $1 AND status = 'completed' AND completed_at >= $2`,
+          [hr.labour_id, rewardsStartAt]
+        );
+        const completedCount = countRows[0].n;
+
+        for (const milestone of MILESTONE_REWARDS) {
+          if (completedCount >= milestone.milestone_bookings) {
+            const { rows: awarded } = await client.query(
+              `INSERT INTO labour_milestone_rewards (labour_id, reward_type, milestone_bookings)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (labour_id, reward_type) DO NOTHING
+               RETURNING *`,
+              [hr.labour_id, milestone.reward_type, milestone.milestone_bookings]
+            );
+            if (awarded.length) newlyAwardedRewards.push(awarded[0]);
+          }
+        }
+      }
+    }
 
     await client.query('COMMIT');
     res.json({
@@ -1259,6 +1301,7 @@ router.patch('/hire-requests/:id', auth, async (req, res) => {
       hireRequest: result.rows[0],
       hireFeeCharged,
       commissionCredited,
+      newlyAwardedRewards,
     });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
@@ -1323,6 +1366,60 @@ router.get('/payouts/mine', auth, async (req, res) => {
   } catch (err) {
     console.error('[labour] payouts/mine error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to load earnings' });
+  }
+});
+
+// GET /api/labour/rewards/mine — a worker's milestone-reward progress:
+// how many completed bookings count toward rewards (since the fresh-start
+// cutoff), which rewards have been earned/issued, and how many bookings
+// remain until the next one.
+router.get('/rewards/mine', auth, async (req, res) => {
+  try {
+    const { rows: profileRows } = await pool.query(
+      'SELECT id FROM labour_profiles WHERE user_id = $1', [req.user.id]
+    );
+    if (!profileRows.length) {
+      return res.json({ ok: true, completedCount: 0, rewards: [], nextMilestone: MILESTONE_REWARDS[0] });
+    }
+    const labourId = profileRows[0].id;
+
+    const { rows: settingsRows } = await pool.query('SELECT rewards_start_at FROM labour_reward_settings WHERE id = 1');
+    const rewardsStartAt = settingsRows[0]?.rewards_start_at || new Date(0);
+
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM hire_requests
+       WHERE labour_id = $1 AND status = 'completed' AND completed_at >= $2`,
+      [labourId, rewardsStartAt]
+    );
+    const completedCount = countRows[0].n;
+
+    const { rows: earned } = await pool.query(
+      `SELECT reward_type, milestone_bookings, status, achieved_at, issued_at
+       FROM labour_milestone_rewards WHERE labour_id = $1 ORDER BY milestone_bookings ASC`,
+      [labourId]
+    );
+    const earnedTypes = new Set(earned.map(r => r.reward_type));
+
+    const rewards = MILESTONE_REWARDS.map(m => {
+      const row = earned.find(r => r.reward_type === m.reward_type);
+      return row
+        ? { ...m, status: row.status, achieved_at: row.achieved_at, issued_at: row.issued_at }
+        : { ...m, status: 'locked', achieved_at: null, issued_at: null };
+    });
+
+    const nextMilestone = MILESTONE_REWARDS.find(m => !earnedTypes.has(m.reward_type)) || null;
+
+    res.json({
+      ok: true,
+      completedCount,
+      rewards,
+      nextMilestone: nextMilestone
+        ? { ...nextMilestone, bookingsRemaining: Math.max(0, nextMilestone.milestone_bookings - completedCount) }
+        : null,
+    });
+  } catch (err) {
+    console.error('[labour] rewards/mine error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load rewards' });
   }
 });
 
