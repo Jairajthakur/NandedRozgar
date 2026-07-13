@@ -386,7 +386,7 @@ export default function PostLabourProfileScreen() {
                   keyboardType="number-pad"
                   maxLength={10}
                 />
-                <Text style={s.hint}>Contractors pay to unlock this number, so it must be correct — this is how they'll reach you.</Text>
+                <Text style={s.hint}>Contractors can unlock this number for free, so it must be correct — this is how they'll reach you.</Text>
               </View>
 
               <View style={s.field}>
