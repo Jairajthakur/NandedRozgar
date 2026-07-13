@@ -824,21 +824,24 @@ router.delete('/:id/voice-bio', auth, async (req, res) => {
   }
 });
 
-// POST /api/labour/:id/unlock — pay-per-day contact unlock, paid from the
-// in-app wallet instead of a per-unlock Cashfree checkout.
-// Replaces the old two-step POST /api/payments/order+verify/labour-contact
-// flow: no gateway round-trip, no waiting on a UPI confirmation — the wallet
-// balance is checked and debited in one locked transaction, so this either
-// succeeds immediately or fails immediately with a clear "top up" error.
+// POST /api/labour/:id/unlock — FREE contact unlock. Reveals the worker's
+// phone number and satisfies the "must unlock before hiring" gate below, but
+// charges nothing and pays the labourer no commission here.
+//
+// CHANGED: contractors used to be charged ₹10/day here AND ₹10 again on
+// hire-accept — a double charge for what is really one transaction (find
+// the worker, then hire them). Now the only money that moves in the whole
+// labour flow is the single HIRE_FEE, charged once when a hire request is
+// accepted. CONTACT_RATE_PER_DAY / CONTACT_COMMISSION_PER_DAY are kept
+// defined above for reference but are no longer applied to a real charge.
 router.post('/:id/unlock', auth, async (req, res) => {
-  const client = await pool.connect();
   try {
     const labourId = parseInt(req.params.id);
     const days = Math.min(MAX_UNLOCK_DAYS, Math.max(1, parseInt(req.body.days) || 1));
     if (!labourId) return res.status(400).json({ ok: false, error: 'Invalid id' });
 
     // Same active-profile / active-owner guard as every other labour read —
-    // can't pay to unlock a hidden, banned, or deactivated worker.
+    // can't unlock a hidden, banned, or deactivated worker.
     const { rows: labourRows } = await pool.query(`
       SELECT l.id, l.user_id, u.phone AS labourer_phone
       FROM labour_profiles l JOIN users u ON u.id = l.user_id
@@ -846,84 +849,38 @@ router.post('/:id/unlock', auth, async (req, res) => {
     `, [labourId]);
     if (!labourRows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
     if (labourRows[0].user_id === req.user.id) {
-      return res.status(400).json({ ok: false, error: 'You cannot pay to unlock your own profile.' });
+      return res.status(400).json({ ok: false, error: 'You cannot unlock your own profile.' });
     }
     if (!labourRows[0].labourer_phone) {
       return res.status(400).json({ ok: false, error: 'This profile does not have a contact number on file yet.' });
     }
 
-    const amount = days * CONTACT_RATE_PER_DAY;
-
-    await client.query('BEGIN');
-
-    // Row lock on the wallet for the duration of the transaction — without
-    // this, two concurrent unlock requests could both read a balance that
-    // covers the debit, and both go through, taking the wallet negative.
-    const { rows: balRows } = await client.query(
-      'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE', [req.user.id]
-    );
-    const balance = parseFloat(balRows[0]?.wallet_balance || 0);
-    if (balance < amount) {
-      await client.query('ROLLBACK');
-      return res.status(402).json({
-        ok: false,
-        error: `Insufficient wallet balance. You need ₹${amount} but have ₹${balance.toFixed(2)}.`,
-        balance,
-        required: amount,
-      });
-    }
-
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-    const { rows: unlockRows } = await client.query(`
+    const { rows: unlockRows } = await pool.query(`
       INSERT INTO labour_contact_unlocks
         (contractor_id, labour_id, days, amount, cashfree_order_id, expires_at)
-      VALUES ($1,$2,$3,$4,'WALLET',$5)
+      VALUES ($1,$2,$3,0,'FREE',$4)
       RETURNING id
-    `, [req.user.id, labourId, days, amount, expiresAt]);
+    `, [req.user.id, labourId, days, expiresAt]);
 
-    const { rows: newBalRows } = await client.query(
-      'UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2 RETURNING wallet_balance',
-      [amount, req.user.id]
-    );
-    const newBalance = newBalRows[0].wallet_balance;
-
-    await client.query(`
-      INSERT INTO wallet_transactions
-        (user_id, type, amount, balance_after, reason, reference_type, reference_id)
-      VALUES ($1, 'debit', $2, $3, 'labour_contact_unlock', 'labour_contact_unlocks', $4)
-    `, [req.user.id, amount, newBalance, unlockRows[0].id]);
-
-    // Labourer's ₹5/day commission — instantly available, unlike the
-    // hire-completion commission which sits held for PAYOUT_HOLD_HOURS.
-    const commission = days * CONTACT_COMMISSION_PER_DAY;
-    await client.query(`
-      INSERT INTO labour_payouts (contact_unlock_id, labour_user_id, amount, status, available_at, source)
-      VALUES ($1, $2, $3, 'available', NOW(), 'contact_unlock')
-      ON CONFLICT (contact_unlock_id) WHERE contact_unlock_id IS NOT NULL DO NOTHING
-    `, [unlockRows[0].id, labourRows[0].user_id, commission]);
-
-    const { rows: profileRows } = await client.query(`
+    const { rows: profileRows } = await pool.query(`
       SELECT l.*, u.name AS user_name, u.phone AS user_phone
       FROM labour_profiles l JOIN users u ON u.id = l.user_id
       WHERE l.id = $1
     `, [labourId]);
 
-    await client.query('COMMIT');
     res.json({
       ok: true,
       profile: profileRows[0],
       expiresAt,
       days,
-      amount,
-      commissionCredited: commission,
-      walletBalance: parseFloat(newBalance),
+      amount: 0,
+      commissionCredited: 0,
+      unlockId: unlockRows[0].id,
     });
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
     console.error('[labour] unlock error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to unlock contact' });
-  } finally {
-    client.release();
   }
 });
 
@@ -991,12 +948,12 @@ router.post('/:id/hire', auth, async (req, res) => {
 // any set of individual workers while browsing (not necessarily part of a
 // pre-formed Crew) and hires them all in one action.
 //
-// Any selected worker the contractor hasn't already unlocked gets a 1-day
-// contact unlock charged automatically as part of this same transaction —
-// same ₹10/day rate and ₹5/day worker commission as a manual /:id/unlock,
-// just bundled so the contractor doesn't have to unlock each one first.
-// Workers already unlocked (including via the free re-hire window) aren't
-// charged again. One hire_requests row is created per worker either way.
+// CHANGED: unlocking is now free everywhere (see /:id/unlock above), so any
+// selected worker the contractor hasn't already unlocked just gets a free
+// 1-day unlock record created automatically here — no wallet charge, no
+// commission. The only charge in the whole labour flow is the HIRE_FEE,
+// applied once per worker when their hire request is accepted.
+// One hire_requests row is created per worker either way.
 router.post('/hire-bulk', auth, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1051,55 +1008,13 @@ router.post('/hire-bulk', auth, async (req, res) => {
     const alreadyUnlocked = new Set(unlockedRows.map(r => r.labour_id));
     const needsUnlock = validIds.filter(id => !alreadyUnlocked.has(id));
 
-    const unlockCostEach = CONTACT_RATE_PER_DAY; // 1-day unlock, same as a manual unlock's minimum
-    const totalUnlockCost = needsUnlock.length * unlockCostEach;
-
-    if (totalUnlockCost > 0) {
-      const { rows: balRows } = await client.query(
-        'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE', [req.user.id]
-      );
-      const balance = parseFloat(balRows[0]?.wallet_balance || 0);
-      if (balance < totalUnlockCost) {
-        await client.query('ROLLBACK');
-        return res.status(402).json({
-          ok: false,
-          error: `Insufficient wallet balance. Unlocking contact for ${needsUnlock.length} new worker(s) costs ₹${totalUnlockCost}, but you have ₹${balance.toFixed(2)}.`,
-          balance,
-          required: totalUnlockCost,
-        });
-      }
-    }
-
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    let walletBalance = null;
     for (const labourId of needsUnlock) {
-      const userIdForLabour = validRows.find(r => r.id === labourId).user_id;
-
-      const { rows: unlockRows } = await client.query(`
+      await client.query(`
         INSERT INTO labour_contact_unlocks
           (contractor_id, labour_id, days, amount, cashfree_order_id, expires_at)
-        VALUES ($1, $2, 1, $3, 'WALLET', $4)
-        RETURNING id
-      `, [req.user.id, labourId, unlockCostEach, expiresAt]);
-
-      const { rows: newBalRows } = await client.query(
-        'UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2 RETURNING wallet_balance',
-        [unlockCostEach, req.user.id]
-      );
-      walletBalance = newBalRows[0].wallet_balance;
-
-      await client.query(`
-        INSERT INTO wallet_transactions
-          (user_id, type, amount, balance_after, reason, reference_type, reference_id)
-        VALUES ($1, 'debit', $2, $3, 'labour_contact_unlock', 'labour_contact_unlocks', $4)
-      `, [req.user.id, unlockCostEach, walletBalance, unlockRows[0].id]);
-
-      const commission = CONTACT_COMMISSION_PER_DAY;
-      await client.query(`
-        INSERT INTO labour_payouts (contact_unlock_id, labour_user_id, amount, status, available_at, source)
-        VALUES ($1, $2, $3, 'available', NOW(), 'contact_unlock')
-        ON CONFLICT (contact_unlock_id) WHERE contact_unlock_id IS NOT NULL DO NOTHING
-      `, [unlockRows[0].id, userIdForLabour, commission]);
+        VALUES ($1, $2, 1, 0, 'FREE', $3)
+      `, [req.user.id, labourId, expiresAt]);
     }
 
     const created = [];
@@ -1112,19 +1027,12 @@ router.post('/hire-bulk', auth, async (req, res) => {
       created.push(rows[0]);
     }
 
-    if (walletBalance === null) {
-      const { rows: balRows } = await client.query('SELECT wallet_balance FROM users WHERE id = $1', [req.user.id]);
-      walletBalance = balRows[0]?.wallet_balance;
-    }
-
     await client.query('COMMIT');
     res.json({
       ok: true,
       hireRequests: created,
       skippedIds,
-      unlocksCharged: needsUnlock.length,
-      totalUnlockCost,
-      walletBalance: parseFloat(walletBalance),
+      unlocksGranted: needsUnlock.length,
       hireFeeInfo: { amount: HIRE_FEE, chargedWhen: 'accepted', perWorker: true },
     });
   } catch (err) {
