@@ -184,4 +184,118 @@ router.get('/mine', auth, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────
+// Geofenced Punch-In/Out
+//
+// A contractor sets the job site's coordinates once (PATCH .../site-location).
+// The worker's app then periodically (foreground, while the hire is active)
+// sends its live GPS fix to POST .../geofence-check; if it's within
+// GEOFENCE_RADIUS_M of the site, the worker is auto punched in — no button
+// tap needed, and no "forgot to punch in" wage disputes. Auto punch-out
+// works the same way once punched in and the worker leaves the radius, or
+// via a direct call at end of day.
+// ─────────────────────────────────────────────────────────────────────────
+
+const GEOFENCE_RADIUS_M = 50;
+
+// Haversine distance in meters
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// PATCH /api/attendance/:hireRequestId/site-location — contractor sets/updates
+// the job site coordinates once, used as the geofence center.
+router.patch('/:hireRequestId/site-location', auth, async (req, res) => {
+  try {
+    const hireRequestId = parseInt(req.params.hireRequestId, 10);
+    const lat = parseFloat(req.body.lat);
+    const lng = parseFloat(req.body.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return res.status(400).json({ ok: false, error: 'Valid lat/lng are required' });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE hire_requests SET site_lat = $1, site_lng = $2, site_label = $3
+       WHERE id = $4 AND contractor_id = $5 RETURNING id, site_lat, site_lng, site_label`,
+      [lat, lng, (req.body.label || '').trim().slice(0, 200) || null, hireRequestId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ ok: false, error: 'Hire request not found or not yours' });
+
+    res.json({ ok: true, hireRequest: rows[0], geofenceRadiusM: GEOFENCE_RADIUS_M });
+  } catch (err) {
+    console.error('[attendance] site-location error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to set site location' });
+  }
+});
+
+// POST /api/attendance/:hireRequestId/geofence-check — called by the WORKER's
+// device (unlike punch-in/out, which the contractor triggers) with a live GPS
+// fix. Auto punches in when they arrive within GEOFENCE_RADIUS_M, and auto
+// punches out if they were punched in and have now left the radius.
+router.post('/:hireRequestId/geofence-check', auth, async (req, res) => {
+  try {
+    const hireRequestId = parseInt(req.params.hireRequestId, 10);
+    const lat = parseFloat(req.body.lat);
+    const lng = parseFloat(req.body.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return res.status(400).json({ ok: false, error: 'Valid lat/lng are required' });
+    }
+
+    const { rows: hrRows } = await pool.query(
+      `SELECT hr.*, l.user_id AS labourer_user_id FROM hire_requests hr
+       JOIN labour_profiles l ON l.id = hr.labour_id WHERE hr.id = $1`,
+      [hireRequestId]
+    );
+    if (!hrRows.length) return res.status(404).json({ ok: false, error: 'Hire request not found' });
+    const hr = hrRows[0];
+    if (hr.labourer_user_id !== req.user.id) {
+      return res.status(403).json({ ok: false, error: 'Only the hired worker can check in via geofence' });
+    }
+    if (hr.site_lat == null || hr.site_lng == null) {
+      return res.json({ ok: true, inRange: false, punched: null, error: 'Contractor has not set a site location yet' });
+    }
+
+    const distance = distanceMeters(lat, lng, hr.site_lat, hr.site_lng);
+    const inRange = distance <= GEOFENCE_RADIUS_M;
+    const date = new Date().toISOString().slice(0, 10);
+
+    const { rows: todayRows } = await pool.query(
+      `SELECT * FROM labour_attendance WHERE hire_request_id = $1 AND work_date = $2`,
+      [hireRequestId, date]
+    );
+    const todayRow = todayRows[0] || null;
+
+    if (inRange && !todayRow?.punch_in_at) {
+      const { rows } = await pool.query(`
+        INSERT INTO labour_attendance
+          (hire_request_id, labour_id, contractor_id, work_date, punch_in_at, punch_in_lat, punch_in_lng, status, wage_for_day, punch_in_source)
+        VALUES ($1, $2, $3, $4, NOW(), $5, $6, 'present', $7, 'geofence')
+        ON CONFLICT (hire_request_id, work_date) DO UPDATE SET
+          punch_in_at = NOW(), punch_in_lat = $5, punch_in_lng = $6, status = 'present', punch_in_source = 'geofence'
+        RETURNING *
+      `, [hireRequestId, hr.labour_id, hr.contractor_id, date, lat, lng, hr.proposed_wage || null]);
+      return res.json({ ok: true, inRange: true, distanceM: Math.round(distance), punched: 'in', attendance: rows[0] });
+    }
+
+    if (!inRange && todayRow?.punch_in_at && !todayRow?.punch_out_at) {
+      const { rows } = await pool.query(`
+        UPDATE labour_attendance SET punch_out_at = NOW(), punch_out_lat = $1, punch_out_lng = $2, punch_out_source = 'geofence'
+        WHERE hire_request_id = $3 AND work_date = $4 RETURNING *
+      `, [lat, lng, hireRequestId, date]);
+      return res.json({ ok: true, inRange: false, distanceM: Math.round(distance), punched: 'out', attendance: rows[0] });
+    }
+
+    res.json({ ok: true, inRange, distanceM: Math.round(distance), punched: null, attendance: todayRow });
+  } catch (err) {
+    console.error('[attendance] geofence-check error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to check geofence' });
+  }
+});
+
 module.exports = router;
