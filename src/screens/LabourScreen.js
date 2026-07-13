@@ -804,6 +804,7 @@ export default function LabourScreen() {
 
               <SideCard>
                 <Text style={ws.sideTitle}>Explore More</Text>
+                <QuickAction icon="hammer-outline"     label="Browse Projects" color={ORANGE}  onPress={() => nav.navigate('Projects')} />
                 <QuickAction icon="briefcase-outline"  label="Find a Job"      color={ORANGE}  onPress={() => nav.navigate('Jobs')} />
                 <QuickAction icon="home-outline"       label="Find a Room"     color={TEAL}    onPress={() => nav.navigate('Rooms')} />
                 <QuickAction icon="car-sport-outline"  label="Rent a Vehicle"  color="#9333ea" onPress={() => nav.navigate('Cars')} />
