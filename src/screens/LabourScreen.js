@@ -13,6 +13,8 @@ import { useAuth } from '../context/AuthContext';
 import { Empty } from '../components/UI';
 import WageBoardStrip from '../components/WageBoardStrip';
 import LeaderboardStrip from '../components/labour/LeaderboardStrip';
+import NearbyRadar from '../components/labour/NearbyRadar';
+import JobHeatmap from '../components/labour/JobHeatmap';
 
 import { useLang } from '../utils/i18n';
 import { useDistrict } from '../context/DistrictContext';
@@ -424,6 +426,17 @@ export default function LabourScreen() {
         district={currentDistrict?.id}
         onPressWorker={(id) => nav.navigate('LabourDetail', { id })}
       />
+
+      {user?.labour_role === 'worker' && (
+        <View style={{ paddingHorizontal: 14, marginTop: 4, marginBottom: 10 }}>
+          <JobHeatmap />
+        </View>
+      )}
+      {user?.labour_role === 'hirer' && (
+        <View style={{ paddingHorizontal: 14, marginTop: 4, marginBottom: 10 }}>
+          <NearbyRadar onSelectWorker={(w) => nav.navigate('LabourDetail', { id: w.id })} />
+        </View>
+      )}
 
       <View style={[s.searchWrap, IS_WEB && ws.searchWrap]}>
         <Ionicons name="search-outline" size={18} color="#bbb" style={{ marginLeft: 14 }} />
