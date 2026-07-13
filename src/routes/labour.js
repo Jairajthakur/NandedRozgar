@@ -643,6 +643,57 @@ router.get('/nearby/radar', async (req, res) => {
   }
 });
 
+// GET /api/labour/nearby/heatmap — Live Work Location Clusters.
+// Aggregates open demand (active jobs with coordinates + pending hire
+// requests with a site location) into coarse grid cells so a worker can see
+// where work is spiking right now and decide which direction to commute,
+// the same way a ride-sharing driver reads a demand heat-map. Grid cell
+// size is ~1.1km (0.01°) — fine enough to be useful, coarse enough that a
+// handful of open jobs in one area still forms a visible cluster.
+router.get('/nearby/heatmap', async (req, res) => {
+  try {
+    const districtFilter = req.query.district ? 'AND district = $1' : '';
+    const params = req.query.district ? [req.query.district] : [];
+
+    const { rows: jobCells } = await pool.query(`
+      SELECT ROUND(lat::numeric, 2) AS cell_lat, ROUND(lng::numeric, 2) AS cell_lng,
+             COUNT(*)::int AS demand_count, 'job' AS source
+      FROM jobs
+      WHERE status = 'active' AND lat IS NOT NULL AND lng IS NOT NULL ${districtFilter}
+      GROUP BY cell_lat, cell_lng
+    `, params);
+
+    const { rows: hireCells } = await pool.query(`
+      SELECT ROUND(site_lat::numeric, 2) AS cell_lat, ROUND(site_lng::numeric, 2) AS cell_lng,
+             COUNT(*)::int AS demand_count, 'hire' AS source
+      FROM hire_requests
+      WHERE status = 'pending' AND site_lat IS NOT NULL AND site_lng IS NOT NULL
+        AND created_at > NOW() - INTERVAL '7 days'
+      GROUP BY cell_lat, cell_lng
+    `);
+
+    // Merge both sources into one cell → count map so overlapping cells combine.
+    const merged = new Map();
+    for (const c of [...jobCells, ...hireCells]) {
+      const key = `${c.cell_lat},${c.cell_lng}`;
+      const prev = merged.get(key);
+      merged.set(key, { lat: parseFloat(c.cell_lat), lng: parseFloat(c.cell_lng), count: (prev?.count || 0) + c.demand_count });
+    }
+
+    const points = [...merged.values()].sort((a, b) => b.count - a.count).slice(0, 200);
+    const maxCount = points.length ? points[0].count : 0;
+
+    res.json({
+      ok: true,
+      points: points.map(p => ({ ...p, intensity: maxCount ? +(p.count / maxCount).toFixed(2) : 0 })),
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('[labour] heatmap error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load demand heatmap' });
+  }
+});
+
 // POST /api/labour/:id/endorse-skill — Micro-Skill Verification Badges.
 // A contractor who completed a hire with this worker endorses a specific
 // named skill (e.g. "Tiling"). Once 3 distinct contractors have endorsed the
@@ -1342,6 +1393,103 @@ router.post('/payouts/withdraw', auth, async (req, res) => {
     res.status(500).json({ ok: false, error: 'Failed to request withdrawal' });
   } finally {
     client.release();
+  }
+});
+
+// GET /api/labour/payouts/certificate — Formal Earnings Certificate.
+// A downloadable PDF summary of a worker's lifetime paid earnings on the
+// platform, usable as informal income verification when applying for a
+// small bank loan or a government scheme. Only counts payouts that have
+// actually reached status='paid' (real money that moved), not pending or
+// held commissions, so the figure can't be inflated by unpaid claims.
+router.get('/payouts/certificate', auth, async (req, res) => {
+  try {
+    const PDFDocument = require('pdfkit');
+
+    const { rows: userRows } = await pool.query('SELECT name, phone, labour_upi_id, created_at FROM users WHERE id = $1', [req.user.id]);
+    const user = userRows[0];
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+
+    const { rows: profileRows } = await pool.query(
+      'SELECT full_name, skill_category, district FROM labour_profiles WHERE user_id = $1', [req.user.id]
+    );
+    const profile = profileRows[0];
+
+    const { rows: paidRows } = await pool.query(`
+      SELECT p.amount, p.created_at, p.source, COALESCE(hu.name, cu.name) AS contractor_name
+      FROM labour_payouts p
+      LEFT JOIN hire_requests hr ON hr.id = p.hire_request_id
+      LEFT JOIN users hu ON hu.id = hr.contractor_id
+      LEFT JOIN labour_contact_unlocks lcu ON lcu.id = p.contact_unlock_id
+      LEFT JOIN users cu ON cu.id = lcu.contractor_id
+      WHERE p.labour_user_id = $1 AND p.status = 'paid'
+      ORDER BY p.created_at ASC
+    `, [req.user.id]);
+
+    const { rows: withdrawnRows } = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) AS total FROM labour_withdrawals WHERE user_id = $1 AND status = 'paid'`,
+      [req.user.id]
+    );
+
+    const totalPaid = paidRows.reduce((s, r) => s + parseFloat(r.amount), 0);
+    const jobsCompleted = paidRows.filter(r => r.source !== 'contact_unlock').length;
+    const firstEarning = paidRows[0]?.created_at || null;
+    const lastEarning  = paidRows[paidRows.length - 1]?.created_at || null;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="earnings-certificate-${req.user.id}.pdf"`);
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    doc.pipe(res);
+
+    doc.fontSize(20).fillColor('#f97316').text('NandedRozgar', { align: 'left' });
+    doc.fontSize(12).fillColor('#666').text('Certificate of Earnings', { align: 'left' });
+    doc.moveDown(1.5);
+
+    doc.fontSize(10).fillColor('#999').text(`Issued: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`);
+    doc.moveDown(1);
+
+    doc.fontSize(13).fillColor('#111').text('Worker Details', { underline: true });
+    doc.moveDown(0.3);
+    doc.fontSize(11).fillColor('#333');
+    doc.text(`Name: ${profile?.full_name || user.name || '—'}`);
+    doc.text(`Phone: ${user.phone || '—'}`);
+    doc.text(`Primary skill: ${profile?.skill_category || '—'}`);
+    doc.text(`District: ${profile?.district || '—'}`);
+    doc.text(`Platform member since: ${user.created_at ? new Date(user.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}`);
+    doc.moveDown(1);
+
+    doc.fontSize(13).fillColor('#111').text('Earnings Summary', { underline: true });
+    doc.moveDown(0.3);
+    doc.fontSize(11).fillColor('#333');
+    doc.text(`Total verified earnings (paid): Rs. ${totalPaid.toFixed(2)}`);
+    doc.text(`Jobs completed and paid: ${jobsCompleted}`);
+    doc.text(`Total withdrawn to bank/UPI: Rs. ${parseFloat(withdrawnRows[0].total).toFixed(2)}`);
+    if (firstEarning) doc.text(`Earning history: ${new Date(firstEarning).toLocaleDateString('en-IN')} to ${new Date(lastEarning).toLocaleDateString('en-IN')}`);
+    doc.moveDown(1);
+
+    if (paidRows.length) {
+      doc.fontSize(13).fillColor('#111').text('Transaction History', { underline: true });
+      doc.moveDown(0.3);
+      doc.fontSize(9).fillColor('#333');
+      const rowsToShow = paidRows.slice(-40); // last 40 to keep the PDF short
+      rowsToShow.forEach((r, i) => {
+        const date = new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        doc.text(`${i + 1}. ${date}  —  Rs. ${parseFloat(r.amount).toFixed(2)}  —  ${r.contractor_name || 'NandedRozgar platform'}`);
+      });
+      doc.moveDown(1);
+    }
+
+    doc.fontSize(9).fillColor('#999').text(
+      'This certificate is generated from platform transaction records and reflects income earned through NandedRozgar. ' +
+      'It is provided for informational purposes to support loan or scheme applications and is not a bank statement.',
+      { align: 'left' }
+    );
+
+    doc.end();
+  } catch (err) {
+    console.error('[labour] certificate error:', err.message);
+    if (!res.headersSent) res.status(500).json({ ok: false, error: 'Failed to generate certificate' });
   }
 });
 
