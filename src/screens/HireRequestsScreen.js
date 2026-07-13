@@ -630,6 +630,13 @@ export default function HireRequestsScreen() {
         >
           <Text style={[st.tabTxt, tab === 'received' && st.tabTxtActive]}>Received ({received.length})</Text>
         </TouchableOpacity>
+
+        {tab === 'sent' && (
+          <TouchableOpacity style={st.myProjectsBtn} onPress={() => nav.navigate('MyProjects')} activeOpacity={0.8}>
+            <Ionicons name="briefcase-outline" size={13} color={ORANGE} />
+            <Text style={st.myProjectsBtnTxt}>My Projects</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {loading ? (
@@ -652,9 +659,14 @@ export default function HireRequestsScreen() {
                   : "No one has sent you a hire request yet."}
               </Text>
               {tab === 'sent' && (
-                <TouchableOpacity style={st.emptyBtn} onPress={() => nav.navigate('Labour', { forceBrowse: true })}>
-                  <Text style={st.emptyBtnTxt}>Browse workers</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                  <TouchableOpacity style={st.emptyBtn} onPress={() => nav.navigate('Labour', { forceBrowse: true })}>
+                    <Text style={st.emptyBtnTxt}>Browse workers</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[st.emptyBtn, st.emptyBtnOutline]} onPress={() => nav.navigate('PostProject')}>
+                    <Text style={[st.emptyBtnTxt, st.emptyBtnOutlineTxt]}>Post a Project</Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
           )}
@@ -792,6 +804,12 @@ const st = StyleSheet.create({
   tabBtnActive: { borderBottomColor: ORANGE },
   tabTxt: { fontSize: 14, fontWeight: '700', color: MUTED },
   tabTxtActive: { color: ORANGE },
+  myProjectsBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginLeft: 'auto', marginBottom: 8, paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 100, backgroundColor: '#fff7f0', borderWidth: 1, borderColor: '#fed7aa',
+  },
+  myProjectsBtnTxt: { fontSize: 12, fontWeight: '700', color: ORANGE },
 
   card: {
     backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER,
@@ -836,6 +854,8 @@ const st = StyleSheet.create({
   emptyTxt: { fontSize: 13, color: MUTED, fontWeight: '600', textAlign: 'center', paddingHorizontal: 30 },
   emptyBtn: { marginTop: 4, backgroundColor: ORANGE, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10 },
   emptyBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  emptyBtnOutline: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: ORANGE },
+  emptyBtnOutlineTxt: { color: ORANGE },
 
   modalOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
