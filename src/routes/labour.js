@@ -933,7 +933,7 @@ router.post('/:id/unlock', auth, async (req, res) => {
 router.post('/:id/hire', auth, async (req, res) => {
   try {
     const labourId = parseInt(req.params.id);
-    const { work_description, proposed_wage, work_date } = req.body;
+    const { work_description, proposed_wage, work_date, projectId } = req.body;
 
     // LOOPHOLE FIX: this previously didn't check labour_profiles.status or
     // the owning user's active flag at all — a hire request (and the whole
@@ -958,11 +958,20 @@ router.post('/:id/hire', auth, async (req, res) => {
       return res.status(402).json({ ok: false, error: 'Unlock this worker\'s contact before sending a hire request.' });
     }
 
+    let validProjectId = null;
+    if (projectId) {
+      const { rows: projRows } = await pool.query(
+        'SELECT id FROM labour_projects WHERE id = $1 AND contractor_id = $2', [projectId, req.user.id]
+      );
+      if (!projRows.length) return res.status(400).json({ ok: false, error: 'Project not found' });
+      validProjectId = projRows[0].id;
+    }
+
     const result = await pool.query(`
-      INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, work_date)
-      VALUES ($1,$2,$3,$4,$5)
+      INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, work_date, project_id)
+      VALUES ($1,$2,$3,$4,$5,$6)
       RETURNING *
-    `, [labourId, req.user.id, work_description || null, proposed_wage || null, work_date || null]);
+    `, [labourId, req.user.id, work_description || null, proposed_wage || null, work_date || null, validProjectId]);
 
     res.json({
       ok: true,
@@ -991,7 +1000,7 @@ router.post('/:id/hire', auth, async (req, res) => {
 router.post('/hire-bulk', auth, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { labourIds, work_description, proposed_wage, work_date } = req.body;
+    const { labourIds, work_description, proposed_wage, work_date, projectId } = req.body;
     const ids = [...new Set((Array.isArray(labourIds) ? labourIds : []).map(id => parseInt(id, 10)).filter(Boolean))];
 
     if (!ids.length) {
@@ -1002,6 +1011,18 @@ router.post('/hire-bulk', auth, async (req, res) => {
     }
 
     await client.query('BEGIN');
+
+    let validProjectId = null;
+    if (projectId) {
+      const { rows: projRows } = await client.query(
+        'SELECT id FROM labour_projects WHERE id = $1 AND contractor_id = $2', [projectId, req.user.id]
+      );
+      if (!projRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ ok: false, error: 'Project not found' });
+      }
+      validProjectId = projRows[0].id;
+    }
 
     // Same active-profile / active-owner guard as a single hire, applied to
     // every selected id at once. Any id that fails this (hidden, banned,
@@ -1084,10 +1105,10 @@ router.post('/hire-bulk', auth, async (req, res) => {
     const created = [];
     for (const labourId of validIds) {
       const { rows } = await client.query(`
-        INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, work_date)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, work_date, project_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
-      `, [labourId, req.user.id, work_description || null, proposed_wage || null, work_date || null]);
+      `, [labourId, req.user.id, work_description || null, proposed_wage || null, work_date || null, validProjectId]);
       created.push(rows[0]);
     }
 
