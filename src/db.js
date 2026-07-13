@@ -1343,14 +1343,22 @@ async function runMigrations() {
         skill_category VARCHAR(50),
         district       VARCHAR(50) DEFAULT 'nanded',
         location       VARCHAR(200),
+        workers_needed INTEGER NOT NULL DEFAULT 1,
+        duration_days  INTEGER,
+        daily_wage     INTEGER,
         budget         NUMERIC(12,2),
         status         VARCHAR(20) NOT NULL DEFAULT 'active'
-                         CHECK (status IN ('active', 'completed', 'archived')),
+                         CHECK (status IN ('active', 'filled', 'completed', 'archived')),
         created_at     TIMESTAMPTZ DEFAULT NOW()
       );
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_projects_contractor ON labour_projects(contractor_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_projects_public ON labour_projects(status, district) WHERE status = 'active'`);
+    // Older rows created before these columns existed default to a single
+    // open slot with no wage set, rather than failing to load.
+    await client.query(`ALTER TABLE labour_projects ADD COLUMN IF NOT EXISTS workers_needed INTEGER NOT NULL DEFAULT 1`);
+    await client.query(`ALTER TABLE labour_projects ADD COLUMN IF NOT EXISTS duration_days INTEGER`);
+    await client.query(`ALTER TABLE labour_projects ADD COLUMN IF NOT EXISTS daily_wage INTEGER`);
 
     // Every hire — solo, bulk, or crew — can optionally be filed under a
     // project. Nullable so hiring works exactly as before when a contractor
