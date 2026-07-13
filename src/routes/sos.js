@@ -1,110 +1,150 @@
 /**
- * SOSButton.js — Emergency Alert SOS Button
+ * routes/sos.js — Emergency Alert / SOS Button
  *
- * A one-tap safety net for the active-job interface. Tapping it:
- *   1. Grabs a best-effort GPS fix
- *   2. Logs an SOS alert to POST /api/sos/trigger (which also push-notifies
- *      the hiring contractor if this SOS is tied to a hire)
- *   3. Shows the worker's saved emergency contacts so they can tap-to-call
- *      immediately
- *   4. Still offers the national emergency helpline (112) as a fallback,
- *      exactly like the existing quick-dial button elsewhere in the app
+ * A safety net inside the active-job interface: if a laborer feels unsafe
+ * or has a medical issue on site, one tap logs an SOS alert with their
+ * current location and pings the emergency contacts saved on their
+ * profile. Actually dispatching SMS/calls needs an SMS gateway that isn't
+ * wired into this project yet (see utils/notifications.js for the existing
+ * push-notification plumbing this can hang off later) — for now this
+ * persists the alert, returns the contacts to dial/message immediately
+ * from the phone's own dialer, and notifies the hiring contractor (if any)
+ * via the existing push pipeline so a real person is alerted right away.
  *
- * Backend: src/routes/sos.js, mounted at /api/sos.
- * Place at: src/components/labour/SOSButton.js
- *
- * Usage:
- *   <SOSButton hireRequestId={hr.id} />
+ * Mounted at /api/sos in src/index.js.
  */
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Linking } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
-import Toast from 'react-native-toast-message';
+const router = require('express').Router();
+const { pool } = require('../db');
+const { auth } = require('../middleware/auth');
 
-import { http } from '../../utils/api';
-import { LABOUR_COLORS as C, SPACING, RADIUS } from '../../constants/labourTheme';
+let sendPushNotifications = null;
+try { ({ sendPushNotifications } = require('../utils/push')); } catch { /* push util optional */ }
 
-const EMERGENCY_NUMBER = '112';
-
-async function tryGetLocation() {
+// PATCH /api/sos/contacts — save/update emergency contacts on the profile
+router.patch('/contacts', auth, async (req, res) => {
   try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') return null;
-    const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
-  } catch {
-    return null;
-  }
-}
+    const name   = (req.body.name || '').trim().slice(0, 100) || null;
+    const phone  = (req.body.phone || '').trim().slice(0, 15) || null;
+    const phone2 = (req.body.phone2 || '').trim().slice(0, 15) || null;
 
-function callNumber(number) {
-  Linking.openURL(`tel:${number}`).catch(() =>
-    Alert.alert('Could not open dialer', `Please dial ${number} directly.`)
-  );
-}
-
-export default function SOSButton({ hireRequestId }) {
-  const [sending, setSending] = useState(false);
-
-  const trigger = async () => {
-    setSending(true);
-    const coords = await tryGetLocation();
-    const res = await http('POST', '/api/sos/trigger', {
-      hireRequestId,
-      lat: coords?.lat,
-      lng: coords?.lng,
-    });
-    setSending(false);
-
-    if (!res?.ok) {
-      Toast.show({ type: 'error', text1: 'Could not send SOS alert', text2: res?.error || 'Try calling 112 directly.' });
-      callNumber(EMERGENCY_NUMBER);
-      return;
+    if (phone && !/^\+?[0-9]{10,13}$/.test(phone)) {
+      return res.status(400).json({ ok: false, error: 'Enter a valid phone number' });
     }
 
-    const contacts = res.emergencyContacts || {};
-    const hasContact = !!contacts.phone;
+    const { rows } = await pool.query(`
+      UPDATE users SET emergency_contact_name = $1, emergency_contact_phone = $2, emergency_contact_phone2 = $3
+      WHERE id = $4
+      RETURNING emergency_contact_name, emergency_contact_phone, emergency_contact_phone2
+    `, [name, phone, phone2, req.user.id]);
 
-    Alert.alert(
-      '🚨 SOS alert sent',
-      hasContact
-        ? `Your location was logged and ${contacts.name || 'your emergency contact'} has been listed to call. If this is a medical or safety emergency, call them or 112 right now.`
-        : 'Your location was logged. You have no emergency contact saved — add one from your profile. If this is urgent, call 112 now.',
-      [
-        ...(hasContact ? [{ text: `Call ${contacts.name || 'contact'}`, onPress: () => callNumber(contacts.phone) }] : []),
-        { text: `Call ${EMERGENCY_NUMBER}`, style: 'destructive', onPress: () => callNumber(EMERGENCY_NUMBER) },
-        { text: 'Close', style: 'cancel' },
-      ]
-    );
-  };
-
-  const confirm = () => {
-    Alert.alert(
-      'Send SOS alert?',
-      'This logs your location, alerts your emergency contact, and notifies the contractor on this job. Use this if you feel unsafe or are hurt.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Send SOS', style: 'destructive', onPress: trigger },
-      ]
-    );
-  };
-
-  return (
-    <TouchableOpacity style={st.btn} onPress={confirm} disabled={sending} activeOpacity={0.85}>
-      {sending
-        ? <ActivityIndicator size="small" color="#dc2626" />
-        : <Ionicons name="alert-circle" size={16} color="#dc2626" />}
-      <Text style={st.txt}>{sending ? 'Sending…' : 'SOS'}</Text>
-    </TouchableOpacity>
-  );
-}
-
-const st = StyleSheet.create({
-  btn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fecaca',
-    borderRadius: RADIUS.pill, paddingVertical: 9, paddingHorizontal: 16,
-  },
-  txt: { fontSize: 13, fontWeight: '800', color: '#dc2626' },
+    res.json({ ok: true, contacts: rows[0] });
+  } catch (err) {
+    console.error('[sos] contacts error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to save emergency contacts' });
+  }
 });
+
+// GET /api/sos/contacts — read back saved contacts (for the SOS button to
+// show who will be contacted before the worker taps it)
+router.get('/contacts', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT emergency_contact_name, emergency_contact_phone, emergency_contact_phone2 FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    res.json({ ok: true, contacts: rows[0] || {} });
+  } catch (err) {
+    console.error('[sos] get contacts error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load emergency contacts' });
+  }
+});
+
+// POST /api/sos/trigger — fire an SOS alert. body: { hireRequestId?, lat, lng, message? }
+router.post('/trigger', auth, async (req, res) => {
+  try {
+    const lat = parseFloat(req.body.lat);
+    const lng = parseFloat(req.body.lng);
+    const hireRequestId = req.body.hireRequestId ? parseInt(req.body.hireRequestId, 10) : null;
+    const message = (req.body.message || '').trim().slice(0, 300) || null;
+
+    const { rows } = await pool.query(`
+      INSERT INTO sos_alerts (user_id, hire_request_id, lat, lng, message)
+      VALUES ($1, $2, $3, $4, $5) RETURNING *
+    `, [
+      req.user.id, hireRequestId,
+      Number.isFinite(lat) ? lat : null, Number.isFinite(lng) ? lng : null,
+      message,
+    ]);
+    const alert = rows[0];
+
+    const { rows: contactRows } = await pool.query(
+      'SELECT name, emergency_contact_name, emergency_contact_phone, emergency_contact_phone2 FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    const profile = contactRows[0] || {};
+
+    // Best-effort: if this SOS is tied to an active hire, push-notify the
+    // contractor on the other end so a human sees it immediately.
+    if (hireRequestId && sendPushNotifications) {
+      try {
+        const { rows: hrRows } = await pool.query(
+          `SELECT hr.contractor_id, u.push_token FROM hire_requests hr
+           JOIN users u ON u.id = hr.contractor_id WHERE hr.id = $1`,
+          [hireRequestId]
+        );
+        const token = hrRows[0]?.push_token;
+        if (token) {
+          await sendPushNotifications([token], {
+            title: '🚨 SOS from your hired worker',
+            body: `${profile.name || 'A worker'} has raised an emergency alert. Please check on them immediately.`,
+          });
+        }
+      } catch (e) { console.warn('[sos] push notify failed (non-fatal):', e.message); }
+    }
+
+    res.json({
+      ok: true,
+      alert,
+      emergencyContacts: {
+        name: profile.emergency_contact_name,
+        phone: profile.emergency_contact_phone,
+        phone2: profile.emergency_contact_phone2,
+      },
+    });
+  } catch (err) {
+    console.error('[sos] trigger error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to send SOS alert' });
+  }
+});
+
+// PATCH /api/sos/:id/resolve — mark an alert resolved (the worker themselves,
+// once safe, closes it out — keeps the alert list meaningful)
+router.patch('/:id/resolve', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "UPDATE sos_alerts SET status = 'resolved', resolved_at = NOW() WHERE id = $1 AND user_id = $2 RETURNING *",
+      [parseInt(req.params.id, 10), req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ ok: false, error: 'Alert not found' });
+    res.json({ ok: true, alert: rows[0] });
+  } catch (err) {
+    console.error('[sos] resolve error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to resolve alert' });
+  }
+});
+
+// GET /api/sos/mine — a worker's own SOS history
+router.get('/mine', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM sos_alerts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50',
+      [req.user.id]
+    );
+    res.json({ ok: true, alerts: rows });
+  } catch (err) {
+    console.error('[sos] mine error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load SOS history' });
+  }
+});
+
+module.exports = router;
