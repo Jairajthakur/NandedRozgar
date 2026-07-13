@@ -5,17 +5,20 @@
  *   1. A PRIVATE bucket a contractor uses to group hires under one job site
  *      (e.g. "Shivaji Nagar Bungalow — Phase 2") so they can see who's on it
  *      and how much they've spent, in one place.
- *   2. A PUBLIC listing any worker can browse — same discovery surface as
- *      `jobs` — so a contractor can also use a project to attract workers
- *      directly, not just as an org tool for hires made elsewhere.
+ *   2. A PUBLIC listing any worker can browse — a fixed-slot posting like
+ *      "10 Mason helpers needed, ₹500/day, 5 days" — the same way they'd
+ *      browse `jobs`.
  *
- * Attaching a hire to a project happens at hire time (see the projectId
- * param on /api/labour/:id/hire, /api/labour/hire-bulk, and
- * /api/crews/:id/hire) — this file only owns the project record itself and
- * its derived budget/spend view.
+ * Hiring off a project is DIRECT: a worker taps Apply and is immediately
+ * hired (hire_requests row created with status='accepted', hire fee charged
+ * to the contractor's wallet right there) — no separate review/approval
+ * step. First-come-first-served until `workers_needed` slots are filled,
+ * then the project stops accepting new applicants. A contractor can also
+ * still manually add people to a project via the existing projectId param
+ * on /api/labour/:id/hire, /api/labour/hire-bulk, and /api/crews/:id/hire.
  *
- * "Spent" is never stored on the row — it's computed live so it can never
- * drift out of sync with what actually happened:
+ * "Spent" is never stored — it's computed live so it can never drift out of
+ * sync with what actually happened:
  *   - the ₹{HIRE_FEE} hire fee for every accepted/completed hire under the project
  *   - actual wages paid, from labour_attendance.wage_for_day for hires under the project
  *
@@ -48,15 +51,43 @@ async function getSpend(projectId) {
   };
 }
 
-// POST /api/projects — create a project (contractor only, no worker-profile requirement)
+// How many slots are still open on a project (workers_needed minus everyone
+// currently accepted/completed on it — declined/cancelled hires free the slot back up).
+async function getSlotsFilled(projectId) {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM hire_requests WHERE project_id = $1 AND status IN ('accepted', 'completed')`,
+    [projectId]
+  );
+  return rows[0].n;
+}
+
+// Resolve the caller's own labour_profiles.id, or null if they haven't posted a worker profile.
+async function getOwnLabourProfileId(userId) {
+  const { rows } = await pool.query('SELECT id FROM labour_profiles WHERE user_id = $1', [userId]);
+  return rows[0]?.id || null;
+}
+
+// POST /api/projects — create a project: "N workers needed, ₹X/day, D days".
+// budget auto-computes from workersNeeded × dailyWage × durationDays when
+// not given explicitly, so a contractor doesn't have to do the math.
 router.post('/', auth, async (req, res) => {
   try {
-    const { title, description, skillCategory, district, location, budget } = req.body;
+    const { title, description, skillCategory, district, location, budget, workersNeeded, durationDays, dailyWage } = req.body;
     if (!title?.trim()) return res.status(400).json({ ok: false, error: 'Project title is required' });
 
+    const needed = parseInt(workersNeeded, 10) || 1;
+    if (needed < 1) return res.status(400).json({ ok: false, error: 'Workers needed must be at least 1' });
+
+    const duration = durationDays != null ? parseInt(durationDays, 10) || null : null;
+    const wage = dailyWage != null ? parseInt(dailyWage, 10) || null : null;
+
+    const autoBudget = wage && duration ? needed * wage * duration : null;
+    const finalBudget = budget != null ? (parseFloat(budget) || null) : autoBudget;
+
     const { rows } = await pool.query(`
-      INSERT INTO labour_projects (contractor_id, title, description, skill_category, district, location, budget)
-      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
+      INSERT INTO labour_projects
+        (contractor_id, title, description, skill_category, district, location, workers_needed, duration_days, daily_wage, budget)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *
     `, [
       req.user.id,
       title.trim().slice(0, 150),
@@ -64,7 +95,10 @@ router.post('/', auth, async (req, res) => {
       skillCategory?.trim() || null,
       district?.trim() || 'nanded',
       location?.trim() || null,
-      budget != null ? parseFloat(budget) || null : null,
+      needed,
+      duration,
+      wage,
+      finalBudget,
     ]);
 
     res.json({ ok: true, project: rows[0] });
@@ -74,22 +108,124 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// GET /api/projects/mine — the contractor's own projects, with budget vs spent
-// for each. Used both to manage projects and to power the "attach hire to
-// project" picker in the hire flows.
+// POST /api/projects/:id/apply — a worker applies and is HIRED on the spot,
+// as long as a slot is still open. This is the whole point of a project
+// posting: "10 labourers for 5 days" fills itself as workers tap Apply,
+// with no manual review step from the contractor.
+//
+// Charges the contractor's wallet the same ₹{HIRE_FEE} hire fee as any
+// other accepted hire, right here — since there's no separate accept step,
+// this IS the moment the hire becomes real.
+router.post('/:id/apply', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const projectId = parseInt(req.params.id, 10);
+    const labourId = await getOwnLabourProfileId(req.user.id);
+    if (!labourId) {
+      return res.status(400).json({ ok: false, error: 'Post your own worker profile first, then apply' });
+    }
+
+    await client.query('BEGIN');
+
+    const { rows: projRows } = await client.query(
+      "SELECT * FROM labour_projects WHERE id = $1 AND status = 'active' FOR UPDATE", [projectId]
+    );
+    if (!projRows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ ok: false, error: 'Project not found or no longer accepting applicants' });
+    }
+    const project = projRows[0];
+    if (project.contractor_id === req.user.id) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ ok: false, error: 'You cannot apply to your own project' });
+    }
+
+    const { rows: dupRows } = await client.query(
+      `SELECT 1 FROM hire_requests WHERE project_id = $1 AND labour_id = $2 AND status IN ('pending', 'accepted', 'completed')`,
+      [projectId, labourId]
+    );
+    if (dupRows.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ ok: false, error: 'You already applied to this project' });
+    }
+
+    const filled = await client.query(
+      `SELECT COUNT(*)::int AS n FROM hire_requests WHERE project_id = $1 AND status IN ('accepted', 'completed')`,
+      [projectId]
+    ).then(r => r.rows[0].n);
+    if (filled >= project.workers_needed) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ ok: false, error: 'This project is already fully staffed' });
+    }
+
+    // Charge the contractor's wallet the hire fee, same as the normal
+    // pending → accepted transition in PATCH /api/labour/hire-requests/:id.
+    const { rows: balRows } = await client.query(
+      'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE', [project.contractor_id]
+    );
+    const balance = parseFloat(balRows[0]?.wallet_balance || 0);
+    if (balance < HIRE_FEE) {
+      await client.query('ROLLBACK');
+      return res.status(402).json({
+        ok: false,
+        error: 'This project can\'t accept new applicants right now — the poster\'s wallet is low. Try again shortly or apply to another project.',
+      });
+    }
+
+    const { rows: newBalRows } = await client.query(
+      'UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2 RETURNING wallet_balance',
+      [HIRE_FEE, project.contractor_id]
+    );
+
+    const { rows: hireRows } = await client.query(`
+      INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, status, project_id)
+      VALUES ($1, $2, $3, $4, 'accepted', $5)
+      RETURNING *
+    `, [labourId, project.contractor_id, project.title, project.daily_wage, projectId]);
+
+    await client.query(`
+      INSERT INTO wallet_transactions
+        (user_id, type, amount, balance_after, reason, reference_type, reference_id)
+      VALUES ($1, 'debit', $2, $3, 'labour_hire_fee', 'hire_requests', $4)
+    `, [project.contractor_id, HIRE_FEE, newBalRows[0].wallet_balance, hireRows[0].id]);
+
+    const newFilled = filled + 1;
+    if (newFilled >= project.workers_needed) {
+      await client.query(`UPDATE labour_projects SET status = 'filled' WHERE id = $1`, [projectId]);
+    }
+
+    await client.query('COMMIT');
+    await cache.delPrefix('projects:public:');
+
+    res.json({
+      ok: true,
+      hireRequest: hireRows[0],
+      spotsLeft: Math.max(0, project.workers_needed - newFilled),
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[projects] apply error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to apply' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/projects/mine — the contractor's own projects, with budget vs
+// spent and slots-filled for each. Used both to manage projects and to
+// power the "attach hire to project" picker in the manual hire flows.
 router.get('/mine', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT p.*, COUNT(DISTINCT hr.id)::int AS worker_count
+      SELECT p.*
       FROM labour_projects p
-      LEFT JOIN hire_requests hr ON hr.project_id = p.id
       WHERE p.contractor_id = $1
-      GROUP BY p.id
       ORDER BY p.created_at DESC
     `, [req.user.id]);
 
     const projects = await Promise.all(rows.map(async (p) => ({
       ...p,
+      spotsFilled: await getSlotsFilled(p.id),
       spend: await getSpend(p.id),
     })));
 
@@ -101,14 +237,15 @@ router.get('/mine', auth, async (req, res) => {
 });
 
 // GET /api/projects — public listing, browsable by any worker (like /api/jobs).
-// Only 'active' projects show up here.
+// Only 'active' projects show up here (a project auto-flips to 'filled' once
+// all slots are taken, so it naturally drops off this list).
 router.get('/', async (req, res) => {
   try {
     const { district, skillCategory, page = 1 } = req.query;
     const limit = 20;
     const offset = (parseInt(page, 10) - 1) * limit;
     const cacheKey = `projects:public:${district || ''}:${skillCategory || ''}:${page}`;
-    const cached = cache.get(cacheKey);
+    const cached = await cache.get(cacheKey);
     if (cached) return res.json(cached);
 
     const conditions = [`p.status = 'active'`];
@@ -118,9 +255,10 @@ router.get('/', async (req, res) => {
 
     params.push(limit, offset);
     const { rows } = await pool.query(`
-      SELECT p.id, p.title, p.description, p.skill_category, p.district, p.location, p.created_at,
+      SELECT p.id, p.title, p.description, p.skill_category, p.district, p.location,
+             p.workers_needed, p.duration_days, p.daily_wage, p.created_at,
              u.name AS contractor_name,
-             COUNT(DISTINCT hr.id)::int AS worker_count
+             COUNT(hr.id) FILTER (WHERE hr.status IN ('accepted', 'completed'))::int AS spots_filled
       FROM labour_projects p
       JOIN users u ON u.id = p.contractor_id
       LEFT JOIN hire_requests hr ON hr.project_id = p.id
@@ -130,11 +268,11 @@ router.get('/', async (req, res) => {
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
 
-    // Budget/spend are the contractor's own business, not shown on the
-    // public listing — workers browsing only see what the job is, not
-    // what's already been spent against it.
-    const result = { ok: true, projects: rows };
-    cache.set(cacheKey, result, LIST_TTL);
+    // Budget is the contractor's own business, not shown on the public
+    // listing — workers see the wage/day being offered, not the running total spent.
+    const projects = rows.map(p => ({ ...p, spots_left: Math.max(0, p.workers_needed - p.spots_filled) }));
+    const result = { ok: true, projects };
+    await cache.set(cacheKey, result, LIST_TTL);
     res.json(result);
   } catch (err) {
     console.error('[projects] list error:', err.message);
@@ -156,17 +294,19 @@ router.get('/:id', async (req, res) => {
 
     const project = rows[0];
     const isOwner = req.user && req.user.id === project.contractor_id;
+    const spotsFilled = await getSlotsFilled(id);
+    const spotsLeft = Math.max(0, project.workers_needed - spotsFilled);
 
     if (!isOwner) {
       // Public view: strip budget and don't leak who else was hired.
       const { budget, ...publicProject } = project;
-      return res.json({ ok: true, project: publicProject, isOwner: false });
+      return res.json({ ok: true, project: publicProject, isOwner: false, spotsFilled, spotsLeft });
     }
 
     const spend = await getSpend(id);
     const { rows: roster } = await pool.query(`
-      SELECT hr.id, hr.status, hr.work_date, hr.proposed_wage,
-             l.id AS labour_id, l.full_name, l.skill_category, l.photo_url
+      SELECT hr.id, hr.status, hr.work_date, hr.proposed_wage, hr.created_at,
+             l.id AS labour_id, l.full_name, l.skill_category, l.photo_url, l.rating_avg
       FROM hire_requests hr
       JOIN labour_profiles l ON l.id = hr.labour_id
       WHERE hr.project_id = $1
@@ -178,6 +318,8 @@ router.get('/:id', async (req, res) => {
       project,
       isOwner: true,
       budget: project.budget != null ? Number(project.budget) : null,
+      spotsFilled,
+      spotsLeft,
       spend,
       // No blocking on overspend — just enough info for the app to render
       // a visual (e.g. red) warning bar when spend.totalSpent > budget.
@@ -190,7 +332,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PATCH /api/projects/:id — owner edits title/description/budget/status/etc.
+// PATCH /api/projects/:id — owner edits title/description/budget/slots/status/etc.
 router.patch('/:id', auth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -200,7 +342,7 @@ router.patch('/:id', auth, async (req, res) => {
       return res.status(403).json({ ok: false, error: 'Only the project owner can edit it' });
     }
 
-    const { title, description, skillCategory, district, location, budget, status } = req.body;
+    const { title, description, skillCategory, district, location, budget, status, workersNeeded, durationDays, dailyWage } = req.body;
     const { rows } = await pool.query(`
       UPDATE labour_projects SET
         title          = COALESCE($1, title),
@@ -209,8 +351,11 @@ router.patch('/:id', auth, async (req, res) => {
         district       = COALESCE($4, district),
         location       = COALESCE($5, location),
         budget         = COALESCE($6, budget),
-        status         = COALESCE($7, status)
-      WHERE id = $8 RETURNING *
+        status         = COALESCE($7, status),
+        workers_needed = COALESCE($8, workers_needed),
+        duration_days  = COALESCE($9, duration_days),
+        daily_wage     = COALESCE($10, daily_wage)
+      WHERE id = $11 RETURNING *
     `, [
       title?.trim() || null,
       description?.trim() || null,
@@ -219,6 +364,9 @@ router.patch('/:id', auth, async (req, res) => {
       location?.trim() || null,
       budget != null ? parseFloat(budget) : null,
       status || null,
+      workersNeeded != null ? parseInt(workersNeeded, 10) : null,
+      durationDays != null ? parseInt(durationDays, 10) : null,
+      dailyWage != null ? parseInt(dailyWage, 10) : null,
       id,
     ]);
 
