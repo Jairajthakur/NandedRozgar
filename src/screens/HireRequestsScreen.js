@@ -603,8 +603,8 @@ export default function HireRequestsScreen() {
     );
   };
 
-  return (
-    <View style={st.root}>
+  const renderListHeader = () => (
+    <>
       {renderDashboardHeader()}
 
       {!!error && (
@@ -638,17 +638,25 @@ export default function HireRequestsScreen() {
           </TouchableOpacity>
         )}
       </View>
+    </>
+  );
 
+  return (
+    <View style={st.root}>
       {loading ? (
-        <View style={st.center}>
-          <ActivityIndicator size="large" color={ORANGE} />
-        </View>
+        <>
+          {renderListHeader()}
+          <View style={st.center}>
+            <ActivityIndicator size="large" color={ORANGE} />
+          </View>
+        </>
       ) : (
         <FlatList
           data={data}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
-          contentContainerStyle={{ padding: 14, paddingBottom: 32 }}
+          ListHeaderComponent={renderListHeader}
+          contentContainerStyle={{ paddingBottom: 32 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
           ListEmptyComponent={(
             <View style={st.empty}>
@@ -798,7 +806,7 @@ const st = StyleSheet.create({
 
   tabBar: {
     flexDirection: 'row', backgroundColor: SURFACE,
-    borderBottomWidth: 1, borderBottomColor: BORDER, paddingHorizontal: 14, paddingTop: 10,
+    borderBottomWidth: 1, borderBottomColor: BORDER, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10,
   },
   tabBtn: { paddingVertical: 10, paddingHorizontal: 4, marginRight: 22, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabBtnActive: { borderBottomColor: ORANGE },
@@ -813,7 +821,7 @@ const st = StyleSheet.create({
 
   card: {
     backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER,
-    padding: 14, marginBottom: 12,
+    padding: 14, marginBottom: 12, marginHorizontal: 14,
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   cardTitle: { fontSize: 15, fontWeight: '800', color: TEXT },
