@@ -247,6 +247,7 @@ app.use('/api/labour',     require('./routes/labour'));
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/escrow',     require('./routes/escrow'));
 app.use('/api/crews',      require('./routes/crews'));
+app.use('/api/projects',   require('./routes/projects'));
 app.use('/api/expenses',   require('./routes/expenses'));
 app.use('/api/insurance',  require('./routes/insurance'));
 app.use('/api/sos',        require('./routes/sos'));
