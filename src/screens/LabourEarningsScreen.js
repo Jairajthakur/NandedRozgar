@@ -23,8 +23,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 
-import { http } from '../utils/api';
+import { http, getToken } from '../utils/api';
+import { BASE_URL } from '../utils/constants';
 import { LABOUR_COLORS } from '../constants/labourTheme';
+import ExpenseLog from '../components/labour/ExpenseLog';
+import InsuranceToggle from '../components/labour/InsuranceToggle';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 const ORANGE  = LABOUR_COLORS.primary;
 const LABOUR  = LABOUR_COLORS.worker;
@@ -77,6 +82,7 @@ export default function LabourEarningsScreen() {
   const [upiInput, setUpiInput]     = useState('');
   const [savingUpi, setSavingUpi]   = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [downloadingCert, setDownloadingCert] = useState(false);
 
   const load = useCallback(async () => {
     const res = await http('GET', '/api/labour/payouts/mine');
@@ -133,6 +139,29 @@ export default function LabourEarningsScreen() {
         },
       ]
     );
+  };
+
+  const downloadCertificate = async () => {
+    setDownloadingCert(true);
+    try {
+      const token = await getToken();
+      const fileUri = `${FileSystem.cacheDirectory}earnings-certificate.pdf`;
+      const result = await FileSystem.downloadAsync(
+        `${BASE_URL}/api/labour/payouts/certificate`,
+        fileUri,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (result.status !== 200) throw new Error('Server could not generate the certificate');
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(result.uri, { mimeType: 'application/pdf', dialogTitle: 'Earnings Certificate' });
+      } else {
+        Toast.show({ type: 'success', text1: 'Certificate downloaded', text2: result.uri });
+      }
+    } catch (e) {
+      Toast.show({ type: 'error', text1: 'Could not download certificate', text2: e.message });
+    }
+    setDownloadingCert(false);
   };
 
   if (loading) {
@@ -297,6 +326,28 @@ export default function LabourEarningsScreen() {
             })
           )}
         </View>
+        {/* ── Formal earnings certificate ─────────────────────────────── */}
+        <TouchableOpacity style={st.certBtn} onPress={downloadCertificate} disabled={downloadingCert}>
+          {downloadingCert ? (
+            <ActivityIndicator size="small" color={LABOUR} />
+          ) : (
+            <>
+              <Ionicons name="document-text-outline" size={16} color={LABOUR} />
+              <Text style={st.certBtnTxt}>Download earnings certificate (PDF)</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        <Text style={st.certHint}>Use this as income proof for bank loans or government schemes.</Text>
+
+        {/* ── Micro-insurance toggle ───────────────────────────────────── */}
+        <View style={{ marginTop: 4 }}>
+          <InsuranceToggle />
+        </View>
+
+        {/* ── Digital expense log ──────────────────────────────────────── */}
+        <View style={{ marginTop: 12, marginBottom: 8 }}>
+          <ExpenseLog />
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -374,4 +425,12 @@ const st = StyleSheet.create({
   emptyBtn: { marginTop: 4, backgroundColor: ORANGE, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10 },
   emptyBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
   emptyInlineTxt: { fontSize: 12.5, color: MUTED, fontWeight: '600', marginTop: 10, lineHeight: 18 },
+
+  certBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: SURFACE, borderRadius: 14, borderWidth: 1, borderColor: BORDER,
+    paddingVertical: 13, marginBottom: 4,
+  },
+  certBtnTxt: { fontSize: 13, fontWeight: '800', color: LABOUR },
+  certHint: { fontSize: 11, color: MUTED, fontWeight: '600', textAlign: 'center', marginBottom: 12 },
 });
