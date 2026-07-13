@@ -583,6 +583,20 @@ export default function HireRequestsScreen() {
           </View>
         </TouchableOpacity>
 
+        {/* ── Browse Projects — contractors' fixed-slot postings, instant-hire ── */}
+        <TouchableOpacity style={st.statusCard} activeOpacity={0.85} onPress={() => nav.navigate('Projects')}>
+          <View style={st.statusRow}>
+            <View style={[st.statusIconWrap, { backgroundColor: ORANGE + '15' }]}>
+              <Ionicons name="briefcase-outline" size={16} color={ORANGE} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={st.statusLabel}>Browse Projects</Text>
+              <Text style={st.statusSub}>Multi-worker jobs from contractors — apply and get hired instantly</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={MUTED} />
+          </View>
+        </TouchableOpacity>
+
         {/* ── Milestone rewards (ID card @ 5, T-shirt @ 10 bookings) ──── */}
         <RewardsProgress />
       </View>
