@@ -618,7 +618,7 @@ export default function LabourDetailScreen() {
                 {hireOpen ? 'Cancel'
                   : (contactUnlocked || !hasPhone) ? 'Hire now'
                   : previouslyHired ? 'Hire again — free'
-                  : `Unlock & hire — ₹${price}`}
+                  : `Unlock & hire`}
               </Text>
             )}
         </TouchableOpacity>
