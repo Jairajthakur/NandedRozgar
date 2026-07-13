@@ -56,6 +56,14 @@ export default function ProjectDetailScreen() {
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
 
+  // Owner-only fields — populated only when the API's `isOwner` flag is true.
+  const [isOwnerView, setIsOwnerView] = useState(false);
+  const [budget, setBudget] = useState(null);
+  const [spend, setSpend] = useState(null);
+  const [overBudget, setOverBudget] = useState(false);
+  const [roster, setRoster] = useState([]);
+  const [closing, setClosing] = useState(false);
+
   const load = useCallback(async () => {
     try {
       setLoading(true);
@@ -65,6 +73,13 @@ export default function ProjectDetailScreen() {
         setProject(res.project);
         setSpotsLeft(res.spotsLeft);
         setSpotsFilled(res.spotsFilled);
+        setIsOwnerView(!!res.isOwner);
+        if (res.isOwner) {
+          setBudget(res.budget);
+          setSpend(res.spend);
+          setOverBudget(!!res.overBudget);
+          setRoster(res.roster || []);
+        }
       } else {
         setError(res?.error || 'Project not found');
       }
@@ -113,6 +128,20 @@ export default function ProjectDetailScreen() {
     Toast.show({ type: 'error', text1: 'Could not apply', text2: res?.error || 'Please try again.' });
   };
 
+  // Owner-only: stop accepting new applicants without deleting the posting —
+  // existing hires on it are untouched, it just drops off the public list.
+  const closeProject = async () => {
+    setClosing(true);
+    const res = await http('PATCH', `/api/projects/${id}`, { status: 'closed' });
+    setClosing(false);
+    if (res?.ok) {
+      setProject(res.project);
+      Toast.show({ type: 'success', text1: 'Project closed', text2: 'It no longer accepts new applicants.' });
+    } else {
+      Toast.show({ type: 'error', text1: 'Could not close project', text2: res?.error || 'Please try again.' });
+    }
+  };
+
   if (loading) {
     return (
       <View style={[s.root, s.center, { paddingTop: insets.top }]}>
@@ -145,9 +174,9 @@ export default function ProjectDetailScreen() {
   }
 
   const [gradStart, gradEnd] = getSkillGradient(project.skill_category);
-  const isOwner = user?.id === project.contractor_id;
+  const isOwner = isOwnerView || user?.id === project.contractor_id;
   const filled = project.status === 'filled' || (spotsLeft != null && spotsLeft <= 0);
-  const canApply = !isOwner && !filled && !applied;
+  const canApply = !isOwner && !filled && !applied && project.status === 'active';
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -219,20 +248,87 @@ export default function ProjectDetailScreen() {
           </SectionCard>
         )}
 
-        <SectionCard>
-          <View style={s.noteRow}>
-            <Ionicons name="flash-outline" size={16} color={ORANGE} />
-            <Text style={s.noteTxt}>
-              Applying hires you instantly — no waiting for the contractor to review. First-come,
-              first-served until all slots fill.
-            </Text>
-          </View>
-        </SectionCard>
+        {isOwner ? (
+          <>
+            {/* ── Budget vs spend — owner-only, computed live by the backend ── */}
+            <SectionCard>
+              <SectionTitle>Budget & spend</SectionTitle>
+              <View style={s.statRow}>
+                <View style={s.stat}>
+                  <Text style={s.statValue}>{budget != null ? `₹${budget}` : '—'}</Text>
+                  <Text style={s.statLabel}>Budget</Text>
+                </View>
+                <View style={s.statDivider} />
+                <View style={s.stat}>
+                  <Text style={[s.statValue, overBudget && { color: LABOUR_COLORS.danger }]}>
+                    ₹{Math.round(spend?.totalSpent || 0)}
+                  </Text>
+                  <Text style={s.statLabel}>Spent so far</Text>
+                </View>
+              </View>
+              <Text style={s.hint}>
+                ₹{spend?.hireFees || 0} in hire fees + ₹{Math.round(spend?.wagesPaid || 0)} in wages logged so far.
+              </Text>
+              {overBudget && (
+                <View style={[s.noteRow, { marginTop: 8 }]}>
+                  <Ionicons name="warning-outline" size={16} color={LABOUR_COLORS.danger} />
+                  <Text style={[s.noteTxt, { color: LABOUR_COLORS.danger }]}>You're over the budget you set for this project.</Text>
+                </View>
+              )}
+            </SectionCard>
+
+            {/* ── Roster — everyone hired under this project ──────────────── */}
+            <SectionCard>
+              <SectionTitle>Roster ({roster.length})</SectionTitle>
+              {roster.length === 0 ? (
+                <Text style={s.hint}>No one has applied yet.</Text>
+              ) : (
+                roster.map((w) => (
+                  <TouchableOpacity
+                    key={w.id}
+                    style={s.rosterRow}
+                    onPress={() => nav.navigate('LabourDetail', { id: w.labour_id })}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.rosterName} numberOfLines={1}>{w.full_name}</Text>
+                      <Text style={s.rosterMeta}>{w.skill_category}{w.proposed_wage ? ` · ₹${w.proposed_wage}/day` : ''}</Text>
+                    </View>
+                    <Badge label={w.status} tone={w.status === 'completed' ? 'success' : w.status === 'accepted' ? 'info' : 'neutral'} />
+                  </TouchableOpacity>
+                ))
+              )}
+            </SectionCard>
+          </>
+        ) : (
+          <SectionCard>
+            <View style={s.noteRow}>
+              <Ionicons name="flash-outline" size={16} color={ORANGE} />
+              <Text style={s.noteTxt}>
+                Applying hires you instantly — no waiting for the contractor to review. First-come,
+                first-served until all slots fill.
+              </Text>
+            </View>
+          </SectionCard>
+        )}
       </ScrollView>
 
       <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
         {isOwner ? (
-          <Text style={s.footerNote}>This is your own project posting.</Text>
+          project.status === 'closed' ? (
+            <Text style={s.footerNote}>This project is closed and no longer accepting applicants.</Text>
+          ) : (
+            <TouchableOpacity
+              style={[s.closeBtn, closing && s.applyBtnDisabled]}
+              onPress={closeProject}
+              disabled={closing}
+              activeOpacity={0.85}
+            >
+              {closing
+                ? <ActivityIndicator size="small" color={LABOUR_COLORS.danger} />
+                : <Text style={s.closeBtnTxt}>Stop accepting applicants</Text>}
+            </TouchableOpacity>
+          )
         ) : applied ? (
           <View style={s.appliedBtn}>
             <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
@@ -324,4 +420,20 @@ const s = StyleSheet.create({
   appliedTxt: { color: '#15803d', fontSize: 14, fontWeight: '800' },
 
   footerNote: { textAlign: 'center', fontSize: 12.5, color: LABOUR_COLORS.textFaint, fontWeight: '600', paddingVertical: 10 },
+
+  hint: { fontSize: 11.5, color: LABOUR_COLORS.textFaint, marginTop: 8, lineHeight: 16 },
+
+  rosterRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 10, borderTopWidth: 1, borderTopColor: LABOUR_COLORS.border,
+  },
+  rosterName: { fontSize: 13.5, fontWeight: '700', color: LABOUR_COLORS.text },
+  rosterMeta: { fontSize: 11.5, color: LABOUR_COLORS.textMuted, marginTop: 2, fontWeight: '500' },
+
+  closeBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: RADIUS.md, paddingVertical: 14,
+    backgroundColor: LABOUR_COLORS.dangerBg, borderWidth: 1, borderColor: '#fecaca',
+  },
+  closeBtnTxt: { color: LABOUR_COLORS.danger, fontSize: 14, fontWeight: '800' },
 });
