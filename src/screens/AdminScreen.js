@@ -566,6 +566,9 @@ export default function AdminScreen() {
   const [users, setUsers] = useState([]);
   const [payments, setPayments] = useState([]);
   const [coupons, setCoupons] = useState([]);
+  const [disputes, setDisputes] = useState([]);
+  const [disputesLoading, setDisputesLoading] = useState(false);
+  const [resolvingId, setResolvingId] = useState(null);
   const [couponForm, setCouponForm] = useState({ code:'', type:'percent', value:'', maxUses:'', validUntil:'' });
   const [couponLoading, setCouponLoading] = useState(false);
 
@@ -913,6 +916,28 @@ export default function AdminScreen() {
     }
   }
 
+  // ── Escrow disputes ("Instant Dispute Resolution" admin panel) ──
+  async function loadDisputes() {
+    setDisputesLoading(true);
+    const d = await apiCall('GET', '/api/escrow/disputes/open');
+    if (d.ok) setDisputes(d.disputes || []);
+    setDisputesLoading(false);
+  }
+
+  async function resolveDispute(id, outcome) {
+    setResolvingId(id);
+    const d = await apiCall('POST', `/api/escrow/disputes/${id}/resolve`, { outcome, note: `Resolved by admin` });
+    setResolvingId(null);
+    if (d.ok) {
+      showToast(outcome === 'worker' ? 'Released to worker' : 'Refunded to contractor');
+      loadDisputes();
+    } else {
+      showToast(d.error || 'Failed to resolve dispute', true);
+    }
+  }
+
+  useEffect(() => { if (activeTab === 'disputes') loadDisputes(); }, [activeTab]);
+
   // ── Revenue calculations ──
   const paidPayments = payments.filter(p => p.status === 'paid');
   const totalRevenue = paidPayments.reduce((a, p) => a + parseInt(p.amount || 0), 0);
@@ -929,6 +954,7 @@ export default function AdminScreen() {
     { id: 'users', label: `👥 Users (${users.length})` },
     { id: 'revenue', label: '₹ Revenue' },
     { id: 'payments', label: '🧾 Payments' },
+    { id: 'disputes', label: `⚖️ Disputes${disputes.length ? ` (${disputes.length})` : ''}` },
     { id: 'coupons', label: '🎟 Coupons' },
     { id: 'growth', label: '🚀 Growth' },
   ];
@@ -1511,6 +1537,78 @@ export default function AdminScreen() {
                 <Text style={styles.emptyText}>No payment records yet.</Text>
               ) : (
                 payments.map((p, i) => <PaymentRow key={p.id || i} payment={p} />)
+              )}
+            </Card>
+            <View style={{ height: 30 }} />
+          </View>
+        )}
+
+        {activeTab === 'disputes' && (
+          <View>
+            <Card title={`Open Escrow Disputes (${disputes.length})`} icon="⚖️" iconColor={C.red} iconBg={C.redLight || '#fee2e2'}>
+              {disputesLoading ? (
+                <ActivityIndicator color={C.orange} style={{ marginVertical: 20 }} />
+              ) : disputes.length === 0 ? (
+                <Text style={styles.emptyText}>No open disputes right now.</Text>
+              ) : (
+                disputes.map((d) => (
+                  <View key={d.id} style={{ borderBottomWidth: 1, borderBottomColor: C.border, paddingVertical: 14 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: C.black }}>
+                      Hire #{d.hire_request_id} · ₹{parseFloat(d.amount).toFixed(2)} held
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                      {d.contractor_name} (contractor) vs {d.labourer_name} (worker)
+                    </Text>
+                    {!!d.work_description && (
+                      <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>Job: {d.work_description}</Text>
+                    )}
+                    <Text style={{ fontSize: 12.5, color: C.black, marginTop: 8, fontWeight: '700' }}>
+                      Raised by {d.raised_by === d.contractor_id ? 'contractor' : 'worker'}:
+                    </Text>
+                    <Text style={{ fontSize: 12.5, color: '#333', marginTop: 2 }}>{d.reason}</Text>
+                    {!!d.photo_urls?.length && (
+                      <ScrollView horizontal style={{ marginTop: 8 }}>
+                        {d.photo_urls.map((u, i) => (
+                          <Image key={i} source={{ uri: u }} style={{ width: 70, height: 70, borderRadius: 8, marginRight: 8 }} />
+                        ))}
+                      </ScrollView>
+                    )}
+                    {!!d.counter_reason && (
+                      <>
+                        <Text style={{ fontSize: 12.5, color: C.black, marginTop: 8, fontWeight: '700' }}>Counter-response:</Text>
+                        <Text style={{ fontSize: 12.5, color: '#333', marginTop: 2 }}>{d.counter_reason}</Text>
+                        {!!d.counter_photo_urls?.length && (
+                          <ScrollView horizontal style={{ marginTop: 8 }}>
+                            {d.counter_photo_urls.map((u, i) => (
+                              <Image key={i} source={{ uri: u }} style={{ width: 70, height: 70, borderRadius: 8, marginRight: 8 }} />
+                            ))}
+                          </ScrollView>
+                        )}
+                      </>
+                    )}
+
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                      <TouchableOpacity
+                        style={{ flex: 1, backgroundColor: C.green, borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}
+                        disabled={resolvingId === d.id}
+                        onPress={() => resolveDispute(d.id, 'worker')}
+                      >
+                        {resolvingId === d.id
+                          ? <ActivityIndicator size="small" color="#fff" />
+                          : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12.5 }}>Pay worker</Text>}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{ flex: 1, backgroundColor: C.blue, borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}
+                        disabled={resolvingId === d.id}
+                        onPress={() => resolveDispute(d.id, 'contractor')}
+                      >
+                        {resolvingId === d.id
+                          ? <ActivityIndicator size="small" color="#fff" />
+                          : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12.5 }}>Refund contractor</Text>}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
               )}
             </Card>
             <View style={{ height: 30 }} />
