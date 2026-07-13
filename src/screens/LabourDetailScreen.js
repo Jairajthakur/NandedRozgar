@@ -75,7 +75,6 @@ export default function LabourDetailScreen() {
   const [favBusy, setFavBusy]                 = useState(false);
   const [leaderboard, setLeaderboard]         = useState(null);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
-  const [walletBalance, setWalletBalance]     = useState(null);
 
   const isOwnProfile = !!(user && profile && user.id === profile.user_id);
 
@@ -110,13 +109,6 @@ export default function LabourDetailScreen() {
     });
   }, [isOwnProfile, profile?.district]);
 
-  useEffect(() => {
-    if (!user) return;
-    http('GET', '/api/payments/wallet/balance').then((res) => {
-      if (res?.ok) setWalletBalance(res.balance);
-    });
-  }, [user?.id]);
-
   const unlockContact = async (openHireAfter = false) => {
     if (!hasPhone) return; // nothing to unlock — button should be hidden, but guard anyway
     if (!user) {
@@ -127,28 +119,15 @@ export default function LabourDetailScreen() {
       return;
     }
     setUnlocking(true);
+    // Unlocking is free — the only charge in the whole hire flow is the
+    // one-time hire fee, applied later when the worker accepts.
     const res = await http('POST', `/api/labour/${id}/unlock`, { days });
     setUnlocking(false);
-
-    // Instant wallet debit came up short — send them straight to the Wallet
-    // screen to top up, instead of an inline prompt. They can come back and
-    // tap Unlock again once their balance covers it.
-    if (!res?.ok && res?.status === 402) {
-      const shortfall = Math.max(20, Math.ceil((res.required - res.balance) / 10) * 10);
-      Toast.show({
-        type: 'info',
-        text1: 'Add money to your wallet',
-        text2: `You need ₹${res.required} to unlock this contact.`,
-      });
-      nav.navigate('Wallet', { suggestedAmount: shortfall });
-      return;
-    }
 
     if (res?.ok) {
       setProfile(res.profile);
       setContactUnlocked(true);
       setUnlockExpiresAt(res.expiresAt);
-      setWalletBalance(res.walletBalance);
       Toast.show({ type: 'success', text1: 'Contact unlocked!', text2: `Valid for ${days} day${days > 1 ? 's' : ''}.` });
       if (openHireAfter) setHireOpen(true);
     } else {
@@ -300,7 +279,7 @@ export default function LabourDetailScreen() {
   }
 
   const initials = (profile.full_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const price = days * ratePerDay;
+
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -519,8 +498,8 @@ export default function LabourDetailScreen() {
           ) : (
             <View>
               <Text style={s.bioTxt}>
-                Pay ₹{ratePerDay}/day to reveal {(profile.full_name || 'this worker').split(' ')[0]}'s phone number —
-                the price scales with how many days you need them for.
+                Unlock {(profile.full_name || 'this worker').split(' ')[0]}'s phone number for free —
+                you're only charged the one-time hire fee if they accept your request.
               </Text>
 
               <View style={s.stepperRow}>
@@ -544,13 +523,6 @@ export default function LabourDetailScreen() {
                 </View>
               </View>
 
-              {walletBalance != null && (
-                <TouchableOpacity onPress={() => nav.navigate('Wallet')} activeOpacity={0.7} style={s.walletBalanceRow}>
-                  <Text style={s.unlockNote}>Wallet balance: ₹{walletBalance.toFixed(2)}</Text>
-                  <Text style={s.walletAddLink}>Add money</Text>
-                </TouchableOpacity>
-              )}
-
               <TouchableOpacity
                 style={[s.unlockBtn, unlocking && { opacity: 0.7 }]}
                 onPress={() => unlockContact(false)}
@@ -559,7 +531,7 @@ export default function LabourDetailScreen() {
               >
                 {unlocking
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.unlockBtnTxt}>Unlock contact — ₹{price}</Text>}
+                  : <Text style={s.unlockBtnTxt}>Unlock contact — Free</Text>}
               </TouchableOpacity>
             </View>
           )}
