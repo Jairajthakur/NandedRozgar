@@ -20,6 +20,7 @@ import {
   Linking, Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
@@ -27,6 +28,8 @@ import Toast from 'react-native-toast-message';
 import { http } from '../utils/api';
 import { LABOUR_COLORS, STATUS_META, SKILL_ICONS, getSkillGradient } from '../constants/labourTheme';
 import { StatusPill } from '../components/labour/LabourUI';
+import LabourAttendance from '../components/LabourAttendance';
+import DisputePanel from '../components/labour/DisputePanel';
 
 const ORANGE  = LABOUR_COLORS.primary;
 const LABOUR  = LABOUR_COLORS.worker;
@@ -94,6 +97,7 @@ export default function HireRequestsScreen() {
   const [rateStars, setRateStars]     = useState(0);
   const [rateComment, setRateComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [expandedId, setExpandedId] = useState(null); // hire request currently showing attendance/dispute
 
   const load = useCallback(async () => {
     const [sentRes, receivedRes, mineRes] = await Promise.all([
@@ -147,13 +151,40 @@ export default function HireRequestsScreen() {
     }
   };
 
-  const confirmSOS = () => {
+  const confirmSOS = (hireRequest) => {
     Alert.alert(
-      'Call emergency helpline?',
-      `This will dial ${EMERGENCY_NUMBER}, India's emergency helpline (police / fire / ambulance).`,
+      'Emergency SOS',
+      `This will call ${EMERGENCY_NUMBER} (police / fire / ambulance) and alert your emergency contact with your live location.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: `Call ${EMERGENCY_NUMBER}`, style: 'destructive', onPress: callSOS },
+        {
+          text: 'Send SOS',
+          style: 'destructive',
+          onPress: async () => {
+            callSOS();
+            try {
+              const { status } = await Location.requestForegroundPermissionsAsync();
+              let lat, lng;
+              if (status === 'granted') {
+                const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                lat = pos.coords.latitude; lng = pos.coords.longitude;
+              }
+              const res = await http('POST', '/api/sos/trigger', {
+                hireRequestId: hireRequest?.id,
+                lat, lng,
+                message: hireRequest ? `SOS raised during hire #${hireRequest.id}` : 'SOS raised',
+              });
+              if (res?.ok) {
+                const contact = res.emergencyContacts?.phone;
+                Toast.show({
+                  type: 'success',
+                  text1: 'SOS alert sent',
+                  text2: contact ? `Your emergency contact will be notified.` : 'Add an emergency contact in Profile for faster help.',
+                });
+              }
+            } catch (e) { /* dialing 112 already happened — alert logging is best-effort */ }
+          },
+        },
       ]
     );
   };
@@ -305,7 +336,7 @@ export default function HireRequestsScreen() {
               <Ionicons name="share-social-outline" size={14} color={LABOUR} />
               <Text style={st.safetyBtnTxt}>Share job details</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[st.safetyBtn, st.sosBtn]} onPress={confirmSOS} activeOpacity={0.8}>
+            <TouchableOpacity style={[st.safetyBtn, st.sosBtn]} onPress={() => confirmSOS(item)} activeOpacity={0.8}>
               <Ionicons name="alert-circle" size={14} color="#dc2626" />
               <Text style={[st.safetyBtnTxt, st.sosBtnTxt]}>SOS</Text>
             </TouchableOpacity>
@@ -350,6 +381,27 @@ export default function HireRequestsScreen() {
         <View style={{ marginTop: 10 }}>
           {isSent ? renderSentActions(item) : renderReceivedActions(item)}
         </View>
+
+        {['accepted', 'completed'].includes(item.status) && (
+          <>
+            <TouchableOpacity
+              style={st.manageToggle}
+              onPress={() => setExpandedId(id => (id === item.id ? null : item.id))}
+            >
+              <Ionicons name={expandedId === item.id ? 'chevron-up' : 'chevron-down'} size={14} color={LABOUR} />
+              <Text style={st.manageToggleTxt}>
+                {expandedId === item.id ? 'Hide attendance & dispute' : 'Attendance & dispute'}
+              </Text>
+            </TouchableOpacity>
+
+            {expandedId === item.id && (
+              <View style={{ marginTop: 10, gap: 10 }}>
+                <LabourAttendance hireRequestId={item.id} isContractor={isSent} />
+                <DisputePanel hireRequestId={item.id} isContractor={isSent} />
+              </View>
+            )}
+          </>
+        )}
       </View>
     );
   };
@@ -418,7 +470,7 @@ export default function HireRequestsScreen() {
 
             <TouchableOpacity
               style={st.heroSosBtn}
-              onPress={confirmSOS}
+              onPress={() => confirmSOS(null)}
               activeOpacity={0.8}
             >
               <Ionicons name="alert-circle" size={17} color="#fff" />
@@ -759,6 +811,8 @@ const st = StyleSheet.create({
   safetyBtnTxt: { fontSize: 12, fontWeight: '700', color: LABOUR },
   sosBtn: { backgroundColor: '#fef2f2', borderColor: '#fecaca' },
   sosBtnTxt: { color: '#dc2626' },
+  manageToggle: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, alignSelf: 'flex-start' },
+  manageToggleTxt: { fontSize: 12, fontWeight: '700', color: LABOUR },
 
   empty: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 10 },
   emptyTxt: { fontSize: 13, color: MUTED, fontWeight: '600', textAlign: 'center', paddingHorizontal: 30 },
