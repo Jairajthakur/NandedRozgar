@@ -169,7 +169,7 @@ router.post('/:id/hire', auth, async (req, res) => {
   const client = await pool.connect();
   try {
     const crewId = parseInt(req.params.id, 10);
-    const { workDescription, proposedWagePerPerson, workDate } = req.body;
+    const { workDescription, proposedWagePerPerson, workDate, projectId } = req.body;
 
     await client.query('BEGIN');
 
@@ -189,19 +189,31 @@ router.post('/:id/hire', auth, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'This crew has no members' });
     }
 
+    let validProjectId = null;
+    if (projectId) {
+      const { rows: projRows } = await client.query(
+        'SELECT id FROM labour_projects WHERE id = $1 AND contractor_id = $2', [projectId, req.user.id]
+      );
+      if (!projRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ ok: false, error: 'Project not found' });
+      }
+      validProjectId = projRows[0].id;
+    }
+
     const { rows: crewHireRows } = await client.query(`
-      INSERT INTO labour_crew_hires (crew_id, contractor_id, work_date)
-      VALUES ($1, $2, $3) RETURNING *
-    `, [crewId, req.user.id, workDate || null]);
+      INSERT INTO labour_crew_hires (crew_id, contractor_id, work_date, project_id)
+      VALUES ($1, $2, $3, $4) RETURNING *
+    `, [crewId, req.user.id, workDate || null, validProjectId]);
     const crewHireId = crewHireRows[0].id;
 
     const created = [];
     for (const m of members) {
       const { rows } = await client.query(`
-        INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, work_date, status, crew_hire_id)
-        VALUES ($1, $2, $3, $4, $5, 'pending', $6)
+        INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, work_date, status, crew_hire_id, project_id)
+        VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
         RETURNING *
-      `, [m.labour_id, req.user.id, workDescription || null, parseInt(proposedWagePerPerson, 10) || null, workDate || null, crewHireId]);
+      `, [m.labour_id, req.user.id, workDescription || null, parseInt(proposedWagePerPerson, 10) || null, workDate || null, crewHireId, validProjectId]);
       created.push(rows[0]);
     }
 
