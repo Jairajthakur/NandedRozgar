@@ -1324,6 +1324,42 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_milestone_rewards_status ON labour_milestone_rewards(status)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_milestone_rewards_labour ON labour_milestone_rewards(labour_id)`);
 
+    // ── Contractor Projects ──────────────────────────────────────────────────
+    // A "project" is both things at once: (1) a private bucket a contractor
+    // uses to group hires/spend under one job site (e.g. "Shivaji Nagar
+    // Bungalow — Phase 2"), and (2) a public listing any worker can browse,
+    // the same way they'd browse `jobs` — so a project can also be a
+    // discovery surface for the contractor to attract workers directly,
+    // not just an org tool for hires made elsewhere in the app.
+    // `budget` is set by the contractor; "spent" is never stored — it's
+    // always computed live from hire_requests/labour_attendance tied to
+    // this project, so it can never drift out of sync with reality.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_projects (
+        id             SERIAL PRIMARY KEY,
+        contractor_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title          VARCHAR(150) NOT NULL,
+        description    TEXT,
+        skill_category VARCHAR(50),
+        district       VARCHAR(50) DEFAULT 'nanded',
+        location       VARCHAR(200),
+        budget         NUMERIC(12,2),
+        status         VARCHAR(20) NOT NULL DEFAULT 'active'
+                         CHECK (status IN ('active', 'completed', 'archived')),
+        created_at     TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_projects_contractor ON labour_projects(contractor_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_projects_public ON labour_projects(status, district) WHERE status = 'active'`);
+
+    // Every hire — solo, bulk, or crew — can optionally be filed under a
+    // project. Nullable so hiring works exactly as before when a contractor
+    // doesn't bother with projects at all.
+    await client.query(`ALTER TABLE hire_requests ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES labour_projects(id) ON DELETE SET NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_hire_requests_project ON hire_requests(project_id) WHERE project_id IS NOT NULL`);
+    await client.query(`ALTER TABLE labour_crew_hires ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES labour_projects(id) ON DELETE SET NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crew_hires_project ON labour_crew_hires(project_id) WHERE project_id IS NOT NULL`);
+
     console.log('✅ Database migrations complete.');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
