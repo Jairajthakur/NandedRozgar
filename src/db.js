@@ -1283,6 +1283,47 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_jobs_geo ON jobs(lat, lng) WHERE lat IS NOT NULL AND status = 'active'`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_hire_requests_site_geo ON hire_requests(site_lat, site_lng) WHERE site_lat IS NOT NULL`);
 
+    // ── Milestone Rewards (ID card @ 5 bookings, T-shirt @ 10 bookings) ────
+    // `completed_at` is stamped the moment a hire_request transitions to
+    // 'completed' (see PATCH /api/labour/hire-requests/:id) — separate from
+    // created_at, which is when the request was first sent.
+    await client.query(`ALTER TABLE hire_requests ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`);
+
+    // Fresh-start cutoff: only completions on/after this timestamp count
+    // toward reward milestones, so workers who already had 5/10+ completed
+    // jobs before this feature shipped don't get instantly credited. Row is
+    // inserted once and never touched again.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_reward_settings (
+        id             SERIAL PRIMARY KEY,
+        rewards_start_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      INSERT INTO labour_reward_settings (id, rewards_start_at)
+      SELECT 1, NOW()
+      WHERE NOT EXISTS (SELECT 1 FROM labour_reward_settings WHERE id = 1)
+    `);
+
+    // One row per (labour_id, reward_type) — created the moment a worker
+    // crosses the milestone, sitting in 'pending' until an admin hands over
+    // the physical item and marks it 'issued'.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS labour_milestone_rewards (
+        id                   SERIAL PRIMARY KEY,
+        labour_id            INTEGER NOT NULL REFERENCES labour_profiles(id) ON DELETE CASCADE,
+        reward_type          VARCHAR(20) NOT NULL CHECK (reward_type IN ('id_card', 'tshirt')),
+        milestone_bookings   INTEGER NOT NULL,
+        status               VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'issued')),
+        achieved_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        issued_at            TIMESTAMPTZ,
+        issued_by            INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        UNIQUE (labour_id, reward_type)
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_milestone_rewards_status ON labour_milestone_rewards(status)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_milestone_rewards_labour ON labour_milestone_rewards(labour_id)`);
+
     console.log('✅ Database migrations complete.');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
