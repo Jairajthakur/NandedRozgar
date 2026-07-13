@@ -673,10 +673,47 @@ async function sendNotif() {
 
 // ── LABOUR ─────────────────────────────────────────────────────────────────────
 async function loadLabour(gen = navGen) {
-  const d = await api('GET', '/api/admin/labour');
+  const [statsRes, listRes] = await Promise.all([
+    api('GET', '/api/admin/labour/stats'),
+    api('GET', '/api/admin/labour'),
+  ]);
   if (gen !== navGen) return;
-  if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Labour</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load labour profiles'}</div>`; return; }
-  const labour = d.labour || [];
+  if (!listRes.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Labour</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${listRes.error || 'Failed to load labour profiles'}</div>`; return; }
+
+  const labour = listRes.labour || [];
+  const st = statsRes.ok ? statsRes : null;
+  const p  = st?.profiles || {};
+  const hs = st?.hireStatus || {};
+
+  const periodBlock = (title, obj, fmt = (v) => v) => `
+    <div class="table-wrap" style="margin-bottom:16px">
+      <div class="table-header"><h3>${title}</h3></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0">
+        <div style="padding:16px 20px;border-right:1px solid var(--border);text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Today</div>
+          <div style="font-size:20px;font-weight:600;color:var(--text)">${fmt(obj?.today||0)}</div>
+        </div>
+        <div style="padding:16px 20px;border-right:1px solid var(--border);text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">This week</div>
+          <div style="font-size:20px;font-weight:600;color:var(--text)">${fmt(obj?.this_week||0)}</div>
+        </div>
+        <div style="padding:16px 20px;border-right:1px solid var(--border);text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">This month</div>
+          <div style="font-size:20px;font-weight:600;color:var(--text)">${fmt(obj?.this_month||0)}</div>
+        </div>
+        <div style="padding:16px 20px;text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Last month</div>
+          <div style="font-size:20px;font-weight:600;color:var(--text)">${fmt(obj?.last_month||0)}</div>
+        </div>
+      </div>
+    </div>`;
+
+  const skillRows = (st?.topSkills || []).map(r => `
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>${esc(r.skill_category||'—')}</span><span style="color:var(--text)">${r.count}</span></div>`).join('') || '<div style="padding:6px 0;color:var(--text3)">No data yet</div>';
+
+  const districtRows = (st?.topDistricts || []).map(r => `
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>${esc(r.district||'—')}</span><span style="color:var(--text)">${r.count}</span></div>`).join('') || '<div style="padding:6px 0;color:var(--text3)">No data yet</div>';
+
   const badgeClass = s => s === 'active' ? 'badge-active' : (s === 'banned' ? 'badge-inactive' : 'badge-inactive');
   const rows = labour.map(l => `
     <tr>
@@ -697,6 +734,58 @@ async function loadLabour(gen = navGen) {
 
   document.getElementById('main-content').innerHTML = `
     <div class="page-title">Labour</div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total Profiles</div><div class="stat-val">${p.total||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Active</div><div class="stat-val green">${p.active||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Hidden</div><div class="stat-val">${p.hidden||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Banned</div><div class="stat-val red">${p.banned||0}</div></div>
+      <div class="stat-card"><div class="stat-label">ID Verified</div><div class="stat-val blue">${p.verified||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Available Now</div><div class="stat-val orange">${p.available_now||0}</div></div>
+    </div>
+
+    ${periodBlock('New profiles posted', st?.profilesByPeriod)}
+    ${periodBlock('Workers hired (accepted)', st?.hiresByPeriod)}
+    ${periodBlock('Jobs completed', st?.completedByPeriod)}
+    ${periodBlock('Platform revenue (₹5 margin/hire)', st?.platformRevenueByPeriod, v => fMoney(v))}
+
+    <div class="table-wrap" style="margin-bottom:16px">
+      <div class="table-header"><h3>Hire request funnel <span style="color:var(--text3);font-weight:400;font-size:12px">(all-time, current status)</span></h3></div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0">
+        <div style="padding:16px 20px;border-right:1px solid var(--border);text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Pending</div>
+          <div style="font-size:20px;font-weight:600;color:var(--text)">${hs.pending||0}</div>
+        </div>
+        <div style="padding:16px 20px;border-right:1px solid var(--border);text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Accepted</div>
+          <div style="font-size:20px;font-weight:600;color:var(--orange)">${hs.accepted||0}</div>
+        </div>
+        <div style="padding:16px 20px;border-right:1px solid var(--border);text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Completed</div>
+          <div style="font-size:20px;font-weight:600;color:var(--green)">${hs.completed||0}</div>
+        </div>
+        <div style="padding:16px 20px;border-right:1px solid var(--border);text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Declined</div>
+          <div style="font-size:20px;font-weight:600;color:var(--red)">${hs.declined||0}</div>
+        </div>
+        <div style="padding:16px 20px;text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Cancelled</div>
+          <div style="font-size:20px;font-weight:600;color:var(--text3)">${hs.cancelled||0}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="table-wrap">
+        <div class="table-header"><h3>Top skills</h3></div>
+        <div style="padding:16px 20px;color:var(--text2);font-size:13px">${skillRows}</div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header"><h3>Top districts</h3></div>
+        <div style="padding:16px 20px;color:var(--text2);font-size:13px">${districtRows}</div>
+      </div>
+    </div>
+
     <div class="table-wrap">
       <div class="table-header">
         <h3>All labour profiles <span style="color:var(--text3);font-weight:400;font-size:12px">(${labour.length})</span></h3>
