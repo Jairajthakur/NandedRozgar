@@ -548,8 +548,16 @@ const HEADER = {
 // ── Tab Navigator ─────────────────────────────────────────────────────────────
 function MainTabs() {
   const { t } = useLang();
+  const { user } = useAuth();
+  // Labour workers (users who have posted a labour profile) should land
+  // directly on their Labour dashboard (HireRequestsScreen, via the Labour
+  // tab -> LabourEntryScreen) instead of the Home feed. They can still
+  // freely navigate to any other tab afterwards — this only changes which
+  // tab is selected first when MainTabs mounts.
+  const initialTab = user?.has_labour_profile ? 'Labour' : 'Home';
   return (
     <Tab.Navigator
+      initialRouteName={initialTab}
       tabBar={props => <CustomTabBar {...props} />}
       screenOptions={HEADER}
     >
