@@ -894,6 +894,60 @@ router.patch('/banners/:id/status', async (req, res) => {
   }
 });
 
+// ─── LABOUR PROFILES ─────────────────────────────────────────────────────────
+
+// GET /api/admin/labour — all labour profiles, for the moderation table.
+// This was previously missing entirely, which is why labourers never showed
+// up anywhere in the admin web panel even though jobs/vehicles/rooms/buysell
+// all had one of these.
+router.get('/labour', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT l.*, u.name AS poster_name, u.email AS poster_email, u.phone AS poster_phone
+       FROM labour_profiles l
+       LEFT JOIN users u ON l.user_id = u.id
+       ORDER BY l.created_at DESC`
+    );
+    res.json({ ok: true, labour: rows });
+  } catch (err) {
+    console.error('GET /admin/labour error:', err);
+    res.json({ ok: false, error: 'Failed to load labour profiles' });
+  }
+});
+
+// PATCH /api/admin/labour/:id/status — active / hidden / banned
+router.patch('/labour/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['active', 'hidden', 'banned'].includes(status)) {
+      return res.json({ ok: false, error: 'Invalid status' });
+    }
+    await pool.query('UPDATE labour_profiles SET status = $1 WHERE id = $2', [status, req.params.id]);
+    await cache.delPrefix('labour:');
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('PATCH /admin/labour/:id/status error:', err);
+    res.json({ ok: false, error: 'Failed to update labour status' });
+  }
+});
+
+// DELETE /api/admin/labour/:id
+// NOTE: unlike jobs/vehicles/rooms/buysell, labour_profiles.status has a CHECK
+// constraint of only ('active','hidden','banned') — there's no 'deleted'
+// state to soft-delete into. All labour-related tables (hire requests,
+// ratings, payouts, etc.) reference labour_profiles(id) ON DELETE CASCADE,
+// so a real delete here is safe and was already the intended design.
+router.delete('/labour/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM labour_profiles WHERE id = $1', [req.params.id]);
+    await cache.delPrefix('labour:');
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /admin/labour/:id error:', err);
+    res.json({ ok: false, error: 'Failed to delete labour profile' });
+  }
+});
+
 // ── LABOUR EARNINGS PIPELINE ──────────────────────────────────────────────────
 
 // GET /api/admin/labour/revenue — gross hire fees collected vs commissions
