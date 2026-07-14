@@ -631,7 +631,7 @@ export default function HireRequestsScreen() {
           <Text style={[st.tabTxt, tab === 'received' && st.tabTxtActive]}>Received ({received.length})</Text>
         </TouchableOpacity>
 
-        {tab === 'sent' && (
+        {tab === 'sent' && !myProfile && (
           <TouchableOpacity style={st.myProjectsBtn} onPress={() => nav.navigate('MyProjects')} activeOpacity={0.8}>
             <Ionicons name="briefcase-outline" size={13} color={ORANGE} />
             <Text style={st.myProjectsBtnTxt}>My Projects</Text>
@@ -671,9 +671,11 @@ export default function HireRequestsScreen() {
                   <TouchableOpacity style={st.emptyBtn} onPress={() => nav.navigate('Labour', { forceBrowse: true })}>
                     <Text style={st.emptyBtnTxt}>Browse workers</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[st.emptyBtn, st.emptyBtnOutline]} onPress={() => nav.navigate('PostProject')}>
-                    <Text style={[st.emptyBtnTxt, st.emptyBtnOutlineTxt]}>Post a Project</Text>
-                  </TouchableOpacity>
+                  {!myProfile && (
+                    <TouchableOpacity style={[st.emptyBtn, st.emptyBtnOutline]} onPress={() => nav.navigate('PostProject')}>
+                      <Text style={[st.emptyBtnTxt, st.emptyBtnOutlineTxt]}>Post a Project</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             </View>
