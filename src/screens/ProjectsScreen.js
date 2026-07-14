@@ -28,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { http, timeAgo } from '../utils/api';
 import { useDistrict } from '../context/DistrictContext';
 import { useLang } from '../utils/i18n';
+import { AutoTranslate } from '../utils/translate';
 import { Empty } from '../components/UI';
 import { LABOUR_COLORS, SPACING, RADIUS, SKILL_ICONS, getSkillGradient } from '../constants/labourTheme';
 import { SectionCard, Badge } from '../components/labour/LabourUI';
@@ -45,7 +46,7 @@ const SKILL_T_KEYS = {
 };
 
 // ── Project card ─────────────────────────────────────────────────────────────
-function ProjectCard({ item, onPress, t }) {
+function ProjectCard({ item, onPress, t, lang }) {
   const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
   const spotsLeft = item.spots_left;
   const almostFull = spotsLeft != null && spotsLeft <= 2;
@@ -57,7 +58,7 @@ function ProjectCard({ item, onPress, t }) {
       </View>
 
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={cs.title} numberOfLines={1}>{item.title}</Text>
+        <AutoTranslate text={item.title} lang={lang} style={cs.title} numberOfLines={1} />
         <Text style={cs.meta} numberOfLines={1}>
           {item.contractor_name ? `${item.contractor_name} · ` : ''}
           {item.location || item.district}
@@ -95,7 +96,7 @@ export default function ProjectsScreen() {
   const nav = useNavigation();
   const insets = useSafeAreaInsets();
   const { currentDistrict } = useDistrict();
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -185,7 +186,7 @@ export default function ProjectsScreen() {
           data={projects}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
-            <ProjectCard item={item} t={t} onPress={() => nav.navigate('ProjectDetail', { id: item.id })} />
+            <ProjectCard item={item} t={t} lang={lang} onPress={() => nav.navigate('ProjectDetail', { id: item.id })} />
           )}
           contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 32, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
