@@ -27,18 +27,25 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { http, timeAgo } from '../utils/api';
 import { useDistrict } from '../context/DistrictContext';
+import { useLang } from '../utils/i18n';
 import { Empty } from '../components/UI';
 import { LABOUR_COLORS, SPACING, RADIUS, SKILL_ICONS, getSkillGradient } from '../constants/labourTheme';
 import { SectionCard, Badge } from '../components/labour/LabourUI';
 
 const ORANGE = LABOUR_COLORS.primary;
 
+// Canonical (English) skill values — these match what's stored in the DB /
+// sent to the API. Display labels are translated separately via SKILL_T_KEYS.
 const SKILL_CATEGORIES = [
   'All', 'Mason', 'Electrician', 'Plumber', 'Painter', 'Carpenter', 'Welder', 'Helper',
 ];
+const SKILL_T_KEYS = {
+  All: 'skillAll', Mason: 'skillMason', Electrician: 'skillElectrician', Plumber: 'skillPlumber',
+  Painter: 'skillPainter', Carpenter: 'skillCarpenter', Welder: 'skillWelder', Helper: 'skillHelper',
+};
 
 // ── Project card ─────────────────────────────────────────────────────────────
-function ProjectCard({ item, onPress }) {
+function ProjectCard({ item, onPress, t }) {
   const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
   const spotsLeft = item.spots_left;
   const almostFull = spotsLeft != null && spotsLeft <= 2;
@@ -58,15 +65,21 @@ function ProjectCard({ item, onPress }) {
 
         <View style={cs.chipRow}>
           {!!item.daily_wage && (
-            <Badge icon="cash-outline" label={`₹${item.daily_wage}/day`} tone="primary" />
+            <Badge icon="cash-outline" label={`₹${item.daily_wage}${t('projPerDaySuffix')}`} tone="primary" />
           )}
           {!!item.duration_days && (
-            <Badge icon="calendar-outline" label={`${item.duration_days} day${item.duration_days > 1 ? 's' : ''}`} tone="neutral" />
+            <Badge
+              icon="calendar-outline"
+              label={`${item.duration_days} ${item.duration_days > 1 ? t('projDayPlural') : t('projDaySingular')}`}
+              tone="neutral"
+            />
           )}
           {spotsLeft != null && (
             <Badge
               icon="people-outline"
-              label={spotsLeft > 0 ? `${spotsLeft} spot${spotsLeft > 1 ? 's' : ''} left` : 'Full'}
+              label={spotsLeft > 0
+                ? t(spotsLeft > 1 ? 'projSpotPlural' : 'projSpotSingular').replace('{N}', spotsLeft)
+                : t('projFull')}
               tone={spotsLeft === 0 ? 'neutral' : almostFull ? 'warning' : 'success'}
             />
           )}
@@ -82,6 +95,7 @@ export default function ProjectsScreen() {
   const nav = useNavigation();
   const insets = useSafeAreaInsets();
   const { currentDistrict } = useDistrict();
+  const { t } = useLang();
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,10 +114,10 @@ export default function ProjectsScreen() {
       if (res?.ok) {
         setProjects(res.projects || []);
       } else {
-        setError('Could not load projects right now.');
+        setError(t('projLoadError'));
       }
     } catch (e) {
-      setError('Could not load projects right now.');
+      setError(t('projLoadError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -122,7 +136,7 @@ export default function ProjectsScreen() {
         <TouchableOpacity onPress={() => nav.goBack()} style={s.backBtn} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color="#111" />
         </TouchableOpacity>
-        <Text style={s.topBarTitle}>Projects</Text>
+        <Text style={s.topBarTitle}>{t('projTopBarTitle')}</Text>
         <View style={s.backBtn} />
       </View>
 
@@ -146,7 +160,7 @@ export default function ProjectsScreen() {
                 size={13}
                 color={active ? '#fff' : LABOUR_COLORS.textMuted}
               />
-              <Text style={[s.chipTxt, active && s.chipTxtActive]}>{skill}</Text>
+              <Text style={[s.chipTxt, active && s.chipTxtActive]}>{t(SKILL_T_KEYS[skill])}</Text>
             </TouchableOpacity>
           );
         })}
@@ -157,7 +171,7 @@ export default function ProjectsScreen() {
           <Ionicons name="alert-circle" size={16} color="#b91c1c" />
           <Text style={s.errorBannerTxt}>{error}</Text>
           <TouchableOpacity onPress={() => load()} style={s.errorBannerBtn}>
-            <Text style={s.errorBannerBtnTxt}>Retry</Text>
+            <Text style={s.errorBannerBtnTxt}>{t('projRetry')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -171,17 +185,17 @@ export default function ProjectsScreen() {
           data={projects}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
-            <ProjectCard item={item} onPress={() => nav.navigate('ProjectDetail', { id: item.id })} />
+            <ProjectCard item={item} t={t} onPress={() => nav.navigate('ProjectDetail', { id: item.id })} />
           )}
           contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 32, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
           ListEmptyComponent={(
             <Empty
               icon="briefcase-outline"
-              title="No open projects right now"
+              title={t('projEmptyTitle')}
               sub={activeSkill === 'All'
-                ? "Contractors haven't posted any multi-worker projects in your district yet — check back soon."
-                : `No open ${activeSkill} projects right now — try another category.`}
+                ? t('projEmptyAllSub')
+                : t('projEmptySkillSub').replace('{SKILL}', t(SKILL_T_KEYS[activeSkill]))}
             />
           )}
         />
