@@ -28,6 +28,7 @@ import Toast from 'react-native-toast-message';
 import { http } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../utils/i18n';
+import { AutoTranslate } from '../utils/translate';
 import { LABOUR_COLORS, SPACING, RADIUS, SKILL_ICONS, getSkillGradient } from '../constants/labourTheme';
 import { SectionCard, SectionTitle, Badge } from '../components/labour/LabourUI';
 
@@ -54,7 +55,7 @@ export default function ProjectDetailScreen() {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { id } = route.params || {};
 
   const [project, setProject] = useState(null);
@@ -206,7 +207,7 @@ export default function ProjectDetailScreen() {
               <Ionicons name={SKILL_ICONS[project.skill_category] || 'briefcase-outline'} size={22} color={gradStart} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={s.title}>{project.title}</Text>
+              <AutoTranslate text={project.title} lang={lang} style={s.title} />
               <Text style={s.contractor} numberOfLines={1}>
                 {t('projPostedBy').replace('{NAME}', project.contractor_name || t('projAContractor'))}
               </Text>
@@ -256,7 +257,7 @@ export default function ProjectDetailScreen() {
         {!!project.description && (
           <SectionCard>
             <SectionTitle>{t('projDescription')}</SectionTitle>
-            <Text style={s.desc}>{project.description}</Text>
+            <AutoTranslate text={project.description} lang={lang} style={s.desc} />
           </SectionCard>
         )}
 
@@ -306,7 +307,7 @@ export default function ProjectDetailScreen() {
                   >
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={s.rosterName} numberOfLines={1}>{w.full_name}</Text>
-                      <Text style={s.rosterMeta}>{w.skill_category}{w.proposed_wage ? ` · ₹${w.proposed_wage}/day` : ''}</Text>
+                      <Text style={s.rosterMeta}>{t(SKILL_T_KEYS[w.skill_category]) || w.skill_category}{w.proposed_wage ? ` · ₹${w.proposed_wage}${t('projPerDaySuffix')}` : ''}</Text>
                     </View>
                     <Badge label={w.status} tone={w.status === 'completed' ? 'success' : w.status === 'accepted' ? 'info' : 'neutral'} />
                   </TouchableOpacity>
