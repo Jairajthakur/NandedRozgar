@@ -914,6 +914,22 @@ router.post('/:id/hire', auth, async (req, res) => {
       return res.status(402).json({ ok: false, error: 'Unlock this worker\'s contact before sending a hire request.' });
     }
 
+    // Don't let a contractor send a request they can't afford to have
+    // accepted. The fee is only charged on accept, but checking the balance
+    // here means the worker never runs into the "wallet's short" error at
+    // accept time — the contractor gets told to top up before the request
+    // even goes out.
+    const { rows: balRows } = await pool.query(
+      'SELECT wallet_balance FROM users WHERE id = $1', [req.user.id]
+    );
+    const balance = parseFloat(balRows[0]?.wallet_balance || 0);
+    if (balance < HIRE_FEE) {
+      return res.status(402).json({
+        ok: false,
+        error: `You need at least ₹${HIRE_FEE} in your wallet to send a hire request (it's only charged if the worker accepts). Please top up your wallet and try again.`,
+      });
+    }
+
     let validProjectId = null;
     if (projectId) {
       const { rows: projRows } = await pool.query(
@@ -1006,6 +1022,25 @@ router.post('/hire-bulk', auth, async (req, res) => {
     `, [req.user.id, validIds]);
     const alreadyUnlocked = new Set(unlockedRows.map(r => r.labour_id));
     const needsUnlock = validIds.filter(id => !alreadyUnlocked.has(id));
+
+    // Don't let a contractor send requests they can't afford to have all
+    // accepted. Each accepted request charges HIRE_FEE independently, so
+    // require enough balance to cover every worker in this batch up front —
+    // otherwise a contractor could send 5 requests, only be able to afford
+    // 2, and have the other 3 fail with a confusing error at accept time
+    // (from the worker's side, not even the contractor's).
+    const { rows: balRows } = await client.query(
+      'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE', [req.user.id]
+    );
+    const balance = parseFloat(balRows[0]?.wallet_balance || 0);
+    const requiredBalance = HIRE_FEE * validIds.length;
+    if (balance < requiredBalance) {
+      await client.query('ROLLBACK');
+      return res.status(402).json({
+        ok: false,
+        error: `You need at least ₹${requiredBalance} in your wallet to send hire requests to ${validIds.length} worker${validIds.length > 1 ? 's' : ''} (₹${HIRE_FEE} each, only charged if they accept). Please top up your wallet and try again.`,
+      });
+    }
 
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     for (const labourId of needsUnlock) {
