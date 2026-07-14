@@ -72,6 +72,13 @@ async function getOwnLabourProfileId(userId) {
 // not given explicitly, so a contractor doesn't have to do the math.
 router.post('/', auth, async (req, res) => {
   try {
+    // Workers post their own profile and get hired — they don't post jobs.
+    // Only contractors/regular users (no labour_profiles row) can create projects.
+    const ownLabourId = await getOwnLabourProfileId(req.user.id);
+    if (ownLabourId) {
+      return res.status(403).json({ ok: false, error: 'Labourers cannot post projects. Browse and apply to projects posted by contractors instead.' });
+    }
+
     const { title, description, skillCategory, district, location, budget, workersNeeded, durationDays, dailyWage } = req.body;
     if (!title?.trim()) return res.status(400).json({ ok: false, error: 'Project title is required' });
 
