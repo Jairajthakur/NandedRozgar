@@ -513,11 +513,16 @@ export default function LabourScreen() {
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   style={[s.categoryIconBox, { shadowColor: catStart, shadowOpacity: 0.35 }]}
                 >
-                  <TradeIcon name={cat} size={26} color="#fff" />
+                  <TradeIcon name={cat} size={27} color="#fff" />
                 </LinearGradient>
               ) : (
-                <View style={[s.categoryIconBox, { backgroundColor: catStart + '14' }]}>
-                  <TradeIcon name={cat} size={26} color={catStart} />
+                <View
+                  style={[
+                    s.categoryIconBox,
+                    { backgroundColor: catStart + '1f', borderWidth: 1.5, borderColor: catStart + '33', shadowOpacity: 0.05 },
+                  ]}
+                >
+                  <TradeIcon name={cat} size={27} color={catStart} />
                 </View>
               )}
               <Text style={[s.categoryTileTxt, active && { color: catStart, fontWeight: '800' }]} numberOfLines={1}>
@@ -968,12 +973,12 @@ const s = StyleSheet.create({
   },
   categoryTile: { width: '21%', alignItems: 'center' },
   categoryIconBox: {
-    width: 64, height: 64, borderRadius: 20, backgroundColor: '#fff',
+    width: 64, height: 64, borderRadius: 18, backgroundColor: '#fff',
     alignItems: 'center', justifyContent: 'center', marginBottom: 8,
     shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
   categoryIconBoxActive: { backgroundColor: ORANGE, borderColor: ORANGE },
-  categoryTileTxt: { fontSize: 12, fontWeight: '600', color: '#555', textAlign: 'center', lineHeight: 15 },
+  categoryTileTxt: { fontSize: 12, fontWeight: '600', color: '#444', textAlign: 'center', lineHeight: 15 },
   categoryTileTxtMr: { fontSize: 10.5, fontWeight: '500', color: '#999', textAlign: 'center', lineHeight: 13 },
   categoryTileTxtActive: { color: ORANGE, fontWeight: '800' },
 
