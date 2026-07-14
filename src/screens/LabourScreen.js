@@ -102,6 +102,7 @@ function QuickAction({ icon, label, color, onPress }) {
 
 // ── Labour profile card — mirrors JobCard's look (accent bar + inner pad) ──
 function LabourCard({ item, onPress, index = 0, selectMode = false, selected = false, onToggleSelect }) {
+  const { t } = useLang();
   const hasRating = !!item.rating_count && Number(item.rating_count) > 0;
   const isBusy = item.availability === 'busy';
   const atChowk = !!item.checked_in_today;
@@ -110,9 +111,9 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
   const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
 
   const statusChip = atChowk
-    ? { bg: '#16a34a', icon: 'walk', label: 'At the chowk today' }
+    ? { bg: '#16a34a', icon: 'walk', label: t('lbAtChowkToday') }
     : hasRating && Number(item.rating_avg) >= 4.5
-    ? { bg: ORANGE, icon: 'star', label: 'Top rated' }
+    ? { bg: ORANGE, icon: 'star', label: t('lbTopRated') }
     : null;
 
   const trustedCount = parseInt(item.trusted_count) || 0;
@@ -163,15 +164,15 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
             {isTeam && !!item.team_composition ? (
               <View style={cs.plainChip}><Text style={cs.plainChipTxt} numberOfLines={1}>{item.team_composition}</Text></View>
             ) : !isTeam && !!item.experience_years ? (
-              <View style={cs.plainChip}><Text style={cs.plainChipTxt}>{item.experience_years} yrs experience</Text></View>
+              <View style={cs.plainChip}><Text style={cs.plainChipTxt}>{item.experience_years} {t('lbYrsExperience')}</Text></View>
             ) : null}
             <View style={[cs.plainChip, isBusy ? cs.busyChip : cs.availableChip]}>
-              <Text style={cs.plainChipTxt}>{isBusy ? '🔴 Busy' : '🟢 Available Today'}</Text>
+              <Text style={cs.plainChipTxt}>{isBusy ? t('lbBusy') : t('lbAvailableToday')}</Text>
             </View>
             {trustedCount > 0 ? (
               <View style={[cs.plainChip, cs.trustChip]}>
                 <Ionicons name="people" size={10} color="#0d9488" />
-                <Text style={[cs.plainChipTxt, { color: '#0d9488' }]}> Trusted by {trustedCount} {trustedCount === 1 ? 'family' : 'families'} in your area</Text>
+                <Text style={[cs.plainChipTxt, { color: '#0d9488' }]}> {(trustedCount === 1 ? t('lbTrustedByOne') : t('lbTrustedByMany')).replace('{N}', trustedCount)}</Text>
               </View>
             ) : hasRating ? (
               <View style={cs.plainChip}>
@@ -268,6 +269,22 @@ export default function LabourScreen() {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  // Translate the fixed English filter-option labels (used as data keys
+  // elsewhere in this file) into the active language for display only.
+  const wageLabelMap = {
+    Any: t('lbFilterAny'), 'Under ₹500': t('lbFilterUnder500'),
+    '₹500–₹800': t('lbFilter500to800'), '₹800–₹1,200': t('lbFilter800to1200'),
+    'Above ₹1,200': t('lbFilterAbove1200'),
+  };
+  const availLabelMap = {
+    All: t('lbAvailAll'), 'At Chowk Today': t('lbAvailChowkToday'),
+    'Available Now': t('lbAvailNow'), 'Busy this week': t('lbAvailBusyWeek'),
+  };
+  const typeLabelMap = { All: t('lbTypeAll'), Individuals: t('lbTypeIndividuals'), Teams: t('lbTypeTeams') };
+  const wageLabel = (label) => wageLabelMap[label] || label;
+  const availLabel = (label) => availLabelMap[label] || label;
+  const typeLabel = (label) => typeLabelMap[label] || label;
+
   const showSidebar = IS_WEB && width >= 900;
 
   // Contractors browsing this screen are the ones who'll need wallet balance
@@ -294,10 +311,10 @@ export default function LabourScreen() {
       if (res?.ok) {
         setLabourers(res.labourers || []);
       } else {
-        setError('Could not load labour profiles right now.');
+        setError(t('lbLoadError'));
       }
     } catch (e) {
-      setError('Could not load labour profiles right now.');
+      setError(t('lbLoadError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -419,17 +436,17 @@ export default function LabourScreen() {
         <View style={{ flex: 1 }}>
           <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
             <Text style={IS_WEB ? ws.pageTitle : s.pageTitle}>
-              Find <Text style={{ color: ORANGE }}>Skilled Labour</Text>
+              {t('lbFind')} <Text style={{ color: ORANGE }}>{t('lbSkilledLabour')}</Text>
             </Text>
           </TouchableOpacity>
           <Text style={IS_WEB ? ws.pageCount : s.pageCount}>
-            {filtered.length} profile{filtered.length === 1 ? '' : 's'} found
-            {currentDistrict?.name ? ` in ${currentDistrict.name}` : ''}
+            {filtered.length} {filtered.length === 1 ? t('lbProfile') : t('lbProfiles')} {t('lbFound')}
+            {currentDistrict?.name ? ` ${t('lbIn')} ${currentDistrict.name}` : ''}
           </Text>
           <TouchableOpacity style={s.localityBtn} onPress={() => setShowLocalityPicker(true)} activeOpacity={0.8}>
             <Ionicons name="location-outline" size={13} color={ORANGE} />
             <Text style={s.localityBtnTxt} numberOfLines={1}>
-              {localityFilter === 'All' ? 'All areas' : localityFilter}
+              {localityFilter === 'All' ? t('lbAllAreas') : localityFilter}
             </Text>
             <Ionicons name="chevron-down" size={13} color={ORANGE} />
           </TouchableOpacity>
@@ -484,7 +501,7 @@ export default function LabourScreen() {
         <Ionicons name="search-outline" size={18} color="#bbb" style={{ marginLeft: 14 }} />
         <TextInput
           style={[s.searchInput, IS_WEB && ws.searchInput]}
-          placeholder="Search mason, electrician, plumber..."
+          placeholder={t('lbSearchPlaceholder')}
           placeholderTextColor="#bbb"
           value={search}
           onChangeText={setSearch}
@@ -498,7 +515,7 @@ export default function LabourScreen() {
         {IS_WEB && (
           <TouchableOpacity style={ws.searchFilterBtn} onPress={() => setShowFilters(true)}>
             <Ionicons name="filter-outline" size={17} color={ORANGE} />
-            <Text style={ws.filterBtnTxt}>Filters</Text>
+            <Text style={ws.filterBtnTxt}>{t('lbFilters')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -540,7 +557,7 @@ export default function LabourScreen() {
 
       {subSkillOptions.length > 0 && (
         <View>
-          <Text style={s.subSkillLabel}>Narrow it down</Text>
+          <Text style={s.subSkillLabel}>{t('lbNarrowDown')}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -569,22 +586,22 @@ export default function LabourScreen() {
 
       {IS_WEB && activeFiltersCount > 0 && (
         <View style={ws.activeFiltersRow}>
-          <Text style={ws.activeFiltersLabel}>Active filters:</Text>
+          <Text style={ws.activeFiltersLabel}>{t('lbActiveFilters')}</Text>
           {wageRange.label !== 'Any' && (
             <TouchableOpacity style={ws.activeChip} onPress={() => setWageRange(WAGE_RANGES[0])}>
-              <Text style={ws.activeChipTxt}>{wageRange.label}</Text>
+              <Text style={ws.activeChipTxt}>{wageLabel(wageRange.label)}</Text>
               <Ionicons name="close" size={11} color={ORANGE} />
             </TouchableOpacity>
           )}
           {availability !== 'All' && (
             <TouchableOpacity style={ws.activeChip} onPress={() => setAvailability('All')}>
-              <Text style={ws.activeChipTxt}>{availability}</Text>
+              <Text style={ws.activeChipTxt}>{availLabel(availability)}</Text>
               <Ionicons name="close" size={11} color={ORANGE} />
             </TouchableOpacity>
           )}
           {profileTypeFilter !== 'All' && (
             <TouchableOpacity style={ws.activeChip} onPress={() => setProfileTypeFilter('All')}>
-              <Text style={ws.activeChipTxt}>{profileTypeFilter}</Text>
+              <Text style={ws.activeChipTxt}>{typeLabel(profileTypeFilter)}</Text>
               <Ionicons name="close" size={11} color={ORANGE} />
             </TouchableOpacity>
           )}
@@ -600,17 +617,20 @@ export default function LabourScreen() {
       <Animated.View style={[s.filterSheet, IS_WEB && ws.centeredModal, { transform: [{ translateY: IS_WEB ? 0 : sheetY }] }]}>
         <View style={s.sheetHandle} />
         <View style={s.sheetHeader}>
-          <Text style={s.sheetTitle}>Filters</Text>
+          <Text style={s.sheetTitle}>{t('lbFilters')}</Text>
           <TouchableOpacity onPress={() => { setWageRange(WAGE_RANGES[0]); setAvailability('All'); setProfileTypeFilter('All'); }}>
-            <Text style={s.resetTxt}>Reset All</Text>
+            <Text style={s.resetTxt}>{t('lbResetAll')}</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={s.filterLabel}>Listing Type</Text>
+        <Text style={s.filterLabel}>{t('lbListingType')}</Text>
         <View style={s.prefList}>
           {['Individuals', 'Teams'].map((pt, idx) => {
             const meta = PROFILE_TYPE_META[pt];
             const active = profileTypeFilter === pt;
+            const chipLabels = pt === 'Individuals'
+              ? [t('lbTypeIndivChip1'), t('lbTypeIndivChip2')]
+              : [t('lbTypeTeamChip1'), t('lbTypeTeamChip2')];
             return (
               <React.Fragment key={pt}>
                 <TouchableOpacity
@@ -622,9 +642,9 @@ export default function LabourScreen() {
                     <Ionicons name={meta.icon} size={28} color={active ? '#fff' : meta.color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[s.prefTitle, active && { color: meta.color }]}>{pt}</Text>
+                    <Text style={[s.prefTitle, active && { color: meta.color }]}>{typeLabel(pt)}</Text>
                     <View style={s.prefChipRow}>
-                      {meta.chips.map(c => (
+                      {chipLabels.map(c => (
                         <View key={c} style={s.prefChip}>
                           <Text style={s.prefChipTxt}>{c}</Text>
                         </View>
@@ -643,32 +663,32 @@ export default function LabourScreen() {
           })}
         </View>
 
-        <Text style={[s.filterLabel, { marginTop: 20 }]}>Daily Wage</Text>
+        <Text style={[s.filterLabel, { marginTop: 20 }]}>{t('lbDailyWage')}</Text>
         {WAGE_RANGES.map(r => (
           <TouchableOpacity
             key={r.label}
             style={[s.rangeRow, wageRange.label === r.label && s.rangeActive]}
             onPress={() => setWageRange(r)}
           >
-            <Text style={[s.rangeTxt, wageRange.label === r.label && { color: ORANGE, fontWeight: '700' }]}>{r.label}</Text>
+            <Text style={[s.rangeTxt, wageRange.label === r.label && { color: ORANGE, fontWeight: '700' }]}>{wageLabel(r.label)}</Text>
             {wageRange.label === r.label && <Ionicons name="checkmark-circle" size={18} color={ORANGE} />}
           </TouchableOpacity>
         ))}
 
-        <Text style={[s.filterLabel, { marginTop: 20 }]}>Availability</Text>
+        <Text style={[s.filterLabel, { marginTop: 20 }]}>{t('lbAvailability')}</Text>
         {AVAILABILITY_OPTIONS.map(a => (
           <TouchableOpacity
             key={a}
             style={[s.rangeRow, availability === a && s.rangeActive]}
             onPress={() => setAvailability(a)}
           >
-            <Text style={[s.rangeTxt, availability === a && { color: ORANGE, fontWeight: '700' }]}>{a}</Text>
+            <Text style={[s.rangeTxt, availability === a && { color: ORANGE, fontWeight: '700' }]}>{availLabel(a)}</Text>
             {availability === a && <Ionicons name="checkmark-circle" size={18} color={ORANGE} />}
           </TouchableOpacity>
         ))}
 
         <TouchableOpacity style={s.applyFilterBtn} onPress={() => setShowFilters(false)}>
-          <Text style={s.applyFilterTxt}>Show {filtered.length} Profiles</Text>
+          <Text style={s.applyFilterTxt}>{t('lbShowNProfiles').replace('{N}', filtered.length)}</Text>
         </TouchableOpacity>
       </Animated.View>
     </Modal>
@@ -680,13 +700,13 @@ export default function LabourScreen() {
       <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={() => setShowLocalityPicker(false)} />
       <View style={[s.localitySheet, IS_WEB && ws.centeredModal]}>
         <View style={s.sheetHandle} />
-        <Text style={s.sheetTitle}>Choose your area</Text>
+        <Text style={s.sheetTitle}>{t('lbChooseArea')}</Text>
         <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
           <TouchableOpacity
             style={[s.rangeRow, localityFilter === 'All' && s.rangeActive]}
             onPress={() => { setLocalityFilter('All'); setShowLocalityPicker(false); }}
           >
-            <Text style={[s.rangeTxt, localityFilter === 'All' && { color: ORANGE, fontWeight: '700' }]}>All areas</Text>
+            <Text style={[s.rangeTxt, localityFilter === 'All' && { color: ORANGE, fontWeight: '700' }]}>{t('lbAllAreas')}</Text>
             {localityFilter === 'All' && <Ionicons name="checkmark-circle" size={18} color={ORANGE} />}
           </TouchableOpacity>
           {localityOptions.map(loc => (
@@ -701,7 +721,7 @@ export default function LabourScreen() {
           ))}
           {localityOptions.length === 0 && (
             <Text style={{ color: '#999', fontSize: 13, paddingVertical: 20, textAlign: 'center' }}>
-              No area data yet for this district.
+              {t('lbNoAreaData')}
             </Text>
           )}
         </ScrollView>
@@ -726,10 +746,10 @@ export default function LabourScreen() {
   const EmptyState = (
     <Empty
       icon="construct-outline"
-      title={activeSkill === 'All' ? 'No labour profiles found' : `No ${activeSkill.toLowerCase()}s listed yet`}
-      sub={search || activeFiltersCount > 0 ? 'Try different filters' : 'Be the first to post a profile in this area.'}
+      title={activeSkill === 'All' ? t('lbNoProfilesFound') : t('lbNoSkillListed').replace('{SKILL}', activeSkill.toLowerCase())}
+      sub={search || activeFiltersCount > 0 ? t('lbTryDifferentFilters') : t('lbBeFirstToPost')}
       action={() => nav.navigate('PostLabourProfile')}
-      actionLabel="Post your profile"
+      actionLabel={t('lbPostYourProfile')}
     />
   );
 
@@ -737,10 +757,10 @@ export default function LabourScreen() {
 
   const SelectBar = selectMode && selectedIds.length > 0 ? (
     <View style={s.selectBar}>
-      <Text style={s.selectBarTxt}>{selectedIds.length} selected</Text>
+      <Text style={s.selectBarTxt}>{selectedIds.length} {t('lbSelected')}</Text>
       <TouchableOpacity style={s.selectBarBtn} onPress={() => setShowBulkModal(true)} activeOpacity={0.85}>
         <Ionicons name="briefcase-outline" size={15} color="#fff" />
-        <Text style={s.selectBarBtnTxt}>Hire {selectedIds.length}</Text>
+        <Text style={s.selectBarBtnTxt}>{t('lbHireN').replace('{N}', selectedIds.length)}</Text>
       </TouchableOpacity>
     </View>
   ) : null;
@@ -770,7 +790,7 @@ export default function LabourScreen() {
             <Ionicons name="arrow-back" size={20} color="#111" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.8}>
-            <Text style={ws.topBarTitle}>Labour</Text>
+            <Text style={ws.topBarTitle}>{t('labour')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -780,17 +800,17 @@ export default function LabourScreen() {
               <SideCard style={ws.ctaCard}>
                 <View style={ws.ctaCircle1} />
                 <View style={ws.ctaCircle2} />
-                <Text style={ws.ctaEyebrow}>FOR WORKERS</Text>
-                <Text style={ws.ctaTitle}>Post Your Profile Free</Text>
-                <Text style={ws.ctaSub}>Get hired by employers across Nanded instantly.</Text>
+                <Text style={ws.ctaEyebrow}>{t('lbForWorkers')}</Text>
+                <Text style={ws.ctaTitle}>{t('lbPostProfileFreeTitle')}</Text>
+                <Text style={ws.ctaSub}>{t('lbPostProfileFreeSub')}</Text>
                 <TouchableOpacity style={ws.ctaBtn} onPress={() => nav.navigate('PostLabourProfile')} activeOpacity={0.88}>
                   <Ionicons name="add-circle-outline" size={15} color="#fff" />
-                  <Text style={ws.ctaBtnTxt}>Post a Profile</Text>
+                  <Text style={ws.ctaBtnTxt}>{t('lbPostAProfile')}</Text>
                 </TouchableOpacity>
               </SideCard>
 
               <SideCard>
-                <Text style={ws.sideTitle}>Browse Trades</Text>
+                <Text style={ws.sideTitle}>{t('lbBrowseTrades')}</Text>
                 {tradeCounts.map(({ label, count }) => {
                   const [tStart] = getSkillGradient(label);
                   return (
@@ -811,12 +831,12 @@ export default function LabourScreen() {
               </SideCard>
 
               <SideCard>
-                <Text style={ws.sideTitle}>Explore More</Text>
-                <QuickAction icon="hammer-outline"     label="Browse Projects" color={ORANGE}  onPress={() => nav.navigate('Projects')} />
-                <QuickAction icon="briefcase-outline"  label="Find a Job"      color={ORANGE}  onPress={() => nav.navigate('Jobs')} />
-                <QuickAction icon="home-outline"       label="Find a Room"     color={TEAL}    onPress={() => nav.navigate('Rooms')} />
-                <QuickAction icon="car-sport-outline"  label="Rent a Vehicle"  color="#9333ea" onPress={() => nav.navigate('Cars')} />
-                <QuickAction icon="pricetag-outline"   label="Buy & Sell"      color="#0ea5e9" onPress={() => nav.navigate('BuySell')} />
+                <Text style={ws.sideTitle}>{t('lbExploreMore')}</Text>
+                <QuickAction icon="hammer-outline"     label={t('lbBrowseProjects')} color={ORANGE}  onPress={() => nav.navigate('Projects')} />
+                <QuickAction icon="briefcase-outline"  label={t('lbFindAJob')}       color={ORANGE}  onPress={() => nav.navigate('Jobs')} />
+                <QuickAction icon="home-outline"       label={t('lbFindARoom')}      color={TEAL}    onPress={() => nav.navigate('Rooms')} />
+                <QuickAction icon="car-sport-outline"  label={t('lbRentAVehicle')}   color="#9333ea" onPress={() => nav.navigate('Cars')} />
+                <QuickAction icon="pricetag-outline"   label={t('lbBuyAndSell')}     color="#0ea5e9" onPress={() => nav.navigate('BuySell')} />
               </SideCard>
             </View>
           )}
@@ -837,40 +857,36 @@ export default function LabourScreen() {
           {showSidebar && (
             <View style={ws.rightSidebar}>
               <SideCard>
-                <Text style={ws.sideTitle}>Daily Wage</Text>
+                <Text style={ws.sideTitle}>{t('lbDailyWage')}</Text>
                 {WAGE_RANGES.map(r => (
                   <TouchableOpacity
                     key={r.label}
                     style={[ws.sortRow, wageRange.label === r.label && ws.sortRowActive]}
                     onPress={() => setWageRange(r)}
                   >
-                    <Text style={[ws.sortTxt, wageRange.label === r.label && ws.sortTxtActive]}>{r.label}</Text>
+                    <Text style={[ws.sortTxt, wageRange.label === r.label && ws.sortTxtActive]}>{wageLabel(r.label)}</Text>
                     {wageRange.label === r.label && <Ionicons name="checkmark-circle" size={16} color={ORANGE} />}
                   </TouchableOpacity>
                 ))}
               </SideCard>
 
               <SideCard>
-                <Text style={ws.sideTitle}>Availability</Text>
+                <Text style={ws.sideTitle}>{t('lbAvailability')}</Text>
                 {AVAILABILITY_OPTIONS.map(a => (
                   <TouchableOpacity
                     key={a}
                     style={[ws.sortRow, availability === a && ws.sortRowActive]}
                     onPress={() => setAvailability(a)}
                   >
-                    <Text style={[ws.sortTxt, availability === a && ws.sortTxtActive]}>{a}</Text>
+                    <Text style={[ws.sortTxt, availability === a && ws.sortTxtActive]}>{availLabel(a)}</Text>
                     {availability === a && <Ionicons name="checkmark-circle" size={16} color={ORANGE} />}
                   </TouchableOpacity>
                 ))}
               </SideCard>
 
               <SideCard style={ws.tipCard}>
-                <Text style={ws.tipTitle}>💡 Hiring Tips</Text>
-                {[
-                  'Complete profiles get 3x more calls',
-                  'Add your daily wage to get hired faster',
-                  'ID verification builds trust with employers',
-                ].map((tip, i) => (
+                <Text style={ws.tipTitle}>{t('lbHiringTips')}</Text>
+                {[t('lbTip1'), t('lbTip2'), t('lbTip3')].map((tip, i) => (
                   <View key={i} style={ws.tipRow}>
                     <View style={ws.tipDot} />
                     <Text style={ws.tipTxt}>{tip}</Text>
@@ -878,7 +894,7 @@ export default function LabourScreen() {
                 ))}
                 <TouchableOpacity style={ws.tipBtn} onPress={() => nav.navigate('PostLabourProfile')} activeOpacity={0.85}>
                   <Ionicons name="add-circle-outline" size={14} color={ORANGE} />
-                  <Text style={ws.tipBtnTxt}>Post Your Profile</Text>
+                  <Text style={ws.tipBtnTxt}>{t('lbPostYourProfile')}</Text>
                 </TouchableOpacity>
               </SideCard>
             </View>
