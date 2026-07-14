@@ -27,10 +27,18 @@ import Toast from 'react-native-toast-message';
 
 import { http } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../utils/i18n';
 import { LABOUR_COLORS, SPACING, RADIUS, SKILL_ICONS, getSkillGradient } from '../constants/labourTheme';
 import { SectionCard, SectionTitle, Badge } from '../components/labour/LabourUI';
 
 const ORANGE = LABOUR_COLORS.primary;
+
+// Skill category values are stored/sent in English; translate only the
+// display label shown to the person.
+const SKILL_T_KEYS = {
+  All: 'skillAll', Mason: 'skillMason', Electrician: 'skillElectrician', Plumber: 'skillPlumber',
+  Painter: 'skillPainter', Carpenter: 'skillCarpenter', Welder: 'skillWelder', Helper: 'skillHelper',
+};
 
 function formatDate(d) {
   if (!d) return null;
@@ -46,6 +54,7 @@ export default function ProjectDetailScreen() {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLang();
   const { id } = route.params || {};
 
   const [project, setProject] = useState(null);
@@ -81,10 +90,10 @@ export default function ProjectDetailScreen() {
           setRoster(res.roster || []);
         }
       } else {
-        setError(res?.error || 'Project not found');
+        setError(res?.error || t('projNotFound'));
       }
     } catch (e) {
-      setError('Could not load this project right now.');
+      setError(t('projLoadError'));
     } finally {
       setLoading(false);
     }
@@ -94,7 +103,7 @@ export default function ProjectDetailScreen() {
 
   const apply = async () => {
     if (!user) {
-      Toast.show({ type: 'info', text1: 'Login required', text2: 'Please log in to apply to this project.' });
+      Toast.show({ type: 'info', text1: t('projLoginRequired'), text2: t('projLoginToApply') });
       nav.navigate('Login');
       return;
     }
@@ -107,8 +116,8 @@ export default function ProjectDetailScreen() {
       setSpotsLeft(res.spotsLeft);
       Toast.show({
         type: 'success',
-        text1: "You're hired!",
-        text2: 'Check Hire Requests → Received for the contractor\'s details.',
+        text1: t('projHiredToastTitle'),
+        text2: t('projHiredToastSub'),
       });
       return;
     }
@@ -116,16 +125,16 @@ export default function ProjectDetailScreen() {
     // Known outcomes from the route: no worker profile yet, already applied,
     // project fully staffed, or the contractor's wallet is too low right now.
     if (res?.status === 400 && /post your own worker profile/i.test(res.error || '')) {
-      Toast.show({ type: 'error', text1: 'Post your worker profile first', text2: 'You need a Labour profile before you can apply.' });
+      Toast.show({ type: 'error', text1: t('projPostProfileFirst'), text2: t('projNeedProfile') });
       nav.navigate('PostLabourProfile');
       return;
     }
     if (res?.status === 409) {
-      Toast.show({ type: 'error', text1: 'Could not apply', text2: res.error || 'This project is no longer open.' });
+      Toast.show({ type: 'error', text1: t('projCouldNotApply'), text2: res.error || t('projNotOpenAnymore') });
       load(); // refresh spots — someone else likely just filled the last slot
       return;
     }
-    Toast.show({ type: 'error', text1: 'Could not apply', text2: res?.error || 'Please try again.' });
+    Toast.show({ type: 'error', text1: t('projCouldNotApply'), text2: res?.error || t('projPleaseTryAgain') });
   };
 
   // Owner-only: stop accepting new applicants without deleting the posting —
@@ -136,9 +145,9 @@ export default function ProjectDetailScreen() {
     setClosing(false);
     if (res?.ok) {
       setProject(res.project);
-      Toast.show({ type: 'success', text1: 'Project closed', text2: 'It no longer accepts new applicants.' });
+      Toast.show({ type: 'success', text1: t('projClosedToastTitle'), text2: t('projClosedToastSub') });
     } else {
-      Toast.show({ type: 'error', text1: 'Could not close project', text2: res?.error || 'Please try again.' });
+      Toast.show({ type: 'error', text1: t('projCouldNotClose'), text2: res?.error || t('projPleaseTryAgain') });
     }
   };
 
@@ -159,14 +168,14 @@ export default function ProjectDetailScreen() {
           <TouchableOpacity onPress={() => nav.goBack()} style={s.backBtn} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={20} color="#111" />
           </TouchableOpacity>
-          <Text style={s.topBarTitle}>Project</Text>
+          <Text style={s.topBarTitle}>{t('projDetailTopBarTitle')}</Text>
           <View style={s.backBtn} />
         </View>
         <View style={[s.center, { flex: 1 }]}>
           <Ionicons name="alert-circle-outline" size={40} color="#ddd" />
-          <Text style={s.errorTitle}>{error || 'Project not found'}</Text>
+          <Text style={s.errorTitle}>{error || t('projNotFound')}</Text>
           <TouchableOpacity onPress={load} style={s.retryBtn}>
-            <Text style={s.retryTxt}>Retry</Text>
+            <Text style={s.retryTxt}>{t('projRetry')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -186,7 +195,7 @@ export default function ProjectDetailScreen() {
         <TouchableOpacity onPress={() => nav.goBack()} style={s.backBtn} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color="#111" />
         </TouchableOpacity>
-        <Text style={s.topBarTitle}>Project</Text>
+        <Text style={s.topBarTitle}>{t('projDetailTopBarTitle')}</Text>
         <View style={s.backBtn} />
       </View>
 
@@ -199,13 +208,15 @@ export default function ProjectDetailScreen() {
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={s.title}>{project.title}</Text>
               <Text style={s.contractor} numberOfLines={1}>
-                Posted by {project.contractor_name || 'a contractor'}
+                {t('projPostedBy').replace('{NAME}', project.contractor_name || t('projAContractor'))}
               </Text>
             </View>
           </View>
 
           <View style={s.chipRow}>
-            {!!project.skill_category && <Badge icon="pricetag-outline" label={project.skill_category} tone="worker" />}
+            {!!project.skill_category && (
+              <Badge icon="pricetag-outline" label={t(SKILL_T_KEYS[project.skill_category]) || project.skill_category} tone="worker" />
+            )}
             {(project.location || project.district) && (
               <Badge icon="location-outline" label={project.location || project.district} tone="neutral" />
             )}
@@ -213,21 +224,21 @@ export default function ProjectDetailScreen() {
         </SectionCard>
 
         <SectionCard>
-          <SectionTitle>The offer</SectionTitle>
+          <SectionTitle>{t('projTheOffer')}</SectionTitle>
           <View style={s.statRow}>
             <View style={s.stat}>
               <Text style={s.statValue}>{project.daily_wage ? `₹${project.daily_wage}` : '—'}</Text>
-              <Text style={s.statLabel}>Per day</Text>
+              <Text style={s.statLabel}>{t('projPerDayLabel')}</Text>
             </View>
             <View style={s.statDivider} />
             <View style={s.stat}>
               <Text style={s.statValue}>{project.duration_days || '—'}</Text>
-              <Text style={s.statLabel}>{project.duration_days === 1 ? 'Day' : 'Days'}</Text>
+              <Text style={s.statLabel}>{project.duration_days === 1 ? t('projDayLabel') : t('projDaysLabel')}</Text>
             </View>
             <View style={s.statDivider} />
             <View style={s.stat}>
               <Text style={s.statValue}>{project.workers_needed}</Text>
-              <Text style={s.statLabel}>Workers needed</Text>
+              <Text style={s.statLabel}>{t('projWorkersNeeded')}</Text>
             </View>
           </View>
 
@@ -236,14 +247,15 @@ export default function ProjectDetailScreen() {
           </View>
           <Text style={s.slotsTxt}>
             {filled
-              ? 'This project is fully staffed'
-              : `${spotsLeft} of ${project.workers_needed} spot${project.workers_needed > 1 ? 's' : ''} still open`}
+              ? t('projFullyStaffed')
+              : t(project.workers_needed > 1 ? 'projSpotsOpenPlural' : 'projSpotsOpenSingular')
+                  .replace('{LEFT}', spotsLeft).replace('{TOTAL}', project.workers_needed)}
           </Text>
         </SectionCard>
 
         {!!project.description && (
           <SectionCard>
-            <SectionTitle>Description</SectionTitle>
+            <SectionTitle>{t('projDescription')}</SectionTitle>
             <Text style={s.desc}>{project.description}</Text>
           </SectionCard>
         )}
@@ -252,36 +264,38 @@ export default function ProjectDetailScreen() {
           <>
             {/* ── Budget vs spend — owner-only, computed live by the backend ── */}
             <SectionCard>
-              <SectionTitle>Budget & spend</SectionTitle>
+              <SectionTitle>{t('projBudgetSpend')}</SectionTitle>
               <View style={s.statRow}>
                 <View style={s.stat}>
                   <Text style={s.statValue}>{budget != null ? `₹${budget}` : '—'}</Text>
-                  <Text style={s.statLabel}>Budget</Text>
+                  <Text style={s.statLabel}>{t('projBudget')}</Text>
                 </View>
                 <View style={s.statDivider} />
                 <View style={s.stat}>
                   <Text style={[s.statValue, overBudget && { color: LABOUR_COLORS.danger }]}>
                     ₹{Math.round(spend?.totalSpent || 0)}
                   </Text>
-                  <Text style={s.statLabel}>Spent so far</Text>
+                  <Text style={s.statLabel}>{t('projSpentSoFar')}</Text>
                 </View>
               </View>
               <Text style={s.hint}>
-                ₹{spend?.hireFees || 0} in hire fees + ₹{Math.round(spend?.wagesPaid || 0)} in wages logged so far.
+                {t('projFeesWagesHint')
+                  .replace('{FEES}', spend?.hireFees || 0)
+                  .replace('{WAGES}', Math.round(spend?.wagesPaid || 0))}
               </Text>
               {overBudget && (
                 <View style={[s.noteRow, { marginTop: 8 }]}>
                   <Ionicons name="warning-outline" size={16} color={LABOUR_COLORS.danger} />
-                  <Text style={[s.noteTxt, { color: LABOUR_COLORS.danger }]}>You're over the budget you set for this project.</Text>
+                  <Text style={[s.noteTxt, { color: LABOUR_COLORS.danger }]}>{t('projOverBudget')}</Text>
                 </View>
               )}
             </SectionCard>
 
             {/* ── Roster — everyone hired under this project ──────────────── */}
             <SectionCard>
-              <SectionTitle>Roster ({roster.length})</SectionTitle>
+              <SectionTitle>{t('projRoster').replace('{COUNT}', roster.length)}</SectionTitle>
               {roster.length === 0 ? (
-                <Text style={s.hint}>No one has applied yet.</Text>
+                <Text style={s.hint}>{t('projNoApplicants')}</Text>
               ) : (
                 roster.map((w) => (
                   <TouchableOpacity
@@ -304,10 +318,7 @@ export default function ProjectDetailScreen() {
           <SectionCard>
             <View style={s.noteRow}>
               <Ionicons name="flash-outline" size={16} color={ORANGE} />
-              <Text style={s.noteTxt}>
-                Applying hires you instantly — no waiting for the contractor to review. First-come,
-                first-served until all slots fill.
-              </Text>
+              <Text style={s.noteTxt}>{t('projInstantHireNote')}</Text>
             </View>
           </SectionCard>
         )}
@@ -316,7 +327,7 @@ export default function ProjectDetailScreen() {
       <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
         {isOwner ? (
           project.status === 'closed' ? (
-            <Text style={s.footerNote}>This project is closed and no longer accepting applicants.</Text>
+            <Text style={s.footerNote}>{t('projClosedNote')}</Text>
           ) : (
             <TouchableOpacity
               style={[s.closeBtn, closing && s.applyBtnDisabled]}
@@ -326,13 +337,13 @@ export default function ProjectDetailScreen() {
             >
               {closing
                 ? <ActivityIndicator size="small" color={LABOUR_COLORS.danger} />
-                : <Text style={s.closeBtnTxt}>Stop accepting applicants</Text>}
+                : <Text style={s.closeBtnTxt}>{t('projStopAccepting')}</Text>}
             </TouchableOpacity>
           )
         ) : applied ? (
           <View style={s.appliedBtn}>
             <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
-            <Text style={s.appliedTxt}>You're hired on this project</Text>
+            <Text style={s.appliedTxt}>{t('projHiredOnProject')}</Text>
           </View>
         ) : (
           <TouchableOpacity
@@ -346,7 +357,7 @@ export default function ProjectDetailScreen() {
             ) : (
               <>
                 <Ionicons name="checkmark-done-outline" size={18} color="#fff" />
-                <Text style={s.applyBtnTxt}>{filled ? 'Fully staffed' : 'Apply — get hired instantly'}</Text>
+                <Text style={s.applyBtnTxt}>{filled ? t('projFullyStaffedBtn') : t('projApplyBtn')}</Text>
               </>
             )}
           </TouchableOpacity>
