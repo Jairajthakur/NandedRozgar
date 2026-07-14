@@ -43,6 +43,9 @@ export default function RewardsProgress({ style }) {
 
   if (!data || !data.rewards?.length) return null;
 
+  const visibleRewards = data.rewards.filter(r => r.reward_type !== 'id_card');
+  if (!visibleRewards.length) return null;
+
   return (
     <View style={[s.wrap, style]}>
       <View style={s.headerRow}>
@@ -52,7 +55,7 @@ export default function RewardsProgress({ style }) {
         <Text style={s.headerTxt}>Booking Rewards</Text>
       </View>
 
-      {data.rewards.map((r) => {
+      {visibleRewards.map((r) => {
         const meta = REWARD_META[r.reward_type] || { icon: 'gift-outline', label: r.reward_type };
         const earned = r.status === 'issued' || r.status === 'pending';
         const delivered = r.status === 'issued';
