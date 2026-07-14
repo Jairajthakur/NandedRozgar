@@ -18,6 +18,8 @@ const router = require('express').Router();
 const { pool, cache } = require('../db');
 const { auth } = require('../middleware/auth');
 
+const HIRE_FEE = 10; // must match routes/labour.js — charged per hire on acceptance
+
 // Resolve the caller's own labour_profiles.id, or null if they haven't
 // posted a worker profile — only a worker can lead a crew.
 async function getOwnLabourProfileId(userId) {
@@ -199,6 +201,24 @@ router.post('/:id/hire', auth, async (req, res) => {
         return res.status(400).json({ ok: false, error: 'Project not found' });
       }
       validProjectId = projRows[0].id;
+    }
+
+    // Don't let a contractor hire a whole crew they can't afford to have
+    // accepted. Each accepted member charges HIRE_FEE independently, so
+    // require enough balance to cover every member up front — otherwise
+    // some members' accepts would fail later with a wallet error that
+    // lands on the worker, not the contractor.
+    const { rows: balRows } = await client.query(
+      'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE', [req.user.id]
+    );
+    const balance = parseFloat(balRows[0]?.wallet_balance || 0);
+    const requiredBalance = HIRE_FEE * members.length;
+    if (balance < requiredBalance) {
+      await client.query('ROLLBACK');
+      return res.status(402).json({
+        ok: false,
+        error: `You need at least ₹${requiredBalance} in your wallet to hire this crew of ${members.length} (₹${HIRE_FEE} per person, only charged if they accept). Please top up your wallet and try again.`,
+      });
     }
 
     const { rows: crewHireRows } = await client.query(`
