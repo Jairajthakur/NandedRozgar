@@ -41,6 +41,13 @@ const SKILL_LABELS_MR = {
   Painter: 'पेंटर', Carpenter: 'सुतार', Welder: 'वेल्डर', Helper: 'मदतनीस',
 };
 
+// Friendly emoji glyphs for the category tiles — matches the softer,
+// illustrated-icon-on-neutral-card look used elsewhere in the app.
+const SKILL_EMOJI = {
+  All: '🛠️', Mason: '🧱', Electrician: '⚡', Plumber: '🚰',
+  Painter: '🎨', Carpenter: '🪚', Welder: '🔥', Helper: '🙋',
+};
+
 const WAGE_RANGES = [
   { label: 'Any',           min: 0,    max: Infinity },
   { label: 'Under ₹500',   min: 0,    max: 500 },
@@ -507,24 +514,19 @@ export default function LabourScreen() {
               style={[s.categoryTile, IS_WEB && ws.categoryTile]}
               activeOpacity={0.8}
             >
-              {active ? (
-                <LinearGradient
-                  colors={[catStart, catEnd]}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                  style={[s.categoryIconBox, { shadowColor: catStart, shadowOpacity: 0.35 }]}
-                >
-                  <TradeIcon name={cat} size={27} color="#fff" />
-                </LinearGradient>
-              ) : (
-                <View
-                  style={[
-                    s.categoryIconBox,
-                    { backgroundColor: catStart + '1f', borderWidth: 1.5, borderColor: catStart + '33', shadowOpacity: 0.05 },
-                  ]}
-                >
-                  <TradeIcon name={cat} size={27} color={catStart} />
-                </View>
-              )}
+              <View
+                style={[
+                  s.categoryIconBox,
+                  active && { borderWidth: 2, borderColor: catStart, backgroundColor: catStart + '10' },
+                ]}
+              >
+                <Text style={s.categoryEmoji}>{SKILL_EMOJI[cat] || '🛠️'}</Text>
+                {active && (
+                  <View style={[s.categoryCheck, { backgroundColor: catStart }]}>
+                    <Ionicons name="checkmark" size={10} color="#fff" />
+                  </View>
+                )}
+              </View>
               <Text style={[s.categoryTileTxt, active && { color: catStart, fontWeight: '800' }]} numberOfLines={1}>
                 {cat}
               </Text>
@@ -973,12 +975,17 @@ const s = StyleSheet.create({
   },
   categoryTile: { width: '21%', alignItems: 'center' },
   categoryIconBox: {
-    width: 64, height: 64, borderRadius: 18, backgroundColor: '#fff',
+    width: 64, height: 64, borderRadius: 18, backgroundColor: '#f2f2f4',
     alignItems: 'center', justifyContent: 'center', marginBottom: 8,
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    borderWidth: 2, borderColor: 'transparent',
+  },
+  categoryEmoji: { fontSize: 28 },
+  categoryCheck: {
+    position: 'absolute', bottom: -4, right: -4, width: 18, height: 18, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff',
   },
   categoryIconBoxActive: { backgroundColor: ORANGE, borderColor: ORANGE },
-  categoryTileTxt: { fontSize: 12, fontWeight: '600', color: '#444', textAlign: 'center', lineHeight: 15 },
+  categoryTileTxt: { fontSize: 12, fontWeight: '700', color: '#222', textAlign: 'center', lineHeight: 15 },
   categoryTileTxtMr: { fontSize: 10.5, fontWeight: '500', color: '#999', textAlign: 'center', lineHeight: 13 },
   categoryTileTxtActive: { color: ORANGE, fontWeight: '800' },
 
