@@ -50,8 +50,7 @@ const MAX_PAIR_COMPLETIONS_PER_DAY = 3;
 const MAX_BULK_HIRE = 20;
 
 const MILESTONE_REWARDS = [
-  { reward_type: 'id_card', milestone_bookings: 5 },
-  { reward_type: 'tshirt',  milestone_bookings: 10 },
+  { reward_type: 'tshirt', milestone_bookings: 10 },
 ];
 
 // Best-effort decode of the Authorization header — does NOT reject the request
