@@ -1136,7 +1136,7 @@ const ws = StyleSheet.create({
 
   iconBtn: { height: 40, paddingHorizontal: 14, borderRadius: 10, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e8e8e8', alignItems: 'center', justifyContent: 'center' },
 
-  list: { paddingTop: 0, paddingBottom: 48 },
+  list: { paddingTop: 0, paddingBottom: 48, maxWidth: 640, width: '100%', alignSelf: 'center' },
   gridRow: { justifyContent: 'space-between' },
 
   sideCard: {
