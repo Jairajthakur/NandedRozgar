@@ -99,6 +99,10 @@ export default function HireRequestsScreen() {
   const [rateComment, setRateComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [expandedId, setExpandedId] = useState(null); // hire request currently showing attendance/dispute
+  // Milestone rewards are a nice-to-have, not part of "what do I do today" —
+  // collapsed by default so the dashboard leads with duty status and
+  // earnings, not a progress bar.
+  const [showRewards, setShowRewards] = useState(false);
 
   const load = useCallback(async () => {
     const [sentRes, receivedRes, mineRes] = await Promise.all([
@@ -598,7 +602,18 @@ export default function HireRequestsScreen() {
         </TouchableOpacity>
 
         {/* ── Milestone rewards (ID card @ 5, T-shirt @ 10 bookings) ──── */}
-        <RewardsProgress />
+        <TouchableOpacity
+          style={st.rewardsToggle}
+          activeOpacity={0.8}
+          onPress={() => setShowRewards(v => !v)}
+        >
+          <Ionicons name="ribbon-outline" size={16} color={MUTED} />
+          <Text style={st.rewardsToggleTxt}>
+            {showRewards ? 'Hide rewards progress' : 'See your rewards progress'}
+          </Text>
+          <Ionicons name={showRewards ? 'chevron-up' : 'chevron-down'} size={16} color={MUTED} />
+        </TouchableOpacity>
+        {showRewards && <RewardsProgress />}
       </View>
     );
   };
@@ -728,6 +743,11 @@ export default function HireRequestsScreen() {
 }
 
 const st = StyleSheet.create({
+  rewardsToggle: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 12, paddingHorizontal: 4,
+  },
+  rewardsToggleTxt: { flex: 1, fontSize: 13.5, fontWeight: '700', color: MUTED },
   root: { flex: 1, backgroundColor: BG },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
