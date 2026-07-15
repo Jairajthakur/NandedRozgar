@@ -797,6 +797,46 @@ async function runMigrations() {
       );
     `);
 
+    // ── cashfree_webhook_events ─────────────────────────────────────────────
+    // Durable, server-side record of EVERY Cashfree webhook call, independent
+    // of whether the client app ever calls /api/payments/verify*.
+    //
+    // WHY THIS TABLE EXISTS:
+    // Previously, /api/payments/cashfree-webhook only checked the signature
+    // and returned { ok: true } — it never wrote anything to the DB. The
+    // *only* place a payment got recorded (and a listing created) was when
+    // the client app itself called /verify after the payment-callback page
+    // deep-linked back into the app. If that deep link failed to fire (app
+    // killed, backgrounded, closed browser tab, flaky network right after
+    // paying, etc.), Cashfree had captured the money but the app's own
+    // `payments` table — which the admin dashboard reads from — never knew
+    // it happened. That is why a payment can be visible in the Cashfree
+    // dashboard but invisible in /admin.
+    //
+    // Now the webhook logs every event here unconditionally (after signature
+    // verification), so even if /verify never runs, there is still a durable
+    // trail of "Cashfree confirms this order was paid." The `matched` column
+    // tells you whether that order also has a corresponding row in
+    // `payments` — if not, the admin can see it under
+    // GET /api/admin/payments/unmatched and follow up manually.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS cashfree_webhook_events (
+        id              SERIAL PRIMARY KEY,
+        order_id        VARCHAR(100),
+        event_type      VARCHAR(60),
+        payment_status  VARCHAR(30),
+        amount          NUMERIC(10,2),
+        cf_payment_id   VARCHAR(100),
+        customer_email  VARCHAR(200),
+        customer_phone  VARCHAR(20),
+        matched         BOOLEAN DEFAULT FALSE,
+        raw_payload     JSONB,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_cf_webhook_order ON cashfree_webhook_events(order_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_cf_webhook_unmatched ON cashfree_webhook_events(matched, payment_status)`);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS messages (
         id          SERIAL PRIMARY KEY,
