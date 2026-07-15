@@ -329,6 +329,72 @@ router.get('/mine', auth, async (req, res) => {
   }
 });
 
+// GET /api/labour/minimal-status — ultra-lean state-machine payload for the
+// worker home screen. One round trip, no ratings/history/full ledger — just
+// enough to decide what button to show. Registered before GET /:id so
+// "minimal-status" is never swallowed as an :id param.
+router.get('/minimal-status', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      WITH profile AS (
+        SELECT id, is_available_now, available_until, checked_in_until
+        FROM labour_profiles WHERE user_id = $1
+      ),
+      active_job AS (
+        SELECT hr.id, hr.work_description, hr.proposed_wage, hr.work_date,
+               u.name AS contractor_name, u.phone AS contractor_phone
+        FROM hire_requests hr
+        JOIN profile p ON p.id = hr.labour_id
+        JOIN users u ON u.id = hr.contractor_id
+        WHERE hr.status = 'accepted'
+        ORDER BY hr.work_date ASC NULLS LAST
+        LIMIT 1
+      ),
+      pending_count AS (
+        SELECT COUNT(*)::int AS n
+        FROM hire_requests hr JOIN profile p ON p.id = hr.labour_id
+        WHERE hr.status = 'pending'
+      ),
+      today_earn AS (
+        SELECT COALESCE(SUM(amount), 0) AS amt
+        FROM labour_payouts
+        WHERE labour_user_id = $1
+          AND created_at >= (date_trunc('day', (NOW() AT TIME ZONE 'Asia/Kolkata')) AT TIME ZONE 'Asia/Kolkata')
+      )
+      SELECT
+        (SELECT id FROM profile) AS profile_id,
+        (SELECT is_available_now AND (available_until IS NULL OR available_until > NOW()) FROM profile) AS is_available,
+        (SELECT checked_in_until > NOW() FROM profile) AS checked_in_today,
+        (SELECT row_to_json(active_job) FROM active_job) AS active_job,
+        (SELECT n FROM pending_count) AS pending_requests,
+        (SELECT amt FROM today_earn) AS today_earnings
+    `, [req.user.id]);
+
+    const r = rows[0] || {};
+    const hasProfile   = !!r.profile_id;
+    const hasActiveJob = !!r.active_job;
+
+    let nextActionRequired = 'NONE';
+    if (!hasProfile) nextActionRequired = 'CREATE_PROFILE';
+    else if (r.pending_requests > 0) nextActionRequired = 'RESPOND_TO_HIRE_REQUEST';
+    else if (hasActiveJob && !r.checked_in_today) nextActionRequired = 'MARK_ATTENDANCE';
+    else if (!r.is_available && !hasActiveJob) nextActionRequired = 'GO_AVAILABLE';
+
+    res.json({
+      ok: true,
+      isAvailable: !!r.is_available,
+      hasActiveJob,
+      activeJob: r.active_job || null,
+      pendingRequests: r.pending_requests || 0,
+      todayEarnings: `₹${Number(r.today_earnings || 0)}`,
+      nextActionRequired,
+    });
+  } catch (err) {
+    console.error('[labour] minimal-status error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load status' });
+  }
+});
+
 // GET /api/labour/:id — profile detail (phone number hidden until unlocked)
 router.get('/:id', async (req, res) => {
   try {
