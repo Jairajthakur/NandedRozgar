@@ -515,6 +515,12 @@ async function runMigrations() {
     await client.query(`ALTER TABLE labour_payouts ADD COLUMN IF NOT EXISTS contact_unlock_id INTEGER REFERENCES labour_contact_unlocks(id) ON DELETE CASCADE`);
     await client.query(`ALTER TABLE labour_payouts ADD COLUMN IF NOT EXISTS source VARCHAR(20) NOT NULL DEFAULT 'hire_fee'`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_labour_payouts_contact_unlock_unique ON labour_payouts(contact_unlock_id) WHERE contact_unlock_id IS NOT NULL`);
+    // Monthly top-3 cash reward (e.g. ₹1500/₹1000/₹500) — bonus_period is the
+    // 'YYYY-MM' the reward is for. Unique per (labour_user_id, bonus_period)
+    // so re-running the admin trigger for a month that's already been paid
+    // out is a safe no-op instead of double-crediting.
+    await client.query(`ALTER TABLE labour_payouts ADD COLUMN IF NOT EXISTS bonus_period VARCHAR(7)`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_labour_payouts_bonus_period_unique ON labour_payouts(labour_user_id, bonus_period) WHERE bonus_period IS NOT NULL`);
 
     // One withdrawal request = one UPI payout a human admin processes and
     // marks paid with a UTR reference. No auto-payout gateway wired up yet —
