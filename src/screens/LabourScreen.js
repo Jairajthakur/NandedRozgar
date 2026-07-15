@@ -118,14 +118,22 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
 
   const trustedCount = parseInt(item.trusted_count) || 0;
 
+  // priority badge shown in the footer: at-chowk > trusted > top-rated
+  const footerBadge = atChowk
+    ? { bg: '#16a34a', icon: 'walk', label: t('lbAtChowkToday') }
+    : trustedCount > 0
+    ? { bg: '#0d9488', icon: 'people', label: (trustedCount === 1 ? t('lbTrustedByOne') : t('lbTrustedByMany')).replace('{N}', trustedCount) }
+    : statusChip;
+
   return (
     <FadeIn delay={Math.min(index, 8) * 60}>
-      <TouchableOpacity style={cs.row} onPress={selectMode ? onToggleSelect : onPress} activeOpacity={0.7}>
+      <TouchableOpacity style={cs.card} onPress={selectMode ? onToggleSelect : onPress} activeOpacity={0.85}>
         {selectMode && (
           <View style={[cs.checkbox, selected && cs.checkboxChecked]}>
-            {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
+            {selected && <Ionicons name="checkmark" size={12} color="#fff" />}
           </View>
         )}
+
         <View style={cs.photoTile}>
           {item.photo_url ? (
             <Image source={{ uri: item.photo_url }} style={cs.photoImg} />
@@ -136,98 +144,94 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
           )}
           {isTeam && (
             <View style={cs.teamBadge}>
-              <Ionicons name="people" size={10} color="#fff" />
+              <Ionicons name="people" size={9} color="#fff" />
               <Text style={cs.teamBadgeTxt}>{item.team_size}</Text>
             </View>
           )}
         </View>
 
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={cs.rowTitleLine}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}>
-              <Text style={cs.rowTitle} numberOfLines={1}>{item.full_name}</Text>
-              {!!item.id_verified && <Ionicons name="shield-checkmark" size={14} color="#2563eb" />}
-            </View>
-            {!selectMode && <Ionicons name="chevron-forward" size={19} color="#c4c4cc" />}
-          </View>
-
-          <View style={cs.chipRow}>
-            <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
-              <TradeIcon name={item.skill_category} size={13} color={gradStart} />
-              <Text style={[cs.tradeChipTxt, { color: gradStart }]}>{item.skill_category}</Text>
-            </View>
-            {Array.isArray(item.skills) && item.skills.slice(0, 2).map((sk, i) => (
-              <View key={`${sk}-${i}`} style={cs.plainChip}>
-                <Text style={cs.plainChipTxt} numberOfLines={1}>{sk}</Text>
-              </View>
-            ))}
-            {isTeam && !!item.team_composition ? (
-              <View style={cs.plainChip}><Text style={cs.plainChipTxt} numberOfLines={1}>{item.team_composition}</Text></View>
-            ) : !isTeam && !!item.experience_years ? (
-              <View style={cs.plainChip}><Text style={cs.plainChipTxt}>{item.experience_years} {t('lbYrsExperience')}</Text></View>
-            ) : null}
-            <View style={[cs.plainChip, isBusy ? cs.busyChip : cs.availableChip]}>
-              <Text style={cs.plainChipTxt}>{isBusy ? t('lbBusy') : t('lbAvailableToday')}</Text>
-            </View>
-            {trustedCount > 0 ? (
-              <View style={[cs.plainChip, cs.trustChip]}>
-                <Ionicons name="people" size={10} color="#0d9488" />
-                <Text style={[cs.plainChipTxt, { color: '#0d9488' }]}> {(trustedCount === 1 ? t('lbTrustedByOne') : t('lbTrustedByMany')).replace('{N}', trustedCount)}</Text>
-              </View>
-            ) : hasRating ? (
-              <View style={cs.plainChip}>
-                <Ionicons name="star" size={10} color="#f59e0b" />
-                <Text style={cs.plainChipTxt}> {Number(item.rating_avg).toFixed(1)} ({item.rating_count})</Text>
-              </View>
-            ) : null}
-            {statusChip && (
-              <View style={[cs.plainChip, { backgroundColor: statusChip.bg + '18' }]}>
-                <Ionicons name={statusChip.icon} size={10} color={statusChip.bg} />
-                <Text style={[cs.plainChipTxt, { color: statusChip.bg }]}> {statusChip.label}</Text>
-              </View>
-            )}
-          </View>
+        <View style={cs.nameRow}>
+          <Text style={cs.cardName} numberOfLines={1}>{item.full_name}</Text>
+          {!!item.id_verified && <Ionicons name="shield-checkmark" size={12} color="#2563eb" />}
         </View>
+
+        <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
+          <TradeIcon name={item.skill_category} size={11} color={gradStart} />
+          <Text style={[cs.tradeChipTxt, { color: gradStart }]} numberOfLines={1}>{item.skill_category}</Text>
+        </View>
+
+        {isTeam && !!item.team_composition ? (
+          <Text style={cs.metaTxt} numberOfLines={1}>{item.team_composition}</Text>
+        ) : !isTeam && !!item.experience_years ? (
+          <Text style={cs.metaTxt} numberOfLines={1}>{item.experience_years} {t('lbYrsExperience')}</Text>
+        ) : null}
+
+        <View style={cs.footerRow}>
+          <View style={[cs.availDot, isBusy ? cs.busyDot : cs.availableDot]} />
+          <Text style={cs.footerTxt} numberOfLines={1}>{isBusy ? t('lbBusy') : t('lbAvailableToday')}</Text>
+        </View>
+
+        {footerBadge ? (
+          <View style={[cs.statusPill, { backgroundColor: footerBadge.bg + '18' }]}>
+            <Ionicons name={footerBadge.icon} size={10} color={footerBadge.bg} />
+            <Text style={[cs.statusPillTxt, { color: footerBadge.bg }]} numberOfLines={1}>{footerBadge.label}</Text>
+          </View>
+        ) : hasRating ? (
+          <View style={cs.statusPill}>
+            <Ionicons name="star" size={10} color="#f59e0b" />
+            <Text style={cs.statusPillTxt}>{Number(item.rating_avg).toFixed(1)} ({item.rating_count})</Text>
+          </View>
+        ) : null}
       </TouchableOpacity>
     </FadeIn>
   );
 }
 
 const cs = StyleSheet.create({
-  row: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
-    paddingVertical: 16, paddingHorizontal: 4,
-    borderBottomWidth: 1, borderBottomColor: '#ececec',
+  // ── grid tile (two per row) ──
+  card: {
+    width: '48.5%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1, borderColor: '#ececec',
+    padding: 12,
+    marginBottom: 12,
+    position: 'relative',
   },
-  photoTile: { width: 84, height: 84, borderRadius: 16, overflow: 'hidden', flexShrink: 0 },
   checkbox: {
-    width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#ccc',
-    alignItems: 'center', justifyContent: 'center', marginTop: 30, flexShrink: 0,
+    position: 'absolute', top: 10, right: 10, zIndex: 2,
+    width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#ccc',
+    backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
   },
   checkboxChecked: { backgroundColor: ORANGE, borderColor: ORANGE },
-  photoImg: { width: 84, height: 84, alignItems: 'center', justifyContent: 'center' },
-  photoInitials: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  photoTile: { width: 60, height: 60, borderRadius: 14, overflow: 'hidden', marginBottom: 8 },
+  photoImg: { width: 60, height: 60, alignItems: 'center', justifyContent: 'center' },
+  photoInitials: { fontSize: 18, fontWeight: '800', color: '#fff' },
   teamBadge: {
-    position: 'absolute', bottom: 4, right: 4, flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#7c3aed', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2,
+    position: 'absolute', bottom: 3, right: 3, flexDirection: 'row', alignItems: 'center', gap: 2,
+    backgroundColor: '#7c3aed', borderRadius: 6, paddingHorizontal: 4, paddingVertical: 1,
   },
-  teamBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingTop: 4 },
-  rowTitle: { fontSize: 16, fontWeight: '800', color: '#111', flexShrink: 1 },
-  chipRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  teamBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
+  cardName: { fontSize: 14, fontWeight: '800', color: '#111', flexShrink: 1 },
   tradeChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#fff7f0', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', maxWidth: '100%',
+    backgroundColor: '#fff7f0', borderRadius: 7, paddingVertical: 4, paddingHorizontal: 8,
+    marginBottom: 6,
   },
-  tradeChipTxt: { fontSize: 12, fontWeight: '700' },
-  plainChip: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f3f4f6', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10,
+  tradeChipTxt: { fontSize: 11, fontWeight: '700', flexShrink: 1 },
+  metaTxt: { fontSize: 11, fontWeight: '600', color: '#888', marginBottom: 6 },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
+  availDot: { width: 6, height: 6, borderRadius: 3 },
+  availableDot: { backgroundColor: '#16a34a' },
+  busyDot: { backgroundColor: '#a1a1aa' },
+  footerTxt: { fontSize: 11, fontWeight: '600', color: '#777', flexShrink: 1 },
+  statusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start',
+    backgroundColor: '#f3f4f6', borderRadius: 7, paddingVertical: 3, paddingHorizontal: 7,
   },
-  availableChip: { backgroundColor: '#f0fdf4' },
-  busyChip: { backgroundColor: '#f4f4f5' },
-  trustChip: { backgroundColor: '#f0fdfa' },
-  plainChipTxt: { fontSize: 11, fontWeight: '700', color: '#666' },
+  statusPillTxt: { fontSize: 10, fontWeight: '800', color: '#666' },
 });
 
 // ── Main screen ─────────────────────────────────────────────────────────────
@@ -730,7 +734,7 @@ export default function LabourScreen() {
   );
 
   const renderCard = ({ item, index }) => {
-    if (item.__isAd) return <NativeAdCard />;
+    if (item.__isAd) return <View style={{ width: '48.5%' }}><NativeAdCard /></View>;
     return (
       <LabourCard
         item={item}
@@ -846,6 +850,8 @@ export default function LabourScreen() {
               data={feedWithAds}
               keyExtractor={item => item.__isAd ? item.id : String(item.id)}
               contentContainerStyle={ws.list}
+              numColumns={2}
+              columnWrapperStyle={ws.gridRow}
               showsVerticalScrollIndicator={false}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
               ListHeaderComponent={Header}
@@ -917,6 +923,8 @@ export default function LabourScreen() {
         data={feedWithAds}
         keyExtractor={item => item.__isAd ? item.id : String(item.id)}
         contentContainerStyle={s.list}
+        numColumns={2}
+        columnWrapperStyle={s.gridRow}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
         ListHeaderComponent={Header}
@@ -1020,6 +1028,7 @@ const s = StyleSheet.create({
   subSkillChipTxtActive: { color: '#fff', fontWeight: '800' },
 
   list: { paddingHorizontal: 14, paddingTop: 0, paddingBottom: 40 },
+  gridRow: { justifyContent: 'space-between' },
 
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
   filterSheet: {
@@ -1128,6 +1137,7 @@ const ws = StyleSheet.create({
   iconBtn: { height: 40, paddingHorizontal: 14, borderRadius: 10, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e8e8e8', alignItems: 'center', justifyContent: 'center' },
 
   list: { paddingTop: 0, paddingBottom: 48 },
+  gridRow: { justifyContent: 'space-between' },
 
   sideCard: {
     backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#f0f0f0',
