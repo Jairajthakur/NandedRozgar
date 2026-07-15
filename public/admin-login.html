@@ -715,6 +715,7 @@ async function loadLabour(gen = navGen) {
     <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>${esc(r.district||'—')}</span><span style="color:var(--text)">${r.count}</span></div>`).join('') || '<div style="padding:6px 0;color:var(--text3)">No data yet</div>';
 
   const badgeClass = s => s === 'active' ? 'badge-active' : (s === 'banned' ? 'badge-inactive' : 'badge-inactive');
+  const currentPeriod = new Date().toISOString().slice(0, 7);
   const rows = labour.map(l => `
     <tr>
       <td style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.full_name||'—')}</td>
@@ -748,6 +749,16 @@ async function loadLabour(gen = navGen) {
     ${periodBlock('Workers hired (accepted)', st?.hiresByPeriod)}
     ${periodBlock('Jobs completed', st?.completedByPeriod)}
     ${periodBlock('Platform revenue (₹5 margin/hire)', st?.platformRevenueByPeriod, v => fMoney(v))}
+
+    <div class="table-wrap" style="margin-bottom:16px">
+      <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <h3>🏆 Monthly Top-3 Reward <span style="color:var(--text3);font-weight:400;font-size:12px">₹1500 / ₹1000 / ₹500 by hires this month</span></h3>
+        <input type="month" id="reward-period" value="${currentPeriod}" max="${currentPeriod}"
+          style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px"
+          onchange="loadMonthlyRewardPanel(this.value)"/>
+      </div>
+      <div id="monthly-reward-body" style="padding:16px 20px;color:var(--text2);font-size:13px">Loading…</div>
+    </div>
 
     <div class="table-wrap" style="margin-bottom:16px">
       <div class="table-header"><h3>Hire request funnel <span style="color:var(--text3);font-weight:400;font-size:12px">(all-time, current status)</span></h3></div>
@@ -797,6 +808,56 @@ async function loadLabour(gen = navGen) {
         </table>
       </div>
     </div>`;
+
+  loadMonthlyRewardPanel(currentPeriod);
+}
+
+async function loadMonthlyRewardPanel(period) {
+  const body = document.getElementById('monthly-reward-body');
+  if (!body) return; // user navigated away before this resolved
+  body.innerHTML = 'Loading…';
+
+  const d = await api('GET', `/api/admin/labour/monthly-reward?period=${period}`);
+  if (document.getElementById('monthly-reward-body') !== body) return; // tab changed again
+  if (!d.ok) { body.innerHTML = `<span style="color:var(--red)">⚠ ${esc(d.error || 'Failed to load')}</span>`; return; }
+
+  if (!d.winners.length) {
+    body.innerHTML = '<div style="color:var(--text3)">No hires yet this period — nothing to rank.</div>';
+    return;
+  }
+
+  const medal = ['🥇', '🥈', '🥉'];
+  const rows = d.winners.map((w, i) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;${i < d.winners.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}">
+      <div style="font-size:18px;width:28px">${medal[i] || ''}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;color:var(--text)">${esc(w.full_name || '—')}</div>
+        <div style="font-size:12px;color:var(--text3)">${esc(w.skill_category || '—')} · ${w.hire_count} hire${w.hire_count === 1 ? '' : 's'} this month</div>
+      </div>
+      <div style="font-weight:600;color:var(--green)">${fMoney(w.amount)}</div>
+      ${w.alreadyPaid
+        ? '<span class="badge badge-active" style="margin-left:8px">Paid</span>'
+        : '<span class="badge badge-inactive" style="margin-left:8px">Pending</span>'}
+    </div>`).join('');
+
+  const allPaid = d.winners.every(w => w.alreadyPaid);
+  body.innerHTML = `
+    ${rows}
+    <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn-primary" style="width:auto;padding:9px 18px" ${allPaid ? 'disabled' : ''} onclick="creditMonthlyReward('${period}')">${allPaid ? 'Already credited' : 'Credit rewards'}</button>
+      <span style="font-size:12px;color:var(--text3)">Lands in each worker's available balance instantly, no hold. Safe to re-run — already-paid workers are skipped.</span>
+    </div>`;
+}
+
+async function creditMonthlyReward(period) {
+  if (!confirm(`Credit ₹1500 / ₹1000 / ₹500 to this month's top 3 workers for ${period}?`)) return;
+  const d = await api('POST', '/api/admin/labour/monthly-reward', { period });
+  if (d.ok) {
+    toast(d.credited.length ? `Credited ${d.credited.length} reward${d.credited.length === 1 ? '' : 's'}` : 'Already credited — nothing new');
+    loadMonthlyRewardPanel(period);
+  } else {
+    toast(d.error || 'Failed', 'error');
+  }
 }
 
 async function toggleLabourStatus(id, status) {
