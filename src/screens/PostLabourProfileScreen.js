@@ -27,21 +27,27 @@ import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
 import { LABOUR_COLORS } from '../constants/labourTheme';
 import { SectionCard, StepHeader } from '../components/labour/LabourUI';
+import AudioSkillBadge from '../components/labour/AudioSkillBadge';
 import VoicePostAssistant from '../components/VoicePostAssistant';
+import { useLang } from '../utils/i18n';
 
 const ORANGE = LABOUR_COLORS.primary;
 const LABOUR_COLOR = LABOUR_COLORS.worker;
 const IS_WEB = Platform.OS === 'web';
 
+// Zero-typing skill picker: one giant illustration + a spoken label per
+// trade, in both English and Marathi/Hindi, so a worker who can't read
+// comfortably can still pick their trade with total confidence — tap the
+// tile to select it, tap the small speaker to hear it read aloud.
 const SKILLS = [
-  { label: 'Mason',       icon: 'construct-outline' },
-  { label: 'Electrician', icon: 'flash-outline' },
-  { label: 'Plumber',     icon: 'water-outline' },
-  { label: 'Painter',     icon: 'color-palette-outline' },
-  { label: 'Carpenter',   icon: 'hammer-outline' },
-  { label: 'Welder',      icon: 'flame-outline' },
-  { label: 'Helper',      icon: 'people-outline' },
-  { label: 'Other',       icon: 'apps-outline' },
+  { label: 'Mason',       icon: 'construct-outline',      emoji: '🧱', mr: 'गवंडी काम',      hi: 'राजगीरी काम' },
+  { label: 'Electrician', icon: 'flash-outline',          emoji: '⚡', mr: 'इलेक्ट्रीशियन काम', hi: 'इलेक्ट्रीशियन काम' },
+  { label: 'Plumber',     icon: 'water-outline',          emoji: '🚰', mr: 'प्लंबिंग काम',    hi: 'प्लंबिंग काम' },
+  { label: 'Painter',     icon: 'color-palette-outline',  emoji: '🎨', mr: 'पेंटिंग काम',     hi: 'पेंटिंग काम' },
+  { label: 'Carpenter',   icon: 'hammer-outline',         emoji: '🪚', mr: 'सुतार काम',      hi: 'बढ़ई का काम' },
+  { label: 'Welder',      icon: 'flame-outline',          emoji: '🔥', mr: 'वेल्डिंग काम',    hi: 'वेल्डिंग काम' },
+  { label: 'Helper',      icon: 'people-outline',         emoji: '🙋', mr: 'मदतनीस काम',     hi: 'मदद का काम' },
+  { label: 'Other',       icon: 'apps-outline',           emoji: '🛠️', mr: 'इतर काम',       hi: 'अन्य काम' },
 ];
 
 const AVAILABILITY = [
@@ -71,6 +77,7 @@ export default function PostLabourProfileScreen() {
   const nav = useNavigation();
   const insets = useSafeAreaInsets();
   const { user, updateUser } = useAuth();
+  const { lang } = useLang();
   const { district } = useDistrict();
 
   const [fullName, setFullName]   = useState(user?.name || '');
@@ -413,21 +420,20 @@ export default function PostLabourProfileScreen() {
 
               <View style={s.field}>
                 <Text style={s.label}>{isTeam ? "Team's main trade *" : 'Main skill *'}</Text>
+                <Text style={s.hint}>Tap a picture to choose it. Tap ▶ to hear it read aloud.</Text>
                 <View style={s.skillGrid}>
-                  {SKILLS.map(sk => {
-                    const active = skill === sk.label;
-                    return (
-                      <TouchableOpacity
-                        key={sk.label}
-                        onPress={() => setSkill(sk.label)}
-                        style={[s.skillChip, active && s.skillChipActive]}
-                        activeOpacity={0.85}
-                      >
-                        <Ionicons name={sk.icon} size={14} color={active ? '#fff' : LABOUR_COLOR} />
-                        <Text style={[s.skillChipTxt, active && s.skillChipTxtActive]}>{sk.label}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {SKILLS.map(sk => (
+                    <AudioSkillBadge
+                      key={sk.label}
+                      emoji={sk.emoji}
+                      icon={sk.icon}
+                      label={sk.label}
+                      localLabel={lang === 'hi' ? sk.hi : sk.mr}
+                      lang={lang}
+                      active={skill === sk.label}
+                      onPress={() => setSkill(sk.label)}
+                    />
+                  ))}
                 </View>
               </View>
 
