@@ -851,7 +851,61 @@ router.post('/cashfree-webhook', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Invalid signature' });
     }
   }
-  // Actual listing activation is handled via /verify routes called by the client.
+  // ── Durably log this event, no matter what ─────────────────────────────────
+  // Actual listing activation still happens via /verify, called by the client
+  // after checkout. But previously this handler stopped here and threw the
+  // event away — so if the client never called /verify (app killed, deep
+  // link back into the app failed, tab closed, network dropped right after
+  // paying, etc.), there was ZERO server-side trace that Cashfree had ever
+  // taken the money. That's what let payments go missing from /admin while
+  // still showing up in the Cashfree dashboard.
+  //
+  // Now: parse the payload, write it to cashfree_webhook_events regardless of
+  // outcome, and mark whether a matching row already exists in `payments`.
+  // GET /api/admin/payments/unmatched surfaces anything that's SUCCESS here
+  // but has no matching payments row, so staff can follow up / complete it
+  // manually instead of it silently vanishing.
+  try {
+    const body = req.body || {};
+    const data = body.data || {};
+    const order    = data.order    || {};
+    const payment  = data.payment  || {};
+    const customer = data.customer_details || order.customer_details || {};
+
+    const orderId       = order.order_id || body.order_id || null;
+    const eventType     = body.type || null;
+    const paymentStatus = payment.payment_status || body.txStatus || null;
+    const amount        = parseFloat(payment.payment_amount ?? order.order_amount ?? 0) || null;
+    const cfPaymentId   = payment.cf_payment_id || payment.payment_id || null;
+
+    let matched = false;
+    if (orderId) {
+      const { rows } = await pool.query(
+        'SELECT 1 FROM payments WHERE razorpay_order_id = $1 LIMIT 1',
+        [orderId]
+      );
+      matched = rows.length > 0;
+    }
+
+    await pool.query(
+      `INSERT INTO cashfree_webhook_events
+         (order_id, event_type, payment_status, amount, cf_payment_id, customer_email, customer_phone, matched, raw_payload)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [orderId, eventType, paymentStatus, amount, cfPaymentId,
+       customer.customer_email || null, customer.customer_phone || null,
+       matched, JSON.stringify(body)]
+    );
+
+    if (paymentStatus === 'SUCCESS' && !matched) {
+      console.warn(`[cashfree-webhook] ⚠️  Order ${orderId} paid on Cashfree but has no matching payments row yet. Check /api/admin/payments/unmatched.`);
+    }
+  } catch (logErr) {
+    // Never fail the webhook response because of a logging problem — Cashfree
+    // will retry undelivered webhooks, and a 500 here would just cause noisy
+    // retries without helping anyone.
+    console.error('[cashfree-webhook] Failed to log event:', logErr.message);
+  }
+
   res.json({ ok: true });
 });
 
@@ -885,6 +939,11 @@ router.post('/order/monthly-plan', auth, async (req, res) => {
       },
       order_meta: {
         return_url: `${process.env.APP_URL || 'https://thecityplus.in'}/payment/callback?order_id={order_id}&status={order_status}`,
+        // FIX: this order was created without notify_url, so Cashfree had no
+        // webhook to call for monthly-plan purchases at all — meaning even
+        // the new server-side logging in /cashfree-webhook could never see
+        // these payments. Added for parity with the other order types.
+        notify_url: `${process.env.APP_URL || 'https://thecityplus.in'}/api/payments/cashfree-webhook`,
       },
     };
 
