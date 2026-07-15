@@ -6,9 +6,13 @@
  * ProjectDetailScreen), unlike a single hire which goes through the normal
  * request → accept flow.
  *
- * Posts to POST /api/projects. Budget is optional — if left blank, the
- * backend auto-computes it from workersNeeded × dailyWage × durationDays,
- * so a contractor doesn't have to do the math themselves.
+ * Submission is WhatsApp-mediated, not instant: the contractor fills this
+ * form, and instead of posting straight to POST /api/projects (which would
+ * make it live immediately), we open WhatsApp with all the details
+ * pre-filled and addressed to the CityPlus team. The team prices the
+ * project, sends a payment QR over WhatsApp, and only after payment posts
+ * it live themselves — same manual-review pattern as PromoteBusinessScreen's
+ * WhatsApp banner-request flow. No project row is created from this screen.
  *
  * Place at: src/screens/PostProjectScreen.js
  */
@@ -16,14 +20,14 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator,
+  StyleSheet, KeyboardAvoidingView, Platform, StatusBar, Linking, Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 
-import { http } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
 import { LABOUR_COLORS, SKILL_ICONS } from '../constants/labourTheme';
 import { SectionCard, StepHeader } from '../components/labour/LabourUI';
@@ -31,9 +35,13 @@ import { SectionCard, StepHeader } from '../components/labour/LabourUI';
 const ORANGE = LABOUR_COLORS.primary;
 const SKILLS = ['Mason', 'Electrician', 'Plumber', 'Painter', 'Carpenter', 'Welder', 'Helper', 'Other'];
 
+// Same CityPlus support number used elsewhere (HelpSupportScreen, PromoteBusinessScreen).
+const WHATSAPP_NUMBER = '919834308805';
+
 export default function PostProjectScreen() {
   const nav = useNavigation();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const { currentDistrict } = useDistrict();
 
   const [title, setTitle] = useState('');
@@ -44,14 +52,14 @@ export default function PostProjectScreen() {
   const [dailyWage, setDailyWage] = useState('');
   const [durationDays, setDurationDays] = useState('');
   const [budget, setBudget] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [contactPhone, setContactPhone] = useState(user?.phone || '');
 
   const needed = parseInt(workersNeeded, 10) || 0;
   const wage = parseInt(dailyWage, 10) || 0;
   const duration = parseInt(durationDays, 10) || 0;
   const autoBudget = needed && wage && duration ? needed * wage * duration : null;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!title.trim()) {
       Toast.show({ type: 'error', text1: 'Enter a project title', text2: 'e.g. "10 Mason helpers — Shivaji Nagar site"' });
       return;
@@ -60,35 +68,42 @@ export default function PostProjectScreen() {
       Toast.show({ type: 'error', text1: 'How many workers do you need?', text2: 'Enter at least 1.' });
       return;
     }
-
-    setSaving(true);
-    try {
-      const res = await http('POST', '/api/projects', {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        skillCategory,
-        district: currentDistrict?.id,
-        location: location.trim() || undefined,
-        workersNeeded: needed,
-        dailyWage: wage || undefined,
-        durationDays: duration || undefined,
-        budget: budget ? parseFloat(budget) : undefined,
-      });
-
-      if (res?.ok) {
-        Toast.show({ type: 'success', text1: 'Project posted!', text2: 'Workers can now find and apply to it.' });
-        nav.replace('ProjectDetail', { id: res.project.id });
-      } else if (res?.status === 401) {
-        Toast.show({ type: 'error', text1: 'Login required', text2: 'Please log in to post a project.' });
-        nav.navigate('Login');
-      } else {
-        Toast.show({ type: 'error', text1: 'Could not post project', text2: res?.error || 'Please try again.' });
-      }
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'Network error', text2: 'Please check your connection and try again.' });
-    } finally {
-      setSaving(false);
+    if (!contactPhone.trim()) {
+      Toast.show({ type: 'error', text1: 'Enter a contact number', text2: 'So our team can reach you on WhatsApp.' });
+      return;
     }
+
+    const lines = [
+      `🏗️ *New Project Request — CityPlus*`,
+      `━━━━━━━━━━━━━━━━━━━━━━`,
+      ``,
+      `*📌 Title:* ${title.trim()}`,
+      `*🛠️ Trade needed:* ${skillCategory}`,
+      `*👷 Workers needed:* ${needed}`,
+      `*💰 Daily wage:* ${wage ? `₹${wage}` : '—'}`,
+      `*📅 Duration:* ${duration ? `${duration} days` : '—'}`,
+      `*🧮 Estimated budget:* ${budget ? `₹${budget}` : autoBudget ? `₹${autoBudget} (auto)` : '—'}`,
+      `*📍 Location:* ${location.trim() || '—'}`,
+      `*🏙️ District:* ${currentDistrict?.name || '—'}`,
+      `*📞 Contact number:* ${contactPhone.trim()}`,
+      ``,
+      `*📝 Description:*`,
+      description.trim() || '—',
+      ``,
+      `━━━━━━━━━━━━━━━━━━━━━━`,
+      `Please quote a price for this project and share the payment QR. I'll confirm once paid. Thank you! 🙏`,
+    ];
+    const msg = encodeURIComponent(lines.join('\n'));
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`;
+
+    Linking.openURL(url)
+      .then(() => {
+        Toast.show({ type: 'success', text1: 'Opening WhatsApp…', text2: 'Our team will quote a price and share a payment QR.' });
+        nav.goBack();
+      })
+      .catch(() => {
+        Alert.alert('WhatsApp not found', 'Please install WhatsApp or contact us directly.');
+      });
   };
 
   return (
@@ -223,24 +238,35 @@ export default function PostProjectScreen() {
                 Leave blank and we'll estimate ₹{autoBudget} ({needed} workers × ₹{wage}/day × {duration} days). This is only visible to you, never to workers.
               </Text>
             )}
+
+            <View style={s.field}>
+              <Text style={s.label}>Contact number (WhatsApp) *</Text>
+              <TextInput
+                style={s.input}
+                value={contactPhone}
+                onChangeText={setContactPhone}
+                placeholder="e.g. 98765 43210"
+                placeholderTextColor="#bbb"
+                keyboardType="phone-pad"
+                maxLength={15}
+              />
+            </View>
           </SectionCard>
 
           <View style={s.noteBox}>
-            <Ionicons name="information-circle-outline" size={16} color={ORANGE} />
+            <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
             <Text style={s.noteTxt}>
-              ₹10 is charged from your wallet for each worker the moment they apply and fill a slot — same as a normal hire. There's no separate review step.
+              Tapping below opens WhatsApp with your project details filled in and sent to our CityPlus team. We'll quote a price for your requirement and share a payment QR — your project goes live only after payment is confirmed.
             </Text>
           </View>
 
           <TouchableOpacity
-            style={[s.submitBtn, saving && s.submitBtnDisabled]}
+            style={s.submitBtn}
             onPress={handleSubmit}
-            disabled={saving}
             activeOpacity={0.85}
           >
-            {saving
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Text style={s.submitBtnTxt}>Post Project</Text>}
+            <Ionicons name="logo-whatsapp" size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={s.submitBtnTxt}>Send via WhatsApp</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -292,9 +318,8 @@ const s = StyleSheet.create({
   noteTxt: { flex: 1, fontSize: 12, color: '#9a3412', lineHeight: 17, fontWeight: '500' },
 
   submitBtn: {
-    backgroundColor: ORANGE, borderRadius: 12, paddingVertical: 15,
+    flexDirection: 'row', backgroundColor: '#25D366', borderRadius: 12, paddingVertical: 15,
     alignItems: 'center', justifyContent: 'center',
   },
-  submitBtnDisabled: { opacity: 0.6 },
   submitBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
 });
