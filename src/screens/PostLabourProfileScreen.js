@@ -91,6 +91,11 @@ export default function PostLabourProfileScreen() {
   const [wageBoard, setWageBoard] = useState([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  // New profiles start with just the voice assistant showing — the typed
+  // form only appears once voice has filled something, or the person taps
+  // "Fill in manually instead". Editing an existing profile always shows
+  // the full form immediately, since there's already real data to review.
+  const [formExpanded, setFormExpanded] = useState(false);
 
   // If the user already has a profile, load it so editing doesn't blank out
   // fields (skill, wage, bio, etc.) they'd filled in previously.
@@ -102,6 +107,7 @@ export default function PostLabourProfileScreen() {
       if (res?.ok && res.profile) {
         const p = res.profile;
         setIsEditing(true);
+        setFormExpanded(true);
         setFullName(p.full_name || user?.name || '');
         setPhone(user?.phone || '');
         setSkill(p.skill_category || null);
@@ -282,11 +288,27 @@ export default function PostLabourProfileScreen() {
                 }
                 if (vBio) setBio(vBio);
 
+                setFormExpanded(true);
                 Toast.show({ type: 'success', text1: 'Filled from your voice', text2: 'Check the fields below and edit anything that needs fixing.' });
               }}
             />
           </FadeSlide>
 
+          {!formExpanded && (
+            <FadeSlide delay={90}>
+              <TouchableOpacity
+                style={s.manualFallback}
+                activeOpacity={0.8}
+                onPress={() => setFormExpanded(true)}
+              >
+                <Ionicons name="create-outline" size={16} color={LABOUR_COLOR} />
+                <Text style={s.manualFallbackTxt}>Fill in manually instead</Text>
+              </TouchableOpacity>
+            </FadeSlide>
+          )}
+
+          {formExpanded && (
+          <>
           {/* ── Step 1 — Basic details: photo, who this profile is for, name ── */}
           <FadeSlide delay={90}>
             <SectionCard>
@@ -509,6 +531,8 @@ export default function PostLabourProfileScreen() {
               </View>
             </SectionCard>
           </FadeSlide>
+          </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -532,6 +556,11 @@ export default function PostLabourProfileScreen() {
 }
 
 const s = StyleSheet.create({
+  manualFallback: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 16, marginTop: 4,
+  },
+  manualFallbackTxt: { fontSize: 13.5, fontWeight: '700', color: LABOUR_COLOR },
   root: { flex: 1, backgroundColor: '#f7f7f7' },
   loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
