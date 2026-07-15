@@ -595,10 +595,19 @@ async function deleteJob(id) {
 
 // ── PAYMENTS ──────────────────────────────────────────────────────────────────
 async function loadPayments(gen = navGen) {
-  const d = await api('GET', '/api/admin/payments');
+  // Fetch both in parallel: normal payments table, and any Cashfree webhook
+  // events that reported SUCCESS but were never matched to a payments row
+  // (i.e. money that Cashfree confirms it took, which never made it into the
+  // app because the client-side /verify call never happened).
+  const [d, u] = await Promise.all([
+    api('GET', '/api/admin/payments'),
+    api('GET', '/api/admin/payments/unmatched'),
+  ]);
   if (gen !== navGen) return;
   if (!d.ok) { document.getElementById('main-content').innerHTML = `<div class="page-title">Payments</div><div style="padding:40px;text-align:center;color:var(--red)">⚠ ${d.error || 'Failed to load payments'}</div>`; return; }
   allPayments = d.payments || [];
+  const unmatched = (u && u.ok) ? (u.unmatched || []) : [];
+
   const rows = allPayments.map(p => `
     <tr>
       <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3)">#${p.id}</td>
@@ -610,8 +619,34 @@ async function loadPayments(gen = navGen) {
       <td style="color:var(--text3);font-size:12px">${fDate(p.created_at)}</td>
     </tr>`).join('');
 
+  const unmatchedRows = unmatched.map(w => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3)">${esc(w.order_id||'—')}</td>
+      <td style="font-weight:500;color:var(--red)">${fMoney(w.amount)}</td>
+      <td style="color:var(--text2);font-size:12px">${esc(w.customer_email || w.customer_phone || '—')}</td>
+      <td style="color:var(--text2);font-size:12px">${esc(w.cf_payment_id||'—')}</td>
+      <td style="color:var(--text3);font-size:12px">${fDate(w.created_at)}</td>
+    </tr>`).join('');
+
+  const unmatchedBanner = unmatched.length ? `
+    <div class="table-wrap" style="margin-bottom:20px;border-color:var(--red)">
+      <div class="table-header">
+        <h3 style="color:var(--red)">⚠ Cashfree paid, not recorded in app <span style="color:var(--text3);font-weight:400;font-size:12px">(${unmatched.length})</span></h3>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2)">
+          Look these order IDs up in the Cashfree dashboard, then contact the customer / complete manually
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Order ID</th><th>Amount</th><th>Customer</th><th>Cashfree Payment ID</th><th>Detected</th></tr></thead>
+          <tbody>${unmatchedRows}</tbody>
+        </table>
+      </div>
+    </div>` : '';
+
   document.getElementById('main-content').innerHTML = `
     <div class="page-title">Payments</div>
+    ${unmatchedBanner}
     <div class="table-wrap">
       <div class="table-header">
         <h3>All payments <span style="color:var(--text3);font-weight:400;font-size:12px">(${allPayments.length})</span></h3>
