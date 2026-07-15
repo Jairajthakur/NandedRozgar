@@ -1091,6 +1091,114 @@ router.get('/labour/stats', async (req, res) => {
   }
 });
 
+// ── LABOUR MONTHLY TOP-3 REWARD ────────────────────────────────────────────────
+// Cash prize for the month's top 3 workers by completed/accepted hire count
+// (same ranking already shown on LeaderboardStrip): 1st ₹1500, 2nd ₹1000,
+// 3rd ₹500. No cron — this is an admin-triggered action, safe to run more
+// than once for the same month (idempotent via bonus_period).
+const MONTHLY_REWARD_AMOUNTS = [1500, 1000, 500];
+
+function currentMonthPeriod() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+async function rankTopWorkersForMonth(period) {
+  // period is 'YYYY-MM' — build the month's date range from it rather than
+  // trusting CURRENT_DATE, so admins can also settle a just-finished month.
+  const [y, m] = period.split('-').map(Number);
+  const monthStart = new Date(y, m - 1, 1);
+  const monthEnd = new Date(y, m, 1);
+
+  const { rows } = await pool.query(`
+    SELECT l.id AS labour_profile_id, l.user_id AS labour_user_id,
+           l.full_name, l.skill_category, l.photo_url,
+           COUNT(hr.id)::int AS hire_count
+    FROM hire_requests hr
+    JOIN labour_profiles l ON l.id = hr.labour_id
+    JOIN users u ON u.id = l.user_id
+    WHERE hr.status IN ('accepted', 'completed')
+      AND hr.created_at >= $1 AND hr.created_at < $2
+      AND u.active = true
+    GROUP BY l.id, l.user_id, l.full_name, l.skill_category, l.photo_url
+    ORDER BY hire_count DESC, l.id ASC
+    LIMIT 3
+  `, [monthStart, monthEnd]);
+  return rows;
+}
+
+// GET /api/admin/labour/monthly-reward?period=2026-07 — preview who *would*
+// be paid without crediting anything. Defaults to the current month.
+router.get('/labour/monthly-reward', async (req, res) => {
+  try {
+    const period = req.query.period || currentMonthPeriod();
+    const top = await rankTopWorkersForMonth(period);
+
+    const { rows: alreadyPaid } = await pool.query(
+      `SELECT labour_user_id, amount FROM labour_payouts WHERE bonus_period = $1`,
+      [period]
+    );
+    const paidUserIds = new Set(alreadyPaid.map(r => r.labour_user_id));
+
+    res.json({
+      ok: true,
+      period,
+      winners: top.map((w, i) => ({
+        ...w,
+        rank: i + 1,
+        amount: MONTHLY_REWARD_AMOUNTS[i],
+        alreadyPaid: paidUserIds.has(w.labour_user_id),
+      })),
+    });
+  } catch (err) {
+    console.error('GET /admin/labour/monthly-reward error:', err);
+    res.json({ ok: false, error: 'Failed to load monthly reward preview' });
+  }
+});
+
+// POST /api/admin/labour/monthly-reward { period? } — actually credits the
+// top 3 for that month. ₹1500 / ₹1000 / ₹500 land straight in 'available'
+// status (no hold — this is a prize, not a disputable hire), so it shows up
+// in the worker's withdrawable balance immediately. Re-running this for a
+// period that's already been paid changes nothing (ON CONFLICT DO NOTHING).
+router.post('/labour/monthly-reward', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const period = req.body?.period || currentMonthPeriod();
+    const top = await rankTopWorkersForMonth(period);
+
+    if (!top.length) {
+      return res.json({ ok: true, period, credited: [] });
+    }
+
+    await client.query('BEGIN');
+    const credited = [];
+    for (let i = 0; i < top.length; i++) {
+      const winner = top[i];
+      const amount = MONTHLY_REWARD_AMOUNTS[i];
+      const { rows } = await client.query(`
+        INSERT INTO labour_payouts (labour_user_id, amount, status, available_at, source, bonus_period)
+        VALUES ($1, $2, 'available', NOW(), 'monthly_bonus', $3)
+        ON CONFLICT (labour_user_id, bonus_period) DO NOTHING
+        RETURNING id
+      `, [winner.labour_user_id, amount, period]);
+
+      if (rows.length) {
+        credited.push({ rank: i + 1, labour_user_id: winner.labour_user_id, full_name: winner.full_name, amount });
+      }
+    }
+    await client.query('COMMIT');
+
+    res.json({ ok: true, period, credited, skipped: top.length - credited.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('POST /admin/labour/monthly-reward error:', err);
+    res.json({ ok: false, error: 'Failed to credit monthly reward' });
+  } finally {
+    client.release();
+  }
+});
+
 // ── LABOUR EARNINGS PIPELINE ──────────────────────────────────────────────────
 
 
