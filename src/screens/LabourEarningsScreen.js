@@ -82,6 +82,10 @@ export default function LabourEarningsScreen() {
   const [upiInput, setUpiInput]     = useState('');
   const [savingUpi, setSavingUpi]   = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  // Expense log is a secondary tool, not part of the daily earnings check —
+  // collapsed by default so it doesn't compete with balance/withdraw for
+  // attention, but still one tap away for anyone who wants it.
+  const [showExpenseLog, setShowExpenseLog] = useState(false);
   const [downloadingCert, setDownloadingCert] = useState(false);
 
   const load = useCallback(async () => {
@@ -344,9 +348,20 @@ export default function LabourEarningsScreen() {
           <InsuranceToggle />
         </View>
 
-        {/* ── Digital expense log ──────────────────────────────────────── */}
+        {/* ── Digital expense log — collapsed by default ─────────────────── */}
         <View style={{ marginTop: 12, marginBottom: 8 }}>
-          <ExpenseLog />
+          <TouchableOpacity
+            style={st.expenseLogToggle}
+            activeOpacity={0.8}
+            onPress={() => setShowExpenseLog(v => !v)}
+          >
+            <Ionicons name="receipt-outline" size={16} color={LABOUR_COLORS.textMuted} />
+            <Text style={st.expenseLogToggleTxt}>
+              {showExpenseLog ? 'Hide expense log' : 'Track your daily expenses (optional)'}
+            </Text>
+            <Ionicons name={showExpenseLog ? 'chevron-up' : 'chevron-down'} size={16} color={LABOUR_COLORS.textMuted} />
+          </TouchableOpacity>
+          {showExpenseLog && <ExpenseLog />}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -354,6 +369,11 @@ export default function LabourEarningsScreen() {
 }
 
 const st = StyleSheet.create({
+  expenseLogToggle: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 12, paddingHorizontal: 4,
+  },
+  expenseLogToggleTxt: { flex: 1, fontSize: 13.5, fontWeight: '700', color: LABOUR_COLORS.textMuted },
   root: { flex: 1, backgroundColor: BG },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: BG },
 
