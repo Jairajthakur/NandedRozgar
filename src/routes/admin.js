@@ -215,6 +215,30 @@ router.get('/payments', async (req, res) => {
   }
 });
 
+// GET /api/admin/payments/unmatched — Cashfree confirmed SUCCESS via webhook,
+// but the app never wrote a matching row into `payments` (client-side /verify
+// call never happened — app killed, deep link back into the app failed, tab
+// closed right after paying, etc). These are payments that took the
+// customer's money but never became a listing/wallet-credit/subscription in
+// the app. Cross-check against the Cashfree Dashboard using order_id, then
+// either manually complete the listing or refund via Cashfree.
+router.get('/payments/unmatched', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, order_id, event_type, payment_status, amount, cf_payment_id,
+             customer_email, customer_phone, created_at
+      FROM cashfree_webhook_events
+      WHERE payment_status = 'SUCCESS' AND matched = FALSE
+      ORDER BY created_at DESC
+      LIMIT 200
+    `);
+    res.json({ ok: true, unmatched: rows });
+  } catch (err) {
+    console.error('GET /admin/payments/unmatched error:', err);
+    res.json({ ok: false, error: 'Failed to load unmatched payments' });
+  }
+});
+
 // ─── STATS ────────────────────────────────────────────────────────────────────
 
 // GET /api/admin/stats — aggregate platform stats
