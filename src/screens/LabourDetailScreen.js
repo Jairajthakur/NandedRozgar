@@ -16,7 +16,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Animated, Easing, Platform, StatusBar,
-  TextInput, Linking, Alert,
+  TextInput, Linking, Alert, Modal, KeyboardAvoidingView,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +32,29 @@ import { SectionCard, HireFlowSteps } from '../components/labour/LabourUI';
 
 const ORANGE = LABOUR_COLORS.primary;
 const LABOUR_COLOR = LABOUR_COLORS.worker;
+
+// One-tap work-description presets so a contractor booking in a hurry
+// doesn't have to type anything — tap a chip, or still type a custom line
+// if none of these fit. Falls back to generic presets for any trade not
+// explicitly listed.
+const DESC_PRESETS = {
+  Mason:       ['Masonry work today', 'Wall construction', 'Tiling work'],
+  Electrician: ['Electrical wiring', 'Fixture installation', 'Repair work'],
+  Plumber:     ['Plumbing repair', 'Pipe fitting', 'Bathroom fitting'],
+  Painter:     ['Painting — one room', 'Painting — full house', 'Touch-up work'],
+  Carpenter:   ['Furniture work', 'Door/window fitting', 'Repair work'],
+  Welder:      ['Welding work', 'Gate/grill fabrication', 'Repair work'],
+  Helper:      ['General labour', 'Loading/unloading', 'Site cleanup'],
+};
+const DEFAULT_DESC_PRESETS = ['General labour', 'Half-day work', 'Full-day work'];
+
+function fmtQuickDate(d) {
+  return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function isoDate(d) {
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 function FadeSlide({ children, delay = 0, style }) {
   const o = useRef(new Animated.Value(0)).current;
@@ -59,6 +82,7 @@ export default function LabourDetailScreen() {
   const [hireOpen, setHireOpen] = useState(false);
   const [workDesc, setWorkDesc] = useState('');
   const [wage, setWage]         = useState('');
+  const [workDate, setWorkDate] = useState(null); // 'YYYY-MM-DD' or null (unspecified)
   const [sending, setSending]   = useState(false);
 
   // Pay-per-day contact unlock
@@ -97,6 +121,15 @@ export default function LabourDetailScreen() {
   };
 
   useEffect(() => { if (id) load(); }, [id]);
+
+  // The moment the booking sheet opens, default the wage to the worker's
+  // own posted daily rate (still fully editable) instead of leaving it
+  // blank — one less thing to type for the common case.
+  useEffect(() => {
+    if (hireOpen && !wage && profile?.daily_wage) {
+      setWage(String(profile.daily_wage));
+    }
+  }, [hireOpen, profile]);
 
   useEffect(() => {
     if (!isOwnProfile) return;
@@ -191,6 +224,7 @@ export default function LabourDetailScreen() {
     const res = await http('POST', `/api/labour/${id}/hire`, {
       work_description: workDesc.trim() || null,
       proposed_wage: wage ? parseInt(wage, 10) : null,
+      work_date: workDate || null,
     });
     setSending(false);
     if (res?.ok) {
@@ -198,6 +232,7 @@ export default function LabourDetailScreen() {
       setHireOpen(false);
       setWorkDesc('');
       setWage('');
+      setWorkDate(null);
     } else {
       Toast.show({ type: 'error', text1: 'Could not send request', text2: res?.error || 'Please try again.' });
     }
@@ -565,35 +600,6 @@ export default function LabourDetailScreen() {
           </FadeSlide>
         )}
 
-        {hireOpen && (
-          <FadeSlide style={s.card}>
-            <Text style={s.sectionTitle}>Send a hire request</Text>
-            <TextInput
-              style={s.input}
-              value={workDesc}
-              onChangeText={setWorkDesc}
-              placeholder="Describe the work"
-              placeholderTextColor="#bbb"
-            />
-            <TextInput
-              style={[s.input, { marginTop: 8 }]}
-              value={wage}
-              onChangeText={setWage}
-              placeholder="Proposed wage (₹)"
-              placeholderTextColor="#bbb"
-              keyboardType="number-pad"
-            />
-            <TouchableOpacity
-              style={[s.hireSendBtn, sending && { opacity: 0.7 }]}
-              onPress={sendHireRequest}
-              disabled={sending}
-              activeOpacity={0.88}
-            >
-              {sending ? <ActivityIndicator color="#fff" /> : <Text style={s.hireSendTxt}>Send request</Text>}
-            </TouchableOpacity>
-          </FadeSlide>
-        )}
-
         {/* Banner ad — inline in the scroll content, never overlaps the sticky hire bar */}
         {!isPremium && <BannerAd style={{ marginTop: 4 }} />}
       </ScrollView>
@@ -623,6 +629,113 @@ export default function LabourDetailScreen() {
             )}
         </TouchableOpacity>
       </View>
+
+      {/* ── Booking sheet — pops up instantly on "Hire now", no scrolling
+           required, with tap-to-fill presets so nothing needs typing ──── */}
+      <Modal visible={hireOpen} transparent animationType="slide" onRequestClose={() => setHireOpen(false)}>
+        <KeyboardAvoidingView
+          style={s.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={s.sheetHandle} />
+            <View style={s.sheetHeaderRow}>
+              <Text style={s.sheetTitle}>Book {(profile.full_name || 'this worker').split(' ')[0]}</Text>
+              <TouchableOpacity onPress={() => setHireOpen(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={22} color="#999" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {/* When — one tap for the two most common cases */}
+              <Text style={s.sheetLabel}>When</Text>
+              <View style={s.chipRowWrap}>
+                {[0, 1].map((offset) => {
+                  const d = new Date(); d.setDate(d.getDate() + offset);
+                  const iso = isoDate(d);
+                  const active = workDate === iso;
+                  return (
+                    <TouchableOpacity
+                      key={offset}
+                      style={[s.presetChip, active && s.presetChipActive]}
+                      onPress={() => setWorkDate(active ? null : iso)}
+                    >
+                      <Text style={[s.presetChipTxt, active && s.presetChipTxtActive]}>
+                        {offset === 0 ? 'Today' : 'Tomorrow'} · {fmtQuickDate(d)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* What — trade-specific one-tap descriptions */}
+              <Text style={s.sheetLabel}>What's the work?</Text>
+              <View style={s.chipRowWrap}>
+                {(DESC_PRESETS[profile.skill_category] || DEFAULT_DESC_PRESETS).map((preset) => {
+                  const active = workDesc === preset;
+                  return (
+                    <TouchableOpacity
+                      key={preset}
+                      style={[s.presetChip, active && s.presetChipActive]}
+                      onPress={() => setWorkDesc(active ? '' : preset)}
+                    >
+                      <Text style={[s.presetChipTxt, active && s.presetChipTxtActive]}>{preset}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <TextInput
+                style={[s.input, { marginTop: 8 }]}
+                value={workDesc}
+                onChangeText={setWorkDesc}
+                placeholder="Or type your own description"
+                placeholderTextColor="#bbb"
+              />
+
+              {/* Wage — prefilled with their posted rate, quick +10%/+20% bumps */}
+              <Text style={[s.sheetLabel, { marginTop: 16 }]}>Wage for the day</Text>
+              {!!profile.daily_wage && (
+                <View style={s.chipRowWrap}>
+                  {[1, 1.1, 1.2].map((mult) => {
+                    const amount = Math.round((profile.daily_wage * mult) / 10) * 10;
+                    const label = mult === 1 ? `₹${amount} (their rate)` : `₹${amount} (+${Math.round((mult - 1) * 100)}%)`;
+                    const active = wage === String(amount);
+                    return (
+                      <TouchableOpacity
+                        key={mult}
+                        style={[s.presetChip, active && s.presetChipActive]}
+                        onPress={() => setWage(String(amount))}
+                      >
+                        <Text style={[s.presetChipTxt, active && s.presetChipTxtActive]}>{label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+              <TextInput
+                style={[s.input, { marginTop: 8 }]}
+                value={wage}
+                onChangeText={setWage}
+                placeholder="Proposed wage (₹)"
+                placeholderTextColor="#bbb"
+                keyboardType="number-pad"
+              />
+
+              <TouchableOpacity
+                style={[s.hireSendBtn, sending && { opacity: 0.7 }]}
+                onPress={sendHireRequest}
+                disabled={sending}
+                activeOpacity={0.88}
+              >
+                {sending ? <ActivityIndicator color="#fff" /> : <Text style={s.hireSendTxt}>Send request</Text>}
+              </TouchableOpacity>
+              <Text style={s.sheetFootnote}>
+                Free to send — a small one-time hire fee is only charged if {(profile.full_name || 'they').split(' ')[0]} accepts.
+              </Text>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -766,4 +879,25 @@ const s = StyleSheet.create({
     shadowColor: ORANGE, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
   hireBtnTxt: { fontSize: 15, fontWeight: '800', color: '#fff' },
+
+  // ── Booking sheet modal ──────────────────────────────────────────────
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  sheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 20, paddingTop: 10, maxHeight: '86%',
+  },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e2e2e2', alignSelf: 'center', marginBottom: 14 },
+  sheetHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  sheetTitle: { fontSize: 18, fontWeight: '900', color: '#111' },
+  sheetLabel: { fontSize: 12, fontWeight: '700', color: '#999', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 },
+  sheetFootnote: { fontSize: 11.5, color: '#999', fontWeight: '500', textAlign: 'center', marginTop: 10, marginBottom: 4 },
+
+  chipRowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  presetChip: {
+    paddingVertical: 9, paddingHorizontal: 13, borderRadius: 100,
+    backgroundColor: '#f5f5f5', borderWidth: 1.5, borderColor: '#ececec',
+  },
+  presetChipActive: { backgroundColor: LABOUR_COLOR, borderColor: LABOUR_COLOR },
+  presetChipTxt: { fontSize: 12.5, fontWeight: '700', color: '#555' },
+  presetChipTxtActive: { color: '#fff' },
 });
