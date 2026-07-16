@@ -460,6 +460,11 @@ async function runMigrations() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_hire_requests_labour ON hire_requests(labour_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_hire_requests_contractor ON hire_requests(contractor_id)`);
+    // Contact number for this specific job — defaults to the contractor's
+    // account phone in the app, but stays editable per-request in case the
+    // right person to call (a site supervisor, etc.) is someone else.
+    // Masked the same way as the account phone until the worker accepts.
+    await client.query(`ALTER TABLE hire_requests ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(20)`);
 
     // Pay-per-day contact unlock: a contractor pays ₹X/day to view a labourer's
     // phone number for N days. Row = one purchase; contact stays visible to that
