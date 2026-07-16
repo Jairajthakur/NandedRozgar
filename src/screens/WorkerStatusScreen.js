@@ -43,6 +43,8 @@ import { useLang } from '../utils/i18n';
 import SwipeSlider from '../components/labour/SwipeSlider';
 import WageIndicator from '../components/labour/WageIndicator';
 import SOSButton from '../components/labour/SOSButton';
+import BannerAd from '../components/ads/BannerAd';
+import { useIsPremium } from '../hooks/useIsPremium';
 
 const ORANGE = '#f97316';
 const ORANGE_DARK = '#c2410c';
@@ -79,6 +81,7 @@ async function getCoords() {
 
 export default function WorkerStatusScreen() {
   const nav = useNavigation();
+  const isPremium = useIsPremium();
   const insets = useSafeAreaInsets();
   const { lang } = useLang();
 
@@ -330,6 +333,12 @@ export default function WorkerStatusScreen() {
           )}
         </View>
       )}
+
+      {!isPremium && (
+        <View style={st.adWrap}>
+          <BannerAd />
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -401,4 +410,8 @@ const st = StyleSheet.create({
   alertContractor: { fontSize: 12, color: '#999', fontWeight: '600' },
   declineBtn: { alignItems: 'center', paddingVertical: 6 },
   declineTxt: { fontSize: 13, fontWeight: '700', color: '#999' },
+
+  adWrap: {
+    width: '100%', marginTop: 28, paddingHorizontal: 20,
+  },
 });
