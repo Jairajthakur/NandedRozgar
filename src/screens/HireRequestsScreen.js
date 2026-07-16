@@ -51,6 +51,13 @@ async function callSOS() {
   }
 }
 
+function callNumber(number) {
+  if (!number) return;
+  Linking.openURL(`tel:${number}`).catch(() =>
+    Alert.alert('Could not open dialer', `Please dial ${number} directly.`)
+  );
+}
+
 // Lets a worker send the job location/contractor phone to a family member
 // before heading out — plain-text share sheet so it works over WhatsApp,
 // SMS, or any other app the person already has installed.
@@ -327,6 +334,12 @@ export default function HireRequestsScreen() {
     if (item.status === 'accepted') {
       return (
         <View>
+          {!!item.contractor_phone && (
+            <TouchableOpacity style={st.phoneRow} onPress={() => callNumber(item.contractor_phone)} activeOpacity={0.8}>
+              <Ionicons name="call" size={14} color={LABOUR} />
+              <Text style={st.phoneRowTxt}>{item.contractor_phone}</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[st.actionBtn, st.actionBtnPrimary]}
             disabled={busy}
@@ -867,6 +880,13 @@ const st = StyleSheet.create({
 
   ratedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', paddingVertical: 6 },
   ratedTxt: { fontSize: 13, fontWeight: '700', color: '#15803d' },
+
+  phoneRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0',
+    borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8,
+  },
+  phoneRowTxt: { fontSize: 13, fontWeight: '800', color: '#15803d' },
 
   safetyRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   safetyBtn: {
