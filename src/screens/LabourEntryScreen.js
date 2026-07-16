@@ -4,12 +4,11 @@
  * No more "I Want to Hire" / "I Want to Find Work" question. Instead:
  *
  *   - User has already posted their own worker profile (a labour_profiles
- *     row exists, reflected as user.has_labour_profile) → WorkerStatusScreen,
- *     the single-screen, dual-state "am I looking for work / am I on a job"
- *     home. The full request history, ratings, and disputes still live in
- *     HireRequestsScreen — reachable from WorkerStatusScreen's dashboard icon
- *     (route "HireRequests") — but a worker's day-to-day screen no longer
- *     needs any tab bar or navigation to do the one thing they came for.
+ *     row exists, reflected as user.has_labour_profile) → HireRequestsScreen,
+ *     the worker's dashboard (status card, availability toggle, sent/received
+ *     requests, ratings, disputes). The intermediate "Looking for work" swipe
+ *     screen (formerly WorkerStatusScreen) has been removed — workers land
+ *     directly on their dashboard with no extra screen in between.
  *   - Everyone else — guests, and logged-in users who haven't posted a
  *     profile yet — → LabourScreen, the browse-all-workers marketplace.
  *     From there a "Post my profile" CTA lets them become a worker whenever
@@ -25,14 +24,14 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import LabourScreen from './LabourScreen';
-import WorkerStatusScreen from './WorkerStatusScreen';
+import HireRequestsScreen from './HireRequestsScreen';
 
 export default function LabourEntryScreen(props) {
   const { user } = useAuth();
   const forceBrowse = props?.route?.params?.forceBrowse;
 
   if (user?.has_labour_profile && !forceBrowse) {
-    return <WorkerStatusScreen {...props} />;
+    return <HireRequestsScreen {...props} />;
   }
 
   // Guests, hirers with no posted profile yet, and anyone who tapped
