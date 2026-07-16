@@ -11,8 +11,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { http } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { Empty } from '../components/UI';
-import WageBoardStrip from '../components/WageBoardStrip';
-import LeaderboardStrip from '../components/labour/LeaderboardStrip';
 import NearbyRadar from '../components/labour/NearbyRadar';
 import JobHeatmap from '../components/labour/JobHeatmap';
 
@@ -729,16 +727,6 @@ export default function LabourScreen() {
           </TouchableOpacity>
         )}
       </View>
-
-      <WageBoardStrip
-        district={currentDistrict?.id}
-        onPressSkill={(skill) => setActiveSkill(SKILL_CATEGORIES.includes(skill) ? skill : 'All')}
-      />
-
-      <LeaderboardStrip
-        district={currentDistrict?.id}
-        onPressWorker={(id) => nav.navigate('LabourDetail', { id })}
-      />
 
       {user?.labour_role === 'worker' && (
         <View style={{ paddingHorizontal: 14, marginTop: 4, marginBottom: 10 }}>
