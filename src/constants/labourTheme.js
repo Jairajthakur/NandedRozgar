@@ -75,9 +75,9 @@ export const STATUS_META = {
 // should describe it in these same three stages so the system reads as one
 // coherent flow instead of four screens doing their own thing.
 export const HIRE_FLOW_STEPS = [
-  { key: 'unlock',  label: 'Unlock contact', icon: 'lock-open-outline' },
-  { key: 'request', label: 'Send request',   icon: 'paper-plane-outline' },
-  { key: 'track',   label: 'Track status',   icon: 'checkmark-done-outline' },
+  { key: 'request',  label: 'Send request',  icon: 'paper-plane-outline' },
+  { key: 'accepted', label: 'Get accepted',  icon: 'checkmark-circle-outline' },
+  { key: 'contact',  label: 'See contact',   icon: 'call-outline' },
 ];
 
 export const SKILL_ICONS = {
