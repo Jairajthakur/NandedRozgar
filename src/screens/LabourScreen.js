@@ -110,14 +110,32 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
   const isTeam = item.profile_type === 'team';
   const initials = (item.full_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
-
-  const statusChip = atChowk
-    ? { bg: '#16a34a', icon: 'walk', label: t('lbAtChowkToday') }
-    : hasRating && Number(item.rating_avg) >= 4.5
-    ? { bg: ORANGE, icon: 'star', label: t('lbTopRated') }
-    : null;
-
   const trustedCount = parseInt(item.trusted_count) || 0;
+
+  // One meta line (plain text, not chips) so the card never grows extra
+  // rows or wraps unpredictably — e.g. "6 yrs exp   ·   ★ 4.6 (18)".
+  const metaParts = [];
+  if (isTeam && item.team_composition) {
+    metaParts.push(item.team_composition);
+  } else if (!isTeam && item.experience_years) {
+    metaParts.push(`${item.experience_years} ${t('lbYrsExperience')}`);
+  }
+  if (trustedCount > 0) {
+    metaParts.push((trustedCount === 1 ? t('lbTrustedByOne') : t('lbTrustedByMany')).replace('{N}', trustedCount));
+  } else if (hasRating) {
+    metaParts.push(`★ ${Number(item.rating_avg).toFixed(1)} (${item.rating_count})`);
+  }
+  const metaLine = metaParts.join('   ·   ');
+
+  // Exactly one status pill (never more) — priority: at-chowk > top-rated >
+  // busy > available — so every card ends with the same number of rows.
+  const pill = atChowk
+    ? { bg: '#16a34a', bgTint: '#f0fdf4', icon: 'walk', label: t('lbAtChowkToday') }
+    : hasRating && Number(item.rating_avg) >= 4.5
+    ? { bg: ORANGE, bgTint: '#fff7f0', icon: 'star', label: t('lbTopRated') }
+    : isBusy
+    ? { bg: '#9ca3af', bgTint: '#f4f4f5', icon: 'time-outline', label: t('lbBusy') }
+    : { bg: '#16a34a', bgTint: '#f0fdf4', icon: 'checkmark-circle', label: t('lbAvailableToday') };
 
   return (
     <FadeIn delay={Math.min(index, 8) * 60}>
@@ -127,6 +145,7 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
             {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
           </View>
         )}
+        {!selectMode && <Ionicons name="chevron-forward" size={15} color="#c4c4cc" style={cs.cardChevron} />}
 
         <View style={cs.cardTop}>
           <View style={cs.photoTile}>
@@ -146,50 +165,22 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
           </View>
 
           <View style={{ flex: 1, minWidth: 0 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, minWidth: 0 }}>
-              <Text style={cs.rowTitle} numberOfLines={1}>{item.full_name}</Text>
-              {!!item.id_verified && <Ionicons name="shield-checkmark" size={13} color="#2563eb" />}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 }}>
+              <Text style={cs.rowTitle} numberOfLines={1} ellipsizeMode="tail">{item.full_name}</Text>
+              {!!item.id_verified && <Ionicons name="shield-checkmark" size={12} color="#2563eb" />}
+            </View>
+            <View style={[cs.tradeChip, { backgroundColor: gradStart + '18', marginTop: 6, alignSelf: 'flex-start' }]}>
+              <TradeIcon name={item.skill_category} size={11} color={gradStart} />
+              <Text style={[cs.tradeChipTxt, { color: gradStart }]} numberOfLines={1}>{item.skill_category}</Text>
             </View>
           </View>
-
-          {!selectMode && <Ionicons name="chevron-forward" size={17} color="#c4c4cc" />}
         </View>
 
-        <View style={cs.chipRow}>
-          <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
-            <TradeIcon name={item.skill_category} size={12} color={gradStart} />
-            <Text style={[cs.tradeChipTxt, { color: gradStart }]} numberOfLines={1}>{item.skill_category}</Text>
-          </View>
-          {Array.isArray(item.skills) && item.skills.slice(0, 2).map((sk, i) => (
-            <View key={`${sk}-${i}`} style={cs.plainChip}>
-              <Text style={cs.plainChipTxt} numberOfLines={1}>{sk}</Text>
-            </View>
-          ))}
-          {isTeam && !!item.team_composition ? (
-            <View style={cs.plainChip}><Text style={cs.plainChipTxt} numberOfLines={1}>{item.team_composition}</Text></View>
-          ) : !isTeam && !!item.experience_years ? (
-            <View style={cs.plainChip}><Text style={cs.plainChipTxt} numberOfLines={1}>{item.experience_years} {t('lbYrsExperience')}</Text></View>
-          ) : null}
-          <View style={[cs.plainChip, isBusy ? cs.busyChip : cs.availableChip]}>
-            <Text style={cs.plainChipTxt} numberOfLines={1}>{isBusy ? t('lbBusy') : t('lbAvailableToday')}</Text>
-          </View>
-          {trustedCount > 0 ? (
-            <View style={[cs.plainChip, cs.trustChip]}>
-              <Ionicons name="people" size={9} color="#0d9488" />
-              <Text style={[cs.plainChipTxt, { color: '#0d9488' }]} numberOfLines={1}> {(trustedCount === 1 ? t('lbTrustedByOne') : t('lbTrustedByMany')).replace('{N}', trustedCount)}</Text>
-            </View>
-          ) : hasRating ? (
-            <View style={cs.plainChip}>
-              <Ionicons name="star" size={9} color="#f59e0b" />
-              <Text style={cs.plainChipTxt} numberOfLines={1}> {Number(item.rating_avg).toFixed(1)} ({item.rating_count})</Text>
-            </View>
-          ) : null}
-          {statusChip && (
-            <View style={[cs.plainChip, { backgroundColor: statusChip.bg + '18' }]}>
-              <Ionicons name={statusChip.icon} size={9} color={statusChip.bg} />
-              <Text style={[cs.plainChipTxt, { color: statusChip.bg }]} numberOfLines={1}> {statusChip.label}</Text>
-            </View>
-          )}
+        {!!metaLine && <Text style={cs.metaLine} numberOfLines={1}>{metaLine}</Text>}
+
+        <View style={[cs.statusPill, { backgroundColor: pill.bgTint, alignSelf: 'flex-start' }]}>
+          <Ionicons name={pill.icon} size={10} color={pill.bg} />
+          <Text style={[cs.statusPillTxt, { color: pill.bg }]} numberOfLines={1}>{pill.label}</Text>
         </View>
       </TouchableOpacity>
     </FadeIn>
@@ -346,22 +337,29 @@ const cs = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     position: 'relative',
   },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  photoTile: { width: 56, height: 56, borderRadius: 14, overflow: 'hidden', flexShrink: 0 },
+  cardChevron: { position: 'absolute', top: 14, right: 12, zIndex: 2 },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginBottom: 8, paddingRight: 16 },
+  photoTile: { width: 46, height: 46, borderRadius: 12, overflow: 'hidden', flexShrink: 0 },
   checkbox: {
     position: 'absolute', top: 10, right: 10, zIndex: 5,
     width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#ccc',
     alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
   },
   checkboxChecked: { backgroundColor: ORANGE, borderColor: ORANGE },
-  photoImg: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
-  photoInitials: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  photoImg: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
+  photoInitials: { fontSize: 15, fontWeight: '800', color: '#fff' },
   teamBadge: {
     position: 'absolute', bottom: 3, right: 3, flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: '#7c3aed', borderRadius: 6, paddingHorizontal: 4, paddingVertical: 1.5,
   },
   teamBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800' },
-  rowTitle: { fontSize: 14.5, fontWeight: '800', color: '#111', flexShrink: 1 },
+  rowTitle: { fontSize: 13.5, fontWeight: '800', color: '#111', flexShrink: 1 },
+  metaLine: { fontSize: 11, fontWeight: '600', color: '#8a8a92', marginBottom: 8 },
+  statusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8,
+  },
+  statusPillTxt: { fontSize: 10.5, fontWeight: '700' },
   chipRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   tradeChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
