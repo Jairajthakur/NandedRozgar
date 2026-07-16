@@ -80,6 +80,7 @@ export default function LabourDetailScreen() {
   const [workDesc, setWorkDesc] = useState('');
   const [wage, setWage]         = useState('');
   const [workDate, setWorkDate] = useState(null); // 'YYYY-MM-DD' or null (unspecified)
+  const [contactPhone, setContactPhone] = useState('');
   const [sending, setSending]   = useState(false);
 
   // Contact is revealed once the worker accepts a hire request — no paid
@@ -122,7 +123,10 @@ export default function LabourDetailScreen() {
     if (hireOpen && !wage && profile?.daily_wage) {
       setWage(String(profile.daily_wage));
     }
-  }, [hireOpen, profile]);
+    if (hireOpen && !contactPhone && user?.phone) {
+      setContactPhone(String(user.phone));
+    }
+  }, [hireOpen, profile, user]);
 
   useEffect(() => {
     if (!isOwnProfile) return;
@@ -158,11 +162,18 @@ export default function LabourDetailScreen() {
       ]);
       return;
     }
+    const cleanPhone = contactPhone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      Toast.show({ type: 'error', text1: 'Phone number needed', text2: 'Enter a 10-digit number so the worker can reach you.' });
+      return;
+    }
+
     setSending(true);
     const res = await http('POST', `/api/labour/${id}/hire`, {
       work_description: workDesc.trim() || null,
       proposed_wage: wage ? parseInt(wage, 10) : null,
       work_date: workDate || null,
+      contact_phone: cleanPhone,
     });
     setSending(false);
     if (res?.ok) {
@@ -591,6 +602,20 @@ export default function LabourDetailScreen() {
                 onChangeText={setWorkDesc}
                 placeholder="Or type your own description"
                 placeholderTextColor="#bbb"
+              />
+
+              {/* Contact — so the worker knows who to call. Prefilled from the
+                   account phone but editable, in case a different number
+                   (e.g. a site supervisor's) is the right one for this job. */}
+              <Text style={[s.sheetLabel, { marginTop: 16 }]}>Your phone number</Text>
+              <TextInput
+                style={s.input}
+                value={contactPhone}
+                onChangeText={(t) => setContactPhone(t.replace(/[^0-9]/g, '').slice(0, 10))}
+                placeholder="10-digit mobile number"
+                placeholderTextColor="#bbb"
+                keyboardType="phone-pad"
+                maxLength={10}
               />
 
               {/* Wage — prefilled with their posted rate, quick +10%/+20% bumps */}
