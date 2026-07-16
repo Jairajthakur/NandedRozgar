@@ -212,7 +212,7 @@ function ProjectGridCard({ item, onPress, index = 0 }) {
         <View style={cs.projectEyebrowRow}>
           <View style={cs.projectEyebrow}>
             <Ionicons name="briefcase" size={10} color={ORANGE} />
-            <Text style={cs.projectEyebrowTxt}>{t('projTag') || 'PROJECT'}</Text>
+            <Text style={cs.projectEyebrowTxt}>PROJECT</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#c4c4cc" />
         </View>
@@ -263,8 +263,17 @@ function ProjectGridCard({ item, onPress, index = 0 }) {
 }
 
 const cs = StyleSheet.create({
-  gridCell: { width: '48.5%', marginBottom: 12 },
-  columnWrapper: { justifyContent: 'space-between' },
+  rowWrap: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  sectionHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: 8, marginBottom: 12,
+  },
+  sectionHeaderTxt: { fontSize: 17, fontWeight: '900', color: '#111', letterSpacing: -0.3 },
+  sectionHeaderCount: {
+    fontSize: 12, fontWeight: '700', color: '#999', backgroundColor: '#eee',
+    borderRadius: 20, paddingVertical: 2, paddingHorizontal: 8,
+  },
+  gridCell: { width: '48.5%' },
 
   card: {
     width: '100%', alignSelf: 'stretch',
@@ -513,34 +522,44 @@ export default function LabourScreen() {
 
   const isPremium = useIsPremium();
 
-  // Insert one native ad card after every NATIVE_AD_FREQUENCY real profiles,
-  // and one open Project after every PROJECT_FREQUENCY real profiles —
-  // ads skipped for premium users and on web (ADS_SUPPORTED is native-only).
-  const PROJECT_FREQUENCY = 5;
-  const feedWithAds = useMemo(() => {
-    const withExtras = [];
+  // Insert one native ad card after every NATIVE_AD_FREQUENCY real profiles —
+  // skipped for premium users and on web (ADS_SUPPORTED is native-only).
+  const labourFeed = useMemo(() => {
+    if (!ADS_SUPPORTED || isPremium) return filtered;
+    const withAds = [];
     let sinceLastAd = 0;
-    let sinceLastProject = 0;
-    let projectCursor = 0;
     filtered.forEach(item => {
-      withExtras.push(item);
+      withAds.push(item);
       sinceLastAd++;
-      sinceLastProject++;
-
-      if (filteredProjects.length > 0 && sinceLastProject >= PROJECT_FREQUENCY) {
-        const proj = filteredProjects[projectCursor % filteredProjects.length];
-        withExtras.push({ ...proj, __isProject: true, id: `project_${proj.id}` });
-        projectCursor++;
-        sinceLastProject = 0;
-      }
-
-      if (ADS_SUPPORTED && !isPremium && sinceLastAd >= NATIVE_AD_FREQUENCY) {
-        withExtras.push({ __isAd: true, id: 'ad_' + withExtras.length });
+      if (sinceLastAd >= NATIVE_AD_FREQUENCY) {
+        withAds.push({ __isAd: true, id: 'ad_' + withAds.length });
         sinceLastAd = 0;
       }
     });
-    return withExtras;
-  }, [filtered, filteredProjects, isPremium]);
+    return withAds;
+  }, [filtered, isPremium]);
+
+  // Chunk a flat list of cards into 2-up rows for the grid.
+  const chunkIntoRows = (arr, rowPrefix) =>
+    arr.reduce((rows, item, i) => {
+      if (i % 2 === 0) rows.push({ type: 'cards', id: `${rowPrefix}_row_${i}`, items: [item] });
+      else rows[rows.length - 1].items.push(item);
+      return rows;
+    }, []);
+
+  // Two distinct sections, each in its own labelled 2-column grid: Labour
+  // profiles first, then open Projects — rather than mixing the two types
+  // of card together in one feed.
+  const sectionedFeed = useMemo(() => {
+    const out = [];
+    out.push({ type: 'sectionHeader', id: 'section_labour', title: 'Labour', count: filtered.length });
+    out.push(...chunkIntoRows(labourFeed, 'labour'));
+    if (filteredProjects.length > 0) {
+      out.push({ type: 'sectionHeader', id: 'section_projects', title: 'Projects', count: filteredProjects.length });
+      out.push(...chunkIntoRows(filteredProjects.map(p => ({ ...p, __isProject: true, id: `project_${p.id}` })), 'project'));
+    }
+    return out;
+  }, [labourFeed, filteredProjects, filtered.length]);
 
   const activeFiltersCount =
     (wageRange.label !== 'Any' ? 1 : 0) + (availability !== 'All' ? 1 : 0) + (profileTypeFilter !== 'All' ? 1 : 0)
@@ -858,11 +877,12 @@ export default function LabourScreen() {
     </Modal>
   );
 
-  const renderCard = ({ item, index }) => {
-    if (item.__isAd) return <View style={cs.gridCell}><NativeAdCard /></View>;
+  // Renders a single card (ad / project / labour profile) into a grid cell.
+  const renderCell = (item, index) => {
+    if (item.__isAd) return <View key={item.id} style={cs.gridCell}><NativeAdCard /></View>;
     if (item.__isProject) {
       return (
-        <View style={cs.gridCell}>
+        <View key={item.id} style={cs.gridCell}>
           <ProjectGridCard
             item={item}
             index={index}
@@ -872,7 +892,7 @@ export default function LabourScreen() {
       );
     }
     return (
-      <View style={cs.gridCell}>
+      <View key={item.id} style={cs.gridCell}>
         <LabourCard
           item={item}
           index={index}
@@ -881,6 +901,25 @@ export default function LabourScreen() {
           onPress={() => nav.navigate('LabourDetail', { id: item.id })}
           onToggleSelect={() => toggleSelectId(item.id)}
         />
+      </View>
+    );
+  };
+
+  // Renders one entry of `sectionedFeed` — either a full-width section
+  // title ("Labour" / "Projects") or a 2-up row of cards.
+  const renderRow = ({ item: row, index }) => {
+    if (row.type === 'sectionHeader') {
+      if (row.count === 0) return null;
+      return (
+        <View style={cs.sectionHeaderRow}>
+          <Text style={cs.sectionHeaderTxt}>{row.title}</Text>
+          <Text style={cs.sectionHeaderCount}>{row.count}</Text>
+        </View>
+      );
+    }
+    return (
+      <View style={cs.rowWrap}>
+        {row.items.map((it, i) => renderCell(it, index * 2 + i))}
       </View>
     );
   };
@@ -985,16 +1024,14 @@ export default function LabourScreen() {
 
           <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
             <FlatList
-              data={feedWithAds}
-              keyExtractor={item => item.__isAd ? item.id : String(item.id)}
+              data={sectionedFeed}
+              keyExtractor={row => row.id}
               style={{ width: '100%' }}
               contentContainerStyle={[ws.list, { width: '100%' }]}
-              numColumns={2}
-              columnWrapperStyle={cs.columnWrapper}
               showsVerticalScrollIndicator={false}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
               ListHeaderComponent={Header}
-              renderItem={renderCard}
+              renderItem={renderRow}
               ListEmptyComponent={!loading && EmptyState}
             />
           </View>
@@ -1059,19 +1096,17 @@ export default function LabourScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f7f7" />
       <FlatList
-        data={feedWithAds}
-        keyExtractor={item => item.__isAd ? item.id : String(item.id)}
+        data={sectionedFeed}
+        keyExtractor={row => row.id}
         style={{ width: '100%' }}
         contentContainerStyle={[s.list, { width: '100%' }]}
-        numColumns={2}
-        columnWrapperStyle={cs.columnWrapper}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
         ListHeaderComponent={Header}
-        renderItem={renderCard}
+        renderItem={renderRow}
         ListEmptyComponent={!loading && EmptyState}
         ListFooterComponent={
-          !isPremium && feedWithAds.length > 0 ? <BannerAd /> : null
+          !isPremium && filtered.length > 0 ? <BannerAd /> : null
         }
       />
       {FilterModal}
