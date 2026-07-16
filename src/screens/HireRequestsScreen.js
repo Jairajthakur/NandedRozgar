@@ -31,6 +31,18 @@ import { StatusPill } from '../components/labour/LabourUI';
 import LabourAttendance from '../components/LabourAttendance';
 import DisputePanel from '../components/labour/DisputePanel';
 import RewardsProgress from '../components/labour/RewardsProgress';
+import NativeAdCard from '../components/ads/NativeAdCard';
+import BannerAd from '../components/ads/BannerAd';
+import { ADS_SUPPORTED } from '../components/ads/adConfig';
+import { useIsPremium } from '../hooks/useIsPremium';
+
+// Ad frequency for THIS screen specifically. This is a worker's own
+// dashboard — duty toggle, check-in, live job requests — not a browse
+// feed, so ads are spaced out much more gently than the marketplace
+// screens (every 3 there). One ad card per 5 hire-request cards keeps
+// ads present without competing with the things a worker actually opens
+// this screen to do.
+const DASHBOARD_AD_FREQUENCY = 5;
 
 const ORANGE  = LABOUR_COLORS.primary;
 const LABOUR  = LABOUR_COLORS.worker;
@@ -370,6 +382,8 @@ export default function HireRequestsScreen() {
   };
 
   const renderItem = ({ item }) => {
+    if (item.__isAd) return <NativeAdCard />;
+
     const isSent = tab === 'sent';
     return (
       <View style={st.card}>
@@ -428,7 +442,29 @@ export default function HireRequestsScreen() {
     );
   };
 
-  const data = tab === 'sent' ? sent : received;
+  const isPremium = useIsPremium();
+
+  const rawData = tab === 'sent' ? sent : received;
+
+  // Interleave one native ad card after every DASHBOARD_AD_FREQUENCY real
+  // hire-request cards. Skipped entirely for premium users, on web, and
+  // for empty lists — never insert an ad into an empty state, and never
+  // touch the hero/status/duty-toggle area above the list, since that's
+  // the part of the screen a worker actually needs uninterrupted.
+  const data = React.useMemo(() => {
+    if (!ADS_SUPPORTED || isPremium || rawData.length === 0) return rawData;
+    const withAds = [];
+    let sinceLastAd = 0;
+    rawData.forEach((item) => {
+      withAds.push(item);
+      sinceLastAd++;
+      if (sinceLastAd >= DASHBOARD_AD_FREQUENCY) {
+        withAds.push({ __isAd: true, id: `ad_${tab}_${withAds.length}` });
+        sinceLastAd = 0;
+      }
+    });
+    return withAds;
+  }, [rawData, isPremium, tab]);
 
   const completedCount = received.filter(r => r.status === 'completed').length;
 
@@ -688,6 +724,11 @@ export default function HireRequestsScreen() {
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
           ListHeaderComponent={renderListHeader}
+          // Scrolls with content instead of pinning to the bottom, so it
+          // never sits on top of the tab bar or the rate/attendance
+          // buttons — it only shows up once someone has scrolled past
+          // everything real, and never on an empty list.
+          ListFooterComponent={!isPremium && ADS_SUPPORTED && rawData.length > 0 ? <BannerAd /> : null}
           contentContainerStyle={{ paddingBottom: 32 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
           ListEmptyComponent={(
