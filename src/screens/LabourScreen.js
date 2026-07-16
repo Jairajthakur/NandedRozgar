@@ -347,6 +347,7 @@ const cs = StyleSheet.create({
   },
   optionPillIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   optionPillLabel: { fontSize: 14, fontWeight: '800', color: '#111' },
+  optionPillActive: { borderWidth: 2, borderColor: '#111' },
 });
 
 // ── Main screen ─────────────────────────────────────────────────────────────
@@ -373,20 +374,11 @@ export default function LabourScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState(null);
   const [walletBalance, setWalletBalance] = useState(null);
+  const [activeSection, setActiveSection] = useState('labour'); // 'labour' | 'projects' — which section the pills show
   const listRef = useRef(null);
-  const scrollToLabour = () => listRef.current?.scrollToOffset?.({ offset: 0, animated: true });
-  const scrollToProjects = () => {
-    const idx = sectionedFeed.findIndex(r => r.id === 'section_projects');
-    if (idx >= 0) listRef.current?.scrollToIndex?.({ index: idx, animated: true, viewPosition: 0 });
-  };
-  // Rows vary in height (section headers vs 2-up card rows vs the empty
-  // state), so there's no fixed getItemLayout — retry with an offset guess
-  // if the first scrollToIndex attempt misses.
-  const onScrollToIndexFailed = (info) => {
-    setTimeout(() => {
-      listRef.current?.scrollToOffset?.({ offset: info.averageItemLength * info.index, animated: true });
-    }, 50);
-  };
+  const showLabourOnly = () => { setActiveSection('labour'); listRef.current?.scrollToOffset?.({ offset: 0, animated: true }); };
+  const showProjectsOnly = () => { setActiveSection('projects'); listRef.current?.scrollToOffset?.({ offset: 0, animated: true }); };
+
 
   // ── Ad-hoc multi-select hire ── contractor picks any workers while
   // browsing (not necessarily part of a pre-formed Crew) and hires them
@@ -583,19 +575,19 @@ export default function LabourScreen() {
   // of card together in one feed.
   const sectionedFeed = useMemo(() => {
     const out = [];
-    out.push({ type: 'sectionHeader', id: 'section_labour', title: 'Labour', count: filtered.length });
-    out.push(...chunkIntoRows(labourFeed, 'labour'));
-    // Projects section always shows (even with 0 open projects) so this
-    // screen reliably reads as "2 sections: Labour + Projects" rather than
-    // silently disappearing when the district has nothing posted yet.
-    out.push({ type: 'sectionHeader', id: 'section_projects', title: 'Projects', count: filteredProjects.length, alwaysShow: true });
-    if (filteredProjects.length > 0) {
-      out.push(...chunkIntoRows(filteredProjects.map(p => ({ ...p, __isProject: true, id: `project_${p.id}` })), 'project'));
+    if (activeSection === 'labour') {
+      out.push({ type: 'sectionHeader', id: 'section_labour', title: 'Labour', count: filtered.length, alwaysShow: true });
+      out.push(...chunkIntoRows(labourFeed, 'labour'));
     } else {
-      out.push({ type: 'projectsEmpty', id: 'projects_empty' });
+      out.push({ type: 'sectionHeader', id: 'section_projects', title: 'Projects', count: filteredProjects.length, alwaysShow: true });
+      if (filteredProjects.length > 0) {
+        out.push(...chunkIntoRows(filteredProjects.map(p => ({ ...p, __isProject: true, id: `project_${p.id}` })), 'project'));
+      } else {
+        out.push({ type: 'projectsEmpty', id: 'projects_empty' });
+      }
     }
     return out;
-  }, [labourFeed, filteredProjects, filtered.length]);
+  }, [activeSection, labourFeed, filteredProjects, filtered.length]);
 
   const activeFiltersCount =
     (wageRange.label !== 'Any' ? 1 : 0) + (availability !== 'All' ? 1 : 0) + (profileTypeFilter !== 'All' ? 1 : 0)
@@ -793,13 +785,13 @@ export default function LabourScreen() {
       )}
 
       <View style={cs.optionPillRow}>
-        <TouchableOpacity style={cs.optionPill} onPress={scrollToLabour} activeOpacity={0.85}>
+        <TouchableOpacity style={[cs.optionPill, activeSection === 'labour' && cs.optionPillActive]} onPress={showLabourOnly} activeOpacity={0.85}>
           <LinearGradient colors={['#5eead4', '#0d9488']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.optionPillIcon}>
             <Ionicons name="hammer" size={16} color="#fff" />
           </LinearGradient>
           <Text style={cs.optionPillLabel}>{t('labour')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={cs.optionPill} onPress={scrollToProjects} activeOpacity={0.85}>
+        <TouchableOpacity style={[cs.optionPill, activeSection === 'projects' && cs.optionPillActive]} onPress={showProjectsOnly} activeOpacity={0.85}>
           <LinearGradient colors={['#93c5fd', '#2563eb']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.optionPillIcon}>
             <Ionicons name="briefcase" size={16} color="#fff" />
           </LinearGradient>
@@ -1094,7 +1086,6 @@ export default function LabourScreen() {
               ListHeaderComponent={Header}
               renderItem={renderRow}
               ListEmptyComponent={!loading && EmptyState}
-              onScrollToIndexFailed={onScrollToIndexFailed}
             />
           </View>
 
@@ -1168,7 +1159,6 @@ export default function LabourScreen() {
         ListHeaderComponent={Header}
         renderItem={renderRow}
         ListEmptyComponent={!loading && EmptyState}
-        onScrollToIndexFailed={onScrollToIndexFailed}
         ListFooterComponent={
           !isPremium && filtered.length > 0 ? <BannerAd /> : null
         }
