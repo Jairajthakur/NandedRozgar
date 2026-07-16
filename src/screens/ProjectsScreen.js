@@ -16,24 +16,39 @@
  * Place at: src/screens/ProjectsScreen.js
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, ScrollView,
+  View, Text, Image, FlatList, TouchableOpacity, ScrollView,
   StyleSheet, RefreshControl, ActivityIndicator, Platform, StatusBar,
+  Animated, Easing,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-
+import { LinearGradient } from 'expo-linear-gradient';
 import { http, timeAgo } from '../utils/api';
 import { useDistrict } from '../context/DistrictContext';
 import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
 import { Empty } from '../components/UI';
 import { LABOUR_COLORS, SPACING, RADIUS, SKILL_ICONS, getSkillGradient } from '../constants/labourTheme';
-import { SectionCard, Badge } from '../components/labour/LabourUI';
 
 const ORANGE = LABOUR_COLORS.primary;
+const IS_WEB = Platform.OS === 'web';
+
+// Same gentle fade-up-in-place used for the Project cards on the Labour
+// feed, so this screen's cards animate in the same way.
+function FadeIn({ children, delay = 0 }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const ty      = useRef(new Animated.Value(12)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: !IS_WEB }),
+      Animated.timing(ty,      { toValue: 0, duration: 340, delay, easing: Easing.out(Easing.quad), useNativeDriver: !IS_WEB }),
+    ]).start();
+  }, []);
+  return <Animated.View style={{ width: '100%', opacity, transform: [{ translateY: ty }] }}>{children}</Animated.View>;
+}
 
 // Canonical (English) skill values — these match what's stored in the DB /
 // sent to the API. Display labels are translated separately via SKILL_T_KEYS.
@@ -45,50 +60,69 @@ const SKILL_T_KEYS = {
   Painter: 'skillPainter', Carpenter: 'skillCarpenter', Welder: 'skillWelder', Helper: 'skillHelper',
 };
 
-// ── Project card ─────────────────────────────────────────────────────────────
-function ProjectCard({ item, onPress, t, lang }) {
+// ── Full-width Project card — big banner + location pin + bold title +
+// contractor name + rounded tags, matching the card style used on the
+// Labour tab's Projects feed. No photo_url exists on projects yet, so the
+// banner falls back to a skill-tinted gradient with a large icon; if a
+// photo_url is ever added server-side this will use it automatically.
+function ProjectCard({ item, onPress, t, lang, index = 0 }) {
   const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
   const spotsLeft = item.spots_left;
-  const almostFull = spotsLeft != null && spotsLeft <= 2;
+  const isFull = spotsLeft === 0;
+  const locationLine = [item.location, item.district]
+    .filter(Boolean)
+    .map((v, i) => (i === 1 ? String(v).toUpperCase() : v))
+    .join(', ');
 
   return (
-    <TouchableOpacity style={cs.row} onPress={onPress} activeOpacity={0.75}>
-      <View style={[cs.iconWrap, { backgroundColor: gradStart + '1a' }]}>
-        <Ionicons name={SKILL_ICONS[item.skill_category] || 'briefcase-outline'} size={20} color={gradStart} />
-      </View>
+    <FadeIn delay={Math.min(index, 8) * 60}>
+      <TouchableOpacity style={cs.card} onPress={onPress} activeOpacity={0.85}>
+        {item.photo_url ? (
+          <Image source={{ uri: item.photo_url }} style={cs.banner} />
+        ) : (
+          <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.banner}>
+            <Ionicons name={SKILL_ICONS[item.skill_category] || 'briefcase-outline'} size={56} color="rgba(255,255,255,0.45)" />
+          </LinearGradient>
+        )}
 
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <AutoTranslate text={item.title} lang={lang} style={cs.title} numberOfLines={1} />
-        <Text style={cs.meta} numberOfLines={1}>
-          {item.contractor_name ? `${item.contractor_name} · ` : ''}
-          {item.location || item.district}
-        </Text>
+        <View style={cs.body}>
+          {!!locationLine && (
+            <View style={cs.locRow}>
+              <Ionicons name="location-outline" size={13} color="#999" />
+              <Text style={cs.locTxt} numberOfLines={1}>{locationLine}</Text>
+            </View>
+          )}
 
-        <View style={cs.chipRow}>
-          {!!item.daily_wage && (
-            <Badge icon="cash-outline" label={`₹${item.daily_wage}${t('projPerDaySuffix')}`} tone="primary" />
+          <AutoTranslate text={item.title} lang={lang} style={cs.title} numberOfLines={2} />
+
+          {!!item.contractor_name && (
+            <Text style={cs.contractor} numberOfLines={1}>{item.contractor_name}</Text>
           )}
-          {!!item.duration_days && (
-            <Badge
-              icon="calendar-outline"
-              label={`${item.duration_days} ${item.duration_days > 1 ? t('projDayPlural') : t('projDaySingular')}`}
-              tone="neutral"
-            />
-          )}
-          {spotsLeft != null && (
-            <Badge
-              icon="people-outline"
-              label={spotsLeft > 0
-                ? t(spotsLeft > 1 ? 'projSpotPlural' : 'projSpotSingular').replace('{N}', spotsLeft)
-                : t('projFull')}
-              tone={spotsLeft === 0 ? 'neutral' : almostFull ? 'warning' : 'success'}
-            />
-          )}
+
+          <View style={cs.tagRow}>
+            {!!item.skill_category && (
+              <View style={cs.tag}>
+                <Text style={cs.tagTxt}>{item.skill_category}</Text>
+              </View>
+            )}
+            {!!item.daily_wage && (
+              <View style={cs.tag}>
+                <Text style={cs.tagTxt}>₹{item.daily_wage}{t('projPerDaySuffix')}</Text>
+              </View>
+            )}
+            {spotsLeft != null && (
+              <View style={cs.tag}>
+                <Text style={cs.tagTxt}>
+                  {spotsLeft > 0
+                    ? t(spotsLeft > 1 ? 'projSpotPlural' : 'projSpotSingular').replace('{N}', spotsLeft)
+                    : t('projFull')}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-
-      <Ionicons name="chevron-forward" size={18} color="#ccc" />
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </FadeIn>
   );
 }
 
@@ -185,8 +219,8 @@ export default function ProjectsScreen() {
         <FlatList
           data={projects}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => (
-            <ProjectCard item={item} t={t} lang={lang} onPress={() => nav.navigate('ProjectDetail', { id: item.id })} />
+          renderItem={({ item, index }) => (
+            <ProjectCard item={item} t={t} lang={lang} index={index} onPress={() => nav.navigate('ProjectDetail', { id: item.id })} />
           )}
           contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 32, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
@@ -206,19 +240,20 @@ export default function ProjectsScreen() {
 }
 
 const cs = StyleSheet.create({
-  row: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
-    backgroundColor: LABOUR_COLORS.surface, borderRadius: RADIUS.lg,
-    borderWidth: 1, borderColor: LABOUR_COLORS.border,
-    padding: SPACING.md, marginBottom: SPACING.md,
+  card: {
+    backgroundColor: '#fff', borderRadius: 20, marginBottom: 18, overflow: 'hidden',
+    borderWidth: 1, borderColor: '#f0f0f0',
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 2,
   },
-  iconWrap: {
-    width: 44, height: 44, borderRadius: RADIUS.md,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  title: { fontSize: 14.5, fontWeight: '800', color: LABOUR_COLORS.text },
-  meta: { fontSize: 12, color: LABOUR_COLORS.textMuted, marginTop: 2, fontWeight: '500' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  banner: { width: '100%', height: 190, alignItems: 'center', justifyContent: 'center' },
+  body: { padding: 16 },
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+  locTxt: { fontSize: 12.5, color: '#999', fontWeight: '600' },
+  title: { fontSize: 19, fontWeight: '800', color: '#111', lineHeight: 24, marginBottom: 6 },
+  contractor: { fontSize: 14, color: '#555', fontWeight: '500', marginBottom: 14 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tag: { backgroundColor: '#f3f4f6', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 14 },
+  tagTxt: { fontSize: 13, fontWeight: '600', color: '#333' },
 });
 
 const s = StyleSheet.create({
