@@ -164,15 +164,14 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
             )}
           </View>
 
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 }}>
-              <Text style={cs.rowTitle} numberOfLines={1} ellipsizeMode="tail">{item.full_name}</Text>
-              {!!item.id_verified && <Ionicons name="shield-checkmark" size={12} color="#2563eb" />}
-            </View>
-            <View style={[cs.tradeChip, { backgroundColor: gradStart + '18', marginTop: 6, alignSelf: 'flex-start' }]}>
-              <TradeIcon name={item.skill_category} size={11} color={gradStart} />
-              <Text style={[cs.tradeChipTxt, { color: gradStart }]} numberOfLines={1}>{item.skill_category}</Text>
-            </View>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 4, minWidth: 0, marginTop: 8 }}>
+            <Text style={cs.rowTitle} numberOfLines={2}>{item.full_name}</Text>
+            {!!item.id_verified && <Ionicons name="shield-checkmark" size={12} color="#2563eb" style={{ marginTop: 1 }} />}
+          </View>
+
+          <View style={[cs.tradeChip, { backgroundColor: gradStart + '18', marginTop: 6, alignSelf: 'flex-start' }]}>
+            <TradeIcon name={item.skill_category} size={11} color={gradStart} />
+            <Text style={[cs.tradeChipTxt, { color: gradStart }]} numberOfLines={1}>{item.skill_category}</Text>
           </View>
         </View>
 
@@ -338,7 +337,7 @@ const cs = StyleSheet.create({
     position: 'relative',
   },
   cardChevron: { position: 'absolute', top: 14, right: 12, zIndex: 2 },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginBottom: 8, paddingRight: 16 },
+  cardTop: { marginBottom: 8, paddingRight: 16 },
   photoTile: { width: 46, height: 46, borderRadius: 12, overflow: 'hidden', flexShrink: 0 },
   checkbox: {
     position: 'absolute', top: 10, right: 10, zIndex: 5,
@@ -353,7 +352,7 @@ const cs = StyleSheet.create({
     backgroundColor: '#7c3aed', borderRadius: 6, paddingHorizontal: 4, paddingVertical: 1.5,
   },
   teamBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800' },
-  rowTitle: { fontSize: 13.5, fontWeight: '800', color: '#111', flexShrink: 1 },
+  rowTitle: { fontSize: 13.5, fontWeight: '800', color: '#111', flexShrink: 1, lineHeight: 17 },
   metaLine: { fontSize: 11, fontWeight: '600', color: '#8a8a92', marginBottom: 8 },
   statusPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
