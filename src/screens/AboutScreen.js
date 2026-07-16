@@ -41,7 +41,7 @@ function TypingDots() {
   );
 }
 
-// ── Chat Bubble ───────────────────────────────────────────────
+//Home Screen
 function Bubble({ msg }) {
   const isAI = msg.role === 'assistant';
   return (
