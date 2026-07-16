@@ -120,73 +120,75 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
 
   return (
     <FadeIn delay={Math.min(index, 8) * 60}>
-      <TouchableOpacity style={cs.row} onPress={selectMode ? onToggleSelect : onPress} activeOpacity={0.7}>
+      <TouchableOpacity style={cs.card} onPress={selectMode ? onToggleSelect : onPress} activeOpacity={0.8}>
         {selectMode && (
           <View style={[cs.checkbox, selected && cs.checkboxChecked]}>
             {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
           </View>
         )}
-        <View style={cs.photoTile}>
-          {item.photo_url ? (
-            <Image source={{ uri: item.photo_url }} style={cs.photoImg} />
-          ) : (
-            <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.photoImg}>
-              <Text style={cs.photoInitials}>{initials}</Text>
-            </LinearGradient>
-          )}
-          {isTeam && (
-            <View style={cs.teamBadge}>
-              <Ionicons name="people" size={10} color="#fff" />
-              <Text style={cs.teamBadgeTxt}>{item.team_size}</Text>
-            </View>
-          )}
-        </View>
 
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={cs.rowTitleLine}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}>
-              <Text style={cs.rowTitle} numberOfLines={1}>{item.full_name}</Text>
-              {!!item.id_verified && <Ionicons name="shield-checkmark" size={14} color="#2563eb" />}
-            </View>
-            {!selectMode && <Ionicons name="chevron-forward" size={19} color="#c4c4cc" />}
-          </View>
-
-          <View style={cs.chipRow}>
-            <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
-              <TradeIcon name={item.skill_category} size={13} color={gradStart} />
-              <Text style={[cs.tradeChipTxt, { color: gradStart }]}>{item.skill_category}</Text>
-            </View>
-            {Array.isArray(item.skills) && item.skills.slice(0, 2).map((sk, i) => (
-              <View key={`${sk}-${i}`} style={cs.plainChip}>
-                <Text style={cs.plainChipTxt} numberOfLines={1}>{sk}</Text>
-              </View>
-            ))}
-            {isTeam && !!item.team_composition ? (
-              <View style={cs.plainChip}><Text style={cs.plainChipTxt} numberOfLines={1}>{item.team_composition}</Text></View>
-            ) : !isTeam && !!item.experience_years ? (
-              <View style={cs.plainChip}><Text style={cs.plainChipTxt}>{item.experience_years} {t('lbYrsExperience')}</Text></View>
-            ) : null}
-            <View style={[cs.plainChip, isBusy ? cs.busyChip : cs.availableChip]}>
-              <Text style={cs.plainChipTxt}>{isBusy ? t('lbBusy') : t('lbAvailableToday')}</Text>
-            </View>
-            {trustedCount > 0 ? (
-              <View style={[cs.plainChip, cs.trustChip]}>
-                <Ionicons name="people" size={10} color="#0d9488" />
-                <Text style={[cs.plainChipTxt, { color: '#0d9488' }]}> {(trustedCount === 1 ? t('lbTrustedByOne') : t('lbTrustedByMany')).replace('{N}', trustedCount)}</Text>
-              </View>
-            ) : hasRating ? (
-              <View style={cs.plainChip}>
-                <Ionicons name="star" size={10} color="#f59e0b" />
-                <Text style={cs.plainChipTxt}> {Number(item.rating_avg).toFixed(1)} ({item.rating_count})</Text>
-              </View>
-            ) : null}
-            {statusChip && (
-              <View style={[cs.plainChip, { backgroundColor: statusChip.bg + '18' }]}>
-                <Ionicons name={statusChip.icon} size={10} color={statusChip.bg} />
-                <Text style={[cs.plainChipTxt, { color: statusChip.bg }]}> {statusChip.label}</Text>
+        <View style={cs.cardTop}>
+          <View style={cs.photoTile}>
+            {item.photo_url ? (
+              <Image source={{ uri: item.photo_url }} style={cs.photoImg} />
+            ) : (
+              <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.photoImg}>
+                <Text style={cs.photoInitials}>{initials}</Text>
+              </LinearGradient>
+            )}
+            {isTeam && (
+              <View style={cs.teamBadge}>
+                <Ionicons name="people" size={9} color="#fff" />
+                <Text style={cs.teamBadgeTxt}>{item.team_size}</Text>
               </View>
             )}
           </View>
+
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, minWidth: 0 }}>
+              <Text style={cs.rowTitle} numberOfLines={1}>{item.full_name}</Text>
+              {!!item.id_verified && <Ionicons name="shield-checkmark" size={13} color="#2563eb" />}
+            </View>
+          </View>
+
+          {!selectMode && <Ionicons name="chevron-forward" size={17} color="#c4c4cc" />}
+        </View>
+
+        <View style={cs.chipRow}>
+          <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
+            <TradeIcon name={item.skill_category} size={12} color={gradStart} />
+            <Text style={[cs.tradeChipTxt, { color: gradStart }]} numberOfLines={1}>{item.skill_category}</Text>
+          </View>
+          {Array.isArray(item.skills) && item.skills.slice(0, 2).map((sk, i) => (
+            <View key={`${sk}-${i}`} style={cs.plainChip}>
+              <Text style={cs.plainChipTxt} numberOfLines={1}>{sk}</Text>
+            </View>
+          ))}
+          {isTeam && !!item.team_composition ? (
+            <View style={cs.plainChip}><Text style={cs.plainChipTxt} numberOfLines={1}>{item.team_composition}</Text></View>
+          ) : !isTeam && !!item.experience_years ? (
+            <View style={cs.plainChip}><Text style={cs.plainChipTxt} numberOfLines={1}>{item.experience_years} {t('lbYrsExperience')}</Text></View>
+          ) : null}
+          <View style={[cs.plainChip, isBusy ? cs.busyChip : cs.availableChip]}>
+            <Text style={cs.plainChipTxt} numberOfLines={1}>{isBusy ? t('lbBusy') : t('lbAvailableToday')}</Text>
+          </View>
+          {trustedCount > 0 ? (
+            <View style={[cs.plainChip, cs.trustChip]}>
+              <Ionicons name="people" size={9} color="#0d9488" />
+              <Text style={[cs.plainChipTxt, { color: '#0d9488' }]} numberOfLines={1}> {(trustedCount === 1 ? t('lbTrustedByOne') : t('lbTrustedByMany')).replace('{N}', trustedCount)}</Text>
+            </View>
+          ) : hasRating ? (
+            <View style={cs.plainChip}>
+              <Ionicons name="star" size={9} color="#f59e0b" />
+              <Text style={cs.plainChipTxt} numberOfLines={1}> {Number(item.rating_avg).toFixed(1)} ({item.rating_count})</Text>
+            </View>
+          ) : null}
+          {statusChip && (
+            <View style={[cs.plainChip, { backgroundColor: statusChip.bg + '18' }]}>
+              <Ionicons name={statusChip.icon} size={9} color={statusChip.bg} />
+              <Text style={[cs.plainChipTxt, { color: statusChip.bg }]} numberOfLines={1}> {statusChip.label}</Text>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     </FadeIn>
@@ -194,41 +196,46 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
 }
 
 const cs = StyleSheet.create({
-  row: {
+  gridCell: { width: '48.5%', marginBottom: 12 },
+  columnWrapper: { justifyContent: 'space-between' },
+
+  card: {
     width: '100%', alignSelf: 'stretch',
-    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
-    paddingVertical: 16, paddingHorizontal: 4,
-    borderBottomWidth: 1, borderBottomColor: '#ececec',
+    backgroundColor: '#fff', borderRadius: 16, padding: 12,
+    borderWidth: 1, borderColor: '#ececec',
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
+    position: 'relative',
   },
-  photoTile: { width: 84, height: 84, borderRadius: 16, overflow: 'hidden', flexShrink: 0 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  photoTile: { width: 56, height: 56, borderRadius: 14, overflow: 'hidden', flexShrink: 0 },
   checkbox: {
-    width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#ccc',
-    alignItems: 'center', justifyContent: 'center', marginTop: 30, flexShrink: 0,
+    position: 'absolute', top: 10, right: 10, zIndex: 5,
+    width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#ccc',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
   },
   checkboxChecked: { backgroundColor: ORANGE, borderColor: ORANGE },
-  photoImg: { width: 84, height: 84, alignItems: 'center', justifyContent: 'center' },
-  photoInitials: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  photoImg: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  photoInitials: { fontSize: 17, fontWeight: '800', color: '#fff' },
   teamBadge: {
-    position: 'absolute', bottom: 4, right: 4, flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#7c3aed', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2,
+    position: 'absolute', bottom: 3, right: 3, flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#7c3aed', borderRadius: 6, paddingHorizontal: 4, paddingVertical: 1.5,
   },
-  teamBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingTop: 4 },
-  rowTitle: { fontSize: 16, fontWeight: '800', color: '#111', flexShrink: 1 },
-  chipRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  teamBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  rowTitle: { fontSize: 14.5, fontWeight: '800', color: '#111', flexShrink: 1 },
+  chipRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   tradeChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#fff7f0', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10,
+    backgroundColor: '#fff7f0', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8,
   },
-  tradeChipTxt: { fontSize: 12, fontWeight: '700' },
+  tradeChipTxt: { fontSize: 11, fontWeight: '700' },
   plainChip: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f3f4f6', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10,
+    backgroundColor: '#f3f4f6', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8,
   },
   availableChip: { backgroundColor: '#f0fdf4' },
   busyChip: { backgroundColor: '#f4f4f5' },
   trustChip: { backgroundColor: '#f0fdfa' },
-  plainChipTxt: { fontSize: 11, fontWeight: '700', color: '#666' },
+  plainChipTxt: { fontSize: 10.5, fontWeight: '700', color: '#666' },
 });
 
 // ── Main screen ─────────────────────────────────────────────────────────────
@@ -731,16 +738,18 @@ export default function LabourScreen() {
   );
 
   const renderCard = ({ item, index }) => {
-    if (item.__isAd) return <NativeAdCard />;
+    if (item.__isAd) return <View style={cs.gridCell}><NativeAdCard /></View>;
     return (
-      <LabourCard
-        item={item}
-        index={index}
-        selectMode={selectMode}
-        selected={selectedIds.includes(item.id)}
-        onPress={() => nav.navigate('LabourDetail', { id: item.id })}
-        onToggleSelect={() => toggleSelectId(item.id)}
-      />
+      <View style={cs.gridCell}>
+        <LabourCard
+          item={item}
+          index={index}
+          selectMode={selectMode}
+          selected={selectedIds.includes(item.id)}
+          onPress={() => nav.navigate('LabourDetail', { id: item.id })}
+          onToggleSelect={() => toggleSelectId(item.id)}
+        />
+      </View>
     );
   };
 
@@ -848,6 +857,8 @@ export default function LabourScreen() {
               keyExtractor={item => item.__isAd ? item.id : String(item.id)}
               style={{ width: '100%' }}
               contentContainerStyle={[ws.list, { width: '100%' }]}
+              numColumns={2}
+              columnWrapperStyle={cs.columnWrapper}
               showsVerticalScrollIndicator={false}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
               ListHeaderComponent={Header}
@@ -920,6 +931,8 @@ export default function LabourScreen() {
         keyExtractor={item => item.__isAd ? item.id : String(item.id)}
         style={{ width: '100%' }}
         contentContainerStyle={[s.list, { width: '100%' }]}
+        numColumns={2}
+        columnWrapperStyle={cs.columnWrapper}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
         ListHeaderComponent={Header}
