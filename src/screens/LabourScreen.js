@@ -330,6 +330,14 @@ const cs = StyleSheet.create({
     width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   projectMeta: { fontSize: 11, color: '#999', fontWeight: '600', marginTop: 2 },
+
+  projectsEmptyCard: {
+    alignItems: 'center', backgroundColor: '#fffaf5', borderRadius: 16, borderWidth: 1,
+    borderColor: '#fde3c8', borderStyle: 'dashed', paddingVertical: 24, paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  projectsEmptyTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginTop: 8 },
+  projectsEmptySub: { fontSize: 12, color: '#999', fontWeight: '600', marginTop: 3, textAlign: 'center' },
 });
 
 // ── Main screen ─────────────────────────────────────────────────────────────
@@ -554,9 +562,14 @@ export default function LabourScreen() {
     const out = [];
     out.push({ type: 'sectionHeader', id: 'section_labour', title: 'Labour', count: filtered.length });
     out.push(...chunkIntoRows(labourFeed, 'labour'));
+    // Projects section always shows (even with 0 open projects) so this
+    // screen reliably reads as "2 sections: Labour + Projects" rather than
+    // silently disappearing when the district has nothing posted yet.
+    out.push({ type: 'sectionHeader', id: 'section_projects', title: 'Projects', count: filteredProjects.length, alwaysShow: true });
     if (filteredProjects.length > 0) {
-      out.push({ type: 'sectionHeader', id: 'section_projects', title: 'Projects', count: filteredProjects.length });
       out.push(...chunkIntoRows(filteredProjects.map(p => ({ ...p, __isProject: true, id: `project_${p.id}` })), 'project'));
+    } else {
+      out.push({ type: 'projectsEmpty', id: 'projects_empty' });
     }
     return out;
   }, [labourFeed, filteredProjects, filtered.length]);
@@ -909,12 +922,21 @@ export default function LabourScreen() {
   // title ("Labour" / "Projects") or a 2-up row of cards.
   const renderRow = ({ item: row, index }) => {
     if (row.type === 'sectionHeader') {
-      if (row.count === 0) return null;
+      if (row.count === 0 && !row.alwaysShow) return null;
       return (
         <View style={cs.sectionHeaderRow}>
           <Text style={cs.sectionHeaderTxt}>{row.title}</Text>
           <Text style={cs.sectionHeaderCount}>{row.count}</Text>
         </View>
+      );
+    }
+    if (row.type === 'projectsEmpty') {
+      return (
+        <TouchableOpacity style={cs.projectsEmptyCard} onPress={() => nav.navigate('PostProject')} activeOpacity={0.85}>
+          <Ionicons name="briefcase-outline" size={22} color={ORANGE} />
+          <Text style={cs.projectsEmptyTitle}>{t('lbNoProjectsYet')}</Text>
+          <Text style={cs.projectsEmptySub}>{t('lbPostProjectCta')}</Text>
+        </TouchableOpacity>
       );
     }
     return (
