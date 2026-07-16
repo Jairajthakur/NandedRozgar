@@ -620,23 +620,6 @@ export default function LabourScreen() {
 
   const isPremium = useIsPremium();
 
-  // Insert one native ad card after every NATIVE_AD_FREQUENCY real profiles —
-  // skipped for premium users and on web (ADS_SUPPORTED is native-only).
-  const labourFeed = useMemo(() => {
-    if (!ADS_SUPPORTED || isPremium) return filtered;
-    const withAds = [];
-    let sinceLastAd = 0;
-    filtered.forEach(item => {
-      withAds.push(item);
-      sinceLastAd++;
-      if (sinceLastAd >= NATIVE_AD_FREQUENCY) {
-        withAds.push({ __isAd: true, id: 'ad_' + withAds.length });
-        sinceLastAd = 0;
-      }
-    });
-    return withAds;
-  }, [filtered, isPremium]);
-
   // Chunk a flat list of cards into 2-up rows for the grid.
   const chunkIntoRows = (arr, rowPrefix) =>
     arr.reduce((rows, item, i) => {
@@ -648,11 +631,29 @@ export default function LabourScreen() {
   // Two distinct sections, each in its own labelled 2-column grid: Labour
   // profiles first, then open Projects — rather than mixing the two types
   // of card together in one feed.
+  //
+  // Ads are NOT mixed into the card-pairing step — an ad slot that fails
+  // to fill (e.g. AdMob not yet verified, or on Expo Go without the native
+  // module) renders nothing, and if it had taken one half of a 2-up row,
+  // the real profile next to it would be stranded next to a blank gap.
+  // Instead every NATIVE_AD_FREQUENCY real profiles we insert a dedicated
+  // full-width "adRow" between pair-rows — if it doesn't fill, that row
+  // just collapses to nothing instead of leaving a broken-looking grid.
   const sectionedFeed = useMemo(() => {
     const out = [];
     if (activeSection === 'labour') {
       out.push({ type: 'sectionHeader', id: 'section_labour', title: 'Labour', count: filtered.length, alwaysShow: true });
-      out.push(...chunkIntoRows(labourFeed, 'labour'));
+      const rows = chunkIntoRows(filtered, 'labour');
+      const showAds = ADS_SUPPORTED && !isPremium;
+      let sinceLastAd = 0;
+      rows.forEach((row, ri) => {
+        out.push(row);
+        sinceLastAd += row.items.length;
+        if (showAds && sinceLastAd >= NATIVE_AD_FREQUENCY) {
+          out.push({ type: 'adRow', id: `labour_adrow_${ri}` });
+          sinceLastAd = 0;
+        }
+      });
     } else {
       out.push({ type: 'sectionHeader', id: 'section_projects', title: 'Projects', count: filteredProjects.length, alwaysShow: true });
       if (filteredProjects.length > 0) {
@@ -662,7 +663,7 @@ export default function LabourScreen() {
       }
     }
     return out;
-  }, [activeSection, labourFeed, filteredProjects, filtered.length]);
+  }, [activeSection, filtered, filteredProjects, isPremium]);
 
   const activeFiltersCount =
     (wageRange.label !== 'Any' ? 1 : 0) + (availability !== 'All' ? 1 : 0) + (profileTypeFilter !== 'All' ? 1 : 0)
@@ -989,10 +990,8 @@ export default function LabourScreen() {
     </Modal>
   );
 
-  // Renders a single card (ad / labour profile) into a grid cell — used for
-  // the Labour section only; Projects render full-width via ProjectFullCard.
+  // Renders a single labour-profile card into a grid cell.
   const renderCell = (item, index) => {
-    if (item.__isAd) return <View key={item.id} style={cs.gridCell}><NativeAdCard /></View>;
     return (
       <View key={item.id} style={cs.gridCell}>
         <LabourCard
@@ -1018,6 +1017,9 @@ export default function LabourScreen() {
           <Text style={cs.sectionHeaderCount}>{row.count}</Text>
         </View>
       );
+    }
+    if (row.type === 'adRow') {
+      return <NativeAdCard />;
     }
     if (row.type === 'projectsEmpty') {
       return (
