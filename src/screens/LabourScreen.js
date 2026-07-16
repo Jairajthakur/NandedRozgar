@@ -375,6 +375,18 @@ export default function LabourScreen() {
   const [walletBalance, setWalletBalance] = useState(null);
   const listRef = useRef(null);
   const scrollToLabour = () => listRef.current?.scrollToOffset?.({ offset: 0, animated: true });
+  const scrollToProjects = () => {
+    const idx = sectionedFeed.findIndex(r => r.id === 'section_projects');
+    if (idx >= 0) listRef.current?.scrollToIndex?.({ index: idx, animated: true, viewPosition: 0 });
+  };
+  // Rows vary in height (section headers vs 2-up card rows vs the empty
+  // state), so there's no fixed getItemLayout — retry with an offset guess
+  // if the first scrollToIndex attempt misses.
+  const onScrollToIndexFailed = (info) => {
+    setTimeout(() => {
+      listRef.current?.scrollToOffset?.({ offset: info.averageItemLength * info.index, animated: true });
+    }, 50);
+  };
 
   // ── Ad-hoc multi-select hire ── contractor picks any workers while
   // browsing (not necessarily part of a pre-formed Crew) and hires them
@@ -787,7 +799,7 @@ export default function LabourScreen() {
           </LinearGradient>
           <Text style={cs.optionPillLabel}>{t('labour')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={cs.optionPill} onPress={() => nav.navigate('Projects')} activeOpacity={0.85}>
+        <TouchableOpacity style={cs.optionPill} onPress={scrollToProjects} activeOpacity={0.85}>
           <LinearGradient colors={['#93c5fd', '#2563eb']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.optionPillIcon}>
             <Ionicons name="briefcase" size={16} color="#fff" />
           </LinearGradient>
@@ -1082,6 +1094,7 @@ export default function LabourScreen() {
               ListHeaderComponent={Header}
               renderItem={renderRow}
               ListEmptyComponent={!loading && EmptyState}
+              onScrollToIndexFailed={onScrollToIndexFailed}
             />
           </View>
 
@@ -1155,6 +1168,7 @@ export default function LabourScreen() {
         ListHeaderComponent={Header}
         renderItem={renderRow}
         ListEmptyComponent={!loading && EmptyState}
+        onScrollToIndexFailed={onScrollToIndexFailed}
         ListFooterComponent={
           !isPremium && filtered.length > 0 ? <BannerAd /> : null
         }
