@@ -338,6 +338,15 @@ const cs = StyleSheet.create({
   },
   projectsEmptyTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginTop: 8 },
   projectsEmptySub: { fontSize: 12, color: '#999', fontWeight: '600', marginTop: 3, textAlign: 'center' },
+
+  optionPillRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  optionPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#fff', borderRadius: 100, paddingVertical: 8, paddingRight: 16, paddingLeft: 8,
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  },
+  optionPillIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  optionPillLabel: { fontSize: 14, fontWeight: '800', color: '#111' },
 });
 
 // ── Main screen ─────────────────────────────────────────────────────────────
@@ -364,6 +373,8 @@ export default function LabourScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState(null);
   const [walletBalance, setWalletBalance] = useState(null);
+  const listRef = useRef(null);
+  const scrollToLabour = () => listRef.current?.scrollToOffset?.({ offset: 0, animated: true });
 
   // ── Ad-hoc multi-select hire ── contractor picks any workers while
   // browsing (not necessarily part of a pre-formed Crew) and hires them
@@ -768,6 +779,21 @@ export default function LabourScreen() {
           )}
         </View>
       )}
+
+      <View style={cs.optionPillRow}>
+        <TouchableOpacity style={cs.optionPill} onPress={scrollToLabour} activeOpacity={0.85}>
+          <LinearGradient colors={['#5eead4', '#0d9488']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.optionPillIcon}>
+            <Ionicons name="hammer" size={16} color="#fff" />
+          </LinearGradient>
+          <Text style={cs.optionPillLabel}>{t('labour')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={cs.optionPill} onPress={() => nav.navigate('Projects')} activeOpacity={0.85}>
+          <LinearGradient colors={['#93c5fd', '#2563eb']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.optionPillIcon}>
+            <Ionicons name="briefcase" size={16} color="#fff" />
+          </LinearGradient>
+          <Text style={cs.optionPillLabel}>{t('projTopBarTitle')}</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -1046,6 +1072,7 @@ export default function LabourScreen() {
 
           <View style={[ws.mainCol, !showSidebar && { marginLeft: 0, marginRight: 0 }]}>
             <FlatList
+              ref={listRef}
               data={sectionedFeed}
               keyExtractor={row => row.id}
               style={{ width: '100%' }}
@@ -1118,6 +1145,7 @@ export default function LabourScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f7f7f7" />
       <FlatList
+        ref={listRef}
         data={sectionedFeed}
         keyExtractor={row => row.id}
         style={{ width: '100%' }}
