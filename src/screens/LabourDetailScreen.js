@@ -1,13 +1,10 @@
 /**
- * LabourDetailScreen.js — view a labourer's profile, pay-per-day to unlock
- * their phone number, and optionally send a formal hire request.
+ * LabourDetailScreen.js — view a labourer's profile and send a hire request.
  *
- * Reads GET /api/labour/:id (phone comes back masked until unlocked).
- * Unlock flow: POST /api/labour/:id/unlock — an instant in-app wallet debit,
- * no gateway checkout. If the wallet balance is too low, we top it up first
- * via the generic Cashfree wallet flow (POST /api/payments/wallet/topup/order
- * → checkout → POST /api/payments/wallet/topup/verify) and then retry the
- * unlock automatically.
+ * Reads GET /api/labour/:id (phone comes back masked). The phone number
+ * only becomes visible once the worker accepts the hire request — there is
+ * no separate "unlock" step or charge before that. Sending a request is
+ * always free; the one-time hire fee is only charged if the worker accepts.
  *
  * Place at: src/screens/LabourDetailScreen.js
  */
@@ -85,16 +82,13 @@ export default function LabourDetailScreen() {
   const [workDate, setWorkDate] = useState(null); // 'YYYY-MM-DD' or null (unspecified)
   const [sending, setSending]   = useState(false);
 
-  // Pay-per-day contact unlock
-  const [contactUnlocked, setContactUnlocked] = useState(false);
-  const [unlockExpiresAt, setUnlockExpiresAt] = useState(null);
-  const [ratePerDay, setRatePerDay]           = useState(10);
-  const [days, setDays]                       = useState(1);
-  const [unlocking, setUnlocking]             = useState(false);
+  // Contact is revealed once the worker accepts a hire request — no paid
+  // or free "unlock" step before that.
+  const [contactUnlocked, setContactUnlocked]       = useState(false);
+  const [hasPendingRequest, setHasPendingRequest]   = useState(false);
   const [hasPhone, setHasPhone]               = useState(true);
   const [checkingIn, setCheckingIn]           = useState(false);
   const [previouslyHired, setPreviouslyHired] = useState(false);
-  const [rehiring, setRehiring]               = useState(false);
   const [favourited, setFavourited]           = useState(false);
   const [favBusy, setFavBusy]                 = useState(false);
   const [leaderboard, setLeaderboard]         = useState(null);
@@ -109,8 +103,7 @@ export default function LabourDetailScreen() {
     if (res?.ok) {
       setProfile(res.profile);
       setContactUnlocked(!!res.contactUnlocked);
-      setUnlockExpiresAt(res.unlockExpiresAt || null);
-      if (res.contactRatePerDay) setRatePerDay(res.contactRatePerDay);
+      setHasPendingRequest(!!res.hasPendingRequest);
       setHasPhone(res.hasPhone !== false);
       setPreviouslyHired(!!res.previouslyHired);
       setFavourited(!!res.isFavourited);
@@ -142,71 +135,16 @@ export default function LabourDetailScreen() {
     });
   }, [isOwnProfile, profile?.district]);
 
-  const unlockContact = async (openHireAfter = false) => {
-    if (!hasPhone) return; // nothing to unlock — button should be hidden, but guard anyway
-    if (!user) {
-      Alert.alert('Login required', 'Please log in to unlock this contact.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Log in', onPress: () => nav.navigate('Login') },
-      ]);
-      return;
-    }
-    setUnlocking(true);
-    // Unlocking is free — the only charge in the whole hire flow is the
-    // one-time hire fee, applied later when the worker accepts.
-    const res = await http('POST', `/api/labour/${id}/unlock`, { days });
-    setUnlocking(false);
-
-    if (res?.ok) {
-      setProfile(res.profile);
-      setContactUnlocked(true);
-      setUnlockExpiresAt(res.expiresAt);
-      Toast.show({ type: 'success', text1: 'Contact unlocked!', text2: `Valid for ${days} day${days > 1 ? 's' : ''}.` });
-      if (openHireAfter) setHireOpen(true);
-    } else {
-      Toast.show({ type: 'error', text1: 'Could not unlock contact', text2: res?.error || 'Please try again.' });
-    }
-  };
-
-  // "Hire again" — for a contractor who has already completed a job with
-  // this worker, skip the paid unlock entirely and go straight to the free
-  // re-unlock + hire form.
-  const rehire = async (openHireAfter = true) => {
-    if (!user) {
-      Alert.alert('Login required', 'Please log in to hire this worker again.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Log in', onPress: () => nav.navigate('Login') },
-      ]);
-      return;
-    }
-    setRehiring(true);
-    const res = await http('POST', `/api/labour/${id}/rehire-unlock`);
-    setRehiring(false);
-    if (res?.ok) {
-      setProfile(res.profile);
-      setContactUnlocked(true);
-      setUnlockExpiresAt(res.unlockExpiresAt);
-      Toast.show({ type: 'success', text1: 'Contact unlocked — no charge', text2: "You've worked together before, so this one's on the house." });
-      if (openHireAfter) setHireOpen(true);
-    } else {
-      Toast.show({ type: 'error', text1: 'Could not unlock contact', text2: res?.error || 'Please try again.' });
-    }
-  };
-
-  // "Hire now" now gates on a paid contact unlock — you can't send a hire
-  // request until you've paid to unlock the phone number.
+  // "Hire now" just opens the request form — nothing to unlock or pay for
+  // upfront. The worker's phone number becomes visible once they accept.
   const handleHirePress = () => {
     if (hireOpen) { setHireOpen(false); return; }
-    if (!hasPhone) {
+    if (!hasPhone && !contactUnlocked) {
       Toast.show({ type: 'error', text1: 'No contact number on file', text2: `${(profile?.full_name || 'This worker').split(' ')[0]} hasn't added one yet.` });
       return;
     }
-    if (!contactUnlocked && previouslyHired) {
-      rehire(true); // repeat relationship — free re-unlock instead of paid flow
-      return;
-    }
-    if (!contactUnlocked) {
-      unlockContact(true); // pay first, then open the hire form automatically
+    if (hasPendingRequest) {
+      Toast.show({ type: 'info', text1: 'Request already sent', text2: `Waiting for ${(profile?.full_name || 'them').split(' ')[0]} to respond.` });
       return;
     }
     setHireOpen(true);
@@ -233,6 +171,7 @@ export default function LabourDetailScreen() {
       setWorkDesc('');
       setWage('');
       setWorkDate(null);
+      if (!contactUnlocked) setHasPendingRequest(true);
     } else {
       Toast.show({ type: 'error', text1: 'Could not send request', text2: res?.error || 'Please try again.' });
     }
@@ -471,7 +410,7 @@ export default function LabourDetailScreen() {
         {!isOwnProfile && (
           <FadeSlide delay={80}>
             <SectionCard style={{ paddingVertical: 12 }}>
-              <HireFlowSteps activeKey={contactUnlocked ? 'request' : 'unlock'} />
+              <HireFlowSteps activeKey={contactUnlocked ? 'contact' : hasPendingRequest ? 'accepted' : 'request'} />
             </SectionCard>
           </FadeSlide>
         )}
@@ -489,84 +428,51 @@ export default function LabourDetailScreen() {
           )}
         </FadeSlide>
 
-        {/* ── Pay-per-day contact unlock ─────────────────────────────────── */}
+        {/* ── Contact — hidden until the worker accepts a hire request ────── */}
         <FadeSlide delay={110} style={s.card}>
           <Text style={s.sectionTitle}>Contact</Text>
 
-          {!hasPhone ? (
+          {contactUnlocked ? (
+            <View style={s.unlockedRow}>
+              <Ionicons name="call" size={16} color={LABOUR_COLOR} />
+              <Text style={s.phoneValue}>{profile.user_phone || 'Phone unavailable'}</Text>
+            </View>
+          ) : !hasPhone ? (
             <View style={s.unlockedRow}>
               <Ionicons name="call-outline" size={16} color="#999" />
               <Text style={s.unlockNote}>
                 No contact number on file yet for {(profile.full_name || 'this worker').split(' ')[0]} — try sending a hire request instead.
               </Text>
             </View>
-          ) : contactUnlocked ? (
-            <View style={s.unlockedRow}>
-              <Ionicons name="call" size={16} color={LABOUR_COLOR} />
-              <Text style={s.phoneValue}>{profile.user_phone || 'Phone unavailable'}</Text>
-              {unlockExpiresAt && (
-                <Text style={s.unlockNote}>
-                  · unlocked until {new Date(unlockExpiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                </Text>
-              )}
-            </View>
-          ) : previouslyHired ? (
+          ) : hasPendingRequest ? (
             <View>
               <View style={s.repeatBadge}>
-                <Ionicons name="refresh-outline" size={13} color="#15803d" />
-                <Text style={s.repeatBadgeTxt}>You've hired {(profile.full_name || 'this worker').split(' ')[0]} before</Text>
+                <Ionicons name="time-outline" size={13} color="#15803d" />
+                <Text style={s.repeatBadgeTxt}>Request sent — waiting for a response</Text>
               </View>
               <Text style={s.bioTxt}>
-                No need to pay again — unlock their number for free and send another hire request.
+                You'll see {(profile.full_name || 'this worker').split(' ')[0]}'s phone number here as soon as they accept.
               </Text>
-              <TouchableOpacity
-                style={[s.unlockBtn, { backgroundColor: '#16a34a' }, rehiring && { opacity: 0.7 }]}
-                onPress={() => rehire(false)}
-                disabled={rehiring}
-                activeOpacity={0.88}
-              >
-                {rehiring
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.unlockBtnTxt}>Unlock free — hire again</Text>}
-              </TouchableOpacity>
             </View>
           ) : (
             <View>
-              <Text style={s.bioTxt}>
-                Unlock {(profile.full_name || 'this worker').split(' ')[0]}'s phone number for free —
-                you're only charged the one-time hire fee if they accept your request.
-              </Text>
-
-              <View style={s.stepperRow}>
-                <Text style={s.stepperLabel}>Days needed</Text>
-                <View style={s.stepper}>
-                  <TouchableOpacity
-                    style={s.stepperBtn}
-                    onPress={() => setDays(d => Math.max(1, d - 1))}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="remove" size={16} color={LABOUR_COLOR} />
-                  </TouchableOpacity>
-                  <Text style={s.daysValue}>{days}</Text>
-                  <TouchableOpacity
-                    style={s.stepperBtn}
-                    onPress={() => setDays(d => Math.min(30, d + 1))}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="add" size={16} color={LABOUR_COLOR} />
-                  </TouchableOpacity>
+              {previouslyHired && (
+                <View style={s.repeatBadge}>
+                  <Ionicons name="refresh-outline" size={13} color="#15803d" />
+                  <Text style={s.repeatBadgeTxt}>You've hired {(profile.full_name || 'this worker').split(' ')[0]} before</Text>
                 </View>
-              </View>
-
+              )}
+              <Text style={s.bioTxt}>
+                Send a hire request to {(profile.full_name || 'this worker').split(' ')[0]} — their phone number
+                will appear here once they accept. It's free to send; a small one-time hire fee is
+                only charged if they accept.
+              </Text>
               <TouchableOpacity
-                style={[s.unlockBtn, unlocking && { opacity: 0.7 }]}
-                onPress={() => unlockContact(false)}
-                disabled={unlocking}
+                style={s.unlockBtn}
+                onPress={() => setHireOpen(true)}
                 activeOpacity={0.88}
               >
-                {unlocking
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.unlockBtnTxt}>Unlock contact — Free</Text>}
+                <Text style={s.unlockBtnTxt}>Send hire request</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -612,21 +518,16 @@ export default function LabourDetailScreen() {
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={s.hireBtn}
+          style={[s.hireBtn, hasPendingRequest && !hireOpen && { opacity: 0.6 }]}
           onPress={handleHirePress}
-          disabled={unlocking || rehiring}
           activeOpacity={0.88}
         >
-          {(unlocking || rehiring)
-            ? <ActivityIndicator color="#fff" />
-            : (
-              <Text style={s.hireBtnTxt}>
-                {hireOpen ? 'Cancel'
-                  : (contactUnlocked || !hasPhone) ? 'Hire now'
-                  : previouslyHired ? 'Hire again — free'
-                  : `Unlock & hire`}
-              </Text>
-            )}
+          <Text style={s.hireBtnTxt}>
+            {hireOpen ? 'Cancel'
+              : hasPendingRequest ? 'Request pending'
+              : contactUnlocked ? 'Hire again'
+              : 'Send hire request'}
+          </Text>
         </TouchableOpacity>
       </View>
 
