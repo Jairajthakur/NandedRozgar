@@ -339,7 +339,8 @@ const cs = StyleSheet.create({
   projectsEmptyTitle: { fontSize: 14, fontWeight: '800', color: '#111', marginTop: 8 },
   projectsEmptySub: { fontSize: 12, color: '#999', fontWeight: '600', marginTop: 3, textAlign: 'center' },
 
-  optionPillRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  optionPillWrap: { paddingHorizontal: IS_WEB ? 0 : 16, marginTop: 16, marginBottom: 4 },
+  optionPillRow: { flexDirection: 'row', gap: 10 },
   optionPill: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: '#fff', borderRadius: 100, paddingVertical: 8, paddingRight: 16, paddingLeft: 8,
@@ -607,6 +608,7 @@ export default function LabourScreen() {
 
   // ── Header (shared mobile + web) ───────────────────────────────────────────
   const Header = (
+    <>
     <View style={IS_WEB ? ws.header : s.header}>
       <View style={s.titleRow}>
         <View style={{ flex: 1 }}>
@@ -783,7 +785,9 @@ export default function LabourScreen() {
           )}
         </View>
       )}
+    </View>
 
+    <View style={cs.optionPillWrap}>
       <View style={cs.optionPillRow}>
         <TouchableOpacity style={[cs.optionPill, activeSection === 'labour' && cs.optionPillActive]} onPress={showLabourOnly} activeOpacity={0.85}>
           <LinearGradient colors={['#5eead4', '#0d9488']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.optionPillIcon}>
@@ -799,6 +803,7 @@ export default function LabourScreen() {
         </TouchableOpacity>
       </View>
     </View>
+    </>
   );
 
   // ── Filter modal (wage range + availability) ───────────────────────────────
