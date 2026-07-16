@@ -426,31 +426,23 @@ router.get('/:id', async (req, res) => {
 
     const userId = getUserIdFromReq(req);
     let contactUnlocked = false;
-    let unlockExpiresAt = null;
     let previouslyHired = false;
+    let hasPendingRequest = false;
 
     if (userId && userId === profile.user_id) {
       contactUnlocked = true; // labourer viewing their own profile
     } else if (userId) {
-      const { rows } = await pool.query(
-        `SELECT expires_at FROM labour_contact_unlocks
-         WHERE contractor_id = $1 AND labour_id = $2 AND expires_at > NOW()
-         ORDER BY expires_at DESC LIMIT 1`,
+      // Contact stays hidden until the labourer actually accepts a hire
+      // request from this contractor — no more paying/unlocking upfront to
+      // see the number. Once accepted (or later completed), the number
+      // stays visible for this pair going forward.
+      const { rows: statusRows } = await pool.query(
+        `SELECT status FROM hire_requests WHERE contractor_id = $1 AND labour_id = $2`,
         [userId, id]
       );
-      if (rows.length) {
-        contactUnlocked = true;
-        unlockExpiresAt = rows[0].expires_at;
-      }
-
-      // Real chowk relationships are repeat relationships — once a contractor
-      // has actually finished a job with this worker, later visits don't need
-      // to re-charge for the same contact. See POST /:id/rehire-unlock.
-      const { rows: completedRows } = await pool.query(
-        `SELECT 1 FROM hire_requests WHERE contractor_id = $1 AND labour_id = $2 AND status = 'completed' LIMIT 1`,
-        [userId, id]
-      );
-      previouslyHired = completedRows.length > 0;
+      contactUnlocked = statusRows.some(r => r.status === 'accepted' || r.status === 'completed');
+      previouslyHired = statusRows.some(r => r.status === 'completed');
+      hasPendingRequest = !contactUnlocked && statusRows.some(r => r.status === 'pending');
     }
 
     let isFavourited = false;
@@ -473,12 +465,10 @@ router.get('/:id', async (req, res) => {
     res.json({
       ok: true,
       profile: { ...safeProfile, checked_in_today: checkedInToday },
-      contactUnlocked,
-      unlockExpiresAt,
-      contactRatePerDay: CONTACT_RATE_PER_DAY,
-      hasPhone, // lets the client hide/disable the paid-unlock flow when there's nothing to unlock
-      previouslyHired, // lets the client show a "Hire again" shortcut instead of the paid unlock flow
-      rehireFreeDays: REHIRE_FREE_DAYS,
+      contactUnlocked, // true once this contractor has an accepted/completed hire request with this worker
+      hasPendingRequest, // a request is out and awaiting the worker's decision
+      hasPhone, // lets the client hide/disable the hire flow when there's nothing to unlock
+      previouslyHired, // lets the client show a "worked together before" note
       isFavourited,
     });
   } catch (err) {
@@ -889,16 +879,12 @@ router.delete('/:id/voice-bio', auth, async (req, res) => {
   }
 });
 
-// POST /api/labour/:id/unlock — FREE contact unlock. Reveals the worker's
-// phone number and satisfies the "must unlock before hiring" gate below, but
-// charges nothing and pays the labourer no commission here.
-//
-// CHANGED: contractors used to be charged ₹10/day here AND ₹10 again on
-// hire-accept — a double charge for what is really one transaction (find
-// the worker, then hire them). Now the only money that moves in the whole
-// labour flow is the single HIRE_FEE, charged once when a hire request is
-// accepted. CONTACT_RATE_PER_DAY / CONTACT_COMMISSION_PER_DAY are kept
-// defined above for reference but are no longer applied to a real charge.
+// POST /api/labour/:id/unlock — LEGACY, no longer called by the app.
+// Contact used to be unlockable upfront (for free) before sending a hire
+// request; now the phone number only becomes visible once the worker
+// accepts the request (see GET /:id and PATCH /hire-requests/:id). Left in
+// place so old app builds and the labour_contact_unlocks table/analytics
+// don't break, but new clients never hit this route.
 router.post('/:id/unlock', auth, async (req, res) => {
   try {
     const labourId = parseInt(req.params.id);
@@ -950,8 +936,9 @@ router.post('/:id/unlock', auth, async (req, res) => {
 });
 
 // POST /api/labour/:id/hire — contractor sends a hire request
-// Requires an active paid contact unlock: hiring is gated behind the same
-// pay-per-day contact purchase, so this can't be used to bypass that paywall.
+// No upfront unlock required — anyone can send a request. The worker's
+// phone number only becomes visible to the contractor once they accept it
+// (see GET /:id), and the HIRE_FEE is only charged at that point too.
 router.post('/:id/hire', auth, async (req, res) => {
   try {
     const labourId = parseInt(req.params.id);
@@ -970,14 +957,15 @@ router.post('/:id/hire', auth, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'You cannot hire yourself' });
     }
 
-    const { rows: unlockRows } = await pool.query(
-      `SELECT 1 FROM labour_contact_unlocks
-       WHERE contractor_id = $1 AND labour_id = $2 AND expires_at > NOW()
-       LIMIT 1`,
+    // Contact is no longer paid/unlocked upfront — it only becomes visible
+    // once the worker accepts (see GET /:id). Just guard against sending a
+    // second request while one is still pending on this pair.
+    const { rows: pendingRows } = await pool.query(
+      `SELECT 1 FROM hire_requests WHERE contractor_id = $1 AND labour_id = $2 AND status = 'pending' LIMIT 1`,
       [req.user.id, labourId]
     );
-    if (!unlockRows.length) {
-      return res.status(402).json({ ok: false, error: 'Unlock this worker\'s contact before sending a hire request.' });
+    if (pendingRows.length) {
+      return res.status(409).json({ ok: false, error: 'You already have a pending request with this worker — wait for them to respond.' });
     }
 
     // Don't let a contractor send a request they can't afford to have
@@ -1029,12 +1017,10 @@ router.post('/:id/hire', auth, async (req, res) => {
 // any set of individual workers while browsing (not necessarily part of a
 // pre-formed Crew) and hires them all in one action.
 //
-// CHANGED: unlocking is now free everywhere (see /:id/unlock above), so any
-// selected worker the contractor hasn't already unlocked just gets a free
-// 1-day unlock record created automatically here — no wallet charge, no
-// commission. The only charge in the whole labour flow is the HIRE_FEE,
-// applied once per worker when their hire request is accepted.
-// One hire_requests row is created per worker either way.
+// No contact unlock involved — each worker's number stays hidden until they
+// individually accept their own request. The only charge in the whole
+// labour flow is the HIRE_FEE, applied once per worker when their hire
+// request is accepted. One hire_requests row is created per worker.
 router.post('/hire-bulk', auth, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1080,15 +1066,6 @@ router.post('/hire-bulk', auth, async (req, res) => {
       return res.status(404).json({ ok: false, error: 'None of the selected workers are available to hire right now.' });
     }
 
-    // Which of the valid ones already have an active unlock (manual or free
-    // rehire window) — only the rest need a fresh unlock charged.
-    const { rows: unlockedRows } = await client.query(`
-      SELECT DISTINCT labour_id FROM labour_contact_unlocks
-      WHERE contractor_id = $1 AND labour_id = ANY($2::int[]) AND expires_at > NOW()
-    `, [req.user.id, validIds]);
-    const alreadyUnlocked = new Set(unlockedRows.map(r => r.labour_id));
-    const needsUnlock = validIds.filter(id => !alreadyUnlocked.has(id));
-
     // Don't let a contractor send requests they can't afford to have all
     // accepted. Each accepted request charges HIRE_FEE independently, so
     // require enough balance to cover every worker in this batch up front —
@@ -1108,15 +1085,6 @@ router.post('/hire-bulk', auth, async (req, res) => {
       });
     }
 
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    for (const labourId of needsUnlock) {
-      await client.query(`
-        INSERT INTO labour_contact_unlocks
-          (contractor_id, labour_id, days, amount, cashfree_order_id, expires_at)
-        VALUES ($1, $2, 1, 0, 'FREE', $3)
-      `, [req.user.id, labourId, expiresAt]);
-    }
-
     const created = [];
     for (const labourId of validIds) {
       const { rows } = await client.query(`
@@ -1132,7 +1100,6 @@ router.post('/hire-bulk', auth, async (req, res) => {
       ok: true,
       hireRequests: created,
       skippedIds,
-      unlocksGranted: needsUnlock.length,
       hireFeeInfo: { amount: HIRE_FEE, chargedWhen: 'accepted', perWorker: true },
     });
   } catch (err) {
@@ -1144,13 +1111,11 @@ router.post('/hire-bulk', auth, async (req, res) => {
   }
 });
 
-// POST /api/labour/:id/rehire-unlock — "Hire again" shortcut.
-// Real chowk relationships are repeat relationships: a contractor who has
-// already finished a job with this worker shouldn't have to pay to unlock
-// the same phone number again. Grants a short free re-unlock window instead
-// of re-charging — gated strictly behind a genuine COMPLETED hire between
-// this exact contractor/labour pair, so it can't be used to skip paying the
-// first time.
+// POST /api/labour/:id/rehire-unlock — LEGACY, no longer called by the app.
+// Contact now stays visible automatically for any pair with an
+// accepted/completed hire request (see GET /:id), so a completed hire
+// already implies an unlocked contact with no separate step needed. Left in
+// place for old app builds only.
 router.post('/:id/rehire-unlock', auth, async (req, res) => {
   try {
     const labourId = parseInt(req.params.id);
