@@ -262,6 +262,70 @@ function ProjectGridCard({ item, onPress, index = 0 }) {
   );
 }
 
+// ── Full-width Project card — big banner + location pin + bold title +
+// contractor name + a rounded category tag, matching the single-column
+// "tender listing" look the user asked to match. No photo_url exists on
+// projects yet, so the banner falls back to a skill-tinted gradient with a
+// large icon; if a photo_url is ever added server-side this will use it.
+function ProjectFullCard({ item, onPress, index = 0 }) {
+  const { t, lang } = useLang();
+  const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
+  const spotsLeft = item.spots_left;
+  const isFull = spotsLeft === 0;
+  const locationLine = [item.location, item.district].filter(Boolean).map((s, i) => i === 1 ? String(s).toUpperCase() : s).join(', ');
+
+  return (
+    <FadeIn delay={Math.min(index, 8) * 60}>
+      <TouchableOpacity style={cs.projectFullCard} onPress={onPress} activeOpacity={0.85}>
+        {item.photo_url ? (
+          <Image source={{ uri: item.photo_url }} style={cs.projectFullBanner} />
+        ) : (
+          <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.projectFullBanner}>
+            <Ionicons name={SKILL_ICONS[item.skill_category] || 'briefcase-outline'} size={56} color="rgba(255,255,255,0.45)" />
+          </LinearGradient>
+        )}
+
+        <View style={cs.projectFullBody}>
+          {!!locationLine && (
+            <View style={cs.projectFullLocRow}>
+              <Ionicons name="location-outline" size={13} color="#999" />
+              <Text style={cs.projectFullLocTxt} numberOfLines={1}>{locationLine}</Text>
+            </View>
+          )}
+
+          <AutoTranslate text={item.title} lang={lang} style={cs.projectFullTitle} numberOfLines={2} />
+
+          {!!item.contractor_name && (
+            <Text style={cs.projectFullContractor} numberOfLines={1}>{item.contractor_name}</Text>
+          )}
+
+          <View style={cs.projectFullTagRow}>
+            {!!item.skill_category && (
+              <View style={cs.projectFullTag}>
+                <Text style={cs.projectFullTagTxt}>{item.skill_category}</Text>
+              </View>
+            )}
+            {!!item.daily_wage && (
+              <View style={cs.projectFullTag}>
+                <Text style={cs.projectFullTagTxt}>₹{item.daily_wage}{t('projPerDaySuffix')}</Text>
+              </View>
+            )}
+            {spotsLeft != null && (
+              <View style={cs.projectFullTag}>
+                <Text style={cs.projectFullTagTxt}>
+                  {spotsLeft > 0
+                    ? t(spotsLeft > 1 ? 'projSpotPlural' : 'projSpotSingular').replace('{N}', spotsLeft)
+                    : t('projFull')}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    </FadeIn>
+  );
+}
+
 const cs = StyleSheet.create({
   rowWrap: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   sectionHeaderRow: {
@@ -349,6 +413,21 @@ const cs = StyleSheet.create({
   optionPillIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   optionPillLabel: { fontSize: 14, fontWeight: '800', color: '#111' },
   optionPillActive: { borderWidth: 2, borderColor: '#111' },
+
+  projectFullCard: {
+    backgroundColor: '#fff', borderRadius: 20, marginBottom: 18, overflow: 'hidden',
+    borderWidth: 1, borderColor: '#f0f0f0',
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 2,
+  },
+  projectFullBanner: { width: '100%', height: 190, alignItems: 'center', justifyContent: 'center' },
+  projectFullBody: { padding: 16 },
+  projectFullLocRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+  projectFullLocTxt: { fontSize: 12.5, color: '#999', fontWeight: '600' },
+  projectFullTitle: { fontSize: 19, fontWeight: '800', color: '#111', lineHeight: 24, marginBottom: 6 },
+  projectFullContractor: { fontSize: 14, color: '#555', fontWeight: '500', marginBottom: 14 },
+  projectFullTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  projectFullTag: { backgroundColor: '#f3f4f6', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 14 },
+  projectFullTagTxt: { fontSize: 13, fontWeight: '600', color: '#333' },
 });
 
 // ── Main screen ─────────────────────────────────────────────────────────────
@@ -582,7 +661,7 @@ export default function LabourScreen() {
     } else {
       out.push({ type: 'sectionHeader', id: 'section_projects', title: 'Projects', count: filteredProjects.length, alwaysShow: true });
       if (filteredProjects.length > 0) {
-        out.push(...chunkIntoRows(filteredProjects.map(p => ({ ...p, __isProject: true, id: `project_${p.id}` })), 'project'));
+        filteredProjects.forEach(p => out.push({ type: 'projectFull', id: `project_${p.id}`, item: p }));
       } else {
         out.push({ type: 'projectsEmpty', id: 'projects_empty' });
       }
@@ -925,20 +1004,10 @@ export default function LabourScreen() {
     </Modal>
   );
 
-  // Renders a single card (ad / project / labour profile) into a grid cell.
+  // Renders a single card (ad / labour profile) into a grid cell — used for
+  // the Labour section only; Projects render full-width via ProjectFullCard.
   const renderCell = (item, index) => {
     if (item.__isAd) return <View key={item.id} style={cs.gridCell}><NativeAdCard /></View>;
-    if (item.__isProject) {
-      return (
-        <View key={item.id} style={cs.gridCell}>
-          <ProjectGridCard
-            item={item}
-            index={index}
-            onPress={() => nav.navigate('ProjectDetail', { id: item.id.replace('project_', '') })}
-          />
-        </View>
-      );
-    }
     return (
       <View key={item.id} style={cs.gridCell}>
         <LabourCard
@@ -972,6 +1041,15 @@ export default function LabourScreen() {
           <Text style={cs.projectsEmptyTitle}>{t('lbNoProjectsYet')}</Text>
           <Text style={cs.projectsEmptySub}>{t('lbPostProjectCta')}</Text>
         </TouchableOpacity>
+      );
+    }
+    if (row.type === 'projectFull') {
+      return (
+        <ProjectFullCard
+          item={row.item}
+          index={index}
+          onPress={() => nav.navigate('ProjectDetail', { id: row.item.id })}
+        />
       );
     }
     return (
