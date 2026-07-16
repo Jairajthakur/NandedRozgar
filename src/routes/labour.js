@@ -1261,6 +1261,11 @@ router.get('/hire-requests/sent', auth, async (req, res) => {
 // GET /api/labour/hire-requests/received — hire requests sent to my labour
 // profile. Returns an empty list (not an error) if the user has no profile,
 // since a contractor-only account visiting this tab is a normal case.
+//
+// The contractor's phone number is masked until this labourer accepts the
+// request — symmetric with how the contractor can't see the labourer's
+// number until they accept. Once accepted (or later completed), it stays
+// visible for that request.
 router.get('/hire-requests/received', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -1271,7 +1276,11 @@ router.get('/hire-requests/received', auth, async (req, res) => {
       WHERE l.user_id = $1
       ORDER BY hr.created_at DESC
     `, [req.user.id]);
-    res.json({ ok: true, hireRequests: rows });
+    const safeRows = rows.map(r => ({
+      ...r,
+      contractor_phone: ['accepted', 'completed'].includes(r.status) ? r.contractor_phone : null,
+    }));
+    res.json({ ok: true, hireRequests: safeRows });
   } catch (err) {
     console.error('[labour] hire-requests/received error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to load hire requests' });
