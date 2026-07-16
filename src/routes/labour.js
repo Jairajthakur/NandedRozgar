@@ -942,7 +942,12 @@ router.post('/:id/unlock', auth, async (req, res) => {
 router.post('/:id/hire', auth, async (req, res) => {
   try {
     const labourId = parseInt(req.params.id);
-    const { work_description, proposed_wage, work_date, projectId } = req.body;
+    const { work_description, proposed_wage, work_date, projectId, contact_phone } = req.body;
+
+    const cleanPhone = (contact_phone || '').replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      return res.status(400).json({ ok: false, error: 'Please enter a valid 10-digit phone number.' });
+    }
 
     // LOOPHOLE FIX: this previously didn't check labour_profiles.status or
     // the owning user's active flag at all — a hire request (and the whole
@@ -994,10 +999,10 @@ router.post('/:id/hire', auth, async (req, res) => {
     }
 
     const result = await pool.query(`
-      INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, work_date, project_id)
-      VALUES ($1,$2,$3,$4,$5,$6)
+      INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, work_date, project_id, contact_phone)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
       RETURNING *
-    `, [labourId, req.user.id, work_description || null, proposed_wage || null, work_date || null, validProjectId]);
+    `, [labourId, req.user.id, work_description || null, proposed_wage || null, work_date || null, validProjectId, cleanPhone]);
 
     res.json({
       ok: true,
@@ -1279,6 +1284,7 @@ router.get('/hire-requests/received', auth, async (req, res) => {
     const safeRows = rows.map(r => ({
       ...r,
       contractor_phone: ['accepted', 'completed'].includes(r.status) ? r.contractor_phone : null,
+      contact_phone: ['accepted', 'completed'].includes(r.status) ? r.contact_phone : null,
     }));
     res.json({ ok: true, hireRequests: safeRows });
   } catch (err) {
