@@ -65,7 +65,7 @@ async function shareHireDetails(item) {
   const lines = [
     'Heading for a job — sharing details via NandedRozgar:',
     item.contractor_name ? `Contractor: ${item.contractor_name}` : null,
-    item.contractor_phone ? `Contact number: ${item.contractor_phone}` : null,
+    (item.contact_phone || item.contractor_phone) ? `Contact number: ${item.contact_phone || item.contractor_phone}` : null,
     item.work_description ? `Work: ${item.work_description}` : null,
     item.proposed_wage ? `Wage: ₹${item.proposed_wage}/day` : null,
     formatDate(item.work_date) ? `Date: ${formatDate(item.work_date)}` : null,
@@ -334,10 +334,14 @@ export default function HireRequestsScreen() {
     if (item.status === 'accepted') {
       return (
         <View>
-          {!!item.contractor_phone && (
-            <TouchableOpacity style={st.phoneRow} onPress={() => callNumber(item.contractor_phone)} activeOpacity={0.8}>
+          {!!(item.contact_phone || item.contractor_phone) && (
+            <TouchableOpacity
+              style={st.phoneRow}
+              onPress={() => callNumber(item.contact_phone || item.contractor_phone)}
+              activeOpacity={0.8}
+            >
               <Ionicons name="call" size={14} color={LABOUR} />
-              <Text style={st.phoneRowTxt}>{item.contractor_phone}</Text>
+              <Text style={st.phoneRowTxt}>{item.contact_phone || item.contractor_phone}</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
