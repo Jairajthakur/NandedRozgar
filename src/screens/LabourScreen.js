@@ -22,7 +22,8 @@ import NativeAdCard from '../components/ads/NativeAdCard';
 import BannerAd from '../components/ads/BannerAd';
 import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
 import { useIsPremium } from '../hooks/useIsPremium';
-import { LABOUR_COLORS, getSkillGradient } from '../constants/labourTheme';
+import { LABOUR_COLORS, SKILL_ICONS, getSkillGradient } from '../constants/labourTheme';
+import { AutoTranslate } from '../utils/translate';
 import TradeIcon from '../components/TradeIcon';
 import BulkHireModal from '../components/labour/BulkHireModal';
 
@@ -195,6 +196,72 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
   );
 }
 
+// ── Project tile — surfaces contractor-posted Projects in the same feed so
+// both workers ("users") and hirers ("contractors") see open project slots
+// alongside individual profiles, not just on the separate Projects tab.
+function ProjectGridCard({ item, onPress, index = 0 }) {
+  const { t, lang } = useLang();
+  const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
+  const spotsLeft = item.spots_left;
+  const almostFull = spotsLeft != null && spotsLeft <= 2;
+  const isFull = spotsLeft === 0;
+
+  return (
+    <FadeIn delay={Math.min(index, 8) * 60}>
+      <TouchableOpacity style={cs.projectCard} onPress={onPress} activeOpacity={0.8}>
+        <View style={cs.projectEyebrowRow}>
+          <View style={cs.projectEyebrow}>
+            <Ionicons name="briefcase" size={10} color={ORANGE} />
+            <Text style={cs.projectEyebrowTxt}>{t('projTag') || 'PROJECT'}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#c4c4cc" />
+        </View>
+
+        <View style={cs.cardTop}>
+          <View style={[cs.projectIconWrap, { backgroundColor: gradStart + '1a' }]}>
+            <Ionicons name={SKILL_ICONS[item.skill_category] || 'briefcase-outline'} size={20} color={gradStart} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <AutoTranslate text={item.title} lang={lang} style={cs.rowTitle} numberOfLines={1} />
+            <Text style={cs.projectMeta} numberOfLines={1}>
+              {item.contractor_name ? `${item.contractor_name} · ` : ''}{item.location || item.district || ''}
+            </Text>
+          </View>
+        </View>
+
+        <View style={cs.chipRow}>
+          {!!item.daily_wage && (
+            <View style={[cs.tradeChip, { backgroundColor: gradStart + '18' }]}>
+              <Ionicons name="cash-outline" size={11} color={gradStart} />
+              <Text style={[cs.tradeChipTxt, { color: gradStart }]} numberOfLines={1}>
+                ₹{item.daily_wage}{t('projPerDaySuffix')}
+              </Text>
+            </View>
+          )}
+          {!!item.duration_days && (
+            <View style={cs.plainChip}>
+              <Ionicons name="calendar-outline" size={9} color="#666" />
+              <Text style={cs.plainChipTxt} numberOfLines={1}>
+                {' '}{item.duration_days} {item.duration_days > 1 ? t('projDayPlural') : t('projDaySingular')}
+              </Text>
+            </View>
+          )}
+          {spotsLeft != null && (
+            <View style={[cs.plainChip, isFull ? null : almostFull ? cs.busyChip : cs.availableChip]}>
+              <Ionicons name="people-outline" size={9} color={isFull ? '#999' : almostFull ? '#b45309' : '#16a34a'} />
+              <Text style={cs.plainChipTxt} numberOfLines={1}>
+                {' '}{spotsLeft > 0
+                  ? t(spotsLeft > 1 ? 'projSpotPlural' : 'projSpotSingular').replace('{N}', spotsLeft)
+                  : t('projFull')}
+              </Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    </FadeIn>
+  );
+}
+
 const cs = StyleSheet.create({
   gridCell: { width: '48.5%', marginBottom: 12 },
   columnWrapper: { justifyContent: 'space-between' },
@@ -236,6 +303,24 @@ const cs = StyleSheet.create({
   busyChip: { backgroundColor: '#f4f4f5' },
   trustChip: { backgroundColor: '#f0fdfa' },
   plainChipTxt: { fontSize: 10.5, fontWeight: '700', color: '#666' },
+
+  projectCard: {
+    width: '100%', alignSelf: 'stretch',
+    backgroundColor: '#fffaf5', borderRadius: 16, padding: 12,
+    borderWidth: 1, borderColor: '#fde3c8',
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
+  },
+  projectEyebrowRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  projectEyebrow: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#fff', borderRadius: 6, paddingVertical: 2, paddingHorizontal: 6,
+    borderWidth: 1, borderColor: '#fde3c8',
+  },
+  projectEyebrowTxt: { fontSize: 9, fontWeight: '800', color: ORANGE, letterSpacing: 0.5 },
+  projectIconWrap: {
+    width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  projectMeta: { fontSize: 11, color: '#999', fontWeight: '600', marginTop: 2 },
 });
 
 // ── Main screen ─────────────────────────────────────────────────────────────
@@ -248,6 +333,7 @@ export default function LabourScreen() {
   const { user } = useAuth();
 
   const [labourers, setLabourers] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
@@ -331,6 +417,22 @@ export default function LabourScreen() {
 
   useEffect(() => { load(); }, [currentDistrict]);
 
+  // Open Projects (contractor-posted, instant-hire slots) shown alongside
+  // individual profiles here — visible to both workers ("users") looking
+  // for work and hirers ("contractors") browsing, not gated by labour_role.
+  useEffect(() => {
+    (async () => {
+      try {
+        const params = new URLSearchParams();
+        if (currentDistrict?.id) params.set('district', currentDistrict.id);
+        const res = await http('GET', `/api/projects?${params.toString()}`);
+        if (res?.ok) setProjects(res.projects || []);
+      } catch {
+        // non-fatal — the main labour feed still works without projects
+      }
+    })();
+  }, [currentDistrict]);
+
   // Sub-skill chip selection is scoped to the active category — reset it
   // whenever the category changes so stale chips don't silently filter results.
   useEffect(() => { setActiveSubSkills([]); }, [activeSkill]);
@@ -402,24 +504,43 @@ export default function LabourScreen() {
       .map(([name, count]) => ({ name, count }));
   }, [labourers]);
 
+  // Projects relevant to whatever category is currently active, so a
+  // contractor/worker filtering to "Electrician" also sees Electrician
+  // project openings, not unrelated ones.
+  const filteredProjects = useMemo(() => {
+    return activeSkill === 'All' ? projects : projects.filter(p => p.skill_category === activeSkill);
+  }, [projects, activeSkill]);
+
   const isPremium = useIsPremium();
 
-  // Insert one native ad card after every NATIVE_AD_FREQUENCY real profiles —
-  // skipped for premium users and on web (ADS_SUPPORTED is native-only).
+  // Insert one native ad card after every NATIVE_AD_FREQUENCY real profiles,
+  // and one open Project after every PROJECT_FREQUENCY real profiles —
+  // ads skipped for premium users and on web (ADS_SUPPORTED is native-only).
+  const PROJECT_FREQUENCY = 5;
   const feedWithAds = useMemo(() => {
-    if (!ADS_SUPPORTED || isPremium) return filtered;
-    const withAds = [];
+    const withExtras = [];
     let sinceLastAd = 0;
+    let sinceLastProject = 0;
+    let projectCursor = 0;
     filtered.forEach(item => {
-      withAds.push(item);
+      withExtras.push(item);
       sinceLastAd++;
-      if (sinceLastAd >= NATIVE_AD_FREQUENCY) {
-        withAds.push({ __isAd: true, id: 'ad_' + withAds.length });
+      sinceLastProject++;
+
+      if (filteredProjects.length > 0 && sinceLastProject >= PROJECT_FREQUENCY) {
+        const proj = filteredProjects[projectCursor % filteredProjects.length];
+        withExtras.push({ ...proj, __isProject: true, id: `project_${proj.id}` });
+        projectCursor++;
+        sinceLastProject = 0;
+      }
+
+      if (ADS_SUPPORTED && !isPremium && sinceLastAd >= NATIVE_AD_FREQUENCY) {
+        withExtras.push({ __isAd: true, id: 'ad_' + withExtras.length });
         sinceLastAd = 0;
       }
     });
-    return withAds;
-  }, [filtered, isPremium]);
+    return withExtras;
+  }, [filtered, filteredProjects, isPremium]);
 
   const activeFiltersCount =
     (wageRange.label !== 'Any' ? 1 : 0) + (availability !== 'All' ? 1 : 0) + (profileTypeFilter !== 'All' ? 1 : 0)
@@ -739,6 +860,17 @@ export default function LabourScreen() {
 
   const renderCard = ({ item, index }) => {
     if (item.__isAd) return <View style={cs.gridCell}><NativeAdCard /></View>;
+    if (item.__isProject) {
+      return (
+        <View style={cs.gridCell}>
+          <ProjectGridCard
+            item={item}
+            index={index}
+            onPress={() => nav.navigate('ProjectDetail', { id: item.id.replace('project_', '') })}
+          />
+        </View>
+      );
+    }
     return (
       <View style={cs.gridCell}>
         <LabourCard
