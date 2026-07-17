@@ -79,7 +79,7 @@ router.post('/', auth, async (req, res) => {
       return res.status(403).json({ ok: false, error: 'Labourers cannot post projects. Browse and apply to projects posted by contractors instead.' });
     }
 
-    const { title, description, skillCategory, district, location, budget, workersNeeded, durationDays, dailyWage } = req.body;
+    const { title, description, skillCategory, district, location, budget, workersNeeded, durationDays, dailyWage, photos } = req.body;
     if (!title?.trim()) return res.status(400).json({ ok: false, error: 'Project title is required' });
 
     const needed = parseInt(workersNeeded, 10) || 1;
@@ -90,11 +90,12 @@ router.post('/', auth, async (req, res) => {
 
     const autoBudget = wage && duration ? needed * wage * duration : null;
     const finalBudget = budget != null ? (parseFloat(budget) || null) : autoBudget;
+    const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
 
     const { rows } = await pool.query(`
       INSERT INTO labour_projects
-        (contractor_id, title, description, skill_category, district, location, workers_needed, duration_days, daily_wage, budget)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *
+        (contractor_id, title, description, skill_category, district, location, workers_needed, duration_days, daily_wage, budget, photos)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *
     `, [
       req.user.id,
       title.trim().slice(0, 150),
@@ -106,6 +107,7 @@ router.post('/', auth, async (req, res) => {
       duration,
       wage,
       finalBudget,
+      JSON.stringify(safePhotos),
     ]);
 
     res.json({ ok: true, project: rows[0] });
@@ -263,7 +265,7 @@ router.get('/', async (req, res) => {
     params.push(limit, offset);
     const { rows } = await pool.query(`
       SELECT p.id, p.title, p.description, p.skill_category, p.district, p.location,
-             p.workers_needed, p.duration_days, p.daily_wage, p.created_at,
+             p.workers_needed, p.duration_days, p.daily_wage, p.photos, p.created_at,
              u.name AS contractor_name,
              COUNT(hr.id) FILTER (WHERE hr.status IN ('accepted', 'completed'))::int AS spots_filled
       FROM labour_projects p
@@ -277,7 +279,13 @@ router.get('/', async (req, res) => {
 
     // Budget is the contractor's own business, not shown on the public
     // listing — workers see the wage/day being offered, not the running total spent.
-    const projects = rows.map(p => ({ ...p, spots_left: Math.max(0, p.workers_needed - p.spots_filled) }));
+    // photo_url (cover photo = first uploaded photo) powers the card thumbnail;
+    // ProjectCard already falls back to a gradient when it's missing.
+    const projects = rows.map(p => ({
+      ...p,
+      spots_left: Math.max(0, p.workers_needed - p.spots_filled),
+      photo_url: Array.isArray(p.photos) && p.photos.length ? p.photos[0] : null,
+    }));
     const result = { ok: true, projects };
     await cache.set(cacheKey, result, LIST_TTL);
     res.json(result);
@@ -349,7 +357,7 @@ router.patch('/:id', auth, async (req, res) => {
       return res.status(403).json({ ok: false, error: 'Only the project owner can edit it' });
     }
 
-    const { title, description, skillCategory, district, location, budget, status, workersNeeded, durationDays, dailyWage } = req.body;
+    const { title, description, skillCategory, district, location, budget, status, workersNeeded, durationDays, dailyWage, photos } = req.body;
     const { rows } = await pool.query(`
       UPDATE labour_projects SET
         title          = COALESCE($1, title),
@@ -361,8 +369,9 @@ router.patch('/:id', auth, async (req, res) => {
         status         = COALESCE($7, status),
         workers_needed = COALESCE($8, workers_needed),
         duration_days  = COALESCE($9, duration_days),
-        daily_wage     = COALESCE($10, daily_wage)
-      WHERE id = $11 RETURNING *
+        daily_wage     = COALESCE($10, daily_wage),
+        photos         = COALESCE($11, photos)
+      WHERE id = $12 RETURNING *
     `, [
       title?.trim() || null,
       description?.trim() || null,
@@ -374,6 +383,7 @@ router.patch('/:id', auth, async (req, res) => {
       workersNeeded != null ? parseInt(workersNeeded, 10) : null,
       durationDays != null ? parseInt(durationDays, 10) : null,
       dailyWage != null ? parseInt(dailyWage, 10) : null,
+      Array.isArray(photos) ? JSON.stringify(photos.slice(0, 10)) : null,
       id,
     ]);
 
