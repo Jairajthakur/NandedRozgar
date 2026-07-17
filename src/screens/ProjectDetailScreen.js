@@ -17,8 +17,8 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Platform, StatusBar,
+  View, Text, Image, ScrollView, TouchableOpacity, StyleSheet,
+  ActivityIndicator, Platform, StatusBar, Dimensions,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,6 +33,8 @@ import { LABOUR_COLORS, SPACING, RADIUS, SKILL_ICONS, getSkillGradient } from '.
 import { SectionCard, SectionTitle, Badge } from '../components/labour/LabourUI';
 
 const ORANGE = LABOUR_COLORS.primary;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const PHOTO_SIZE = Math.min(220, SCREEN_WIDTH * 0.6);
 
 // Skill category values are stored/sent in English; translate only the
 // display label shown to the person.
@@ -224,6 +226,17 @@ export default function ProjectDetailScreen() {
           </View>
         </SectionCard>
 
+        {Array.isArray(project.photos) && project.photos.length > 0 && (
+          <SectionCard>
+            <SectionTitle>{t('projPhotos')}</SectionTitle>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.photoRow}>
+              {project.photos.map((uri, idx) => (
+                <Image key={idx} source={{ uri }} style={s.photoThumb} resizeMode="cover" />
+              ))}
+            </ScrollView>
+          </SectionCard>
+        )}
+
         <SectionCard>
           <SectionTitle>{t('projTheOffer')}</SectionTitle>
           <View style={s.statRow}>
@@ -371,6 +384,12 @@ export default function ProjectDetailScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f3f4f6' },
   center: { alignItems: 'center', justifyContent: 'center', gap: 10 },
+
+  photoRow: { gap: 10, paddingVertical: 2 },
+  photoThumb: {
+    width: PHOTO_SIZE, height: PHOTO_SIZE * 0.72, borderRadius: RADIUS.lg,
+    backgroundColor: '#eee', borderWidth: 1, borderColor: LABOUR_COLORS.border,
+  },
 
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
