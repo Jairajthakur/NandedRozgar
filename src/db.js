@@ -1398,6 +1398,7 @@ async function runMigrations() {
         duration_days  INTEGER,
         daily_wage     INTEGER,
         budget         NUMERIC(12,2),
+        photos         JSONB DEFAULT '[]',
         status         VARCHAR(20) NOT NULL DEFAULT 'active'
                          CHECK (status IN ('active', 'filled', 'completed', 'archived')),
         created_at     TIMESTAMPTZ DEFAULT NOW()
@@ -1410,6 +1411,10 @@ async function runMigrations() {
     await client.query(`ALTER TABLE labour_projects ADD COLUMN IF NOT EXISTS workers_needed INTEGER NOT NULL DEFAULT 1`);
     await client.query(`ALTER TABLE labour_projects ADD COLUMN IF NOT EXISTS duration_days INTEGER`);
     await client.query(`ALTER TABLE labour_projects ADD COLUMN IF NOT EXISTS daily_wage INTEGER`);
+    // Site/work photos — same JSONB array-of-URLs pattern as rooms/vehicles/buysell_items.
+    // Populated by the admin "Post a Listing → Project" form (the mobile PostProjectScreen
+    // is WhatsApp-lead-gen only and never writes here directly).
+    await client.query(`ALTER TABLE labour_projects ADD COLUMN IF NOT EXISTS photos JSONB DEFAULT '[]'`);
 
     // Every hire — solo, bulk, or crew — can optionally be filed under a
     // project. Nullable so hiring works exactly as before when a contractor
