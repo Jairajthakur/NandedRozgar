@@ -706,23 +706,8 @@ export default function LabourScreen() {
             <Ionicons name="chevron-down" size={13} color={ORANGE} />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[s.iconBtn, activeFiltersCount > 0 && s.iconBtnActive, IS_WEB && ws.iconBtn]}
-          onPress={() => setShowFilters(true)}
-        >
-          <Ionicons name="options-outline" size={18} color={activeFiltersCount > 0 ? '#fff' : '#444'} />
-          {activeFiltersCount > 0 && (
-            <View style={s.filterBadge}><Text style={s.filterBadgeTxt}>{activeFiltersCount}</Text></View>
-          )}
-        </TouchableOpacity>
-        {!!user && (
-          <TouchableOpacity
-            style={[s.iconBtn, selectMode && s.iconBtnActive, IS_WEB && ws.iconBtn]}
-            onPress={toggleSelectMode}
-          >
-            <Ionicons name="checkbox-outline" size={18} color={selectMode ? '#fff' : '#444'} />
-          </TouchableOpacity>
-        )}
+        {/* Wallet gets the row to itself now — it was getting squeezed
+            between the filter and select-mode icons and was hard to read. */}
         {!!user && (
           <TouchableOpacity style={s.walletChip} onPress={() => nav.navigate('Wallet')} activeOpacity={0.8}>
             <Ionicons name="wallet-outline" size={14} color={ORANGE} />
@@ -763,7 +748,47 @@ export default function LabourScreen() {
             <Text style={ws.filterBtnTxt}>{t('lbFilters')}</Text>
           </TouchableOpacity>
         )}
+        {IS_WEB && !!user && (
+          <TouchableOpacity
+            style={[ws.searchFilterBtn, selectMode && s.pillBtnActive, { marginLeft: 8 }]}
+            onPress={toggleSelectMode}
+          >
+            <Ionicons name="checkbox-outline" size={17} color={selectMode ? '#fff' : ORANGE} />
+            <Text style={[ws.filterBtnTxt, selectMode && s.pillBtnTxtActive]}>
+              {selectMode ? t('cancel') : t('lbSelectMultiple')}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* Filters and "select multiple" now live here as clearly labelled
+          pills instead of unlabeled icons crammed into the title row. */}
+      {!IS_WEB && (
+        <View style={s.toolbarRow}>
+          <TouchableOpacity
+            style={[s.pillBtn, activeFiltersCount > 0 && s.pillBtnActive]}
+            onPress={() => setShowFilters(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="options-outline" size={16} color={activeFiltersCount > 0 ? '#fff' : '#444'} />
+            <Text style={[s.pillBtnTxt, activeFiltersCount > 0 && s.pillBtnTxtActive]}>
+              {t('lbFilters')}{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
+            </Text>
+          </TouchableOpacity>
+          {!!user && (
+            <TouchableOpacity
+              style={[s.pillBtn, selectMode && s.pillBtnActive]}
+              onPress={toggleSelectMode}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="checkbox-outline" size={16} color={selectMode ? '#fff' : '#444'} />
+              <Text style={[s.pillBtnTxt, selectMode && s.pillBtnTxtActive]}>
+                {selectMode ? t('cancel') : t('lbSelectMultiple')}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       <View style={[s.categoryGrid, IS_WEB && ws.categoryGrid]}>
         {SKILL_CATEGORIES.map(cat => {
@@ -1283,10 +1308,23 @@ const s = StyleSheet.create({
 
   walletChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    height: 44, paddingHorizontal: 12, borderRadius: 22,
+    height: 40, paddingHorizontal: 14, borderRadius: 20,
     backgroundColor: ORANGE + '15', borderWidth: 1, borderColor: ORANGE + '33',
+    alignSelf: 'flex-start', marginTop: 20,
   },
   walletChipTxt: { fontSize: 13, fontWeight: '800', color: ORANGE },
+
+  // Labelled pills for Filters / Select-multiple, replacing the old unlabeled
+  // icon buttons that used to crowd the title row alongside the wallet chip.
+  toolbarRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  pillBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    height: 38, paddingHorizontal: 14, borderRadius: 10,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8e8e8',
+  },
+  pillBtnActive: { backgroundColor: '#111', borderColor: '#111' },
+  pillBtnTxt: { fontSize: 13, fontWeight: '700', color: '#444' },
+  pillBtnTxtActive: { color: '#fff' },
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16,
