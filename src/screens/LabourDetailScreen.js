@@ -284,7 +284,7 @@ export default function LabourDetailScreen() {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <FadeSlide delay={40} style={s.card}>
           <View style={s.headRow}>
             <View style={s.avatar}>
@@ -444,9 +444,18 @@ export default function LabourDetailScreen() {
           <Text style={s.sectionTitle}>Contact</Text>
 
           {contactUnlocked ? (
-            <View style={s.unlockedRow}>
-              <Ionicons name="call" size={16} color={LABOUR_COLOR} />
-              <Text style={s.phoneValue}>{profile.user_phone || 'Phone unavailable'}</Text>
+            <View>
+              <TouchableOpacity style={s.unlockedRow} onPress={callPhone} activeOpacity={0.7}>
+                <Ionicons name="call" size={16} color={LABOUR_COLOR} />
+                <Text style={s.phoneValue}>{profile.user_phone || 'Phone unavailable'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.unlockBtn, { marginTop: 12 }]}
+                onPress={handleHirePress}
+                activeOpacity={0.88}
+              >
+                <Text style={s.unlockBtnTxt}>Hire again</Text>
+              </TouchableOpacity>
             </View>
           ) : !hasPhone ? (
             <View style={s.unlockedRow}>
@@ -517,30 +526,13 @@ export default function LabourDetailScreen() {
           </FadeSlide>
         )}
 
-        {/* Banner ad — inline in the scroll content, never overlaps the sticky hire bar */}
+        {/* Banner ad — inline in the scroll content */}
         {!isPremium && <BannerAd style={{ marginTop: 4 }} />}
       </ScrollView>
 
-      {/* Sticky action bar */}
-      <View style={[s.actionBar, { paddingBottom: insets.bottom + 12 }]}>
-        {contactUnlocked && profile.user_phone && (
-          <TouchableOpacity style={s.callBtn} onPress={callPhone} activeOpacity={0.85}>
-            <Ionicons name="call" size={18} color={LABOUR_COLOR} />
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          style={[s.hireBtn, hasPendingRequest && !hireOpen && { opacity: 0.6 }]}
-          onPress={handleHirePress}
-          activeOpacity={0.88}
-        >
-          <Text style={s.hireBtnTxt}>
-            {hireOpen ? 'Cancel'
-              : hasPendingRequest ? 'Request pending'
-              : contactUnlocked ? 'Hire again'
-              : 'Send hire request'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Sticky action bar removed — the Contact card above already has its
+          own Send hire request / Hire again / call controls inline, so the
+          floating duplicate at the bottom of the screen was redundant. */}
 
       {/* ── Booking sheet — pops up instantly on "Hire now", no scrolling
            required, with tap-to-fill presets so nothing needs typing ──── */}
