@@ -798,6 +798,60 @@ router.post('/post/buysell', async (req, res) => {
   }
 });
 
+// POST /api/admin/post/project
+// Our team posts a contractor's Project on their behalf (see PostProjectScreen —
+// contractors send details over WhatsApp, including photos of the site/work,
+// and staff post the finished listing here). contractor_id is the admin's own
+// user id, same as how job/room/vehicle/buysell admin-posts work.
+router.post('/post/project', async (req, res) => {
+  try {
+    const {
+      title, description, skillCategory, district, location,
+      workersNeeded, durationDays, dailyWage, budget, photos,
+    } = req.body;
+
+    if (!title || !String(title).trim())
+      return res.json({ ok: false, error: 'Title is required' });
+
+    const needed = parseInt(workersNeeded, 10) || 1;
+    if (needed < 1)
+      return res.json({ ok: false, error: 'Workers needed must be at least 1' });
+
+    const duration = durationDays !== undefined && durationDays !== '' ? parseInt(durationDays, 10) || null : null;
+    const wage = dailyWage !== undefined && dailyWage !== '' ? parseInt(dailyWage, 10) || null : null;
+    const autoBudget = wage && duration ? needed * wage * duration : null;
+    const finalBudget = (budget !== undefined && budget !== '') ? (parseFloat(budget) || null) : autoBudget;
+    const safePhotos = (Array.isArray(photos) ? photos : []).slice(0, 10);
+
+    const { rows } = await pool.query(`
+      INSERT INTO labour_projects
+        (contractor_id, title, description, skill_category, district, location,
+         workers_needed, duration_days, daily_wage, budget, photos, status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      RETURNING *
+    `, [
+      req.user.id,
+      String(title).trim().slice(0, 150),
+      description || '',
+      skillCategory || '',
+      district || 'nanded',
+      location || '',
+      needed,
+      duration,
+      wage,
+      finalBudget,
+      JSON.stringify(safePhotos),
+      'active',
+    ]);
+
+    await cache.delPrefix('projects:public:');
+    res.json({ ok: true, project: rows[0] });
+  } catch (err) {
+    console.error('POST /admin/post/project error:', err);
+    res.json({ ok: false, error: 'Failed to post project' });
+  }
+});
+
 // ── POST /api/admin/post/banner ───────────────────────────────────────────────
 // Admin can post a free promotional banner directly (bypasses payment).
 // Supports two modes:
