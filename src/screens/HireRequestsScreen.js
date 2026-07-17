@@ -334,21 +334,36 @@ export default function HireRequestsScreen() {
     const busy = busyId === item.id;
     if (item.status === 'pending') {
       return (
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity
-            style={[st.actionBtn, st.actionBtnGhost, { flex: 1 }]}
-            disabled={busy}
-            onPress={() => updateStatus(item, 'declined', 'Decline this hire request?')}
-          >
-            <Text style={st.actionBtnGhostTxt}>Decline</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[st.actionBtn, st.actionBtnPrimary, { flex: 1 }]}
-            disabled={busy}
-            onPress={() => updateStatus(item, 'accepted')}
-          >
-            {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.actionBtnPrimaryTxt}>Accept</Text>}
-          </TouchableOpacity>
+        <View>
+          {!!(item.contact_phone || item.contractor_phone) && (
+            <View style={{ marginBottom: 8 }}>
+              <TouchableOpacity
+                style={[st.phoneRow, { marginBottom: 2 }]}
+                onPress={() => callNumber(item.contact_phone || item.contractor_phone)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="call" size={14} color={LABOUR} />
+                <Text style={st.phoneRowTxt}>{item.contact_phone || item.contractor_phone}</Text>
+              </TouchableOpacity>
+              <Text style={st.phoneRowHint}>Tap to call and discuss the rate before deciding</Text>
+            </View>
+          )}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              style={[st.actionBtn, st.actionBtnGhost, { flex: 1 }]}
+              disabled={busy}
+              onPress={() => updateStatus(item, 'declined', 'Decline this hire request?')}
+            >
+              <Text style={st.actionBtnGhostTxt}>Decline</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[st.actionBtn, st.actionBtnPrimary, { flex: 1 }]}
+              disabled={busy}
+              onPress={() => updateStatus(item, 'accepted')}
+            >
+              {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.actionBtnPrimaryTxt}>Accept</Text>}
+            </TouchableOpacity>
+          </View>
         </View>
       );
     }
@@ -930,6 +945,7 @@ const st = StyleSheet.create({
     borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8,
   },
   phoneRowTxt: { fontSize: 13, fontWeight: '800', color: '#15803d' },
+  phoneRowHint: { fontSize: 11, color: '#6b7280', paddingHorizontal: 2, marginBottom: 6 },
 
   locationRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
