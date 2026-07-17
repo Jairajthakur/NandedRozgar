@@ -1165,9 +1165,9 @@ function renderPostTab() {
       <div id="post-form-area">${buildPostForm(postService)}</div>
     </div>`;
 
-  const labels = {job:'\u{1F4BC} Job', room:'\u{1F3E0} Room', vehicle:'\u{1F697} Vehicle', buysell:'\u{1F6CD} Buy & Sell', banner:'\u{1F4E3} Promo Banner'};
+  const labels = {job:'\u{1F4BC} Job', room:'\u{1F3E0} Room', vehicle:'\u{1F697} Vehicle', buysell:'\u{1F6CD} Buy & Sell', project:'\u{1F3D7}\u{FE0F} Project', banner:'\u{1F4E3} Promo Banner'};
   const btnContainer = document.getElementById('post-tab-btns');
-  ['job','room','vehicle','buysell','banner'].forEach(s => {
+  ['job','room','vehicle','buysell','project','banner'].forEach(s => {
     const btn = document.createElement('button');
     btn.textContent = labels[s];
     const active = postService === s;
@@ -1288,6 +1288,21 @@ function buildPostForm(service) {
         ${row(field('Area / Locality', inp('area','Where is item located?')), field('District *', sel('district',[['nanded','🏙️ Nanded']],'Select District *')))}
         ${row(field('WhatsApp *', inp('whatsapp','10-digit','text',true)), field('Negotiable', sel('negotiable',[['true','Yes'],['false','No']],'Negotiable?')))}
         ${field('Description', ta('description','Item details…',3))}
+        ${photoField}
+        ${submitBtn}
+      </form>`,
+
+    project: `
+      <form id="admin-post-form" onsubmit="return false" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+        <div style="background:var(--blue-bg);border:1px solid rgba(96,165,250,.3);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--blue)">
+          Contractor sent requirements (and photos, if any) over WhatsApp — enter their details below and post on their behalf.
+        </div>
+        ${field('Project Title *', inp('title','e.g. 10 Mason helpers — Shivaji Nagar Bungalow','text',true))}
+        ${row(field('Trade / Skill', sel('skillCategory',['Mason','Electrician','Plumber','Painter','Carpenter','Welder','Helper','Other'],'Select trade')), field('Site Location', inp('location','e.g. Shivaji Nagar, near water tank')))}
+        ${row(field('Workers Needed *', inp('workersNeeded','e.g. 10','number',true)), field('Daily Wage (₹)', inp('dailyWage','e.g. 500','number')))}
+        ${row(field('Duration (days)', inp('durationDays','e.g. 5','number')), field('Budget (₹, optional — auto-calculated if blank)', inp('budget','Leave blank to auto-calculate','number')))}
+        ${row(field('District *', sel('district',[['nanded','\u{1F3D9}\u{FE0F} Nanded']],'Select District *')), field('Contractor WhatsApp', inp('whatsapp','10-digit (for our reference)')))}
+        ${field('Description', ta('description','Site details, timing, tools to bring…',4))}
         ${photoField}
         ${submitBtn}
       </form>`,
@@ -1926,12 +1941,12 @@ async function submitAdminPost() {
   }
 
   // District required for listing types
-  if (['job','room','vehicle','buysell'].includes(postService) && !data.district) {
+  if (['job','room','vehicle','buysell','project'].includes(postService) && !data.district) {
     result.innerHTML = `<span style="color:var(--red)">⚠ Please select a District</span>`;
     return;
   }
 
-  const endpointMap = { job: 'job', room: 'room', vehicle: 'vehicle', buysell: 'buysell', banner: 'banner' };
+  const endpointMap = { job: 'job', room: 'room', vehicle: 'vehicle', buysell: 'buysell', project: 'project', banner: 'banner' };
   try {
     const d = await api('POST', '/api/admin/post/' + endpointMap[postService], data);
 
