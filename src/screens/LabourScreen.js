@@ -399,15 +399,17 @@ const cs = StyleSheet.create({
   projectsEmptySub: { fontSize: 12, color: '#999', fontWeight: '600', marginTop: 3, textAlign: 'center' },
 
   optionPillWrap: { paddingHorizontal: IS_WEB ? 0 : 16, marginTop: 16, marginBottom: 4 },
-  optionPillRow: { flexDirection: 'row', gap: 10 },
-  optionPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#fff', borderRadius: 100, paddingVertical: 8, paddingRight: 16, paddingLeft: 8,
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  optionPillRow: {
+    flexDirection: 'row', backgroundColor: '#eee', borderRadius: 100, padding: 4,
   },
-  optionPillIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  optionPillLabel: { fontSize: 14, fontWeight: '800', color: '#111' },
-  optionPillActive: { borderWidth: 2, borderColor: '#111' },
+  optionPill: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: 'transparent', borderRadius: 100, paddingVertical: 10,
+  },
+  optionPillIcon: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  optionPillLabel: { fontSize: 14, fontWeight: '800', color: '#999' },
+  optionPillLabelActive: { color: '#fff' },
+  optionPillActive: { backgroundColor: ORANGE },
 
   projectFullCard: {
     backgroundColor: '#fff', borderRadius: 20, marginBottom: 18, overflow: 'hidden',
@@ -856,15 +858,15 @@ export default function LabourScreen() {
       <View style={cs.optionPillRow}>
         <TouchableOpacity style={[cs.optionPill, activeSection === 'labour' && cs.optionPillActive]} onPress={showLabourOnly} activeOpacity={0.85}>
           <LinearGradient colors={['#5eead4', '#0d9488']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.optionPillIcon}>
-            <Ionicons name="hammer" size={16} color="#fff" />
+            <Ionicons name="hammer" size={14} color="#fff" />
           </LinearGradient>
-          <Text style={cs.optionPillLabel}>{t('labour')}</Text>
+          <Text style={[cs.optionPillLabel, activeSection === 'labour' && cs.optionPillLabelActive]}>{t('labour')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[cs.optionPill, activeSection === 'projects' && cs.optionPillActive]} onPress={showProjectsOnly} activeOpacity={0.85}>
           <LinearGradient colors={['#93c5fd', '#2563eb']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cs.optionPillIcon}>
-            <Ionicons name="briefcase" size={16} color="#fff" />
+            <Ionicons name="briefcase" size={14} color="#fff" />
           </LinearGradient>
-          <Text style={cs.optionPillLabel}>{t('projTopBarTitle')}</Text>
+          <Text style={[cs.optionPillLabel, activeSection === 'projects' && cs.optionPillLabelActive]}>{t('projTopBarTitle')}</Text>
         </TouchableOpacity>
       </View>
     </View>
