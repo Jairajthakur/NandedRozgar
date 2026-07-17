@@ -2,6 +2,12 @@ const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const { pool, cache } = require('../db');
 const { auth } = require('../middleware/auth');
+// Push util is optional at require-time (mirrors routes/sos.js) so a missing
+// Firebase config never breaks the hire flow itself — sendPushNotifications
+// already no-ops gracefully if Firebase Admin isn't configured, but this
+// keeps a bad require from taking the whole router down too.
+let sendPushNotifications = null;
+try { ({ sendPushNotifications } = require('../utils/push')); } catch { /* push util optional */ }
 
 const LIST_TTL   = 15_000;
 const DETAIL_TTL = 30_000;
@@ -954,7 +960,7 @@ router.post('/:id/hire', auth, async (req, res) => {
     // rehire-free-unlock chain it feeds) could be sent to a hidden, banned,
     // or already-deactivated worker.
     const labour = await pool.query(`
-      SELECT l.user_id FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      SELECT l.user_id, l.full_name, u.push_token FROM labour_profiles l JOIN users u ON u.id = l.user_id
       WHERE l.id = $1 AND l.status = 'active' AND u.active = true
     `, [labourId]);
     if (!labour.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
@@ -1003,6 +1009,17 @@ router.post('/:id/hire', auth, async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7)
       RETURNING *
     `, [labourId, req.user.id, work_description || null, proposed_wage || null, work_date || null, validProjectId, cleanPhone]);
+
+    // Notify the labourer that a hire request is waiting on them. Best-effort
+    // and non-blocking — a push failure must never fail the hire request
+    // itself, so this is fire-and-forget with its own try/catch.
+    if (sendPushNotifications && labour.rows[0].push_token) {
+      sendPushNotifications([labour.rows[0].push_token], {
+        title: 'New hire request',
+        body: `${req.user.name || 'A contractor'} wants to hire you${work_date ? ` on ${work_date}` : ''}. Tap to respond.`,
+        data: { type: 'hire_request', hireRequestId: result.rows[0].id },
+      }).catch(e => console.warn('[labour] hire request push notify failed (non-fatal):', e.message));
+    }
 
     res.json({
       ok: true,
@@ -1059,7 +1076,7 @@ router.post('/hire-bulk', auth, async (req, res) => {
     // rather than failing the whole batch — the response reports which ids
     // were skipped so the app can tell the contractor.
     const { rows: validRows } = await client.query(`
-      SELECT l.id, l.user_id
+      SELECT l.id, l.user_id, u.push_token
       FROM labour_profiles l JOIN users u ON u.id = l.user_id
       WHERE l.id = ANY($1::int[]) AND l.status = 'active' AND u.active = true AND l.user_id != $2
     `, [ids, req.user.id]);
@@ -1101,6 +1118,21 @@ router.post('/hire-bulk', auth, async (req, res) => {
     }
 
     await client.query('COMMIT');
+
+    // Notify each hired worker. Best-effort and non-blocking — a push
+    // failure must never fail the (already-committed) hire requests.
+    if (sendPushNotifications) {
+      const tokenByLabourId = new Map(validRows.map(r => [r.id, r.push_token]));
+      const tokens = created.map(hr => tokenByLabourId.get(hr.labour_id)).filter(Boolean);
+      if (tokens.length) {
+        sendPushNotifications(tokens, {
+          title: 'New hire request',
+          body: `${req.user.name || 'A contractor'} wants to hire you${work_date ? ` on ${work_date}` : ''}. Tap to respond.`,
+          data: { type: 'hire_request' },
+        }).catch(e => console.warn('[labour] bulk hire push notify failed (non-fatal):', e.message));
+      }
+    }
+
     res.json({
       ok: true,
       hireRequests: created,
@@ -1312,9 +1344,10 @@ router.patch('/hire-requests/:id', auth, async (req, res) => {
     }
 
     const { rows } = await pool.query(`
-      SELECT hr.*, l.user_id AS labourer_user_id
+      SELECT hr.*, l.user_id AS labourer_user_id, l.full_name AS labourer_name, c.push_token AS contractor_push_token
       FROM hire_requests hr
       JOIN labour_profiles l ON l.id = hr.labour_id
+      JOIN users c ON c.id = hr.contractor_id
       WHERE hr.id = $1
     `, [id]);
     if (!rows.length) {
@@ -1447,6 +1480,20 @@ router.patch('/hire-requests/:id', auth, async (req, res) => {
     }
 
     await client.query('COMMIT');
+
+    // Notify the contractor when the labourer accepts or declines their
+    // request — the two responses the contractor is actually waiting on.
+    // Best-effort and non-blocking, mirrors the hire-request push above.
+    if (sendPushNotifications && hr.contractor_push_token && (status === 'accepted' || status === 'declined')) {
+      sendPushNotifications([hr.contractor_push_token], {
+        title: status === 'accepted' ? 'Hire request accepted' : 'Hire request declined',
+        body: status === 'accepted'
+          ? `${hr.labourer_name || 'The worker'} accepted your hire request. Tap to view.`
+          : `${hr.labourer_name || 'The worker'} declined your hire request.`,
+        data: { type: 'hire_request_status', hireRequestId: id, status },
+      }).catch(e => console.warn('[labour] hire-request status push notify failed (non-fatal):', e.message));
+    }
+
     res.json({
       ok: true,
       hireRequest: result.rows[0],
