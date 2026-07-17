@@ -14,6 +14,10 @@
  * it live themselves — same manual-review pattern as PromoteBusinessScreen's
  * WhatsApp banner-request flow. No project row is created from this screen.
  *
+ * Fully localized (English / Marathi / Hindi) via useLang() — this includes
+ * the WhatsApp message itself, so the CityPlus team receives the request in
+ * whichever language the contractor was using.
+ *
  * Place at: src/screens/PostProjectScreen.js
  */
 
@@ -29,11 +33,19 @@ import Toast from 'react-native-toast-message';
 
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
+import { useLang } from '../utils/i18n';
 import { LABOUR_COLORS, SKILL_ICONS } from '../constants/labourTheme';
 import { SectionCard, StepHeader } from '../components/labour/LabourUI';
 
 const ORANGE = LABOUR_COLORS.primary;
+// Values stay in English (stored/sent as-is to the backend / team); only the
+// displayed chip label is translated, same pattern as SKILL_T_KEYS elsewhere.
 const SKILLS = ['Mason', 'Electrician', 'Plumber', 'Painter', 'Carpenter', 'Welder', 'Helper', 'Other'];
+const SKILL_T_KEYS = {
+  Mason: 'skillMason', Electrician: 'skillElectrician', Plumber: 'skillPlumber',
+  Painter: 'skillPainter', Carpenter: 'skillCarpenter', Welder: 'skillWelder',
+  Helper: 'skillHelper', Other: 'skillOther',
+};
 
 // Same CityPlus support number used elsewhere (HelpSupportScreen, PromoteBusinessScreen).
 const WHATSAPP_NUMBER = '919834308805';
@@ -43,6 +55,7 @@ export default function PostProjectScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { currentDistrict } = useDistrict();
+  const { t } = useLang();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -61,48 +74,51 @@ export default function PostProjectScreen() {
 
   const handleSubmit = () => {
     if (!title.trim()) {
-      Toast.show({ type: 'error', text1: 'Enter a project title', text2: 'e.g. "10 Mason helpers — Shivaji Nagar site"' });
+      Toast.show({ type: 'error', text1: t('postProjErrTitleTitle'), text2: t('postProjErrTitleMsg') });
       return;
     }
     if (needed < 1) {
-      Toast.show({ type: 'error', text1: 'How many workers do you need?', text2: 'Enter at least 1.' });
+      Toast.show({ type: 'error', text1: t('postProjErrWorkersTitle'), text2: t('postProjErrWorkersMsg') });
       return;
     }
     if (!contactPhone.trim()) {
-      Toast.show({ type: 'error', text1: 'Enter a contact number', text2: 'So our team can reach you on WhatsApp.' });
+      Toast.show({ type: 'error', text1: t('postProjErrContactTitle'), text2: t('postProjErrContactMsg') });
       return;
     }
 
+    const skillLabel = t(SKILL_T_KEYS[skillCategory]) || skillCategory;
+    const dash = '—';
+
     const lines = [
-      `🏗️ *New Project Request — CityPlus*`,
+      t('postProjWaHeader'),
       `━━━━━━━━━━━━━━━━━━━━━━`,
       ``,
-      `*📌 Title:* ${title.trim()}`,
-      `*🛠️ Trade needed:* ${skillCategory}`,
-      `*👷 Workers needed:* ${needed}`,
-      `*💰 Daily wage:* ${wage ? `₹${wage}` : '—'}`,
-      `*📅 Duration:* ${duration ? `${duration} days` : '—'}`,
-      `*🧮 Estimated budget:* ${budget ? `₹${budget}` : autoBudget ? `₹${autoBudget} (auto)` : '—'}`,
-      `*📍 Location:* ${location.trim() || '—'}`,
-      `*🏙️ District:* ${currentDistrict?.name || '—'}`,
-      `*📞 Contact number:* ${contactPhone.trim()}`,
+      `*${t('postProjWaTitleLabel')}* ${title.trim()}`,
+      `*${t('postProjWaTradeLabel')}* ${skillLabel}`,
+      `*${t('postProjWaWorkersLabel')}* ${needed}`,
+      `*${t('postProjWaWageLabel')}* ${wage ? `₹${wage}` : dash}`,
+      `*${t('postProjWaDurationLabel')}* ${duration ? `${duration} ${duration === 1 ? t('projDaySingular') : t('projDayPlural')}` : dash}`,
+      `*${t('postProjWaBudgetLabel')}* ${budget ? `₹${budget}` : autoBudget ? `₹${autoBudget}` : dash}`,
+      `*${t('postProjWaLocationLabel')}* ${location.trim() || dash}`,
+      `*${t('postProjWaDistrictLabel')}* ${currentDistrict?.name || dash}`,
+      `*${t('postProjWaContactLabel')}* ${contactPhone.trim()}`,
       ``,
-      `*📝 Description:*`,
-      description.trim() || '—',
+      `*${t('postProjWaDescLabel')}*`,
+      description.trim() || dash,
       ``,
       `━━━━━━━━━━━━━━━━━━━━━━`,
-      `Please quote a price for this project and share the payment QR. I'll confirm once paid. Thank you! 🙏`,
+      t('postProjWaFooter'),
     ];
     const msg = encodeURIComponent(lines.join('\n'));
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`;
 
     Linking.openURL(url)
       .then(() => {
-        Toast.show({ type: 'success', text1: 'Opening WhatsApp…', text2: 'Our team will quote a price and share a payment QR.' });
+        Toast.show({ type: 'success', text1: t('postProjSuccessTitle'), text2: t('postProjSuccessMsg') });
         nav.goBack();
       })
       .catch(() => {
-        Alert.alert('WhatsApp not found', 'Please install WhatsApp or contact us directly.');
+        Alert.alert(t('postProjWaNotFoundTitle'), t('postProjWaNotFoundMsg'));
       });
   };
 
@@ -114,29 +130,29 @@ export default function PostProjectScreen() {
         <TouchableOpacity onPress={() => nav.goBack()} style={s.backBtn} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color="#111" />
         </TouchableOpacity>
-        <Text style={s.topBarTitle}>Post a Project</Text>
+        <Text style={s.topBarTitle}>{t('postProjTopBarTitle')}</Text>
         <View style={s.backBtn} />
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
           <SectionCard>
-            <StepHeader number={1} title="What's the job" subtitle="Workers see this when browsing" />
+            <StepHeader number={1} title={t('postProjStep1Title')} subtitle={t('postProjStep1Sub')} />
 
             <View style={s.field}>
-              <Text style={s.label}>Project title *</Text>
+              <Text style={s.label}>{t('postProjTitleLabel')}</Text>
               <TextInput
                 style={s.input}
                 value={title}
                 onChangeText={setTitle}
-                placeholder="e.g. 10 Mason helpers — Shivaji Nagar Bungalow"
+                placeholder={t('postProjTitlePlaceholder')}
                 placeholderTextColor="#bbb"
                 maxLength={150}
               />
             </View>
 
             <View style={s.field}>
-              <Text style={s.label}>Trade needed *</Text>
+              <Text style={s.label}>{t('postProjTradeLabel')}</Text>
               <View style={s.skillGrid}>
                 {SKILLS.map(sk => {
                   const active = skillCategory === sk;
@@ -148,7 +164,7 @@ export default function PostProjectScreen() {
                       activeOpacity={0.85}
                     >
                       <Ionicons name={SKILL_ICONS[sk] || 'briefcase-outline'} size={14} color={active ? '#fff' : ORANGE} />
-                      <Text style={[s.skillChipTxt, active && s.skillChipTxtActive]}>{sk}</Text>
+                      <Text style={[s.skillChipTxt, active && s.skillChipTxtActive]}>{t(SKILL_T_KEYS[sk]) || sk}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -156,52 +172,54 @@ export default function PostProjectScreen() {
             </View>
 
             <View style={s.field}>
-              <Text style={s.label}>Description (optional)</Text>
+              <Text style={s.label}>{t('postProjDescLabel')}</Text>
               <TextInput
                 style={[s.input, s.textarea]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Site details, timing, tools to bring, etc."
+                placeholder={t('postProjDescPlaceholder')}
                 placeholderTextColor="#bbb"
                 multiline
               />
             </View>
 
             <View style={s.field}>
-              <Text style={s.label}>Site location (optional)</Text>
+              <Text style={s.label}>{t('postProjLocationLabel')}</Text>
               <TextInput
                 style={s.input}
                 value={location}
                 onChangeText={setLocation}
-                placeholder="e.g. Shivaji Nagar, near water tank"
+                placeholder={t('postProjLocationPlaceholder')}
                 placeholderTextColor="#bbb"
               />
-              <Text style={s.hint}>District is set to {currentDistrict?.name || 'your current district'}.</Text>
+              <Text style={s.hint}>
+                {t('postProjDistrictHint').replace('{DISTRICT}', currentDistrict?.name || t('postProjLocationLabel'))}
+              </Text>
             </View>
           </SectionCard>
 
           <SectionCard>
-            <StepHeader number={2} title="Slots, wage & duration" subtitle="Fills first-come, first-served" />
+            <StepHeader number={2} title={t('postProjStep2Title')} subtitle={t('postProjStep2Sub')} />
 
             <View style={[s.field, s.row]}>
               <View style={{ flex: 1 }}>
-                <Text style={s.label}>Workers needed *</Text>
+                <Text style={s.label}>{t('postProjWorkersLabel')}</Text>
                 <TextInput
                   style={s.input}
                   value={workersNeeded}
                   onChangeText={setWorkersNeeded}
-                  placeholder="e.g. 10"
+                  placeholder={t('postProjWorkersPlaceholder')}
                   placeholderTextColor="#bbb"
                   keyboardType="number-pad"
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.label}>Daily wage (₹)</Text>
+                <Text style={s.label}>{t('postProjWageLabel')}</Text>
                 <TextInput
                   style={s.input}
                   value={dailyWage}
                   onChangeText={setDailyWage}
-                  placeholder="e.g. 500"
+                  placeholder={t('postProjWagePlaceholder')}
                   placeholderTextColor="#bbb"
                   keyboardType="number-pad"
                 />
@@ -210,23 +228,23 @@ export default function PostProjectScreen() {
 
             <View style={[s.field, s.row]}>
               <View style={{ flex: 1 }}>
-                <Text style={s.label}>Duration (days)</Text>
+                <Text style={s.label}>{t('postProjDurationLabel')}</Text>
                 <TextInput
                   style={s.input}
                   value={durationDays}
                   onChangeText={setDurationDays}
-                  placeholder="e.g. 5"
+                  placeholder={t('postProjDurationPlaceholder')}
                   placeholderTextColor="#bbb"
                   keyboardType="number-pad"
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.label}>Budget (₹, optional)</Text>
+                <Text style={s.label}>{t('postProjBudgetLabel')}</Text>
                 <TextInput
                   style={s.input}
                   value={budget}
                   onChangeText={setBudget}
-                  placeholder={autoBudget ? `Auto: ₹${autoBudget}` : 'e.g. 25000'}
+                  placeholder={autoBudget ? `₹${autoBudget}` : t('postProjBudgetPlaceholder')}
                   placeholderTextColor="#bbb"
                   keyboardType="number-pad"
                 />
@@ -235,17 +253,21 @@ export default function PostProjectScreen() {
 
             {!!autoBudget && !budget && (
               <Text style={s.hint}>
-                Leave blank and we'll estimate ₹{autoBudget} ({needed} workers × ₹{wage}/day × {duration} days). This is only visible to you, never to workers.
+                {t('postProjAutoBudgetHint')
+                  .replace('{AMOUNT}', autoBudget)
+                  .replace('{N}', needed)
+                  .replace('{WAGE}', wage)
+                  .replace('{D}', duration)}
               </Text>
             )}
 
             <View style={s.field}>
-              <Text style={s.label}>Contact number (WhatsApp) *</Text>
+              <Text style={s.label}>{t('postProjContactLabel')}</Text>
               <TextInput
                 style={s.input}
                 value={contactPhone}
                 onChangeText={setContactPhone}
-                placeholder="e.g. 98765 43210"
+                placeholder={t('postProjContactPlaceholder')}
                 placeholderTextColor="#bbb"
                 keyboardType="phone-pad"
                 maxLength={15}
@@ -255,9 +277,7 @@ export default function PostProjectScreen() {
 
           <View style={s.noteBox}>
             <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
-            <Text style={s.noteTxt}>
-              Tapping below opens WhatsApp with your project details filled in and sent to our CityPlus team. We'll quote a price for your requirement and share a payment QR — your project goes live only after payment is confirmed.
-            </Text>
+            <Text style={s.noteTxt}>{t('postProjNoteTxt')}</Text>
           </View>
 
           <TouchableOpacity
@@ -266,7 +286,7 @@ export default function PostProjectScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="logo-whatsapp" size={18} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={s.submitBtnTxt}>Send via WhatsApp</Text>
+            <Text style={s.submitBtnTxt}>{t('postProjSubmitBtn')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
