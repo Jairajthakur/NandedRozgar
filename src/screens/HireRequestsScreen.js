@@ -70,6 +70,19 @@ function callNumber(number) {
   );
 }
 
+// Opens the contractor-set site coordinates in the device's maps app (Google
+// Maps on Android, falls back to a browser map elsewhere) — this is the
+// universal maps deep link so it works with no extra native map library.
+function openSiteLocation(item) {
+  const { site_lat: lat, site_lng: lng, site_label: label } = item;
+  if (lat == null || lng == null) return;
+  const query = encodeURIComponent(label ? `${label}@${lat},${lng}` : `${lat},${lng}`);
+  const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
+  Linking.openURL(url).catch(() =>
+    Alert.alert('Could not open maps', 'Please check your maps app is installed.')
+  );
+}
+
 // Lets a worker send the job location/contractor phone to a family member
 // before heading out — plain-text share sheet so it works over WhatsApp,
 // SMS, or any other app the person already has installed.
@@ -352,6 +365,26 @@ export default function HireRequestsScreen() {
               <Text style={st.phoneRowTxt}>{item.contact_phone || item.contractor_phone}</Text>
             </TouchableOpacity>
           )}
+
+          {item.site_lat != null && item.site_lng != null ? (
+            <TouchableOpacity
+              style={st.locationRow}
+              onPress={() => openSiteLocation(item)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="location" size={14} color={ORANGE} />
+              <Text style={st.locationRowTxt} numberOfLines={1}>
+                {item.site_label || 'View exact site location'}
+              </Text>
+              <Ionicons name="open-outline" size={14} color={ORANGE} />
+            </TouchableOpacity>
+          ) : (
+            <View style={st.locationRowMuted}>
+              <Ionicons name="location-outline" size={14} color={MUTED} />
+              <Text style={st.locationRowMutedTxt}>Contractor hasn't shared the exact site location yet</Text>
+            </View>
+          )}
+
           <TouchableOpacity
             style={[st.actionBtn, st.actionBtnPrimary]}
             disabled={busy}
@@ -897,6 +930,19 @@ const st = StyleSheet.create({
     borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8,
   },
   phoneRowTxt: { fontSize: 13, fontWeight: '800', color: '#15803d' },
+
+  locationRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#fff7f0', borderWidth: 1, borderColor: '#fed7aa',
+    borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8,
+  },
+  locationRowTxt: { flex: 1, fontSize: 13, fontWeight: '800', color: ORANGE },
+  locationRowMuted: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#fafafa', borderWidth: 1, borderColor: BORDER,
+    borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8,
+  },
+  locationRowMutedTxt: { flex: 1, fontSize: 12, fontWeight: '600', color: MUTED },
 
   safetyRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   safetyBtn: {
