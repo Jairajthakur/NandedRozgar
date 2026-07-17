@@ -1299,10 +1299,15 @@ router.get('/hire-requests/sent', auth, async (req, res) => {
 // profile. Returns an empty list (not an error) if the user has no profile,
 // since a contractor-only account visiting this tab is a normal case.
 //
-// The contractor's phone number is masked until this labourer accepts the
-// request — symmetric with how the contractor can't see the labourer's
-// number until they accept. Once accepted (or later completed), it stays
-// visible for that request.
+// UPDATED: the contractor's phone number (both their account phone and the
+// per-request contact_phone) is now visible to the labourer on ALL requests,
+// including 'pending' ones — not just after accepting. The worker needs to
+// be able to call and negotiate the rate/details before deciding whether to
+// accept, so gating the number behind acceptance defeated that. This is not
+// symmetric with the contractor's side: the contractor still can't see the
+// labourer's number until the labourer accepts (see GET /:id), since it's
+// the contractor reaching out first and the labourer who needs to be
+// reachable to negotiate.
 router.get('/hire-requests/received', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -1313,12 +1318,7 @@ router.get('/hire-requests/received', auth, async (req, res) => {
       WHERE l.user_id = $1
       ORDER BY hr.created_at DESC
     `, [req.user.id]);
-    const safeRows = rows.map(r => ({
-      ...r,
-      contractor_phone: ['accepted', 'completed'].includes(r.status) ? r.contractor_phone : null,
-      contact_phone: ['accepted', 'completed'].includes(r.status) ? r.contact_phone : null,
-    }));
-    res.json({ ok: true, hireRequests: safeRows });
+    res.json({ ok: true, hireRequests: rows });
   } catch (err) {
     console.error('[labour] hire-requests/received error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to load hire requests' });
