@@ -751,13 +751,20 @@ async function loadLabour(gen = navGen) {
 
   const badgeClass = s => s === 'active' ? 'badge-active' : (s === 'banned' ? 'badge-inactive' : 'badge-inactive');
   const currentPeriod = new Date().toISOString().slice(0, 7);
-  const rows = labour.map(l => `
+  // Most-booked labourers first, so the admin can see at a glance who's
+  // getting hired the most; ties broken by newest profile.
+  const sortedLabour = [...labour].sort((a, b) => (b.booking_count||0) - (a.booking_count||0));
+  const rows = sortedLabour.map(l => `
     <tr>
       <td style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.full_name||'—')}</td>
       <td style="color:var(--text2)">${esc(l.skill_category||'—')}</td>
       <td style="color:var(--text2)">${esc(l.district||'—')}</td>
       <td style="color:var(--text2)">${esc(l.poster_phone||l.poster_email||'—')}</td>
       <td style="color:var(--green);font-weight:500">${l.daily_wage ? '₹'+l.daily_wage : '—'}</td>
+      <td style="text-align:center">
+        <span style="font-weight:600;color:var(--text)">${l.booking_count||0}</span>
+        <span style="color:var(--text3);font-size:11px"> (${l.completed_count||0} done)</span>
+      </td>
       <td>${l.id_verified ? '<span class="badge badge-active">Verified</span>' : '<span class="badge badge-inactive">Unverified</span>'}</td>
       <td><span class="badge ${badgeClass(l.status)}">${l.status}</span></td>
       <td style="color:var(--text3);font-size:12px">${fDate(l.created_at)}</td>
@@ -838,8 +845,8 @@ async function loadLabour(gen = navGen) {
       </div>
       <div style="overflow-x:auto">
         <table>
-          <thead><tr><th>Name</th><th>Skill</th><th>District</th><th>Contact</th><th>Daily Wage</th><th>ID</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="9" class="empty">No labour profiles found</td></tr>'}</tbody>
+          <thead><tr><th>Name</th><th>Skill</th><th>District</th><th>Contact</th><th>Daily Wage</th><th>Bookings</th><th>ID</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="10" class="empty">No labour profiles found</td></tr>'}</tbody>
         </table>
       </div>
     </div>`;
