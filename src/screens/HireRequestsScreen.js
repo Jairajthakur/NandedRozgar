@@ -1,14 +1,14 @@
 /**
- * HireRequestsScreen.js — manage labour hire requests from both sides:
- *  - "Sent"     tab: requests I made as a contractor (GET /api/labour/hire-requests/sent)
- *  - "Received" tab: requests made to my own labour profile, if I have one
- *                (GET /api/labour/hire-requests/received)
+ * HireRequestsScreen.js — a worker's own labour dashboard: hire requests
+ * received against their labour profile (GET /api/labour/hire-requests/received).
+ *
+ * This is the worker-facing side only — it no longer shows requests the
+ * user may have sent as a contractor to other workers; that flow lives in
+ * the marketplace (LabourScreen) / MyProjects instead. Keeping this screen
+ * received-only avoids mixing "hire someone" management into a worker's
+ * own status dashboard.
  *
  * Status transitions go through PATCH /api/labour/hire-requests/:id.
- * Once a request I sent reaches 'completed', I can rate the worker via
- * POST /api/ratings/labour — this is the screen that actually closes the
- * "rate the labourer" loop, since nothing else in the app surfaces hire
- * requests at all.
  *
  * Place at: src/screens/HireRequestsScreen.js
  */
@@ -101,8 +101,7 @@ function formatDate(d) {
 export default function HireRequestsScreen() {
   const nav = useNavigation();
 
-  const [tab, setTab]             = useState('sent'); // 'sent' | 'received'
-  const [sent, setSent]           = useState([]);
+  const [tab] = useState('received'); // labour dashboard only ever shows requests received
   const [received, setReceived]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -124,15 +123,12 @@ export default function HireRequestsScreen() {
   const [showRewards, setShowRewards] = useState(false);
 
   const load = useCallback(async () => {
-    const [sentRes, receivedRes, mineRes] = await Promise.all([
-      http('GET', '/api/labour/hire-requests/sent'),
+    const [receivedRes, mineRes] = await Promise.all([
       http('GET', '/api/labour/hire-requests/received'),
       http('GET', '/api/labour/mine'),
     ]);
 
     let failed = false;
-    if (sentRes?.ok) setSent(sentRes.hireRequests || []);
-    else failed = true;
     if (receivedRes?.ok) setReceived(receivedRes.hireRequests || []);
     else failed = true;
     if (mineRes?.ok) setMyProfile(mineRes.profile || null);
@@ -141,7 +137,7 @@ export default function HireRequestsScreen() {
     // Surface load failures instead of letting the screen quietly fall back
     // to its "no requests yet" empty state, which would otherwise look
     // identical to a genuinely empty inbox.
-    setError(failed ? (sentRes?.error || receivedRes?.error || mineRes?.error || 'Could not load your dashboard right now.') : null);
+    setError(failed ? (receivedRes?.error || mineRes?.error || 'Could not load your dashboard right now.') : null);
 
     setLoading(false);
     setRefreshing(false);
@@ -444,7 +440,7 @@ export default function HireRequestsScreen() {
 
   const isPremium = useIsPremium();
 
-  const rawData = tab === 'sent' ? sent : received;
+  const rawData = received;
 
   // Interleave one native ad card after every DASHBOARD_AD_FREQUENCY real
   // hire-request cards. Skipped entirely for premium users, on web, and
@@ -686,25 +682,9 @@ export default function HireRequestsScreen() {
       )}
 
       <View style={st.tabBar}>
-        <TouchableOpacity
-          style={[st.tabBtn, tab === 'sent' && st.tabBtnActive]}
-          onPress={() => setTab('sent')}
-        >
-          <Text style={[st.tabTxt, tab === 'sent' && st.tabTxtActive]}>Sent ({sent.length})</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[st.tabBtn, tab === 'received' && st.tabBtnActive]}
-          onPress={() => setTab('received')}
-        >
-          <Text style={[st.tabTxt, tab === 'received' && st.tabTxtActive]}>Received ({received.length})</Text>
-        </TouchableOpacity>
-
-        {tab === 'sent' && !myProfile && (
-          <TouchableOpacity style={st.myProjectsBtn} onPress={() => nav.navigate('MyProjects')} activeOpacity={0.8}>
-            <Ionicons name="briefcase-outline" size={13} color={ORANGE} />
-            <Text style={st.myProjectsBtnTxt}>My Projects</Text>
-          </TouchableOpacity>
-        )}
+        <View style={[st.tabBtn, st.tabBtnActive]}>
+          <Text style={[st.tabTxt, st.tabTxtActive]}>Received ({received.length})</Text>
+        </View>
       </View>
     </>
   );
@@ -734,23 +714,8 @@ export default function HireRequestsScreen() {
           ListEmptyComponent={(
             <View style={st.empty}>
               <Ionicons name="hammer-outline" size={36} color="#ddd" />
-              <Text style={st.emptyTxt}>
-                {tab === 'sent'
-                  ? "You haven't sent any hire requests yet."
-                  : "No one has sent you a hire request yet."}
-              </Text>
-              {tab === 'sent' && (
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                  <TouchableOpacity style={st.emptyBtn} onPress={() => nav.navigate('Labour', { forceBrowse: true })}>
-                    <Text style={st.emptyBtnTxt}>Browse workers</Text>
-                  </TouchableOpacity>
-                  {!myProfile && (
-                    <TouchableOpacity style={[st.emptyBtn, st.emptyBtnOutline]} onPress={() => nav.navigate('PostProject')}>
-                      <Text style={[st.emptyBtnTxt, st.emptyBtnOutlineTxt]}>Post a Project</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
+              <Text style={st.emptyTxt}>No one has sent you a hire request yet.</Text>
+              {!isPremium && ADS_SUPPORTED && <BannerAd style={{ marginTop: 16 }} />}
             </View>
           )}
         />
