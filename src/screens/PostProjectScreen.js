@@ -59,7 +59,18 @@ export default function PostProjectScreen() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [skillCategory, setSkillCategory] = useState('Mason');
+  const [skillCategories, setSkillCategories] = useState(['Mason']);
+
+  const toggleSkill = (sk) => {
+    setSkillCategories(prev => {
+      if (prev.includes(sk)) {
+        // Keep at least one trade selected.
+        if (prev.length === 1) return prev;
+        return prev.filter(s => s !== sk);
+      }
+      return [...prev, sk];
+    });
+  };
   const [location, setLocation] = useState('');
   const [workersNeeded, setWorkersNeeded] = useState('');
   const [dailyWage, setDailyWage] = useState('');
@@ -86,7 +97,9 @@ export default function PostProjectScreen() {
       return;
     }
 
-    const skillLabel = t(SKILL_T_KEYS[skillCategory]) || skillCategory;
+    const skillLabel = skillCategories
+      .map(sk => t(SKILL_T_KEYS[sk]) || sk)
+      .join(', ');
     const dash = '—';
 
     const lines = [
@@ -153,13 +166,14 @@ export default function PostProjectScreen() {
 
             <View style={s.field}>
               <Text style={s.label}>{t('postProjTradeLabel')}</Text>
+              <Text style={[s.hint, { marginTop: 0, marginBottom: 8 }]}>{t('postProjTradeMultiHint')}</Text>
               <View style={s.skillGrid}>
                 {SKILLS.map(sk => {
-                  const active = skillCategory === sk;
+                  const active = skillCategories.includes(sk);
                   return (
                     <TouchableOpacity
                       key={sk}
-                      onPress={() => setSkillCategory(sk)}
+                      onPress={() => toggleSkill(sk)}
                       style={[s.skillChip, active && s.skillChipActive]}
                       activeOpacity={0.85}
                     >
