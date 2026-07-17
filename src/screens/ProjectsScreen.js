@@ -32,6 +32,10 @@ import { useLang } from '../utils/i18n';
 import { AutoTranslate } from '../utils/translate';
 import { Empty } from '../components/UI';
 import { LABOUR_COLORS, SPACING, RADIUS, SKILL_ICONS, getSkillGradient } from '../constants/labourTheme';
+import BannerAd from '../components/ads/BannerAd';
+import NativeAdCard from '../components/ads/NativeAdCard';
+import { ADS_SUPPORTED, NATIVE_AD_FREQUENCY } from '../components/ads/adConfig';
+import { useIsPremium } from '../hooks/useIsPremium';
 
 const ORANGE = LABOUR_COLORS.primary;
 const IS_WEB = Platform.OS === 'web';
@@ -137,6 +141,22 @@ export default function ProjectsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [activeSkill, setActiveSkill] = useState('All');
+  const isPremium = useIsPremium();
+
+  // Every NATIVE_AD_FREQUENCY real projects, insert a dedicated ad "row" —
+  // same pattern as the Labour feed, so ad density stays consistent across
+  // the app. An ad slot that fails to fill just renders nothing.
+  const feedData = React.useMemo(() => {
+    const out = [];
+    const showAds = ADS_SUPPORTED && !isPremium;
+    projects.forEach((p, i) => {
+      out.push({ type: 'project', id: `project_${p.id}`, item: p });
+      if (showAds && (i + 1) % NATIVE_AD_FREQUENCY === 0) {
+        out.push({ type: 'ad', id: `project_ad_${i}` });
+      }
+    });
+    return out;
+  }, [projects, isPremium]);
 
   const load = useCallback(async (opts = {}) => {
     try {
@@ -192,8 +212,9 @@ export default function ProjectsScreen() {
             >
               <Ionicons
                 name={SKILL_ICONS[skill] || 'briefcase-outline'}
-                size={13}
+                size={14}
                 color={active ? '#fff' : LABOUR_COLORS.textMuted}
+                style={{ marginTop: 1 }}
               />
               <Text style={[s.chipTxt, active && s.chipTxtActive]}>{t(SKILL_T_KEYS[skill])}</Text>
             </TouchableOpacity>
@@ -217,11 +238,15 @@ export default function ProjectsScreen() {
         </View>
       ) : (
         <FlatList
-          data={projects}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={({ item, index }) => (
-            <ProjectCard item={item} t={t} lang={lang} index={index} onPress={() => nav.navigate('ProjectDetail', { id: item.id })} />
-          )}
+          data={feedData}
+          keyExtractor={(row) => row.id}
+          renderItem={({ item: row, index }) =>
+            row.type === 'ad' ? (
+              <NativeAdCard />
+            ) : (
+              <ProjectCard item={row.item} t={t} lang={lang} index={index} onPress={() => nav.navigate('ProjectDetail', { id: row.item.id })} />
+            )
+          }
           contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 32, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
           ListEmptyComponent={(
@@ -233,6 +258,9 @@ export default function ProjectsScreen() {
                 : t('projEmptySkillSub').replace('{SKILL}', t(SKILL_T_KEYS[activeSkill]))}
             />
           )}
+          ListFooterComponent={
+            !isPremium && projects.length > 0 ? <BannerAd style={{ marginTop: 8 }} /> : null
+          }
         />
       )}
     </View>
@@ -272,11 +300,15 @@ const s = StyleSheet.create({
   },
   topBarTitle: { fontSize: 16, fontWeight: '800', color: '#111' },
 
-  chipScrollWrap: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  chipScroll: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, gap: 8 },
+  chipScrollWrap: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0', height: 52 },
+  chipScroll: {
+    paddingHorizontal: SPACING.lg, paddingRight: SPACING.lg + 8,
+    paddingVertical: SPACING.sm, gap: 8,
+    alignItems: 'center',
+  },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: RADIUS.pill,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.pill,
     backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#eee',
   },
   chipActive: { backgroundColor: ORANGE, borderColor: ORANGE },
