@@ -62,9 +62,9 @@ const SKILL_T_KEYS = {
 
 // ── Full-width Project card — big banner + location pin + bold title +
 // contractor name + rounded tags, matching the card style used on the
-// Labour tab's Projects feed. No photo_url exists on projects yet, so the
-// banner falls back to a skill-tinted gradient with a large icon; if a
-// photo_url is ever added server-side this will use it automatically.
+// Labour tab's Projects feed. photo_url is the first uploaded project photo
+// (set when our team posts a project with photos via the admin panel); when
+// a project has no photos the banner falls back to a skill-tinted gradient.
 function ProjectCard({ item, onPress, t, lang, index = 0 }) {
   const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
   const spotsLeft = item.spots_left;
