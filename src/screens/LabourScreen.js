@@ -100,7 +100,7 @@ function QuickAction({ icon, label, color, onPress }) {
 }
 
 // ── Labour profile card — mirrors JobCard's look (accent bar + inner pad) ──
-function LabourCard({ item, onPress, index = 0, selectMode = false, selected = false, onToggleSelect }) {
+function LabourCard({ item, onPress, index = 0, selectMode = false, selected = false, onToggleSelect, onLongPressSelect }) {
   const { t } = useLang();
   const hasRating = !!item.rating_count && Number(item.rating_count) > 0;
   const isBusy = item.availability === 'busy';
@@ -137,7 +137,13 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
 
   return (
     <FadeIn delay={Math.min(index, 8) * 60}>
-      <TouchableOpacity style={cs.card} onPress={selectMode ? onToggleSelect : onPress} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={cs.card}
+        onPress={selectMode ? onToggleSelect : onPress}
+        onLongPress={selectMode ? onToggleSelect : onLongPressSelect}
+        delayLongPress={350}
+        activeOpacity={0.8}
+      >
         {selectMode && (
           <View style={[cs.checkbox, selected && cs.checkboxChecked]}>
             {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
@@ -471,6 +477,13 @@ export default function LabourScreen() {
   const toggleSelectId = (id) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
+  // Long-pressing a card is the actual discovery path for multi-select —
+  // a small button up in the header was easy to miss entirely. This jumps
+  // straight into select mode with the pressed card already checked.
+  const enterSelectModeWith = (id) => {
+    setSelectMode(true);
+    setSelectedIds([id]);
+  };
 
   // Translate the fixed English filter-option labels (used as data keys
   // elsewhere in this file) into the active language for display only.
@@ -748,21 +761,26 @@ export default function LabourScreen() {
             <Text style={ws.filterBtnTxt}>{t('lbFilters')}</Text>
           </TouchableOpacity>
         )}
-        {IS_WEB && !!user && (
+        {IS_WEB && selectMode && (
           <TouchableOpacity
-            style={[ws.searchFilterBtn, selectMode && s.pillBtnActive, { marginLeft: 8 }]}
+            style={[ws.searchFilterBtn, s.pillBtnActive, { marginLeft: 8 }]}
             onPress={toggleSelectMode}
           >
-            <Ionicons name="checkbox-outline" size={17} color={selectMode ? '#fff' : ORANGE} />
-            <Text style={[ws.filterBtnTxt, selectMode && s.pillBtnTxtActive]}>
-              {selectMode ? t('cancel') : t('lbSelectMultiple')}
-            </Text>
+            <Ionicons name="close" size={17} color="#fff" />
+            <Text style={[ws.filterBtnTxt, s.pillBtnTxtActive]}>{t('cancel')}</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Filters and "select multiple" now live here as clearly labelled
-          pills instead of unlabeled icons crammed into the title row. */}
+      {/* Long-pressing a card is the entry point into multi-select (a small
+          header button was too easy to miss) — this hint teaches that, and
+          disappears once select mode is active. */}
+      {!!user && !selectMode && (
+        <Text style={IS_WEB ? ws.selectHint : s.selectHint}>
+          {t('lbLongPressHint')}
+        </Text>
+      )}
+
       {!IS_WEB && (
         <View style={s.toolbarRow}>
           <TouchableOpacity
@@ -775,16 +793,14 @@ export default function LabourScreen() {
               {t('lbFilters')}{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
             </Text>
           </TouchableOpacity>
-          {!!user && (
+          {!!user && selectMode && (
             <TouchableOpacity
-              style={[s.pillBtn, selectMode && s.pillBtnActive]}
+              style={[s.pillBtn, s.pillBtnActive]}
               onPress={toggleSelectMode}
               activeOpacity={0.8}
             >
-              <Ionicons name="checkbox-outline" size={16} color={selectMode ? '#fff' : '#444'} />
-              <Text style={[s.pillBtnTxt, selectMode && s.pillBtnTxtActive]}>
-                {selectMode ? t('cancel') : t('lbSelectMultiple')}
-              </Text>
+              <Ionicons name="close" size={16} color="#fff" />
+              <Text style={[s.pillBtnTxt, s.pillBtnTxtActive]}>{t('cancel')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1028,6 +1044,7 @@ export default function LabourScreen() {
           selected={selectedIds.includes(item.id)}
           onPress={() => nav.navigate('LabourDetail', { id: item.id })}
           onToggleSelect={() => toggleSelectId(item.id)}
+          onLongPressSelect={() => enterSelectModeWith(item.id)}
         />
       </View>
     );
@@ -1087,6 +1104,9 @@ export default function LabourScreen() {
 
   const SelectBar = selectMode && selectedIds.length > 0 ? (
     <View style={s.selectBar}>
+      <TouchableOpacity onPress={toggleSelectMode} activeOpacity={0.7} style={{ padding: 4 }}>
+        <Ionicons name="close" size={20} color="#fff" />
+      </TouchableOpacity>
       <Text style={s.selectBarTxt}>{selectedIds.length} {t('lbSelected')}</Text>
       <TouchableOpacity style={s.selectBarBtn} onPress={() => setShowBulkModal(true)} activeOpacity={0.85}>
         <Ionicons name="briefcase-outline" size={15} color="#fff" />
@@ -1274,11 +1294,11 @@ const s = StyleSheet.create({
 
   selectBar: {
     position: 'absolute', left: 16, right: 16, bottom: 20,
-    backgroundColor: '#111', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#111', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10,
   },
-  selectBarTxt: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
+  selectBarTxt: { color: '#fff', fontSize: 13.5, fontWeight: '700', flex: 1 },
   selectBarBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: ORANGE, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14,
@@ -1325,6 +1345,7 @@ const s = StyleSheet.create({
   pillBtnActive: { backgroundColor: '#111', borderColor: '#111' },
   pillBtnTxt: { fontSize: 13, fontWeight: '700', color: '#444' },
   pillBtnTxtActive: { color: '#fff' },
+  selectHint: { fontSize: 12, color: '#999', marginTop: -6, marginBottom: 10 },
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16,
@@ -1454,6 +1475,7 @@ const ws = StyleSheet.create({
     backgroundColor: '#fff7f0', borderLeftWidth: 1, borderLeftColor: '#ebebeb',
   },
   filterBtnTxt: { fontSize: 13, fontWeight: '700', color: ORANGE },
+  selectHint: { fontSize: 12, color: '#999', marginTop: -8, marginBottom: 10 },
 
   categoryGrid: {
     display: 'grid',
