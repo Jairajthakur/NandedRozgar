@@ -76,11 +76,11 @@ export default function PostScreen() {
       key: 'project',
       icon: 'construct-outline',
       color: '#6366f1',
-      title: 'Post a Project',
+      title: t('postAProject') || 'Post a Project',
       subtitle: FEATURES.LABOUR_ENABLED
-        ? 'Need a team of workers? Post the job site'
-        : 'Coming soon 🚧',
-      badge: FEATURES.LABOUR_ENABLED ? { label: 'NEW', tone: 'indigo' } : { label: 'Coming Soon', tone: 'amber' },
+        ? (t('postAProjectSub') || 'Need a team of workers? Post the job site')
+        : (t('comingSoonEmoji') || 'Coming soon 🚧'),
+      badge: FEATURES.LABOUR_ENABLED ? { label: t('newBadge') || 'NEW', tone: 'indigo' } : { label: t('comingSoonBadge') || 'Coming Soon', tone: 'amber' },
       onPress: () => go('PostProject'),
     },
     {
