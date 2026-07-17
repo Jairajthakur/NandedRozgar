@@ -980,10 +980,23 @@ router.patch('/banners/:id/status', async (req, res) => {
 // all had one of these.
 router.get('/labour', async (req, res) => {
   try {
+    // booking_count / completed_count give the admin, at a glance, how many
+    // times each labourer has actually been booked (hire_requests rows) —
+    // not just whether their profile exists. LEFT JOIN + COUNT so labourers
+    // with zero hires still show up with 0 rather than being dropped.
     const { rows } = await pool.query(
-      `SELECT l.*, u.name AS poster_name, u.email AS poster_email, u.phone AS poster_phone
+      `SELECT l.*, u.name AS poster_name, u.email AS poster_email, u.phone AS poster_phone,
+              COALESCE(hr.booking_count, 0)   AS booking_count,
+              COALESCE(hr.completed_count, 0) AS completed_count
        FROM labour_profiles l
        LEFT JOIN users u ON l.user_id = u.id
+       LEFT JOIN (
+         SELECT labour_id,
+                COUNT(*)                                    AS booking_count,
+                COUNT(*) FILTER (WHERE status = 'completed') AS completed_count
+         FROM hire_requests
+         GROUP BY labour_id
+       ) hr ON hr.labour_id = l.id
        ORDER BY l.created_at DESC`
     );
     res.json({ ok: true, labour: rows });
