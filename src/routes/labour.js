@@ -121,7 +121,19 @@ router.get('/', async (req, res) => {
 
     // LOOPHOLE FIX: exclude banned/deactivated worker accounts — see note in
     // GET /localities above.
-    const conditions = ["l.status='active'", "u.active = true"];
+    //
+    // CHECK-IN GATE: a profile only appears in browse while checked_in_until
+    // is still in the future. Checking in is what makes a worker visible for
+    // that day ("standing at the chowk"); getting hired (see the 'accepted'
+    // branch in the hire-request status route below) clears checked_in_until
+    // immediately, so they drop out of browse the moment they have work — no
+    // manual checkout needed. checked_in_until also auto-expires at midnight
+    // IST, so a new day always requires a fresh check-in to be visible again.
+    const conditions = [
+      "l.status='active'",
+      "u.active = true",
+      "l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()",
+    ];
     const params = [];
 
     if (district) {
@@ -162,7 +174,6 @@ router.get('/', async (req, res) => {
         FROM labour_profiles l JOIN users u ON u.id = l.user_id
         WHERE ${where}
         ORDER BY
-          (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) DESC,
           (l.availability = 'available') DESC,
           l.last_shown_at ASC NULLS FIRST,
           l.created_at DESC
@@ -1422,6 +1433,16 @@ router.patch('/hire-requests/:id', auth, async (req, res) => {
         VALUES ($1, 'debit', $2, $3, 'labour_hire_fee', 'hire_requests', $4)
       `, [hr.contractor_id, HIRE_FEE, newBalRows[0].wallet_balance, id]);
       hireFeeCharged = HIRE_FEE;
+
+      // AUTO CHECK-OUT ON HIRE: they've got work for the day now, so pull
+      // them out of the "checked in" browse pool immediately — no manual
+      // checkout step required. They'll need to check in again to be
+      // visible for their next job, whether that's later today or tomorrow.
+      await client.query(
+        'UPDATE labour_profiles SET checked_in_until = NULL WHERE id = $1',
+        [hr.labour_id]
+      );
+      await cache.delPrefix('labour:');
     }
 
     // ── accepted → completed: credit the labourer's held commission ──
