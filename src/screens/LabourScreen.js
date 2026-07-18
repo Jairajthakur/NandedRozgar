@@ -100,7 +100,7 @@ function QuickAction({ icon, label, color, onPress }) {
 }
 
 // ── Labour profile card — mirrors JobCard's look (accent bar + inner pad) ──
-function LabourCard({ item, onPress, index = 0, selectMode = false, selected = false, onToggleSelect, onLongPressSelect }) {
+function LabourCard({ item, onViewDetail, index = 0, selected = false, onToggleSelect }) {
   const { t } = useLang();
   const hasRating = !!item.rating_count && Number(item.rating_count) > 0;
   const isBusy = item.availability === 'busy';
@@ -137,19 +137,18 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
 
   return (
     <FadeIn delay={Math.min(index, 8) * 60}>
+      {/* Tapping the card always selects/deselects it — it never opens the
+          detail screen. Viewing the full profile is a separate, explicit
+          action via the "View profile" button below, so a normal tap can't
+          accidentally leave the browse list. */}
       <TouchableOpacity
         style={cs.card}
-        onPress={selectMode ? onToggleSelect : onPress}
-        onLongPress={selectMode ? onToggleSelect : onLongPressSelect}
-        delayLongPress={350}
+        onPress={onToggleSelect}
         activeOpacity={0.8}
       >
-        {selectMode && (
-          <View style={[cs.checkbox, selected && cs.checkboxChecked]}>
-            {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
-          </View>
-        )}
-        {!selectMode && <Ionicons name="chevron-forward" size={15} color="#c4c4cc" style={cs.cardChevron} />}
+        <View style={[cs.checkbox, selected && cs.checkboxChecked]}>
+          {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
+        </View>
 
         <View style={cs.cardTop}>
           <View style={cs.photoTile}>
@@ -185,6 +184,16 @@ function LabourCard({ item, onPress, index = 0, selectMode = false, selected = f
           <Ionicons name={pill.icon} size={10} color={pill.bg} />
           <Text style={[cs.statusPillTxt, { color: pill.bg }]} numberOfLines={1}>{pill.label}</Text>
         </View>
+
+        <TouchableOpacity
+          style={cs.viewProfileBtn}
+          onPress={onViewDetail}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.7}
+        >
+          <Text style={cs.viewProfileBtnTxt}>{t('lbViewProfile') || 'View profile'}</Text>
+          <Ionicons name="chevron-forward" size={13} color={ORANGE} />
+        </TouchableOpacity>
       </TouchableOpacity>
     </FadeIn>
   );
@@ -349,6 +358,11 @@ const cs = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
   },
   checkboxChecked: { backgroundColor: ORANGE, borderColor: ORANGE },
+  viewProfileBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2,
+    marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f0f0f0',
+  },
+  viewProfileBtnTxt: { fontSize: 12, fontWeight: '800', color: ORANGE },
   photoImg: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
   photoInitials: { fontSize: 15, fontWeight: '800', color: '#fff' },
   teamBadge: {
@@ -463,26 +477,21 @@ export default function LabourScreen() {
   const showProjectsOnly = () => { setActiveSection('projects'); listRef.current?.scrollToOffset?.({ offset: 0, animated: true }); };
 
 
-  // ── Ad-hoc multi-select hire ── contractor picks any workers while
+  // ── Ad-hoc multi-select hire ── contractor taps any workers while
   // browsing (not necessarily part of a pre-formed Crew) and hires them
-  // all in one action via POST /api/labour/hire-bulk.
-  const [selectMode, setSelectMode] = useState(false);
+  // all in one action via POST /api/labour/hire-bulk. Tapping a card always
+  // toggles its selection (never opens the detail screen — that's a
+  // separate "View profile" button on the card), so "select mode" is just
+  // whether anything is currently selected.
   const [selectedIds, setSelectedIds] = useState([]);
+  const selectMode = selectedIds.length > 0;
   const [showBulkModal, setShowBulkModal] = useState(false);
 
   const toggleSelectMode = () => {
-    setSelectMode(m => !m);
     setSelectedIds([]);
   };
   const toggleSelectId = (id) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-  // Long-pressing a card is the actual discovery path for multi-select —
-  // a small button up in the header was easy to miss entirely. This jumps
-  // straight into select mode with the pressed card already checked.
-  const enterSelectModeWith = (id) => {
-    setSelectMode(true);
-    setSelectedIds([id]);
   };
 
   // Translate the fixed English filter-option labels (used as data keys
@@ -1040,11 +1049,9 @@ export default function LabourScreen() {
         <LabourCard
           item={item}
           index={index}
-          selectMode={selectMode}
           selected={selectedIds.includes(item.id)}
-          onPress={() => nav.navigate('LabourDetail', { id: item.id })}
           onToggleSelect={() => toggleSelectId(item.id)}
-          onLongPressSelect={() => enterSelectModeWith(item.id)}
+          onViewDetail={() => nav.navigate('LabourDetail', { id: item.id })}
         />
       </View>
     );
@@ -1120,9 +1127,12 @@ export default function LabourScreen() {
       visible={showBulkModal}
       workers={selectedWorkers}
       onClose={() => setShowBulkModal(false)}
+      onNeedTopUp={() => {
+        setShowBulkModal(false);
+        nav.navigate('Wallet');
+      }}
       onSuccess={() => {
         setShowBulkModal(false);
-        setSelectMode(false);
         setSelectedIds([]);
         nav.navigate('HireRequests');
       }}
