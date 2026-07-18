@@ -1040,8 +1040,8 @@ router.get('/monthly-plan/status', auth, async (req, res) => {
 // unlock is an instant in-app balance debit — no gateway round-trip, no
 // waiting on UPI confirmation, no leaving the hire flow. See routes/labour.js
 // for the debit side.
-const WALLET_TOPUP_MIN = 20;   // ₹ — matches the cheapest realistic unlock (few days at ₹8/day)
-const WALLET_TOPUP_MAX = 5000; // ₹ — sanity ceiling, not a real spending limit
+const WALLET_TOPUP_MIN = 10;   // ₹ — allow small top-ups
+const WALLET_TOPUP_MAX = 200;  // ₹ — sanity ceiling, not a real spending limit
 
 // GET /api/payments/wallet/balance
 router.get('/wallet/balance', auth, async (req, res) => {
