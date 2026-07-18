@@ -35,6 +35,7 @@ import NativeAdCard from '../components/ads/NativeAdCard';
 import BannerAd from '../components/ads/BannerAd';
 import { ADS_SUPPORTED } from '../components/ads/adConfig';
 import { useIsPremium } from '../hooks/useIsPremium';
+import { useLang } from '../utils/i18n';
 
 // Ad frequency for THIS screen specifically. This is a worker's own
 // dashboard — duty toggle, check-in, live job requests — not a browse
@@ -55,45 +56,45 @@ const BORDER  = 'rgba(0,0,0,0.07)';
 // India's unified emergency helpline (police / fire / ambulance).
 const EMERGENCY_NUMBER = '112';
 
-async function callSOS() {
+async function callSOS(t) {
   try {
     await Linking.openURL(`tel:${EMERGENCY_NUMBER}`);
   } catch {
-    Alert.alert('Could not open dialer', `Please dial ${EMERGENCY_NUMBER} directly.`);
+    Alert.alert(t('hrCouldNotOpenDialer'), t('hrPleaseDialDirectly').replace('{NUMBER}', EMERGENCY_NUMBER));
   }
 }
 
-function callNumber(number) {
+function callNumber(number, t) {
   if (!number) return;
   Linking.openURL(`tel:${number}`).catch(() =>
-    Alert.alert('Could not open dialer', `Please dial ${number} directly.`)
+    Alert.alert(t('hrCouldNotOpenDialer'), t('hrPleaseDialDirectly').replace('{NUMBER}', number))
   );
 }
 
 // Opens the contractor-set site coordinates in the device's maps app (Google
 // Maps on Android, falls back to a browser map elsewhere) — this is the
 // universal maps deep link so it works with no extra native map library.
-function openSiteLocation(item) {
+function openSiteLocation(item, t) {
   const { site_lat: lat, site_lng: lng, site_label: label } = item;
   if (lat == null || lng == null) return;
   const query = encodeURIComponent(label ? `${label}@${lat},${lng}` : `${lat},${lng}`);
   const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
   Linking.openURL(url).catch(() =>
-    Alert.alert('Could not open maps', 'Please check your maps app is installed.')
+    Alert.alert(t('hrCouldNotOpenMaps'), t('hrCheckMapsInstalled'))
   );
 }
 
 // Lets a worker send the job location/contractor phone to a family member
 // before heading out — plain-text share sheet so it works over WhatsApp,
 // SMS, or any other app the person already has installed.
-async function shareHireDetails(item) {
+async function shareHireDetails(item, t) {
   const lines = [
-    'Heading for a job — sharing details via NandedRozgar:',
-    item.contractor_name ? `Contractor: ${item.contractor_name}` : null,
-    (item.contact_phone || item.contractor_phone) ? `Contact number: ${item.contact_phone || item.contractor_phone}` : null,
-    item.work_description ? `Work: ${item.work_description}` : null,
-    item.proposed_wage ? `Wage: ₹${item.proposed_wage}/day` : null,
-    formatDate(item.work_date) ? `Date: ${formatDate(item.work_date)}` : null,
+    t('hrShareIntro'),
+    item.contractor_name ? t('hrShareContractor').replace('{NAME}', item.contractor_name) : null,
+    (item.contact_phone || item.contractor_phone) ? t('hrShareContact').replace('{PHONE}', item.contact_phone || item.contractor_phone) : null,
+    item.work_description ? t('hrShareWork').replace('{DESC}', item.work_description) : null,
+    item.proposed_wage ? t('hrShareWage').replace('{WAGE}', item.proposed_wage) : null,
+    formatDate(item.work_date) ? t('hrShareDate').replace('{DATE}', formatDate(item.work_date)) : null,
   ].filter(Boolean).join('\n');
   try {
     await Share.share({ message: lines });
@@ -111,8 +112,18 @@ function formatDate(d) {
   }
 }
 
+const STATUS_LABEL_KEYS = {
+  pending: 'hrStatusPending', accepted: 'hrStatusAccepted', declined: 'hrStatusDeclined',
+  completed: 'hrStatusCompleted', cancelled: 'hrStatusCancelled',
+};
+function statusLabel(status, t) {
+  const key = STATUS_LABEL_KEYS[status];
+  return key ? t(key) : (STATUS_META[status]?.label || status);
+}
+
 export default function HireRequestsScreen() {
   const nav = useNavigation();
+  const { t } = useLang();
 
   const [tab] = useState('received'); // labour dashboard only ever shows requests received
   const [received, setReceived]   = useState([]);
@@ -150,7 +161,7 @@ export default function HireRequestsScreen() {
     // Surface load failures instead of letting the screen quietly fall back
     // to its "no requests yet" empty state, which would otherwise look
     // identical to a genuinely empty inbox.
-    setError(failed ? (receivedRes?.error || mineRes?.error || 'Could not load your dashboard right now.') : null);
+    setError(failed ? (receivedRes?.error || mineRes?.error || t('hrCouldNotLoadDashboard')) : null);
 
     setLoading(false);
     setRefreshing(false);
@@ -168,16 +179,16 @@ export default function HireRequestsScreen() {
       if (res?.ok) {
         setSent(list => list.map(r => (r.id === hireRequest.id ? { ...r, status } : r)));
         setReceived(list => list.map(r => (r.id === hireRequest.id ? { ...r, status } : r)));
-        Toast.show({ type: 'success', text1: `Marked as ${STATUS_META[status]?.label || status}` });
+        Toast.show({ type: 'success', text1: t('hrMarkedAs').replace('{STATUS}', statusLabel(status, t)) });
       } else {
-        Toast.show({ type: 'error', text1: 'Could not update request', text2: res?.error || 'Please try again.' });
+        Toast.show({ type: 'error', text1: t('hrCouldNotUpdateRequest'), text2: res?.error || t('hrPleaseTryAgain') });
       }
     };
 
     if (confirmMsg) {
-      Alert.alert('Are you sure?', confirmMsg, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Yes', style: status === 'cancelled' || status === 'declined' ? 'destructive' : 'default', onPress: doUpdate },
+      Alert.alert(t('hrAreYouSure'), confirmMsg, [
+        { text: t('hrCancel'), style: 'cancel' },
+        { text: t('hrYes'), style: status === 'cancelled' || status === 'declined' ? 'destructive' : 'default', onPress: doUpdate },
       ]);
     } else {
       doUpdate();
@@ -186,15 +197,15 @@ export default function HireRequestsScreen() {
 
   const confirmSOS = (hireRequest) => {
     Alert.alert(
-      'Emergency SOS',
-      `This will call ${EMERGENCY_NUMBER} (police / fire / ambulance) and alert your emergency contact with your live location.`,
+      t('hrEmergencySOS'),
+      t('hrSOSMessage').replace('{NUMBER}', EMERGENCY_NUMBER),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('hrCancel'), style: 'cancel' },
         {
-          text: 'Send SOS',
+          text: t('hrSendSOS'),
           style: 'destructive',
           onPress: async () => {
-            callSOS();
+            callSOS(t);
             try {
               const { status } = await Location.requestForegroundPermissionsAsync();
               let lat, lng;
@@ -211,8 +222,8 @@ export default function HireRequestsScreen() {
                 const contact = res.emergencyContacts?.phone;
                 Toast.show({
                   type: 'success',
-                  text1: 'SOS alert sent',
-                  text2: contact ? `Your emergency contact will be notified.` : 'Add an emergency contact in Profile for faster help.',
+                  text1: t('hrSOSAlertSent'),
+                  text2: contact ? t('hrEmergencyContactNotified') : t('hrAddEmergencyContactHint'),
                 });
               }
             } catch (e) { /* dialing 112 already happened — alert logging is best-effort */ }
@@ -239,10 +250,10 @@ export default function HireRequestsScreen() {
     setSubmittingRating(false);
     if (res?.ok) {
       setSent(list => list.map(r => (r.id === rateTarget.id ? { ...r, already_rated: true } : r)));
-      Toast.show({ type: 'success', text1: '⭐ Rating submitted!' });
+      Toast.show({ type: 'success', text1: t('hrRatingSubmitted') });
       setRateTarget(null);
     } else {
-      Toast.show({ type: 'error', text1: 'Could not submit rating', text2: res?.error || 'Please try again.' });
+      Toast.show({ type: 'error', text1: t('hrCouldNotSubmitRating'), text2: res?.error || t('hrPleaseTryAgain') });
     }
   };
 
@@ -259,9 +270,9 @@ export default function HireRequestsScreen() {
         checked_in_today: res.profile.checked_in_today,
         availability: res.profile.availability || p.availability,
       }));
-      Toast.show({ type: 'success', text1: res.profile.checked_in_today ? "You're checked in for today" : 'Checked out' });
+      Toast.show({ type: 'success', text1: res.profile.checked_in_today ? t('hrCheckedInToday') : t('hrCheckedOut') });
     } else {
-      Toast.show({ type: 'error', text1: 'Could not update check-in', text2: res?.error || 'Please try again.' });
+      Toast.show({ type: 'error', text1: t('hrCouldNotUpdateCheckin'), text2: res?.error || t('hrPleaseTryAgain') });
     }
   };
 
@@ -272,9 +283,9 @@ export default function HireRequestsScreen() {
         <TouchableOpacity
           style={[st.actionBtn, st.actionBtnGhost]}
           disabled={busy}
-          onPress={() => updateStatus(item, 'cancelled', 'Cancel this hire request?')}
+          onPress={() => updateStatus(item, 'cancelled', t('hrCancelHireConfirm'))}
         >
-          {busy ? <ActivityIndicator size="small" color={MUTED} /> : <Text style={st.actionBtnGhostTxt}>Cancel request</Text>}
+          {busy ? <ActivityIndicator size="small" color={MUTED} /> : <Text style={st.actionBtnGhostTxt}>{t('hrCancelRequest')}</Text>}
         </TouchableOpacity>
       );
     }
@@ -284,16 +295,16 @@ export default function HireRequestsScreen() {
           <TouchableOpacity
             style={[st.actionBtn, st.actionBtnGhost, { flex: 1 }]}
             disabled={busy}
-            onPress={() => updateStatus(item, 'cancelled', 'Cancel this hire request?')}
+            onPress={() => updateStatus(item, 'cancelled', t('hrCancelHireConfirm'))}
           >
-            <Text style={st.actionBtnGhostTxt}>Cancel</Text>
+            <Text style={st.actionBtnGhostTxt}>{t('hrCancel')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[st.actionBtn, st.actionBtnPrimary, { flex: 1 }]}
             disabled={busy}
-            onPress={() => updateStatus(item, 'completed', 'Mark this work as completed? You\'ll be able to rate the worker next.')}
+            onPress={() => updateStatus(item, 'completed', t('hrMarkCompletedRateConfirm'))}
           >
-            {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.actionBtnPrimaryTxt}>Mark completed</Text>}
+            {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.actionBtnPrimaryTxt}>{t('hrMarkCompleted')}</Text>}
           </TouchableOpacity>
         </View>
       );
@@ -302,7 +313,7 @@ export default function HireRequestsScreen() {
       return (
         <TouchableOpacity style={[st.actionBtn, st.actionBtnRate]} onPress={() => openRateModal(item)}>
           <Ionicons name="star" size={15} color="#fff" />
-          <Text style={st.actionBtnPrimaryTxt}>Rate worker</Text>
+          <Text style={st.actionBtnPrimaryTxt}>{t('hrRateWorker')}</Text>
         </TouchableOpacity>
       );
     }
@@ -310,7 +321,7 @@ export default function HireRequestsScreen() {
       return (
         <View style={st.ratedRow}>
           <Ionicons name="checkmark-circle" size={15} color="#15803d" />
-          <Text style={st.ratedTxt}>You rated this worker</Text>
+          <Text style={st.ratedTxt}>{t('hrYouRatedWorker')}</Text>
         </View>
       );
     }
@@ -326,29 +337,29 @@ export default function HireRequestsScreen() {
             <View style={{ marginBottom: 8 }}>
               <TouchableOpacity
                 style={[st.phoneRow, { marginBottom: 2 }]}
-                onPress={() => callNumber(item.contact_phone || item.contractor_phone)}
+                onPress={() => callNumber(item.contact_phone || item.contractor_phone, t)}
                 activeOpacity={0.8}
               >
                 <Ionicons name="call" size={14} color={LABOUR} />
                 <Text style={st.phoneRowTxt}>{item.contact_phone || item.contractor_phone}</Text>
               </TouchableOpacity>
-              <Text style={st.phoneRowHint}>Tap to call and discuss the rate before deciding</Text>
+              <Text style={st.phoneRowHint}>{t('hrTapToCallHint')}</Text>
             </View>
           )}
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity
               style={[st.actionBtn, st.actionBtnGhost, { flex: 1 }]}
               disabled={busy}
-              onPress={() => updateStatus(item, 'declined', 'Decline this hire request?')}
+              onPress={() => updateStatus(item, 'declined', t('hrDeclineConfirm'))}
             >
-              <Text style={st.actionBtnGhostTxt}>Decline</Text>
+              <Text style={st.actionBtnGhostTxt}>{t('hrDecline')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[st.actionBtn, st.actionBtnPrimary, { flex: 1 }]}
               disabled={busy}
               onPress={() => updateStatus(item, 'accepted')}
             >
-              {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.actionBtnPrimaryTxt}>Accept</Text>}
+              {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.actionBtnPrimaryTxt}>{t('hrAccept')}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -360,7 +371,7 @@ export default function HireRequestsScreen() {
           {!!(item.contact_phone || item.contractor_phone) && (
             <TouchableOpacity
               style={st.phoneRow}
-              onPress={() => callNumber(item.contact_phone || item.contractor_phone)}
+              onPress={() => callNumber(item.contact_phone || item.contractor_phone, t)}
               activeOpacity={0.8}
             >
               <Ionicons name="call" size={14} color={LABOUR} />
@@ -371,39 +382,39 @@ export default function HireRequestsScreen() {
           {item.site_lat != null && item.site_lng != null ? (
             <TouchableOpacity
               style={st.locationRow}
-              onPress={() => openSiteLocation(item)}
+              onPress={() => openSiteLocation(item, t)}
               activeOpacity={0.8}
             >
               <Ionicons name="location" size={14} color={ORANGE} />
               <Text style={st.locationRowTxt} numberOfLines={1}>
-                {item.site_label || 'View exact site location'}
+                {item.site_label || t('hrViewSiteLocation')}
               </Text>
               <Ionicons name="open-outline" size={14} color={ORANGE} />
             </TouchableOpacity>
           ) : (
             <View style={st.locationRowMuted}>
               <Ionicons name="location-outline" size={14} color={MUTED} />
-              <Text style={st.locationRowMutedTxt}>Contractor hasn't shared the exact site location yet</Text>
+              <Text style={st.locationRowMutedTxt}>{t('hrNoSiteLocationYet')}</Text>
             </View>
           )}
 
           <TouchableOpacity
             style={[st.actionBtn, st.actionBtnPrimary]}
             disabled={busy}
-            onPress={() => updateStatus(item, 'completed', 'Mark this work as completed?')}
+            onPress={() => updateStatus(item, 'completed', t('hrMarkCompletedConfirm'))}
           >
-            {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.actionBtnPrimaryTxt}>Mark completed</Text>}
+            {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.actionBtnPrimaryTxt}>{t('hrMarkCompleted')}</Text>}
           </TouchableOpacity>
 
           {/* ── Safety row: before heading to the job ─────────────────────── */}
           <View style={st.safetyRow}>
-            <TouchableOpacity style={st.safetyBtn} onPress={() => shareHireDetails(item)} activeOpacity={0.8}>
+            <TouchableOpacity style={st.safetyBtn} onPress={() => shareHireDetails(item, t)} activeOpacity={0.8}>
               <Ionicons name="share-social-outline" size={14} color={LABOUR} />
-              <Text style={st.safetyBtnTxt}>Share job details</Text>
+              <Text style={st.safetyBtnTxt}>{t('hrShareJobDetails')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[st.safetyBtn, st.sosBtn]} onPress={() => confirmSOS(item)} activeOpacity={0.8}>
               <Ionicons name="alert-circle" size={14} color="#dc2626" />
-              <Text style={[st.safetyBtnTxt, st.sosBtnTxt]}>SOS</Text>
+              <Text style={[st.safetyBtnTxt, st.sosBtnTxt]}>{t('hrSOS')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -457,7 +468,7 @@ export default function HireRequestsScreen() {
             >
               <Ionicons name={expandedId === item.id ? 'chevron-up' : 'chevron-down'} size={14} color={LABOUR} />
               <Text style={st.manageToggleTxt}>
-                {expandedId === item.id ? 'Hide attendance & dispute' : 'Attendance & dispute'}
+                {expandedId === item.id ? t('hrHideAttendanceDispute') : t('hrAttendanceDispute')}
               </Text>
             </TouchableOpacity>
 
@@ -541,7 +552,7 @@ export default function HireRequestsScreen() {
                 {isTeam && (
                   <View style={st.heroSkillPill}>
                     <Ionicons name="people" size={11} color="#fff" />
-                    <Text style={st.heroSkillTxt}>Team of {myProfile.team_size}</Text>
+                    <Text style={st.heroSkillTxt}>{t('hrTeamOf').replace('{N}', myProfile.team_size)}</Text>
                   </View>
                 )}
                 {myProfile.rating_count > 0 && (
@@ -576,23 +587,23 @@ export default function HireRequestsScreen() {
           <View style={st.heroStatsRow}>
             <View style={st.heroStat}>
               <Text style={st.heroStatValue}>{completedCount}</Text>
-              <Text style={st.heroStatLabel}>Jobs done</Text>
+              <Text style={st.heroStatLabel}>{t('hrJobsDone')}</Text>
             </View>
             <View style={st.heroStatDivider} />
             <View style={st.heroStat}>
               <Text style={st.heroStatValue}>{received.length}</Text>
-              <Text style={st.heroStatLabel}>Requests</Text>
+              <Text style={st.heroStatLabel}>{t('hrRequests')}</Text>
             </View>
             <View style={st.heroStatDivider} />
             <View style={st.heroStat}>
               <Text style={st.heroStatValue}>{myProfile.daily_wage ? `₹${myProfile.daily_wage}` : '—'}</Text>
-              <Text style={st.heroStatLabel}>{isTeam ? 'Team/day' : 'Per day'}</Text>
+              <Text style={st.heroStatLabel}>{isTeam ? t('hrTeamPerDay') : t('hrPerDay')}</Text>
             </View>
           </View>
 
           {perPersonWage != null && (
             <Text style={st.heroPerPersonTxt}>
-              ≈ ₹{perPersonWage}/day per person · {myProfile.team_size} people
+              {t('hrPerPersonPerDay').replace('{WAGE}', perPersonWage).replace('{N}', myProfile.team_size)}
             </Text>
           )}
 
@@ -601,7 +612,7 @@ export default function HireRequestsScreen() {
             activeOpacity={0.8}
             onPress={() => myProfile.id && nav.navigate('LabourDetail', { id: myProfile.id })}
           >
-            <Text style={st.heroViewProfileTxt}>View your public profile & today's chowk stats</Text>
+            <Text style={st.heroViewProfileTxt}>{t('hrViewPublicProfile')}</Text>
             <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.85)" />
           </TouchableOpacity>
         </LinearGradient>
@@ -613,9 +624,9 @@ export default function HireRequestsScreen() {
               <Ionicons name="location" size={16} color={checkedIn ? LABOUR : MUTED} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={st.statusLabel}>{checkedIn ? "Checked in for today" : 'Check in at the chowk'}</Text>
+              <Text style={st.statusLabel}>{checkedIn ? t('hrCheckedInToday') : t('hrCheckInAtChowk')}</Text>
               <Text style={st.statusSub}>
-                {checkedIn ? 'You\u2019re boosted to the top until midnight' : 'Boost your visibility for today'}
+                {checkedIn ? t('hrCheckedInBoosted') : t('hrBoostVisibility')}
               </Text>
             </View>
             {profileBusy === 'checkin' ? (
@@ -623,7 +634,7 @@ export default function HireRequestsScreen() {
             ) : (
               <View style={[st.checkinBtn, checkedIn && st.checkinBtnActive]}>
                 <Text style={[st.checkinBtnTxt, checkedIn && st.checkinBtnTxtActive]}>
-                  {checkedIn ? 'Check out' : 'Check in'}
+                  {checkedIn ? t('hrCheckOut') : t('hrCheckIn')}
                 </Text>
               </View>
             )}
@@ -637,8 +648,8 @@ export default function HireRequestsScreen() {
               <Ionicons name="wallet-outline" size={16} color={LABOUR} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={st.statusLabel}>My Earnings</Text>
-              <Text style={st.statusSub}>₹5 per completed hire — view balance & withdraw</Text>
+              <Text style={st.statusLabel}>{t('hrMyEarnings')}</Text>
+              <Text style={st.statusSub}>{t('hrEarningsSub')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={MUTED} />
           </View>
@@ -651,8 +662,8 @@ export default function HireRequestsScreen() {
               <Ionicons name="briefcase-outline" size={16} color={ORANGE} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={st.statusLabel}>Browse Projects</Text>
-              <Text style={st.statusSub}>Multi-worker jobs from contractors — apply and get hired instantly</Text>
+              <Text style={st.statusLabel}>{t('hrBrowseProjects')}</Text>
+              <Text style={st.statusSub}>{t('hrBrowseProjectsSub')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={MUTED} />
           </View>
@@ -666,7 +677,7 @@ export default function HireRequestsScreen() {
         >
           <Ionicons name="ribbon-outline" size={16} color={MUTED} />
           <Text style={st.rewardsToggleTxt}>
-            {showRewards ? 'Hide rewards progress' : 'See your rewards progress'}
+            {showRewards ? t('hrHideRewards') : t('hrSeeRewards')}
           </Text>
           <Ionicons name={showRewards ? 'chevron-up' : 'chevron-down'} size={16} color={MUTED} />
         </TouchableOpacity>
@@ -684,14 +695,14 @@ export default function HireRequestsScreen() {
           <Ionicons name="alert-circle" size={16} color="#b91c1c" />
           <Text style={st.errorBannerTxt}>{error}</Text>
           <TouchableOpacity onPress={() => { setLoading(true); load(); }} style={st.errorBannerBtn}>
-            <Text style={st.errorBannerBtnTxt}>Retry</Text>
+            <Text style={st.errorBannerBtnTxt}>{t('hrRetry')}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       <View style={st.tabBar}>
         <View style={[st.tabBtn, st.tabBtnActive]}>
-          <Text style={[st.tabTxt, st.tabTxtActive]}>Received ({received.length})</Text>
+          <Text style={[st.tabTxt, st.tabTxtActive]}>{t('hrReceivedCount').replace('{N}', received.length)}</Text>
         </View>
       </View>
     </>
@@ -722,7 +733,7 @@ export default function HireRequestsScreen() {
           ListEmptyComponent={(
             <View style={st.empty}>
               <Ionicons name="hammer-outline" size={36} color="#ddd" />
-              <Text style={st.emptyTxt}>No one has sent you a hire request yet.</Text>
+              <Text style={st.emptyTxt}>{t('hrNoRequestsYet')}</Text>
               {!isPremium && ADS_SUPPORTED && <BannerAd style={{ marginTop: 16 }} />}
             </View>
           )}
@@ -734,7 +745,7 @@ export default function HireRequestsScreen() {
         <View style={st.modalOverlay}>
           <View style={st.modalBox}>
             <Ionicons name="star" size={36} color="#f59e0b" style={{ alignSelf: 'center', marginBottom: 8 }} />
-            <Text style={st.modalTitle}>Rate {rateTarget.labour_name || 'this worker'}</Text>
+            <Text style={st.modalTitle}>{t('hrRateName').replace('{NAME}', rateTarget.labour_name || t('hrThisWorker'))}</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 16 }}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <TouchableOpacity key={star} onPress={() => setRateStars(star)}>
@@ -748,7 +759,7 @@ export default function HireRequestsScreen() {
             </View>
             <TextInput
               style={st.textArea}
-              placeholder="Leave a comment (optional)"
+              placeholder={t('hrCommentPlaceholder')}
               placeholderTextColor="#bbb"
               value={rateComment}
               onChangeText={setRateComment}
@@ -760,11 +771,11 @@ export default function HireRequestsScreen() {
               disabled={!rateStars || submittingRating}
             >
               <Text style={[st.modalPrimaryBtnTxt, !rateStars && { color: '#9ca3af' }]}>
-                {submittingRating ? 'Submitting…' : 'Submit rating'}
+                {submittingRating ? t('hrSubmitting') : t('hrSubmitRating')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={st.modalCancelBtn} onPress={() => setRateTarget(null)}>
-              <Text style={st.modalCancelTxt}>Cancel</Text>
+              <Text style={st.modalCancelTxt}>{t('hrCancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
