@@ -413,6 +413,16 @@ async function runMigrations() {
     await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS checked_in_until TIMESTAMPTZ`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_checked_in ON labour_profiles(checked_in_until) WHERE checked_in_until IS NOT NULL`);
 
+    // FAIRNESS FIX: without this, the browse list's tie-break was
+    // `created_at DESC`, which never changes — so the same profile(s) sat at
+    // #1 forever and profiles outside the top of a tier rarely got seen.
+    // `last_shown_at` is bumped every time a profile is actually returned in
+    // a browse result, and the list sorts least-recently-shown first within
+    // each priority tier, so exposure rotates and every active labourer
+    // eventually surfaces at the top instead of only the same one.
+    await client.query(`ALTER TABLE labour_profiles ADD COLUMN IF NOT EXISTS last_shown_at TIMESTAMPTZ`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_labour_last_shown ON labour_profiles(last_shown_at)`);
+
     // Group/team hiring — a "team" profile is a lead worker representing a
     // group (e.g. "3 masons + 2 helpers") with a headcount and a single
     // combined day rate, instead of one person at one day rate. Contractors
