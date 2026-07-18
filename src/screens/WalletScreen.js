@@ -37,7 +37,7 @@ const BORDER  = 'rgba(0,0,0,0.07)';
 const GREEN   = '#16a34a';
 const RED     = '#dc2626';
 
-const QUICK_AMOUNTS = [20, 50, 100, 200];
+const QUICK_AMOUNTS = [10, 20, 50, 100, 200];
 
 const REASON_LABELS = {
   wallet_topup:            'Wallet top-up',
@@ -85,8 +85,12 @@ export default function WalletScreen() {
   const onRefresh = () => { setRefreshing(true); load(); };
 
   const topUp = async (amount) => {
-    if (!amount || amount < 20) {
-      Toast.show({ type: 'error', text1: 'Minimum top-up is ₹20' });
+    if (!amount || amount < 10) {
+      Toast.show({ type: 'error', text1: 'Minimum top-up is ₹10' });
+      return;
+    }
+    if (amount > 200) {
+      Toast.show({ type: 'error', text1: 'Maximum top-up is ₹200' });
       return;
     }
     setToppingUp(true);
@@ -173,10 +177,11 @@ export default function WalletScreen() {
             <TextInput
               style={st.customInput}
               value={customAmount}
-              onChangeText={t => setCustomAmount(t.replace(/[^0-9]/g, ''))}
-              placeholder="Custom amount"
+              onChangeText={t => setCustomAmount(t.replace(/[^0-9]/g, '').slice(0, 3))}
+              placeholder="Custom (₹10–₹200)"
               placeholderTextColor={MUTED}
               keyboardType="number-pad"
+              maxLength={3}
             />
             <TouchableOpacity
               style={[st.customBtn, (!customAmount || toppingUp) && st.customBtnDisabled]}
