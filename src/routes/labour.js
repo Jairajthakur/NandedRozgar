@@ -164,6 +164,7 @@ router.get('/', async (req, res) => {
         ORDER BY
           (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) DESC,
           (l.availability = 'available') DESC,
+          l.last_shown_at ASC NULLS FIRST,
           l.created_at DESC
         LIMIT $${params.length - 1} OFFSET $${params.length}
       `, params),
@@ -180,6 +181,18 @@ router.get('/', async (req, res) => {
 
     await cache.set(cacheKey, payload, LIST_TTL);
     res.json(payload);
+
+    // FAIRNESS ROTATION: mark these profiles as "just shown" so they sort
+    // behind less-recently-seen profiles next time (least-recently-shown
+    // first, see ORDER BY above). Fired after the response is sent so it
+    // never adds latency to the request; failures here are non-fatal.
+    const shownIds = dataRes.rows.map(r => r.id);
+    if (shownIds.length) {
+      pool.query(
+        `UPDATE labour_profiles SET last_shown_at = NOW() WHERE id = ANY($1::int[])`,
+        [shownIds]
+      ).catch(err => console.error('[labour] last_shown_at bump failed:', err.message));
+    }
   } catch (err) {
     console.error('[labour] list error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to load labour profiles' });
