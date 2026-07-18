@@ -16,7 +16,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, TextInput, Alert, Image, Switch, Platform,
+  ActivityIndicator, RefreshControl, TextInput, Alert, Image, Platform,
   Linking, Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -243,19 +243,6 @@ export default function HireRequestsScreen() {
       setRateTarget(null);
     } else {
       Toast.show({ type: 'error', text1: 'Could not submit rating', text2: res?.error || 'Please try again.' });
-    }
-  };
-
-  const toggleAvailability = async () => {
-    if (!myProfile || profileBusy) return;
-    const next = myProfile.availability === 'available' ? 'busy' : 'available';
-    setProfileBusy('availability');
-    const res = await http('PATCH', `/api/labour/${myProfile.id}/availability`, { availability: next });
-    setProfileBusy(null);
-    if (res?.ok) {
-      setMyProfile(p => ({ ...p, availability: next }));
-    } else {
-      Toast.show({ type: 'error', text1: 'Could not update availability', text2: res?.error || 'Please try again.' });
     }
   };
 
@@ -518,7 +505,6 @@ export default function HireRequestsScreen() {
   const renderDashboardHeader = () => {
     if (!myProfile) return null;
     const [gradStart, gradEnd] = getSkillGradient(myProfile.skill_category);
-    const available = myProfile.availability === 'available';
     const checkedIn = myProfile.checked_in_today;
     const isTeam = myProfile.profile_type === 'team';
     const perPersonWage = isTeam && myProfile.daily_wage && myProfile.team_size
@@ -620,34 +606,8 @@ export default function HireRequestsScreen() {
           </TouchableOpacity>
         </LinearGradient>
 
-        {/* ── Duty status card (Uber/Ola-style toggle) ───────────────────── */}
+        {/* ── Duty status card (check-in only — availability toggle removed) ── */}
         <View style={st.statusCard}>
-          <View style={st.statusRow}>
-            <View style={[st.statusIconWrap, { backgroundColor: available ? '#f0fdf4' : '#fef3c7' }]}>
-              <View style={[st.statusDot, { backgroundColor: available ? '#16a34a' : '#d97706' }]} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={st.statusLabel}>{available ? "You're Available" : "You're marked Busy"}</Text>
-              <Text style={st.statusSub}>
-                {available ? 'Contractors can find and hire you' : 'You won\u2019t show up in urgent searches'}
-              </Text>
-            </View>
-            {profileBusy === 'availability' ? (
-              <ActivityIndicator size="small" color={LABOUR} />
-            ) : (
-              <Switch
-                value={available}
-                onValueChange={toggleAvailability}
-                disabled={!!profileBusy}
-                trackColor={{ false: '#e5e7eb', true: '#bbf7d0' }}
-                thumbColor={Platform.OS === 'android' ? (available ? '#16a34a' : '#f4f4f5') : undefined}
-                ios_backgroundColor="#e5e7eb"
-              />
-            )}
-          </View>
-
-          <View style={st.statusDivider} />
-
           <TouchableOpacity style={st.statusRow} onPress={toggleCheckin} activeOpacity={0.75} disabled={!!profileBusy}>
             <View style={[st.statusIconWrap, { backgroundColor: checkedIn ? LABOUR + '22' : '#f5f5f5' }]}>
               <Ionicons name="location" size={16} color={checkedIn ? LABOUR : MUTED} />
