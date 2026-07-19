@@ -17,6 +17,7 @@ import MonthlyPlanBanner, { useMonthlyPlan } from '../components/MonthlyPlanBann
 import VoicePostAssistant from '../components/VoicePostAssistant';
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
+import { showInterstitial } from '../components/ads/interstitialAds';
 
 const { width: SW } = Dimensions.get('window');
 const TEAL   = '#0d9488';
@@ -398,6 +399,7 @@ export default function PostRoomScreen() {
       if (r.ok) {
         Toast.show({ type:'success', text1:'✅ Room listed successfully!' });
         nav.navigate('Main', { screen: 'Rooms' });
+        showInterstitial({ force: true });
       } else {
         Alert.alert('Error', r.error||'Failed to post room');
       }
