@@ -34,6 +34,7 @@ import RewardsProgress from '../components/labour/RewardsProgress';
 import NativeAdCard from '../components/ads/NativeAdCard';
 import BannerAd from '../components/ads/BannerAd';
 import { ADS_SUPPORTED } from '../components/ads/adConfig';
+import { showRewardedInterstitial, isRewardedInterstitialReady } from '../components/ads/rewardedAds';
 import { useIsPremium } from '../hooks/useIsPremium';
 import { useLang } from '../utils/i18n';
 
@@ -180,6 +181,10 @@ export default function HireRequestsScreen() {
         setSent(list => list.map(r => (r.id === hireRequest.id ? { ...r, status } : r)));
         setReceived(list => list.map(r => (r.id === hireRequest.id ? { ...r, status } : r)));
         Toast.show({ type: 'success', text1: t('hrMarkedAs').replace('{STATUS}', statusLabel(status, t)) });
+        // Natural breakpoint — job just wrapped up, offer an optional
+        // rewarded-interstitial for a small extra bonus on top of the
+        // commission that's already been credited.
+        if (status === 'completed') offerCompletionBonusAd();
       } else {
         Toast.show({ type: 'error', text1: t('hrCouldNotUpdateRequest'), text2: res?.error || t('hrPleaseTryAgain') });
       }
@@ -193,6 +198,35 @@ export default function HireRequestsScreen() {
     } else {
       doUpdate();
     }
+  };
+
+  const offerCompletionBonusAd = () => {
+    if (!ADS_SUPPORTED || !isRewardedInterstitialReady()) return;
+    Alert.alert(
+      t('hrWatchAdCompletionBonus'),
+      t('hrWatchAdCompletionBonusBody').replace('{AMOUNT}', 2),
+      [
+        { text: t('hrNoThanks'), style: 'cancel' },
+        {
+          text: t('hrWatchAd'),
+          onPress: async () => {
+            const earned = await showRewardedInterstitial();
+            if (!earned) {
+              Toast.show({ type: 'info', text1: t('earnAdRewardNotEarned') });
+              return;
+            }
+            const res = await http('POST', '/api/labour/ads/reward');
+            if (res?.ok) {
+              Toast.show({ type: 'success', text1: t('earnAdRewardCredited').replace('{AMOUNT}', res.amount) });
+            } else if (res?.error === 'daily_cap_reached') {
+              Toast.show({ type: 'info', text1: t('earnAdDailyCapReached') });
+            } else {
+              Toast.show({ type: 'error', text1: t('earnAdCouldNotCredit'), text2: res?.error || t('hrPleaseTryAgain') });
+            }
+          },
+        },
+      ]
+    );
   };
 
   const confirmSOS = (hireRequest) => {
