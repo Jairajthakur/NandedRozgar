@@ -15,6 +15,7 @@ import { useRazorpayCheckout } from '../utils/cashfree';
 import CouponInput from '../components/CouponInput';
 import MonthlyPlanBanner, { useMonthlyPlan } from '../components/MonthlyPlanBanner';
 import VoicePostAssistant from '../components/VoicePostAssistant';
+import { showInterstitial } from '../components/ads/interstitialAds';
 
 const ORANGE = '#f97316';
 const TOTAL_STEPS = 3;
@@ -633,6 +634,10 @@ export default function PostJobScreen() {
         const count = jobs.length;
         Toast.show({ type: 'success', text1: count > 1 ? `✅ ${count} jobs posted!` : '✅ Job posted!', text2: 'Your listing is now live.' });
         nav.navigate('Main', { screen: 'Board' });
+        // Natural breakpoint — the listing is live and the user is about
+        // to land back on a normal browsing screen, so a full-screen ad
+        // here doesn't interrupt an in-progress task.
+        showInterstitial({ force: true });
       }
     } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
