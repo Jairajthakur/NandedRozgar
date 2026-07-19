@@ -45,6 +45,26 @@ const REAL_BANNER_AD_UNIT_ID = {
   ios: '', // create an iOS banner ad unit in AdMob and paste it here
 };
 
+const REAL_INTERSTITIAL_AD_UNIT_ID = {
+  android: 'ca-app-pub-7042392981755855/9131714126',
+  ios: '', // create an iOS interstitial ad unit in AdMob and paste it here
+};
+
+const REAL_REWARDED_AD_UNIT_ID = {
+  android: 'ca-app-pub-7042392981755855/7782853298',
+  ios: '', // create an iOS rewarded ad unit in AdMob and paste it here
+};
+
+const REAL_REWARDED_INTERSTITIAL_AD_UNIT_ID = {
+  android: 'ca-app-pub-7042392981755855/5914523843',
+  ios: '', // create an iOS rewarded interstitial ad unit in AdMob and paste it here
+};
+
+const REAL_APP_OPEN_AD_UNIT_ID = {
+  android: 'ca-app-pub-7042392981755855/7227605514',
+  ios: '', // create an iOS app open ad unit in AdMob and paste it here
+};
+
 // ── Google's official test IDs (safe to use anytime, always fill) ──────────
 const TEST_NATIVE_AD_UNIT_ID = {
   android: 'ca-app-pub-3940256099942544/2247696110',
@@ -54,6 +74,29 @@ const TEST_NATIVE_AD_UNIT_ID = {
 const TEST_BANNER_AD_UNIT_ID = {
   android: 'ca-app-pub-3940256099942544/6300978111',
   ios: 'ca-app-pub-3940256099942544/2934735716',
+};
+
+// Google's official test IDs for the other formats — see
+// https://developers.google.com/admob/android/test-ads and the iOS
+// equivalent. Always fill, safe to request anytime.
+const TEST_INTERSTITIAL_AD_UNIT_ID = {
+  android: 'ca-app-pub-3940256099942544/1033173712',
+  ios: 'ca-app-pub-3940256099942544/4411468910',
+};
+
+const TEST_REWARDED_AD_UNIT_ID = {
+  android: 'ca-app-pub-3940256099942544/5224354917',
+  ios: 'ca-app-pub-3940256099942544/1712485313',
+};
+
+const TEST_REWARDED_INTERSTITIAL_AD_UNIT_ID = {
+  android: 'ca-app-pub-3940256099942544/5354046379',
+  ios: 'ca-app-pub-3940256099942544/6978759866',
+};
+
+const TEST_APP_OPEN_AD_UNIT_ID = {
+  android: 'ca-app-pub-3940256099942544/9257395921',
+  ios: 'ca-app-pub-3940256099942544/5575463023',
 };
 
 function pick(real, test) {
@@ -67,6 +110,10 @@ function pick(real, test) {
 
 export const NATIVE_AD_UNIT_ID = pick(REAL_NATIVE_AD_UNIT_ID, TEST_NATIVE_AD_UNIT_ID);
 export const BANNER_AD_UNIT_ID = pick(REAL_BANNER_AD_UNIT_ID, TEST_BANNER_AD_UNIT_ID);
+export const INTERSTITIAL_AD_UNIT_ID = pick(REAL_INTERSTITIAL_AD_UNIT_ID, TEST_INTERSTITIAL_AD_UNIT_ID);
+export const REWARDED_AD_UNIT_ID = pick(REAL_REWARDED_AD_UNIT_ID, TEST_REWARDED_AD_UNIT_ID);
+export const REWARDED_INTERSTITIAL_AD_UNIT_ID = pick(REAL_REWARDED_INTERSTITIAL_AD_UNIT_ID, TEST_REWARDED_INTERSTITIAL_AD_UNIT_ID);
+export const APP_OPEN_AD_UNIT_ID = pick(REAL_APP_OPEN_AD_UNIT_ID, TEST_APP_OPEN_AD_UNIT_ID);
 
 // Ads are native-only — there is no AdMob SDK for the web build.
 export const ADS_SUPPORTED = Platform.OS === 'android' || Platform.OS === 'ios';
@@ -79,6 +126,19 @@ export const ADS_SUPPORTED = Platform.OS === 'android' || Platform.OS === 'ios';
 // silent causes of drop-off. If retention dips, 5 is a reasonable middle
 // ground before going back to 6-8.
 export const NATIVE_AD_FREQUENCY = 3;
+
+// Show a full-screen interstitial after every N screen navigations, in
+// addition to the action-triggered spots (after posting an ad, etc).
+export const INTERSTITIAL_NAV_FREQUENCY = 4;
+
+// Don't show two full-screen ads (interstitial / app open) back-to-back —
+// shared across the interstitial and app-open managers via adGate.js.
+export const MIN_MS_BETWEEN_FULLSCREEN_ADS = 45_000;
+
+// Minimum time between App Open ad impressions, so a user backgrounding
+// and resuming the app repeatedly in a short span doesn't get hit with an
+// ad every single time.
+export const MIN_MS_BETWEEN_APP_OPEN_ADS = 4 * 60 * 60 * 1000; // 4 hours
 
 // ── Startup diagnostics ─────────────────────────────────────────────────
 // Logs once at import time so `adb logcat -s ReactNativeJS` (or the EAS
@@ -94,5 +154,9 @@ console.log(
   ' IS_DEV=' + IS_DEV +
   ' FORCE_TEST_ADS=' + FORCE_TEST_ADS +
   ' NATIVE_AD_UNIT_ID=' + NATIVE_AD_UNIT_ID +
-  ' BANNER_AD_UNIT_ID=' + BANNER_AD_UNIT_ID
+  ' BANNER_AD_UNIT_ID=' + BANNER_AD_UNIT_ID +
+  ' INTERSTITIAL_AD_UNIT_ID=' + INTERSTITIAL_AD_UNIT_ID +
+  ' REWARDED_AD_UNIT_ID=' + REWARDED_AD_UNIT_ID +
+  ' REWARDED_INTERSTITIAL_AD_UNIT_ID=' + REWARDED_INTERSTITIAL_AD_UNIT_ID +
+  ' APP_OPEN_AD_UNIT_ID=' + APP_OPEN_AD_UNIT_ID
 );
