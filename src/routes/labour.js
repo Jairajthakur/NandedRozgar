@@ -38,6 +38,12 @@ const LABOUR_COMMISSION = 5;
 // after being marked "completed" can still be clawed back.
 const PAYOUT_HOLD_HOURS = 48;
 const MIN_WITHDRAWAL = 50;
+// ── Watch-an-ad earnings bonus ──────────────────────────────────────────
+// Small instant bonus credited for watching a rewarded ad — no hold, since
+// there's nothing to dispute (unlike a hire completion). Capped per day
+// per worker so this can't be farmed by repeatedly opening/closing ads.
+const AD_REWARD_AMOUNT = 2;
+const AD_REWARD_DAILY_CAP = 5;
 // Velocity cap: max commission-eligible completions per contractor↔labourer
 // pair per day. Farming a ₹5 commission via a repeated same-pair accept→
 // complete loop nets the colluding pair a net LOSS (they pay ₹10, get ₹5
@@ -1598,6 +1604,45 @@ router.get('/payouts/mine', auth, async (req, res) => {
   } catch (err) {
     console.error('[labour] payouts/mine error:', err.message);
     res.status(500).json({ ok: false, error: 'Failed to load earnings' });
+  }
+});
+
+// POST /api/labour/ads/reward — credits AD_REWARD_AMOUNT instantly (no
+// hold) after a worker watches a rewarded/rewarded-interstitial ad to
+// completion. Client only calls this once the SDK's EARNED_REWARD event
+// has actually fired, but this is still a client-trusted signal (no AdMob
+// server-side verification callback wired up), so the per-day cap here is
+// the real abuse guard, not a nice-to-have.
+router.post('/ads/reward', auth, async (req, res) => {
+  try {
+    // Must have an active labour profile — this bonus is a worker-side
+    // earnings feature, not something a contractor account should hit.
+    const { rows: profileRows } = await pool.query(
+      `SELECT id FROM labour_profiles WHERE user_id = $1 AND status = 'active' LIMIT 1`,
+      [req.user.id]
+    );
+    if (!profileRows.length) {
+      return res.status(403).json({ ok: false, error: 'Only workers with an active labour profile can earn ad rewards.' });
+    }
+
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM labour_payouts
+       WHERE labour_user_id = $1 AND source = 'ad_reward' AND created_at >= CURRENT_DATE`,
+      [req.user.id]
+    );
+    if (countRows[0].n >= AD_REWARD_DAILY_CAP) {
+      return res.status(429).json({ ok: false, error: 'daily_cap_reached', dailyCap: AD_REWARD_DAILY_CAP });
+    }
+
+    await pool.query(`
+      INSERT INTO labour_payouts (hire_request_id, labour_user_id, amount, status, available_at, source)
+      VALUES (NULL, $1, $2, 'available', NOW(), 'ad_reward')
+    `, [req.user.id, AD_REWARD_AMOUNT]);
+
+    res.json({ ok: true, amount: AD_REWARD_AMOUNT, dailyCap: AD_REWARD_DAILY_CAP, rewardsToday: countRows[0].n + 1 });
+  } catch (err) {
+    console.error('[labour] ads/reward error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to credit ad reward' });
   }
 });
 
