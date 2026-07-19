@@ -61,6 +61,8 @@ import LanguagePickerScreen from './src/screens/LanguagePickerScreen';
 import { isOnboarded, hasSeenInstagramBanner, markInstagramBannerSeen } from './src/utils/storage';
 import InstagramFollowModal from './src/components/InstagramFollowModal';
 import { initAds } from './src/components/ads/initAds';
+import { initAppOpenAds } from './src/components/ads/appOpenAds';
+import { maybeShowOnNavigation } from './src/components/ads/interstitialAds';
 import ReferralScreen from './src/screens/ReferralScreen';
 import MyApplicationsScreen from './src/screens/MyApplicationsScreen';
 import SeekerProfileScreen  from './src/screens/SeekerProfileScreen';
@@ -781,6 +783,11 @@ function RootNavigator() {
   // Must run once before any <BannerAd> / native ad request — see initAds.js.
   React.useEffect(() => {
     initAds();
+    // App Open ads load and show themselves independently of the
+    // interstitial/rewarded pools — call this once too, on the same
+    // startup effect. Handles both the cold-start show (first load after
+    // launch) and every subsequent resume-from-background.
+    initAppOpenAds();
   }, []);
 
   React.useEffect(() => {
@@ -1077,7 +1084,11 @@ export default function App() {
             <DistrictProvider>
             <LangProvider>
             <UpdateProvider>
-            <NavigationContainer linking={linking} ref={navigationRef}>
+            <NavigationContainer
+              linking={linking}
+              ref={navigationRef}
+              onStateChange={maybeShowOnNavigation}
+            >
               <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
               {Platform.OS === 'web' && !isOnline && <OfflineBanner />}
               <RootNavigator />
