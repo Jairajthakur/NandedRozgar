@@ -16,6 +16,7 @@ import VoicePostAssistant from '../components/VoicePostAssistant';
 import CouponInput from '../components/CouponInput';
 import { useAuth } from '../context/AuthContext';
 import { useDistrict } from '../context/DistrictContext';
+import { showInterstitial } from '../components/ads/interstitialAds';
 
 const { width: SW } = Dimensions.get('window');
 const ORANGE = '#f97316';
@@ -749,6 +750,7 @@ export default function PostItemScreen() {
       if (res.ok) {
         Toast.show({ type: 'success', text1: '🎉 Item Listed!', text2: 'Your item is now live on Buy & Sell.' });
         nav.navigate('BuySell');
+        showInterstitial({ force: true });
       } else {
         Alert.alert('Error', res.error || 'Failed to post item. Try again.');
       }
