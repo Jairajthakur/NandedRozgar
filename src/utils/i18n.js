@@ -533,6 +533,15 @@ const STRINGS = {
     earnStatusProcessing: 'Processing', earnStatusReadyToWithdraw: 'Ready to withdraw',
     earnStatusWithdrawalRequested: 'Withdrawal requested', earnStatusPaid: 'Paid',
     earnStatusRequested: 'Requested', earnStatusRejected: 'Rejected',
+    earnAdRewardLabel: 'Ad reward',
+    earnWatchAdBonus: 'Watch an ad for ₹{AMOUNT} bonus',
+    earnWatchAdBonusSub: 'Instant credit — no waiting period',
+    earnAdLoading: 'Loading ad…', earnAdNotReady: 'Ad not ready yet, try again in a moment',
+    earnAdRewardCredited: '₹{AMOUNT} bonus credited!', earnAdRewardNotEarned: 'Ad closed before finishing — no bonus this time',
+    earnAdDailyCapReached: "You've reached today's ad-bonus limit", earnAdCouldNotCredit: 'Could not credit ad reward',
+    hrWatchAdCompletionBonus: 'Watch a short ad for a completion bonus?',
+    hrWatchAdCompletionBonusBody: 'Watch a short ad now for an extra ₹{AMOUNT} on top of this job.',
+    hrWatchAd: 'Watch ad', hrNoThanks: 'No thanks',
   },
 
   mr: {
@@ -1021,6 +1030,15 @@ const STRINGS = {
     earnStatusProcessing: 'प्रोसेस होतंय', earnStatusReadyToWithdraw: 'काढण्यासाठी तयार',
     earnStatusWithdrawalRequested: 'काढण्याची विनंती केली', earnStatusPaid: 'दिलं',
     earnStatusRequested: 'विनंती केली', earnStatusRejected: 'नाकारलं',
+    earnAdRewardLabel: 'जाहिरात बक्षीस',
+    earnWatchAdBonus: '₹{AMOUNT} बोनससाठी जाहिरात बघा',
+    earnWatchAdBonusSub: 'लगेच जमा — वाट बघायची गरज नाही',
+    earnAdLoading: 'जाहिरात लोड होतेय…', earnAdNotReady: 'जाहिरात अजून तयार नाही, थोड्या वेळाने ट्राय करा',
+    earnAdRewardCredited: '₹{AMOUNT} बोनस जमा झाला!', earnAdRewardNotEarned: 'जाहिरात पूर्ण होण्याआधीच बंद झाली — यावेळी बोनस मिळाला नाही',
+    earnAdDailyCapReached: 'आजची जाहिरात-बोनसची मर्यादा संपली आहे', earnAdCouldNotCredit: 'जाहिरात बक्षीस जमा होऊ शकलं नाही',
+    hrWatchAdCompletionBonus: 'कम्प्लीशन बोनससाठी छोटी जाहिरात बघायची का?',
+    hrWatchAdCompletionBonusBody: 'या कामावर आणखी ₹{AMOUNT} मिळवण्यासाठी आता एक छोटी जाहिरात बघा.',
+    hrWatchAd: 'जाहिरात बघा', hrNoThanks: 'नको',
   },
 
   hi: {
@@ -1509,6 +1527,15 @@ const STRINGS = {
     earnStatusProcessing: 'प्रोसेस हो रहा है', earnStatusReadyToWithdraw: 'निकालने के लिए तैयार',
     earnStatusWithdrawalRequested: 'निकालने की रिक्वेस्ट भेजी', earnStatusPaid: 'दिया गया',
     earnStatusRequested: 'रिक्वेस्ट भेजी', earnStatusRejected: 'नकारा',
+    earnAdRewardLabel: 'विज्ञापन रिवार्ड',
+    earnWatchAdBonus: '₹{AMOUNT} बोनस के लिए विज्ञापन देखें',
+    earnWatchAdBonusSub: 'तुरंत क्रेडिट — इंतज़ार नहीं करना',
+    earnAdLoading: 'विज्ञापन लोड हो रहा है…', earnAdNotReady: 'विज्ञापन अभी तैयार नहीं है, थोड़ी देर बाद कोशिश करें',
+    earnAdRewardCredited: '₹{AMOUNT} बोनस क्रेडिट हुआ!', earnAdRewardNotEarned: 'विज्ञापन पूरा होने से पहले बंद हो गया — इस बार बोनस नहीं मिला',
+    earnAdDailyCapReached: 'आज की विज्ञापन-बोनस लिमिट पूरी हो गई', earnAdCouldNotCredit: 'विज्ञापन रिवार्ड क्रेडिट नहीं हो पाया',
+    hrWatchAdCompletionBonus: 'कम्प्लीशन बोनस के लिए छोटा विज्ञापन देखना है?',
+    hrWatchAdCompletionBonusBody: 'इस काम पर ₹{AMOUNT} और पाने के लिए अभी एक छोटा विज्ञापन देखें.',
+    hrWatchAd: 'विज्ञापन देखें', hrNoThanks: 'नहीं चाहिए',
   },
 };
 
