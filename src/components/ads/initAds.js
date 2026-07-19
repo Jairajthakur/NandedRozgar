@@ -38,6 +38,17 @@ export function initAds() {
     .initialize()
     .then(statuses => {
       console.log('[ads] AdMob SDK initialized', statuses);
+      // Warm the interstitial/rewarded/rewarded-interstitial pools now so
+      // the first navigation-triggered or action-triggered show() call
+      // isn't stuck waiting on a fresh network load. App Open ads are
+      // started separately via initAppOpenAds() (App.js) since that one
+      // also needs to show itself the moment it first loads (cold start).
+      try {
+        require('./interstitialAds').preloadInterstitial();
+        require('./rewardedAds').preloadRewardedAds();
+      } catch (err) {
+        console.log('[ads] could not preload interstitial/rewarded ads', err);
+      }
     })
     .catch(err => {
       console.log('[ads] AdMob SDK failed to initialize', err);
