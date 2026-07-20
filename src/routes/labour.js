@@ -1771,11 +1771,19 @@ router.post('/payouts/withdraw', auth, async (req, res) => {
 });
 
 // GET /api/labour/payouts/certificate — Formal Earnings Certificate.
-// A downloadable PDF summary of a worker's lifetime paid earnings on the
-// platform, usable as informal income verification when applying for a
-// small bank loan or a government scheme. Only counts payouts that have
-// actually reached status='paid' (real money that moved), not pending or
-// held commissions, so the figure can't be inflated by unpaid claims.
+// A downloadable PDF summary of a worker's earnings on the platform, usable
+// as informal income verification when applying for a small bank loan or a
+// government scheme.
+//
+// Shows TWO distinct figures, kept clearly separate so real wages are never
+// confused with platform commission:
+//   1. Total wages earned — the actual day's-work wages from completed
+//      hire_requests.proposed_wage. Escrow-released wages are marked
+//      "Verified" (contractor confirmed via the Wage Guarantee escrow flow);
+//      everything else is marked "Self-reported" since it's the agreed
+//      amount on the hire, not a contractor-confirmed payment event.
+//   2. Total platform earnings (paid) — commissions, ad rewards, and bonus
+//      payouts actually paid out through labour_payouts (status='paid').
 router.get('/payouts/certificate', auth, async (req, res) => {
   try {
     const PDFDocument = require('pdfkit');
@@ -1785,10 +1793,31 @@ router.get('/payouts/certificate', auth, async (req, res) => {
     if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
 
     const { rows: profileRows } = await pool.query(
-      'SELECT full_name, skill_category, district FROM labour_profiles WHERE user_id = $1', [req.user.id]
+      'SELECT id, full_name, skill_category, district FROM labour_profiles WHERE user_id = $1', [req.user.id]
     );
     const profile = profileRows[0];
 
+    // ── Wages: completed hire_requests for this worker, with escrow
+    // verification status. This is the actual "did work, got paid ₹X for
+    // the day" figure — separate from platform commission entirely.
+    const { rows: wageRows } = await pool.query(`
+      SELECT hr.id, hr.proposed_wage, hr.work_date, hr.completed_at, hr.work_description,
+             u.name AS contractor_name,
+             ed.status AS escrow_status
+      FROM hire_requests hr
+      JOIN labour_profiles lp ON lp.id = hr.labour_id
+      LEFT JOIN users u ON u.id = hr.contractor_id
+      LEFT JOIN escrow_deposits ed ON ed.hire_request_id = hr.id
+      WHERE lp.user_id = $1 AND hr.status = 'completed' AND hr.proposed_wage IS NOT NULL
+      ORDER BY COALESCE(hr.completed_at, hr.work_date, hr.created_at) ASC
+    `, [req.user.id]);
+
+    const totalWages = wageRows.reduce((s, r) => s + parseFloat(r.proposed_wage || 0), 0);
+    const verifiedWageRows = wageRows.filter(r => r.escrow_status === 'released');
+    const totalVerifiedWages = verifiedWageRows.reduce((s, r) => s + parseFloat(r.proposed_wage || 0), 0);
+    const jobsWithWage = wageRows.length;
+
+    // ── Platform commission/bonus payouts, actually paid ──
     const { rows: paidRows } = await pool.query(`
       SELECT p.amount, p.created_at, p.source, COALESCE(hu.name, cu.name) AS contractor_name
       FROM labour_payouts p
@@ -1806,9 +1835,8 @@ router.get('/payouts/certificate', auth, async (req, res) => {
     );
 
     const totalPaid = paidRows.reduce((s, r) => s + parseFloat(r.amount), 0);
-    const jobsCompleted = paidRows.filter(r => r.source !== 'contact_unlock').length;
-    const firstEarning = paidRows[0]?.created_at || null;
-    const lastEarning  = paidRows[paidRows.length - 1]?.created_at || null;
+    const firstEarning = wageRows[0]?.completed_at || wageRows[0]?.work_date || null;
+    const lastEarning  = wageRows[wageRows.length - 1]?.completed_at || wageRows[wageRows.length - 1]?.work_date || null;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="earnings-certificate-${req.user.id}.pdf"`);
@@ -1833,30 +1861,44 @@ router.get('/payouts/certificate', auth, async (req, res) => {
     doc.text(`Platform member since: ${user.created_at ? new Date(user.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}`);
     doc.moveDown(1);
 
-    doc.fontSize(13).fillColor('#111').text('Earnings Summary', { underline: true });
+    // ── Wages summary (the actual income-verification figure) ──
+    doc.fontSize(13).fillColor('#111').text('Wage Earnings Summary', { underline: true });
     doc.moveDown(0.3);
     doc.fontSize(11).fillColor('#333');
-    doc.text(`Total verified earnings (paid): Rs. ${totalPaid.toFixed(2)}`);
-    doc.text(`Jobs completed and paid: ${jobsCompleted}`);
-    doc.text(`Total withdrawn to bank/UPI: Rs. ${parseFloat(withdrawnRows[0].total).toFixed(2)}`);
+    doc.text(`Total wages earned (completed jobs): Rs. ${totalWages.toFixed(2)}`);
+    doc.text(`  — of which contractor-verified via escrow: Rs. ${totalVerifiedWages.toFixed(2)}`);
+    doc.text(`  — of which self-reported (agreed wage on hire, not escrow-verified): Rs. ${(totalWages - totalVerifiedWages).toFixed(2)}`);
+    doc.text(`Jobs completed with recorded wage: ${jobsWithWage}`);
     if (firstEarning) doc.text(`Earning history: ${new Date(firstEarning).toLocaleDateString('en-IN')} to ${new Date(lastEarning).toLocaleDateString('en-IN')}`);
     doc.moveDown(1);
 
-    if (paidRows.length) {
-      doc.fontSize(13).fillColor('#111').text('Transaction History', { underline: true });
+    // ── Platform commission/bonus summary (kept separate from wages) ──
+    doc.fontSize(13).fillColor('#111').text('Platform Commission & Bonus Summary', { underline: true });
+    doc.moveDown(0.3);
+    doc.fontSize(11).fillColor('#333');
+    doc.text(`Total platform earnings paid (commissions, ad rewards, bonuses): Rs. ${totalPaid.toFixed(2)}`);
+    doc.text(`Total withdrawn to bank/UPI: Rs. ${parseFloat(withdrawnRows[0].total).toFixed(2)}`);
+    doc.moveDown(1);
+
+    if (wageRows.length) {
+      doc.fontSize(13).fillColor('#111').text('Wage Transaction History', { underline: true });
       doc.moveDown(0.3);
       doc.fontSize(9).fillColor('#333');
-      const rowsToShow = paidRows.slice(-40); // last 40 to keep the PDF short
+      const rowsToShow = wageRows.slice(-40); // last 40 to keep the PDF short
       rowsToShow.forEach((r, i) => {
-        const date = new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-        doc.text(`${i + 1}. ${date}  —  Rs. ${parseFloat(r.amount).toFixed(2)}  —  ${r.contractor_name || 'NandedRozgar platform'}`);
+        const date = new Date(r.completed_at || r.work_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const verified = r.escrow_status === 'released' ? 'Verified' : 'Self-reported';
+        doc.text(`${i + 1}. ${date}  —  Rs. ${parseFloat(r.proposed_wage).toFixed(2)}  —  ${r.contractor_name || 'Contractor'}  —  ${verified}`);
       });
       doc.moveDown(1);
     }
 
     doc.fontSize(9).fillColor('#999').text(
-      'This certificate is generated from platform transaction records and reflects income earned through NandedRozgar. ' +
-      'It is provided for informational purposes to support loan or scheme applications and is not a bank statement.',
+      'This certificate is generated from platform transaction records. Wage figures marked "Verified" were confirmed ' +
+      'by the hiring contractor through the Wage Guarantee escrow feature; figures marked "Self-reported" reflect the ' +
+      'wage agreed at time of hire and were not independently confirmed. Commission and bonus figures reflect income ' +
+      'earned through NandedRozgar\u2019s own payout pipeline. This is provided for informational purposes to support ' +
+      'loan or scheme applications and is not a bank statement.',
       { align: 'left' }
     );
 
