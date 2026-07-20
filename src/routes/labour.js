@@ -1,455 +1,1870 @@
-/**
- * LabourScreen.js — the Labour marketplace: browse workers + a preview of
- * contractor-posted Projects.
- *
- * This is what LabourEntryScreen shows to everyone who is NOT a worker with
- * an existing profile (guests, and logged-in hirers who haven't posted a
- * profile yet). Workers with a profile land on HireRequestsScreen instead
- * and can still reach this screen via Profile > "Browse workers"
- * (forceBrowse route param).
- *
- * Reads:
- *   GET /api/labour    — paginated worker listing, filterable by district
- *                         (DistrictContext), skill category, and search text.
- *   GET /api/projects  — active contractor-posted Projects, shown as a
- *                         horizontal preview strip up top; "See all" opens
- *                         the full ProjectsScreen.
- *
- * A "Post my profile" banner is shown to any logged-in user who hasn't
- * posted a worker profile yet, so hirers can become workers whenever
- * they're ready — the very next time they open the Labour tab they land on
- * their dashboard automatically (see LabourEntryScreen).
- *
- * Place at: src/screens/LabourScreen.js
- */
+const router = require('express').Router();
+const jwt = require('jsonwebtoken');
+const { pool, cache } = require('../db');
+const { auth } = require('../middleware/auth');
+// Push util is optional at require-time (mirrors routes/sos.js) so a missing
+// Firebase config never breaks the hire flow itself — sendPushNotifications
+// already no-ops gracefully if Firebase Admin isn't configured, but this
+// keeps a bad require from taking the whole router down too.
+let sendPushNotifications = null;
+try { ({ sendPushNotifications } = require('../utils/push')); } catch { /* push util optional */ }
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  View, Text, Image, FlatList, TouchableOpacity, ScrollView,
-  StyleSheet, RefreshControl, ActivityIndicator, TextInput, Platform, StatusBar,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+const LIST_TTL   = 15_000;
+const DETAIL_TTL = 30_000;
+const WAGE_BOARD_TTL = 30 * 60_000; // going rates move slowly, refresh every 30 min
+const WAGE_BOARD_MIN_SAMPLES = 3;   // don't show a rate until enough listings back it up
+const REHIRE_FREE_DAYS = 3;         // free re-unlock window granted on a repeat hire
+const MAX_UNLOCK_DAYS = 30;         // sanity cap on a single wallet debit, not a real limit
 
-import { http } from '../utils/api';
-import { useAuth } from '../context/AuthContext';
-import { useDistrict } from '../context/DistrictContext';
-import { useLang } from '../utils/i18n';
-import { AutoTranslate } from '../utils/translate';
-import { Empty } from '../components/UI';
-import {
-  LABOUR_COLORS, SPACING, RADIUS, SKILL_ICONS, getSkillGradient,
-} from '../constants/labourTheme';
-import BannerAd from '../components/ads/BannerAd';
-import { ADS_SUPPORTED } from '../components/ads/adConfig';
-import { useIsPremium } from '../hooks/useIsPremium';
+// Single source of truth for the contact-unlock rate — the old duplicate in
+// routes/payments.js is gone now that unlocks are a wallet debit handled
+// entirely here instead of a separate Cashfree checkout per unlock.
+// Contact unlock: ₹10/day total, split ₹5 platform / ₹5 to the labourer,
+// credited instantly (no hold — the contractor already got the phone number
+// they paid for, so unlike a hire completion there's nothing to dispute).
+const CONTACT_RATE_PER_DAY = 10;
+const CONTACT_COMMISSION_PER_DAY = 5;
 
-const ORANGE  = LABOUR_COLORS.primary;
-const LABOUR  = LABOUR_COLORS.worker;
-const BG      = LABOUR_COLORS.bg;
-const SURFACE = LABOUR_COLORS.surface;
-const TEXT    = LABOUR_COLORS.text;
-const MUTED   = LABOUR_COLORS.textMuted;
-const BORDER  = LABOUR_COLORS.border;
+// ── Labour earnings pipeline ────────────────────────────────────────────────
+// Charged to the contractor when a hire request is ACCEPTED (not when sent —
+// charging on send would let someone spam requests for free profile
+// visibility with no intent to hire).
+const HIRE_FEE = 10;
+// Credited to the labourer when a hire request is COMPLETED (not accepted —
+// crediting on accept would let a contractor/labourer pair farm commissions
+// via accept-then-cancel with no work ever done).
+const LABOUR_COMMISSION = 5;
+// Hold window before a commission is withdrawable, so a job disputed shortly
+// after being marked "completed" can still be clawed back.
+const PAYOUT_HOLD_HOURS = 48;
+const MIN_WITHDRAWAL = 50;
+// ── Watch-an-ad earnings bonus ──────────────────────────────────────────
+// Small instant bonus credited for watching a rewarded ad — no hold, since
+// there's nothing to dispute (unlike a hire completion). Capped per day
+// per worker so this can't be farmed by repeatedly opening/closing ads.
+const AD_REWARD_AMOUNT = 2;
+const AD_REWARD_DAILY_CAP = 5;
+// Velocity cap: max commission-eligible completions per contractor↔labourer
+// pair per day. Farming a ₹5 commission via a repeated same-pair accept→
+// complete loop nets the colluding pair a net LOSS (they pay ₹10, get ₹5
+// back) so it isn't directly profitable — but capping the pair's daily rate
+// still bounds exposure and flags unusual velocity for review.
+const MAX_PAIR_COMPLETIONS_PER_DAY = 3;
 
-const SKILL_CATEGORIES = [
-  'All', 'Mason', 'Electrician', 'Plumber', 'Painter', 'Carpenter', 'Welder', 'Helper',
+// ── Milestone rewards ────────────────────────────────────────────────────
+// Physical items the platform hands a worker as they build a track record.
+// Counting is "fresh start" from labour_reward_settings.rewards_start_at
+// (see db.js) — only completions from when this feature shipped count, so
+// existing high-completion workers aren't instantly credited.
+// Ad-hoc multi-select hire: sanity cap on how many workers a contractor can
+// bundle into one bulk-hire action (a pre-formed Crew has no such cap since
+// its size is set by the leader when building the team).
+const MAX_BULK_HIRE = 20;
+
+const MILESTONE_REWARDS = [
+  { reward_type: 'tshirt', milestone_bookings: 10 },
 ];
 
-const AVAILABILITY_FILTERS = [
-  { key: 'all',       label: 'All' },
-  { key: 'available', label: 'Available' },
-  { key: 'busy',       label: 'Busy' },
-];
-
-// ── Worker card — photo/initials avatar, trade, rate, trust signals ────────
-function WorkerCard({ item, onPress, lang }) {
-  const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
-  const initials = (item.full_name || '?').trim().charAt(0).toUpperCase();
-  const isTeam = item.profile_type === 'team';
-
-  return (
-    <TouchableOpacity style={ws.card} onPress={onPress} activeOpacity={0.85}>
-      {item.photo_url ? (
-        <Image source={{ uri: item.photo_url }} style={ws.avatar} />
-      ) : (
-        <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={ws.avatar}>
-          <Text style={ws.avatarInitial}>{initials}</Text>
-        </LinearGradient>
-      )}
-
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={ws.nameRow}>
-          <AutoTranslate text={item.full_name} lang={lang} style={ws.name} numberOfLines={1} />
-          {item.id_verified && <Ionicons name="checkmark-circle" size={15} color="#2563eb" />}
-        </View>
-
-        <View style={ws.metaRow}>
-          <Ionicons name={SKILL_ICONS[item.skill_category] || 'briefcase-outline'} size={12.5} color={MUTED} />
-          <Text style={ws.metaTxt} numberOfLines={1}>
-            {item.skill_category}{isTeam ? ` · Team of ${item.team_size || '?'}` : ''}
-          </Text>
-        </View>
-
-        {!!item.location && (
-          <View style={ws.metaRow}>
-            <Ionicons name="location-outline" size={12.5} color={MUTED} />
-            <Text style={ws.metaTxt} numberOfLines={1}>{item.location}</Text>
-          </View>
-        )}
-
-        <View style={ws.bottomRow}>
-          {!!item.daily_wage && <Text style={ws.wage}>₹{item.daily_wage}/day</Text>}
-          {item.rating_count > 0 && (
-            <View style={ws.ratingPill}>
-              <Ionicons name="star" size={11} color="#b45309" />
-              <Text style={ws.ratingTxt}>{parseFloat(item.rating_avg).toFixed(1)}</Text>
-            </View>
-          )}
-          {item.trusted_count > 0 && (
-            <View style={ws.trustPill}>
-              <Text style={ws.trustTxt}>{item.trusted_count} completed</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      <View style={[ws.availDot, { backgroundColor: item.availability === 'available' ? LABOUR_COLORS.success : '#d1d5db' }]} />
-    </TouchableOpacity>
-  );
+// Best-effort decode of the Authorization header — does NOT reject the request
+// if missing/invalid, since profile browsing is public. Used only to determine
+// whether a viewer has already paid to unlock this profile's contact info.
+function getUserIdFromReq(req) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return null;
+  try {
+    return jwt.verify(header.slice(7), process.env.JWT_SECRET).id;
+  } catch {
+    return null;
+  }
 }
 
-// ── Small horizontal Project preview card ───────────────────────────────────
-function ProjectPreviewCard({ item, onPress }) {
-  const [gradStart, gradEnd] = getSkillGradient(item.skill_category);
-  return (
-    <TouchableOpacity style={ps.card} onPress={onPress} activeOpacity={0.85}>
-      {item.photo_url ? (
-        <Image source={{ uri: item.photo_url }} style={ps.banner} />
-      ) : (
-        <LinearGradient colors={[gradStart, gradEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={ps.banner}>
-          <Ionicons name={SKILL_ICONS[item.skill_category] || 'briefcase-outline'} size={30} color="rgba(255,255,255,0.5)" />
-        </LinearGradient>
-      )}
-      <View style={ps.body}>
-        <Text style={ps.title} numberOfLines={2}>{item.title}</Text>
-        <View style={ps.tagRow}>
-          {!!item.daily_wage && <Text style={ps.tagTxt}>₹{item.daily_wage}/day</Text>}
-          {item.spots_left != null && (
-            <Text style={ps.tagTxt}>
-              {item.spots_left > 0 ? `${item.spots_left} spot${item.spots_left > 1 ? 's' : ''} left` : 'Full'}
-            </Text>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-export default function LabourScreen(props) {
-  const nav = useNavigation();
-  const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const { currentDistrict } = useDistrict();
-  const { t, lang } = useLang();
-  const isPremium = useIsPremium();
-
-  const [workers, setWorkers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  const [projects, setProjects] = useState([]);
-  const [projectsLoading, setProjectsLoading] = useState(true);
-
-  const [activeSkill, setActiveSkill] = useState('All');
-  const [activeAvailability, setActiveAvailability] = useState('all');
-  const [search, setSearch] = useState('');
-
-  const hasProfile = !!user?.has_labour_profile;
-
-  const loadWorkers = useCallback(async (opts = {}) => {
-    try {
-      if (!opts.silent) setLoading(true);
-      setError(null);
-      const params = new URLSearchParams();
-      params.set('page', '1');
-      if (currentDistrict?.id) params.set('district', currentDistrict.id);
-      if (activeSkill !== 'All') params.set('skill_category', activeSkill);
-      if (search.trim()) params.set('q', search.trim());
-      const res = await http('GET', `/api/labour?${params.toString()}`);
-      if (res?.ok) {
-        setWorkers(res.labourers || []);
-        setHasMore(!!res.hasMore);
-        setPage(1);
-      } else {
-        setError(res?.error || 'Could not load workers');
-      }
-    } catch (e) {
-      setError('Could not load workers');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+// GET /api/labour/localities — distinct micro-neighbourhoods with active
+// listings in a district, for the "hyper-local discovery" area dropdown.
+router.get('/localities', async (req, res) => {
+  try {
+    const district = req.query.district || null;
+    const params = [];
+    // LOOPHOLE FIX: a banned/deactivated worker account (users.active=false)
+    // previously kept showing up here (and everywhere else in this file) as
+    // long as their labour_profiles.status stayed 'active' — admin bans never
+    // touched labour_profiles, so a banned worker's listing, wage-board entry,
+    // leaderboard spot, and profile stayed fully live and hireable. Every
+    // read below now requires the owning user to still be active.
+    let where = "l.status='active' AND l.location IS NOT NULL AND l.location <> '' AND u.active = true";
+    if (district) {
+      params.push(district);
+      where += ` AND (l.district=$${params.length} OR l.district IS NULL)`;
     }
-  }, [currentDistrict, activeSkill, search]);
-
-  const loadMoreWorkers = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    try {
-      const nextPage = page + 1;
-      const params = new URLSearchParams();
-      params.set('page', String(nextPage));
-      if (currentDistrict?.id) params.set('district', currentDistrict.id);
-      if (activeSkill !== 'All') params.set('skill_category', activeSkill);
-      if (search.trim()) params.set('q', search.trim());
-      const res = await http('GET', `/api/labour?${params.toString()}`);
-      if (res?.ok) {
-        setWorkers(w => [...w, ...(res.labourers || [])]);
-        setHasMore(!!res.hasMore);
-        setPage(nextPage);
-      }
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [page, hasMore, loadingMore, currentDistrict, activeSkill, search]);
-
-  const loadProjects = useCallback(async () => {
-    try {
-      setProjectsLoading(true);
-      const params = new URLSearchParams();
-      if (currentDistrict?.id) params.set('district', currentDistrict.id);
-      const res = await http('GET', `/api/projects?${params.toString()}`);
-      if (res?.ok) setProjects(res.projects || []);
-    } finally {
-      setProjectsLoading(false);
-    }
-  }, [currentDistrict]);
-
-  useEffect(() => { loadWorkers(); }, [currentDistrict, activeSkill]);
-  useEffect(() => { loadProjects(); }, [currentDistrict]);
-
-  const onRefresh = () => { setRefreshing(true); loadWorkers({ silent: true }); loadProjects(); };
-
-  const filteredWorkers = useMemo(() => {
-    if (activeAvailability === 'all') return workers;
-    return workers.filter(w =>
-      activeAvailability === 'available' ? w.availability === 'available' : w.availability !== 'available'
+    const { rows } = await pool.query(
+      `SELECT l.location, COUNT(*) AS count
+       FROM labour_profiles l JOIN users u ON u.id = l.user_id
+       WHERE ${where}
+       GROUP BY l.location ORDER BY count DESC LIMIT 30`,
+      params
     );
-  }, [workers, activeAvailability]);
-
-  return (
-    <View style={[s.root, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-
-      <FlatList
-        data={filteredWorkers}
-        keyExtractor={(item) => String(item.id)}
-        onEndReachedThreshold={0.4}
-        onEndReached={loadMoreWorkers}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ORANGE]} tintColor={ORANGE} />}
-        renderItem={({ item }) => (
-          <WorkerCard item={item} lang={lang} onPress={() => nav.navigate('LabourDetail', { id: item.id })} />
-        )}
-        ListHeaderComponent={
-          <View>
-            {/* ── Post-my-profile banner (hirers / guests only) ───────────── */}
-            {!hasProfile && (
-              <TouchableOpacity
-                style={s.postBanner}
-                activeOpacity={0.9}
-                onPress={() => nav.navigate('PostLabourProfile')}
-              >
-                <LinearGradient colors={[ORANGE, '#c2410c']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.postBannerGrad}>
-                  <Ionicons name="hammer-outline" size={22} color="#fff" />
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={s.postBannerTitle}>Looking for work?</Text>
-                    <Text style={s.postBannerSub}>Post your profile and start getting hired</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#fff" />
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-
-            {/* ── Search ───────────────────────────────────────────────────── */}
-            <View style={s.searchWrap}>
-              <Ionicons name="search" size={16} color={MUTED} />
-              <TextInput
-                style={s.searchInput}
-                placeholder="Search by name or trade"
-                placeholderTextColor={MUTED}
-                value={search}
-                onChangeText={setSearch}
-                onSubmitEditing={() => loadWorkers()}
-                returnKeyType="search"
-              />
-            </View>
-
-            {/* ── Projects preview strip ──────────────────────────────────── */}
-            <View style={s.sectionHeaderRow}>
-              <Text style={s.sectionTitle}>Projects</Text>
-              {projects.length > 0 && (
-                <View style={s.countBadge}><Text style={s.countBadgeTxt}>{projects.length}</Text></View>
-              )}
-              <View style={{ flex: 1 }} />
-              <TouchableOpacity onPress={() => nav.navigate('Projects')}>
-                <Text style={s.seeAll}>See all</Text>
-              </TouchableOpacity>
-            </View>
-
-            {projectsLoading ? (
-              <ActivityIndicator size="small" color={ORANGE} style={{ marginVertical: 20 }} />
-            ) : projects.length === 0 ? (
-              <Text style={s.emptyStripTxt}>No open projects right now</Text>
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: SPACING.lg, gap: 12 }}>
-                {projects.map(p => (
-                  <ProjectPreviewCard key={p.id} item={p} onPress={() => nav.navigate('ProjectDetail', { id: p.id })} />
-                ))}
-              </ScrollView>
-            )}
-
-            {/* ── Availability filter ─────────────────────────────────────── */}
-            <View style={s.sectionHeaderRow}>
-              <Text style={s.sectionTitle}>Workers</Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipScroll}>
-              {AVAILABILITY_FILTERS.map(f => {
-                const active = activeAvailability === f.key;
-                return (
-                  <TouchableOpacity key={f.key} style={[s.chip, active && s.chipActive]} onPress={() => setActiveAvailability(f.key)}>
-                    <Text style={[s.chipTxt, active && s.chipTxtActive]}>{f.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {/* ── Skill filter ─────────────────────────────────────────────── */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipScroll}>
-              {SKILL_CATEGORIES.map(skill => {
-                const active = activeSkill === skill;
-                return (
-                  <TouchableOpacity key={skill} style={[s.chip, active && s.chipActive]} onPress={() => setActiveSkill(skill)}>
-                    <Ionicons name={SKILL_ICONS[skill] || 'briefcase-outline'} size={13} color={active ? '#fff' : MUTED} />
-                    <Text style={[s.chipTxt, active && s.chipTxtActive]}>{skill}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {!!error && (
-              <View style={s.errorBanner}>
-                <Ionicons name="alert-circle" size={16} color="#b91c1c" />
-                <Text style={s.errorBannerTxt}>{error}</Text>
-                <TouchableOpacity onPress={() => loadWorkers()} style={s.errorBannerBtn}>
-                  <Text style={s.errorBannerBtnTxt}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {loading && (
-              <ActivityIndicator size="large" color={ORANGE} style={{ marginVertical: 30 }} />
-            )}
-          </View>
-        }
-        ListEmptyComponent={
-          !loading ? (
-            <Empty
-              icon="people-outline"
-              title="No workers found"
-              sub={activeSkill === 'All' ? 'Check back soon, or try another district.' : `No ${activeSkill.toLowerCase()}s available right now.`}
-            />
-          ) : null
-        }
-        ListFooterComponent={
-          <>
-            {loadingMore && <ActivityIndicator size="small" color={ORANGE} style={{ marginVertical: 16 }} />}
-            {!isPremium && ADS_SUPPORTED && filteredWorkers.length > 0 && <BannerAd style={{ marginTop: 8 }} />}
-          </>
-        }
-        contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 32, flexGrow: 1 }}
-      />
-    </View>
-  );
-}
-
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
-
-  postBanner: { borderRadius: 16, overflow: 'hidden', marginBottom: 14 },
-  postBannerGrad: { flexDirection: 'row', alignItems: 'center', padding: 14 },
-  postBannerTitle: { fontSize: 14.5, fontWeight: '800', color: '#fff' },
-  postBannerSub: { fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginTop: 2 },
-
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 10, marginBottom: 16,
-  },
-  searchInput: { flex: 1, fontSize: 14, color: TEXT, padding: 0 },
-
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, marginTop: 4 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: TEXT },
-  countBadge: { backgroundColor: '#f1f1f4', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 2 },
-  countBadgeTxt: { fontSize: 11.5, fontWeight: '800', color: MUTED },
-  seeAll: { fontSize: 13, fontWeight: '700', color: ORANGE },
-  emptyStripTxt: { fontSize: 12.5, color: MUTED, fontWeight: '600', marginBottom: 16 },
-
-  chipScroll: { gap: 8, paddingVertical: 4, marginBottom: 10 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.pill,
-    backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#eee',
-  },
-  chipActive: { backgroundColor: ORANGE, borderColor: ORANGE },
-  chipTxt: { fontSize: 12.5, fontWeight: '700', color: MUTED },
-  chipTxtActive: { color: '#fff' },
-
-  errorBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12,
-  },
-  errorBannerTxt: { flex: 1, fontSize: 12.5, color: '#b91c1c', fontWeight: '600' },
-  errorBannerBtn: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#b91c1c', borderRadius: 8 },
-  errorBannerBtnTxt: { color: '#fff', fontSize: 11.5, fontWeight: '700' },
+    res.json({ ok: true, localities: rows.map(r => ({ name: r.location, count: parseInt(r.count) })) });
+  } catch (err) {
+    console.error('localities error:', err.message);
+    res.status(500).json({ ok: false, error: 'Could not load localities' });
+  }
 });
 
-// ── Worker card styles ───────────────────────────────────────────────────────
-const ws = StyleSheet.create({
-  card: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER,
-    padding: 12, marginBottom: 10,
-  },
-  avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  avatarInitial: { fontSize: 20, fontWeight: '900', color: '#fff' },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  name: { fontSize: 15, fontWeight: '800', color: TEXT, flexShrink: 1 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
-  metaTxt: { fontSize: 12, color: MUTED, fontWeight: '600', flexShrink: 1 },
-  bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' },
-  wage: { fontSize: 13.5, fontWeight: '800', color: LABOUR },
-  ratingPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#fef3c7', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2 },
-  ratingTxt: { fontSize: 11, fontWeight: '800', color: '#b45309' },
-  trustPill: { backgroundColor: '#f0fdf4', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2 },
-  trustTxt: { fontSize: 11, fontWeight: '700', color: LABOUR_COLORS.success },
-  availDot: { width: 10, height: 10, borderRadius: 5 },
+// GET /api/labour — browse/search labour profiles
+router.get('/', async (req, res) => {
+  try {
+    const page     = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit    = Math.min(50, parseInt(req.query.limit) || 20);
+    const offset   = (page - 1) * limit;
+    const district = req.query.district || null;
+    const skill    = req.query.skill_category || null;
+    const q        = req.query.q || null;
+    const type     = ['individual', 'team'].includes(req.query.profile_type) ? req.query.profile_type : null;
+    const locality = req.query.locality || null; // micro-neighbourhood, e.g. "Shivaji Nagar"
+
+    const cacheKey = `labour:${page}:${limit}:${district}:${skill}:${q}:${type}:${locality}`;
+    const hit = await cache.get(cacheKey);
+    if (hit) return res.json(hit);
+
+    // LOOPHOLE FIX: exclude banned/deactivated worker accounts — see note in
+    // GET /localities above.
+    //
+    // CHECK-IN GATE: a profile only appears in browse while checked_in_until
+    // is still in the future. Checking in is what makes a worker visible for
+    // that day ("standing at the chowk"); getting hired (see the 'accepted'
+    // branch in the hire-request status route below) clears checked_in_until
+    // immediately, so they drop out of browse the moment they have work — no
+    // manual checkout needed. checked_in_until also auto-expires at midnight
+    // IST, so a new day always requires a fresh check-in to be visible again.
+    const conditions = [
+      "l.status='active'",
+      "u.active = true",
+      "l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()",
+    ];
+    const params = [];
+
+    if (district) {
+      params.push(district);
+      conditions.push(`(l.district=$${params.length} OR l.district IS NULL)`);
+    }
+    if (skill) {
+      params.push(skill);
+      conditions.push(`l.skill_category=$${params.length}`);
+    }
+    if (type) {
+      params.push(type);
+      conditions.push(`l.profile_type=$${params.length}`);
+    }
+    if (locality) {
+      params.push(locality);
+      conditions.push(`l.location=$${params.length}`);
+    }
+    if (q) {
+      params.push(`%${q}%`);
+      conditions.push(`(l.full_name ILIKE $${params.length} OR l.skill_category ILIKE $${params.length})`);
+    }
+
+    const where = conditions.join(' AND ');
+    const countParams = [...params];
+    params.push(limit, offset);
+
+    const [countRes, dataRes] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM labour_profiles l JOIN users u ON u.id = l.user_id WHERE ${where}`, countParams),
+      pool.query(`
+        SELECT l.id, l.full_name, l.skill_category, l.skills, l.experience_years,
+               l.daily_wage, l.district, l.location, l.availability, l.bio,
+               l.photo_url, l.id_verified, l.rating_avg, l.rating_count, l.created_at,
+               l.profile_type, l.team_size, l.team_composition,
+               (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) AS checked_in_today,
+               (SELECT COUNT(DISTINCT hr.contractor_id) FROM hire_requests hr
+                  WHERE hr.labour_id = l.id AND hr.status = 'completed') AS trusted_count
+        FROM labour_profiles l JOIN users u ON u.id = l.user_id
+        WHERE ${where}
+        ORDER BY
+          (l.availability = 'available') DESC,
+          l.last_shown_at ASC NULLS FIRST,
+          l.created_at DESC
+        LIMIT $${params.length - 1} OFFSET $${params.length}
+      `, params),
+    ]);
+
+    const total = parseInt(countRes.rows[0].count);
+    const payload = {
+      ok: true,
+      labourers: dataRes.rows,
+      total,
+      page,
+      hasMore: offset + dataRes.rows.length < total,
+    };
+
+    await cache.set(cacheKey, payload, LIST_TTL);
+    res.json(payload);
+
+    // FAIRNESS ROTATION: mark these profiles as "just shown" so they sort
+    // behind less-recently-seen profiles next time (least-recently-shown
+    // first, see ORDER BY above). Fired after the response is sent so it
+    // never adds latency to the request; failures here are non-fatal.
+    const shownIds = dataRes.rows.map(r => r.id);
+    if (shownIds.length) {
+      pool.query(
+        `UPDATE labour_profiles SET last_shown_at = NOW() WHERE id = ANY($1::int[])`,
+        [shownIds]
+      ).catch(err => console.error('[labour] last_shown_at bump failed:', err.message));
+    }
+  } catch (err) {
+    console.error('[labour] list error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load labour profiles' });
+  }
 });
 
-// ── Project preview card styles ─────────────────────────────────────────────
-const ps = StyleSheet.create({
-  card: {
-    width: 180, backgroundColor: SURFACE, borderRadius: 16, overflow: 'hidden',
-    borderWidth: 1, borderColor: BORDER,
-  },
-  banner: { width: '100%', height: 80, alignItems: 'center', justifyContent: 'center' },
-  body: { padding: 10 },
-  title: { fontSize: 13, fontWeight: '800', color: TEXT, lineHeight: 17, minHeight: 34 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
-  tagTxt: { fontSize: 11, fontWeight: '700', color: MUTED },
+// GET /api/labour/wage-board — "today's going rate" per skill, chowk-style.
+// Median daily rate per skill_category among active listings, so contractors
+// have a reason to open the app even when they're not hiring right now.
+// Team listings carry a *combined* crew rate, so they're normalized to a
+// per-person figure (daily_wage / team_size) before being folded into the
+// same median as individual listings — a contractor comparing "what does a
+// mason cost today" doesn't care whether that mason posted solo or as part
+// of a crew.
+router.get('/wage-board', async (req, res) => {
+  try {
+    const district = req.query.district || null;
+    const cacheKey = `labour:wageboard:${district}`;
+    const hit = await cache.get(cacheKey);
+    if (hit) return res.json(hit);
+
+    const params = [];
+    // LOOPHOLE FIX: exclude banned/deactivated worker accounts — see note in
+    // GET /localities above.
+    const conditions = ["l.status='active'", "l.daily_wage IS NOT NULL", "l.daily_wage > 0", "u.active = true"];
+    if (district) {
+      params.push(district);
+      conditions.push(`(l.district=$${params.length} OR l.district IS NULL)`);
+    }
+    const where = conditions.join(' AND ');
+
+    const { rows } = await pool.query(`
+      SELECT
+        l.skill_category,
+        COUNT(*)::int AS sample_size,
+        ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (
+          ORDER BY l.daily_wage / GREATEST(COALESCE(l.team_size, 1), 1)
+        ))::int AS median_wage,
+        MIN(ROUND(l.daily_wage / GREATEST(COALESCE(l.team_size, 1), 1)))::int AS min_wage,
+        MAX(ROUND(l.daily_wage / GREATEST(COALESCE(l.team_size, 1), 1)))::int AS max_wage
+      FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      WHERE ${where}
+      GROUP BY l.skill_category
+      ORDER BY sample_size DESC
+    `, params);
+
+    const rates = rows
+      .filter(r => r.sample_size >= WAGE_BOARD_MIN_SAMPLES)
+      .map(r => ({
+        skill_category: r.skill_category,
+        median_wage: r.median_wage,
+        min_wage: r.min_wage,
+        max_wage: r.max_wage,
+        sample_size: r.sample_size,
+      }));
+
+    const payload = { ok: true, district, rates, generatedAt: new Date().toISOString() };
+    await cache.set(cacheKey, payload, WAGE_BOARD_TTL);
+    res.json(payload);
+  } catch (err) {
+    console.error('[labour] wage-board error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load wage board' });
+  }
 });
+
+// GET /api/labour/leaderboard — "hired today" + "waiting today" counters and
+// the top 5 most-hired workers this calendar month. Shown only to workers
+// themselves (frontend gates this to a user's own labour profile view) —
+// this endpoint returns aggregate stats only, no contractor-identifying data.
+const LEADERBOARD_TTL = 5 * 60_000; // refresh every 5 min — a dashboard stat, not real-time
+router.get('/leaderboard', async (req, res) => {
+  try {
+    const district = req.query.district || null;
+    const cacheKey = `labour:leaderboard:${district}`;
+    const hit = await cache.get(cacheKey);
+    if (hit) return res.json(hit);
+
+    const districtCond = district ? `AND l.district = $1` : '';
+    const districtParams = district ? [district] : [];
+
+    // LOOPHOLE FIX: exclude banned/deactivated worker accounts from every
+    // public-facing count/showcase — see note in GET /localities above.
+    const [hiredTodayRes, waitingTodayRes, topRes] = await Promise.all([
+      pool.query(`
+        SELECT COUNT(*)::int AS count
+        FROM hire_requests hr
+        JOIN labour_profiles l ON l.id = hr.labour_id
+        JOIN users u ON u.id = l.user_id
+        WHERE hr.status IN ('accepted', 'completed')
+          AND hr.created_at::date = CURRENT_DATE
+          AND u.active = true
+          ${districtCond}
+      `, districtParams),
+      pool.query(`
+        SELECT COUNT(*)::int AS count
+        FROM labour_profiles l
+        JOIN users u ON u.id = l.user_id
+        WHERE l.status = 'active'
+          AND l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()
+          AND u.active = true
+          ${districtCond}
+      `, districtParams),
+      pool.query(`
+        SELECT l.id, l.full_name, l.skill_category, l.photo_url,
+               COUNT(hr.id)::int AS hire_count
+        FROM hire_requests hr
+        JOIN labour_profiles l ON l.id = hr.labour_id
+        JOIN users u ON u.id = l.user_id
+        WHERE hr.status IN ('accepted', 'completed')
+          AND date_trunc('month', hr.created_at) = date_trunc('month', CURRENT_DATE)
+          AND u.active = true
+          ${districtCond}
+        GROUP BY l.id, l.full_name, l.skill_category, l.photo_url
+        ORDER BY hire_count DESC, l.id ASC
+        LIMIT 5
+      `, districtParams),
+    ]);
+
+    const payload = {
+      ok: true,
+      hiredToday: hiredTodayRes.rows[0]?.count || 0,
+      waitingToday: waitingTodayRes.rows[0]?.count || 0,
+      topThisMonth: topRes.rows,
+      generatedAt: new Date().toISOString(),
+    };
+
+    await cache.set(cacheKey, payload, LEADERBOARD_TTL);
+    res.json(payload);
+  } catch (err) {
+    console.error('[labour] leaderboard error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load leaderboard' });
+  }
+});
+
+// GET /api/labour/mine — the logged-in user's own labour profile, if any.
+// Powers the worker dashboard header (name/skill/rating/availability/
+// check-in state) so it doesn't have to be looked up by id. Registered
+// before GET /:id so "mine" is never swallowed as an :id param.
+router.get('/mine', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM labour_profiles WHERE user_id = $1',
+      [req.user.id]
+    );
+    if (!rows.length) return res.json({ ok: true, profile: null });
+
+    const profile = rows[0];
+    const checkedInToday = !!(profile.checked_in_until && new Date(profile.checked_in_until) > new Date());
+    res.json({ ok: true, profile: { ...profile, checked_in_today: checkedInToday } });
+  } catch (err) {
+    console.error('[labour] mine error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load your profile' });
+  }
+});
+
+// GET /api/labour/minimal-status — ultra-lean state-machine payload for the
+// worker home screen. One round trip, no ratings/history/full ledger — just
+// enough to decide what button to show. Registered before GET /:id so
+// "minimal-status" is never swallowed as an :id param.
+router.get('/minimal-status', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      WITH profile AS (
+        SELECT id, is_available_now, available_until, checked_in_until
+        FROM labour_profiles WHERE user_id = $1
+      ),
+      active_job AS (
+        SELECT hr.id, hr.work_description, hr.proposed_wage, hr.work_date,
+               u.name AS contractor_name, u.phone AS contractor_phone
+        FROM hire_requests hr
+        JOIN profile p ON p.id = hr.labour_id
+        JOIN users u ON u.id = hr.contractor_id
+        WHERE hr.status = 'accepted'
+        ORDER BY hr.work_date ASC NULLS LAST
+        LIMIT 1
+      ),
+      pending_count AS (
+        SELECT COUNT(*)::int AS n
+        FROM hire_requests hr JOIN profile p ON p.id = hr.labour_id
+        WHERE hr.status = 'pending'
+      ),
+      today_earn AS (
+        SELECT COALESCE(SUM(amount), 0) AS amt
+        FROM labour_payouts
+        WHERE labour_user_id = $1
+          AND created_at >= (date_trunc('day', (NOW() AT TIME ZONE 'Asia/Kolkata')) AT TIME ZONE 'Asia/Kolkata')
+      )
+      SELECT
+        (SELECT id FROM profile) AS profile_id,
+        (SELECT is_available_now AND (available_until IS NULL OR available_until > NOW()) FROM profile) AS is_available,
+        (SELECT checked_in_until > NOW() FROM profile) AS checked_in_today,
+        (SELECT row_to_json(active_job) FROM active_job) AS active_job,
+        (SELECT n FROM pending_count) AS pending_requests,
+        (SELECT amt FROM today_earn) AS today_earnings
+    `, [req.user.id]);
+
+    const r = rows[0] || {};
+    const hasProfile   = !!r.profile_id;
+    const hasActiveJob = !!r.active_job;
+
+    let nextActionRequired = 'NONE';
+    if (!hasProfile) nextActionRequired = 'CREATE_PROFILE';
+    else if (r.pending_requests > 0) nextActionRequired = 'RESPOND_TO_HIRE_REQUEST';
+    else if (hasActiveJob && !r.checked_in_today) nextActionRequired = 'MARK_ATTENDANCE';
+    else if (!r.is_available && !hasActiveJob) nextActionRequired = 'GO_AVAILABLE';
+
+    res.json({
+      ok: true,
+      isAvailable: !!r.is_available,
+      hasActiveJob,
+      activeJob: r.active_job || null,
+      pendingRequests: r.pending_requests || 0,
+      todayEarnings: `₹${Number(r.today_earnings || 0)}`,
+      nextActionRequired,
+    });
+  } catch (err) {
+    console.error('[labour] minimal-status error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load status' });
+  }
+});
+
+// GET /api/labour/:id — profile detail (phone number hidden until unlocked)
+router.get('/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).json({ ok: false, error: 'Invalid id' });
+
+    const cacheKey = `labour:detail:${id}`;
+    let profile = await cache.get(cacheKey);
+
+    if (!profile) {
+      // LOOPHOLE FIX: was a LEFT JOIN with only l.status checked, so a banned/
+      // deactivated owner's profile (u.active = false) still loaded in full —
+      // paid unlocks and hire requests against a banned worker kept working.
+      // Now an inner join gated on u.active = true, same as every other
+      // public read in this file — a banned worker's profile 404s like a
+      // deleted one instead of silently staying live.
+      const result = await pool.query(`
+        SELECT l.*, u.name AS user_name, u.phone AS user_phone
+        FROM labour_profiles l
+        JOIN users u ON u.id = l.user_id
+        WHERE l.id = $1 AND l.status = 'active' AND u.active = true
+      `, [id]);
+
+      if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+      profile = result.rows[0];
+      // Cached server-side only — phone is masked per-request below, never cached unmasked to clients.
+      await cache.set(cacheKey, profile, DETAIL_TTL);
+    }
+
+    const userId = getUserIdFromReq(req);
+    let contactUnlocked = false;
+    let previouslyHired = false;
+    let hasPendingRequest = false;
+
+    if (userId && userId === profile.user_id) {
+      contactUnlocked = true; // labourer viewing their own profile
+    } else if (userId) {
+      // Contact stays hidden until the labourer actually accepts a hire
+      // request from this contractor — no more paying/unlocking upfront to
+      // see the number. Once accepted (or later completed), the number
+      // stays visible for this pair going forward.
+      const { rows: statusRows } = await pool.query(
+        `SELECT status FROM hire_requests WHERE contractor_id = $1 AND labour_id = $2`,
+        [userId, id]
+      );
+      contactUnlocked = statusRows.some(r => r.status === 'accepted' || r.status === 'completed');
+      previouslyHired = statusRows.some(r => r.status === 'completed');
+      hasPendingRequest = !contactUnlocked && statusRows.some(r => r.status === 'pending');
+    }
+
+    let isFavourited = false;
+    if (userId) {
+      const { rows: favRows } = await pool.query(
+        'SELECT 1 FROM labour_favourites WHERE contractor_id = $1 AND labour_id = $2',
+        [userId, id]
+      );
+      isFavourited = favRows.length > 0;
+    }
+
+    const hasPhone = !!profile.user_phone;
+    const safeProfile = { ...profile, user_phone: contactUnlocked ? profile.user_phone : null };
+
+    // Computed fresh on every request (not cached) — checked_in_until itself
+    // is cached on `profile`, but whether it's still in the future can't be,
+    // same reasoning as contactUnlocked above.
+    const checkedInToday = !!(profile.checked_in_until && new Date(profile.checked_in_until) > new Date());
+
+    res.json({
+      ok: true,
+      profile: { ...safeProfile, checked_in_today: checkedInToday },
+      contactUnlocked, // true once this contractor has an accepted/completed hire request with this worker
+      hasPendingRequest, // a request is out and awaiting the worker's decision
+      hasPhone, // lets the client hide/disable the hire flow when there's nothing to unlock
+      previouslyHired, // lets the client show a "worked together before" note
+      isFavourited,
+    });
+  } catch (err) {
+    console.error('[labour] detail error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load profile' });
+  }
+});
+
+// POST /api/labour — create or update the logged-in user's own labour profile
+router.post('/', auth, async (req, res) => {
+  try {
+    const {
+      full_name, phone, skill_category, skills, experience_years,
+      daily_wage, district, location, bio, photo_url,
+      profile_type, team_size, team_composition,
+    } = req.body;
+
+    if (!full_name || !skill_category) {
+      return res.status(400).json({ ok: false, error: 'full_name and skill_category are required' });
+    }
+
+    // Team profiles: a lead worker posting on behalf of a group needs a
+    // headcount of at least 2 — otherwise this is just an individual listing.
+    const cleanedType = profile_type === 'team' ? 'team' : 'individual';
+    let cleanedTeamSize = null;
+    if (cleanedType === 'team') {
+      cleanedTeamSize = parseInt(team_size, 10);
+      if (!cleanedTeamSize || cleanedTeamSize < 2) {
+        return res.status(400).json({ ok: false, error: 'Team profiles need a headcount of at least 2' });
+      }
+    }
+    const cleanedComposition = cleanedType === 'team' ? (team_composition || '').trim().slice(0, 200) || null : null;
+
+    // A labour listing with no contact number is useless to contractors (and
+    // can't actually be sold via the paid-unlock flow), so require one here —
+    // either freshly supplied or already present on the account.
+    const { rows: existingUserRows } = await pool.query('SELECT phone FROM users WHERE id = $1', [req.user.id]);
+    const existingPhone = existingUserRows[0]?.phone || null;
+
+    let cleanedPhone = existingPhone;
+    if (phone !== undefined && phone !== null && phone !== '') {
+      cleanedPhone = String(phone).replace(/\s+/g, '');
+      if (!/^[6-9]\d{9}$/.test(cleanedPhone)) {
+        return res.status(400).json({ ok: false, error: 'Enter a valid 10-digit Indian mobile number' });
+      }
+    }
+    if (!cleanedPhone) {
+      return res.status(400).json({ ok: false, error: 'A contact number is required so contractors can reach you' });
+    }
+    if (cleanedPhone !== existingPhone) {
+      await pool.query('UPDATE users SET phone = $1 WHERE id = $2', [cleanedPhone, req.user.id]);
+    }
+
+    const existing = await pool.query(
+      'SELECT id FROM labour_profiles WHERE user_id = $1',
+      [req.user.id]
+    );
+
+    let result;
+    if (existing.rows.length) {
+      result = await pool.query(`
+        UPDATE labour_profiles SET
+          full_name = $1, skill_category = $2, skills = $3, experience_years = $4,
+          daily_wage = $5, district = $6, location = $7, bio = $8, photo_url = $9,
+          profile_type = $10, team_size = $11, team_composition = $12
+        WHERE user_id = $13
+        RETURNING *
+      `, [full_name, skill_category, skills || [], experience_years || null,
+          daily_wage || null, district || 'nanded', location || null, bio || null,
+          photo_url || null, cleanedType, cleanedTeamSize, cleanedComposition, req.user.id]);
+    } else {
+      result = await pool.query(`
+        INSERT INTO labour_profiles
+          (user_id, full_name, skill_category, skills, experience_years,
+           daily_wage, district, location, bio, photo_url,
+           profile_type, team_size, team_composition)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        RETURNING *
+      `, [req.user.id, full_name, skill_category, skills || [], experience_years || null,
+          daily_wage || null, district || 'nanded', location || null, bio || null,
+          photo_url || null, cleanedType, cleanedTeamSize, cleanedComposition]);
+    }
+
+    await cache.delPrefix('labour:');
+    res.json({ ok: true, profile: result.rows[0] });
+  } catch (err) {
+    console.error('[labour] create/update error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to save profile' });
+  }
+});
+
+// POST /api/labour/:id/checkin — "I'm standing at the chowk today"
+// Sets a same-day expiry (midnight IST) that bumps this profile to the top
+// of search results until it lapses on its own — no cron job needed, every
+// read just checks checked_in_until > NOW(). Also nudges availability to
+// 'available' since checking in only makes sense if you're ready to work.
+router.post('/:id/checkin', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const result = await pool.query(`
+      UPDATE labour_profiles SET
+        checked_in_until = (date_trunc('day', (NOW() AT TIME ZONE 'Asia/Kolkata')) + INTERVAL '1 day') AT TIME ZONE 'Asia/Kolkata',
+        availability = 'available'
+      WHERE id = $1 AND user_id = $2
+      RETURNING *
+    `, [id, req.user.id]);
+    if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+
+    await cache.delPrefix('labour:');
+    res.json({ ok: true, profile: { ...result.rows[0], checked_in_today: true } });
+  } catch (err) {
+    console.error('[labour] checkin error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to check in' });
+  }
+});
+
+// DELETE /api/labour/:id/checkin — leave the chowk early (before midnight)
+router.delete('/:id/checkin', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const result = await pool.query(
+      'UPDATE labour_profiles SET checked_in_until = NULL WHERE id = $1 AND user_id = $2 RETURNING *',
+      [id, req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+
+    await cache.delPrefix('labour:');
+    res.json({ ok: true, profile: { ...result.rows[0], checked_in_today: false } });
+  } catch (err) {
+    console.error('[labour] checkout error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to check out' });
+  }
+});
+
+// PATCH /api/labour/:id/availability — toggle available/busy
+router.patch('/:id/availability', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { availability } = req.body;
+    if (!['available', 'busy', 'inactive'].includes(availability)) {
+      return res.status(400).json({ ok: false, error: 'Invalid availability value' });
+    }
+
+    const result = await pool.query(
+      'UPDATE labour_profiles SET availability = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
+      [availability, id, req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+
+    res.json({ ok: true, profile: result.rows[0] });
+  } catch (err) {
+    console.error('[labour] availability error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to update availability' });
+  }
+});
+
+// PATCH /api/labour/:id/live-now — "Available right now" toggle for the
+// Digital Labour Chowk. Distinct from the longer-lived `availability` enum:
+// this is the on/off switch a worker flips to say "I'm ready to grab my
+// tools and come right now", auto-expiring at end of day (IST) so a forgotten
+// toggle doesn't leave them listed as available forever.
+router.patch('/:id/live-now', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { isAvailable, lat, lng } = req.body;
+
+    const availableUntil = isAvailable
+      ? new Date(new Date().setHours(23, 59, 59, 999))
+      : null;
+
+    const hasCoords = Number.isFinite(parseFloat(lat)) && Number.isFinite(parseFloat(lng));
+
+    const { rows } = await pool.query(`
+      UPDATE labour_profiles SET
+        is_available_now = $1,
+        available_until   = $2,
+        lat = COALESCE($3, lat),
+        lng = COALESCE($4, lng)
+      WHERE id = $5 AND user_id = $6
+      RETURNING *
+    `, [!!isAvailable, availableUntil, hasCoords ? parseFloat(lat) : null, hasCoords ? parseFloat(lng) : null, id, req.user.id]);
+
+    if (!rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+
+    await cache.delPrefix('labour:');
+    res.json({ ok: true, profile: rows[0] });
+  } catch (err) {
+    console.error('[labour] live-now error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to update live status' });
+  }
+});
+
+// GET /api/labour/radar — Contractor Radar Map: workers who are "Available
+// right now" within a radius (km) of the contractor's current location.
+// Falls back to district-only filtering if no lat/lng is supplied.
+router.get('/nearby/radar', async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const radiusKm = Math.min(25, Math.max(1, parseInt(req.query.radiusKm, 10) || 5));
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+    const params = [];
+    let distanceSelect = 'NULL AS distance_km';
+    let distanceFilter = '';
+    if (hasCoords) {
+      params.push(lat, lng);
+      distanceSelect = `(
+        6371 * acos(LEAST(1, GREATEST(-1,
+          cos(radians(l.lat)) * cos(radians($${params.length - 1})) *
+          cos(radians($${params.length}) - radians(l.lng)) +
+          sin(radians(l.lat)) * sin(radians($${params.length - 1}))
+        )))
+      ) AS distance_km`;
+      distanceFilter = `AND l.lat IS NOT NULL AND l.lng IS NOT NULL AND (
+        6371 * acos(LEAST(1, GREATEST(-1,
+          cos(radians(l.lat)) * cos(radians($${params.length - 1})) *
+          cos(radians($${params.length}) - radians(l.lng)) +
+          sin(radians(l.lat)) * sin(radians($${params.length - 1}))
+        )))
+      ) <= ${radiusKm}`;
+    }
+
+    const { rows } = await pool.query(`
+      SELECT l.id, l.full_name, l.skill_category, l.daily_wage, l.location,
+             l.district, l.photo_url, l.rating_avg, l.rating_count,
+             l.profile_type, l.team_size, ${distanceSelect}
+      FROM labour_profiles l
+      JOIN users u ON u.id = l.user_id
+      WHERE l.status = 'active' AND u.active = true
+        AND l.is_available_now = TRUE
+        AND (l.available_until IS NULL OR l.available_until > NOW())
+        ${distanceFilter}
+      ORDER BY ${hasCoords ? 'distance_km ASC' : 'l.created_at DESC'}
+      LIMIT 50
+    `, params);
+
+    res.json({ ok: true, workers: rows, radiusKm: hasCoords ? radiusKm : null });
+  } catch (err) {
+    console.error('[labour] radar error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load nearby workers' });
+  }
+});
+
+// GET /api/labour/nearby/heatmap — Live Work Location Clusters.
+// Aggregates open demand (active jobs with coordinates + pending hire
+// requests with a site location) into coarse grid cells so a worker can see
+// where work is spiking right now and decide which direction to commute,
+// the same way a ride-sharing driver reads a demand heat-map. Grid cell
+// size is ~1.1km (0.01°) — fine enough to be useful, coarse enough that a
+// handful of open jobs in one area still forms a visible cluster.
+router.get('/nearby/heatmap', async (req, res) => {
+  try {
+    const districtFilter = req.query.district ? 'AND district = $1' : '';
+    const params = req.query.district ? [req.query.district] : [];
+
+    const { rows: jobCells } = await pool.query(`
+      SELECT ROUND(lat::numeric, 2) AS cell_lat, ROUND(lng::numeric, 2) AS cell_lng,
+             COUNT(*)::int AS demand_count, 'job' AS source
+      FROM jobs
+      WHERE status = 'active' AND lat IS NOT NULL AND lng IS NOT NULL ${districtFilter}
+      GROUP BY cell_lat, cell_lng
+    `, params);
+
+    const { rows: hireCells } = await pool.query(`
+      SELECT ROUND(site_lat::numeric, 2) AS cell_lat, ROUND(site_lng::numeric, 2) AS cell_lng,
+             COUNT(*)::int AS demand_count, 'hire' AS source
+      FROM hire_requests
+      WHERE status = 'pending' AND site_lat IS NOT NULL AND site_lng IS NOT NULL
+        AND created_at > NOW() - INTERVAL '7 days'
+      GROUP BY cell_lat, cell_lng
+    `);
+
+    // Merge both sources into one cell → count map so overlapping cells combine.
+    const merged = new Map();
+    for (const c of [...jobCells, ...hireCells]) {
+      const key = `${c.cell_lat},${c.cell_lng}`;
+      const prev = merged.get(key);
+      merged.set(key, { lat: parseFloat(c.cell_lat), lng: parseFloat(c.cell_lng), count: (prev?.count || 0) + c.demand_count });
+    }
+
+    const points = [...merged.values()].sort((a, b) => b.count - a.count).slice(0, 200);
+    const maxCount = points.length ? points[0].count : 0;
+
+    res.json({
+      ok: true,
+      points: points.map(p => ({ ...p, intensity: maxCount ? +(p.count / maxCount).toFixed(2) : 0 })),
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('[labour] heatmap error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load demand heatmap' });
+  }
+});
+
+// POST /api/labour/:id/endorse-skill — Micro-Skill Verification Badges.
+// A contractor who completed a hire with this worker endorses a specific
+// named skill (e.g. "Tiling"). Once 3 distinct contractors have endorsed the
+// same skill, it becomes a verified badge shown on the worker's card.
+router.post('/:id/endorse-skill', auth, async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    const { skillName, hireRequestId } = req.body;
+    const skill = (skillName || '').trim().slice(0, 50);
+    if (!skill) return res.status(400).json({ ok: false, error: 'skillName is required' });
+    if (!hireRequestId) return res.status(400).json({ ok: false, error: 'hireRequestId is required' });
+
+    // Only the contractor on a COMPLETED hire with this worker can endorse —
+    // prevents strangers from padding a worker's badge count.
+    const { rows: hrRows } = await pool.query(
+      `SELECT id FROM hire_requests WHERE id = $1 AND labour_id = $2 AND contractor_id = $3 AND status = 'completed'`,
+      [hireRequestId, labourId, req.user.id]
+    );
+    if (!hrRows.length) {
+      return res.status(403).json({ ok: false, error: 'You can only endorse skills for a completed hire with this worker' });
+    }
+
+    await pool.query(`
+      INSERT INTO labour_skill_endorsements (labour_id, contractor_id, hire_request_id, skill_name)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (contractor_id, labour_id, skill_name, hire_request_id) DO NOTHING
+    `, [labourId, req.user.id, hireRequestId, skill]);
+
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(DISTINCT contractor_id)::int AS n FROM labour_skill_endorsements WHERE labour_id = $1 AND skill_name = $2`,
+      [labourId, skill]
+    );
+    const n = countRows[0].n;
+    const VERIFY_THRESHOLD = 3;
+
+    const { rows: badgeRows } = await pool.query(`
+      INSERT INTO labour_skill_badges (labour_id, skill_name, endorsement_count, is_verified, verified_at)
+      VALUES ($1, $2, $3, $4, CASE WHEN $4 THEN NOW() ELSE NULL END)
+      ON CONFLICT (labour_id, skill_name) DO UPDATE SET
+        endorsement_count = $3,
+        is_verified = $4,
+        verified_at = COALESCE(labour_skill_badges.verified_at, CASE WHEN $4 THEN NOW() ELSE NULL END)
+      RETURNING *
+    `, [labourId, skill, n, n >= VERIFY_THRESHOLD]);
+
+    res.json({ ok: true, badge: badgeRows[0] });
+  } catch (err) {
+    console.error('[labour] endorse-skill error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to endorse skill' });
+  }
+});
+
+// GET /api/labour/:id/badges — public list of a worker's verified skill badges
+router.get('/:id/badges', async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    const { rows } = await pool.query(
+      `SELECT skill_name, endorsement_count, is_verified, verified_at
+       FROM labour_skill_badges WHERE labour_id = $1 AND is_verified = TRUE ORDER BY verified_at ASC`,
+      [labourId]
+    );
+    res.json({ ok: true, badges: rows });
+  } catch (err) {
+    console.error('[labour] badges error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load badges' });
+  }
+});
+
+// PATCH /api/labour/:id/voice-bio — save the URL of a recorded audio intro
+// (uploaded beforehand via POST /api/upload) plus its duration/language.
+// Lets literacy-challenged workers speak their profile instead of typing it.
+router.patch('/:id/voice-bio', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { voiceBioUrl, durationSec, lang } = req.body;
+    if (!voiceBioUrl) return res.status(400).json({ ok: false, error: 'voiceBioUrl is required' });
+
+    const dur = Math.min(60, Math.max(1, parseInt(durationSec, 10) || 30));
+
+    const { rows } = await pool.query(`
+      UPDATE labour_profiles SET
+        voice_bio_url = $1,
+        voice_bio_duration_sec = $2,
+        voice_bio_lang = $3
+      WHERE id = $4 AND user_id = $5
+      RETURNING *
+    `, [voiceBioUrl, dur, (lang || 'mr').slice(0, 10), id, req.user.id]);
+
+    if (!rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+    await cache.delPrefix('labour:');
+    res.json({ ok: true, profile: rows[0] });
+  } catch (err) {
+    console.error('[labour] voice-bio error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to save voice bio' });
+  }
+});
+
+// DELETE /api/labour/:id/voice-bio — remove a recorded voice bio
+router.delete('/:id/voice-bio', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { rows } = await pool.query(
+      `UPDATE labour_profiles SET voice_bio_url = NULL, voice_bio_duration_sec = NULL
+       WHERE id = $1 AND user_id = $2 RETURNING *`,
+      [id, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+    await cache.delPrefix('labour:');
+    res.json({ ok: true, profile: rows[0] });
+  } catch (err) {
+    console.error('[labour] delete voice-bio error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to remove voice bio' });
+  }
+});
+
+// POST /api/labour/:id/unlock — LEGACY, no longer called by the app.
+// Contact used to be unlockable upfront (for free) before sending a hire
+// request; now the phone number only becomes visible once the worker
+// accepts the request (see GET /:id and PATCH /hire-requests/:id). Left in
+// place so old app builds and the labour_contact_unlocks table/analytics
+// don't break, but new clients never hit this route.
+router.post('/:id/unlock', auth, async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    const days = Math.min(MAX_UNLOCK_DAYS, Math.max(1, parseInt(req.body.days) || 1));
+    if (!labourId) return res.status(400).json({ ok: false, error: 'Invalid id' });
+
+    // Same active-profile / active-owner guard as every other labour read —
+    // can't unlock a hidden, banned, or deactivated worker.
+    const { rows: labourRows } = await pool.query(`
+      SELECT l.id, l.user_id, u.phone AS labourer_phone
+      FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1 AND l.status = 'active' AND u.active = true
+    `, [labourId]);
+    if (!labourRows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+    if (labourRows[0].user_id === req.user.id) {
+      return res.status(400).json({ ok: false, error: 'You cannot unlock your own profile.' });
+    }
+    if (!labourRows[0].labourer_phone) {
+      return res.status(400).json({ ok: false, error: 'This profile does not have a contact number on file yet.' });
+    }
+
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const { rows: unlockRows } = await pool.query(`
+      INSERT INTO labour_contact_unlocks
+        (contractor_id, labour_id, days, amount, cashfree_order_id, expires_at)
+      VALUES ($1,$2,$3,0,'FREE',$4)
+      RETURNING id
+    `, [req.user.id, labourId, days, expiresAt]);
+
+    const { rows: profileRows } = await pool.query(`
+      SELECT l.*, u.name AS user_name, u.phone AS user_phone
+      FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1
+    `, [labourId]);
+
+    res.json({
+      ok: true,
+      profile: profileRows[0],
+      expiresAt,
+      days,
+      amount: 0,
+      commissionCredited: 0,
+      unlockId: unlockRows[0].id,
+    });
+  } catch (err) {
+    console.error('[labour] unlock error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to unlock contact' });
+  }
+});
+
+// POST /api/labour/:id/hire — contractor sends a hire request
+// No upfront unlock required — anyone can send a request. The worker's
+// phone number only becomes visible to the contractor once they accept it
+// (see GET /:id), and the HIRE_FEE is only charged at that point too.
+router.post('/:id/hire', auth, async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    const { work_description, proposed_wage, work_date, projectId, contact_phone } = req.body;
+
+    const cleanPhone = (contact_phone || '').replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      return res.status(400).json({ ok: false, error: 'Please enter a valid 10-digit phone number.' });
+    }
+
+    // LOOPHOLE FIX: this previously didn't check labour_profiles.status or
+    // the owning user's active flag at all — a hire request (and the whole
+    // rehire-free-unlock chain it feeds) could be sent to a hidden, banned,
+    // or already-deactivated worker.
+    const labour = await pool.query(`
+      SELECT l.user_id, l.full_name, u.push_token FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1 AND l.status = 'active' AND u.active = true
+    `, [labourId]);
+    if (!labour.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+    if (labour.rows[0].user_id === req.user.id) {
+      return res.status(400).json({ ok: false, error: 'You cannot hire yourself' });
+    }
+
+    // Contact is no longer paid/unlocked upfront — it only becomes visible
+    // once the worker accepts (see GET /:id). Just guard against sending a
+    // second request while one is still pending on this pair.
+    const { rows: pendingRows } = await pool.query(
+      `SELECT 1 FROM hire_requests WHERE contractor_id = $1 AND labour_id = $2 AND status = 'pending' LIMIT 1`,
+      [req.user.id, labourId]
+    );
+    if (pendingRows.length) {
+      return res.status(409).json({ ok: false, error: 'You already have a pending request with this worker — wait for them to respond.' });
+    }
+
+    // Don't let a contractor send a request they can't afford to have
+    // accepted. The fee is only charged on accept, but checking the balance
+    // here means the worker never runs into the "wallet's short" error at
+    // accept time — the contractor gets told to top up before the request
+    // even goes out.
+    const { rows: balRows } = await pool.query(
+      'SELECT wallet_balance FROM users WHERE id = $1', [req.user.id]
+    );
+    const balance = parseFloat(balRows[0]?.wallet_balance || 0);
+    if (balance < HIRE_FEE) {
+      return res.status(402).json({
+        ok: false,
+        error: `You need at least ₹${HIRE_FEE} in your wallet to send a hire request (it's only charged if the worker accepts). Please top up your wallet and try again.`,
+      });
+    }
+
+    let validProjectId = null;
+    if (projectId) {
+      const { rows: projRows } = await pool.query(
+        'SELECT id FROM labour_projects WHERE id = $1 AND contractor_id = $2', [projectId, req.user.id]
+      );
+      if (!projRows.length) return res.status(400).json({ ok: false, error: 'Project not found' });
+      validProjectId = projRows[0].id;
+    }
+
+    const result = await pool.query(`
+      INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, work_date, project_id, contact_phone)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      RETURNING *
+    `, [labourId, req.user.id, work_description || null, proposed_wage || null, work_date || null, validProjectId, cleanPhone]);
+
+    // Notify the labourer that a hire request is waiting on them. Best-effort
+    // and non-blocking — a push failure must never fail the hire request
+    // itself, so this is fire-and-forget with its own try/catch.
+    if (sendPushNotifications && labour.rows[0].push_token) {
+      sendPushNotifications([labour.rows[0].push_token], {
+        title: 'New hire request',
+        body: `${req.user.name || 'A contractor'} wants to hire you${work_date ? ` on ${work_date}` : ''}. Tap to respond.`,
+        data: { type: 'hire_request', hireRequestId: result.rows[0].id },
+      }).catch(e => console.warn('[labour] hire request push notify failed (non-fatal):', e.message));
+    }
+
+    res.json({
+      ok: true,
+      hireRequest: result.rows[0],
+      // No money moves yet — this just tells the app what to show upfront
+      // ("Hire fee: ₹10, charged if the worker accepts") so it's never a
+      // surprise deduction later.
+      hireFeeInfo: { amount: HIRE_FEE, chargedWhen: 'accepted' },
+    });
+  } catch (err) {
+    console.error('[labour] hire error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to send hire request' });
+  }
+});
+
+// POST /api/labour/hire-bulk — ad-hoc multi-select hire: a contractor picks
+// any set of individual workers while browsing (not necessarily part of a
+// pre-formed Crew) and hires them all in one action.
+//
+// No contact unlock involved — each worker's number stays hidden until they
+// individually accept their own request. The only charge in the whole
+// labour flow is the HIRE_FEE, applied once per worker when their hire
+// request is accepted. One hire_requests row is created per worker.
+router.post('/hire-bulk', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { labourIds, work_description, proposed_wage, work_date, projectId } = req.body;
+    const ids = [...new Set((Array.isArray(labourIds) ? labourIds : []).map(id => parseInt(id, 10)).filter(Boolean))];
+
+    if (!ids.length) {
+      return res.status(400).json({ ok: false, error: 'Select at least one worker to hire.' });
+    }
+    if (ids.length > MAX_BULK_HIRE) {
+      return res.status(400).json({ ok: false, error: `You can hire up to ${MAX_BULK_HIRE} workers at once.` });
+    }
+
+    await client.query('BEGIN');
+
+    let validProjectId = null;
+    if (projectId) {
+      const { rows: projRows } = await client.query(
+        'SELECT id FROM labour_projects WHERE id = $1 AND contractor_id = $2', [projectId, req.user.id]
+      );
+      if (!projRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ ok: false, error: 'Project not found' });
+      }
+      validProjectId = projRows[0].id;
+    }
+
+    // Same active-profile / active-owner guard as a single hire, applied to
+    // every selected id at once. Any id that fails this (hidden, banned,
+    // deactivated, or the contractor's own profile) is silently dropped
+    // rather than failing the whole batch — the response reports which ids
+    // were skipped so the app can tell the contractor.
+    const { rows: validRows } = await client.query(`
+      SELECT l.id, l.user_id, u.push_token
+      FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      WHERE l.id = ANY($1::int[]) AND l.status = 'active' AND u.active = true AND l.user_id != $2
+    `, [ids, req.user.id]);
+
+    const validIds = validRows.map(r => r.id);
+    const skippedIds = ids.filter(id => !validIds.includes(id));
+    if (!validIds.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ ok: false, error: 'None of the selected workers are available to hire right now.' });
+    }
+
+    // Don't let a contractor send requests they can't afford to have all
+    // accepted. Each accepted request charges HIRE_FEE independently, so
+    // require enough balance to cover every worker in this batch up front —
+    // otherwise a contractor could send 5 requests, only be able to afford
+    // 2, and have the other 3 fail with a confusing error at accept time
+    // (from the worker's side, not even the contractor's).
+    const { rows: balRows } = await client.query(
+      'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE', [req.user.id]
+    );
+    const balance = parseFloat(balRows[0]?.wallet_balance || 0);
+    const requiredBalance = HIRE_FEE * validIds.length;
+    if (balance < requiredBalance) {
+      await client.query('ROLLBACK');
+      return res.status(402).json({
+        ok: false,
+        error: `You need at least ₹${requiredBalance} in your wallet to send hire requests to ${validIds.length} worker${validIds.length > 1 ? 's' : ''} (₹${HIRE_FEE} each, only charged if they accept). Please top up your wallet and try again.`,
+      });
+    }
+
+    const created = [];
+    for (const labourId of validIds) {
+      const { rows } = await client.query(`
+        INSERT INTO hire_requests (labour_id, contractor_id, work_description, proposed_wage, work_date, project_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *
+      `, [labourId, req.user.id, work_description || null, proposed_wage || null, work_date || null, validProjectId]);
+      created.push(rows[0]);
+    }
+
+    await client.query('COMMIT');
+
+    // Notify each hired worker. Best-effort and non-blocking — a push
+    // failure must never fail the (already-committed) hire requests.
+    if (sendPushNotifications) {
+      const tokenByLabourId = new Map(validRows.map(r => [r.id, r.push_token]));
+      const tokens = created.map(hr => tokenByLabourId.get(hr.labour_id)).filter(Boolean);
+      if (tokens.length) {
+        sendPushNotifications(tokens, {
+          title: 'New hire request',
+          body: `${req.user.name || 'A contractor'} wants to hire you${work_date ? ` on ${work_date}` : ''}. Tap to respond.`,
+          data: { type: 'hire_request' },
+        }).catch(e => console.warn('[labour] bulk hire push notify failed (non-fatal):', e.message));
+      }
+    }
+
+    res.json({
+      ok: true,
+      hireRequests: created,
+      skippedIds,
+      hireFeeInfo: { amount: HIRE_FEE, chargedWhen: 'accepted', perWorker: true },
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[labour] hire-bulk error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to send hire requests' });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/labour/:id/rehire-unlock — LEGACY, no longer called by the app.
+// Contact now stays visible automatically for any pair with an
+// accepted/completed hire request (see GET /:id), so a completed hire
+// already implies an unlocked contact with no separate step needed. Left in
+// place for old app builds only.
+router.post('/:id/rehire-unlock', auth, async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    if (!labourId) return res.status(400).json({ ok: false, error: 'Invalid id' });
+
+    // LOOPHOLE FIX: was scoped to labour_profiles.status only, so a banned
+    // worker's owner could still be re-unlocked for free.
+    const labour = await pool.query(`
+      SELECT l.user_id FROM labour_profiles l JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1 AND l.status = 'active' AND u.active = true
+    `, [labourId]);
+    if (!labour.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+    if (labour.rows[0].user_id === req.user.id) {
+      return res.status(400).json({ ok: false, error: 'This is your own profile' });
+    }
+
+    const { rows: completedRows } = await pool.query(
+      `SELECT 1 FROM hire_requests WHERE contractor_id = $1 AND labour_id = $2 AND status = 'completed' LIMIT 1`,
+      [req.user.id, labourId]
+    );
+    if (!completedRows.length) {
+      return res.status(403).json({ ok: false, error: "You haven't completed a hire with this worker yet." });
+    }
+
+    // Already unlocked (e.g. from a recent paid unlock or an earlier free
+    // grant that hasn't expired) — nothing to do, just report the existing window.
+    const { rows: activeRows } = await pool.query(
+      `SELECT expires_at FROM labour_contact_unlocks
+       WHERE contractor_id = $1 AND labour_id = $2 AND expires_at > NOW()
+       ORDER BY expires_at DESC LIMIT 1`,
+      [req.user.id, labourId]
+    );
+
+    let expiresAt;
+    if (activeRows.length) {
+      expiresAt = activeRows[0].expires_at;
+    } else {
+      expiresAt = new Date(Date.now() + REHIRE_FREE_DAYS * 24 * 60 * 60 * 1000);
+      await pool.query(`
+        INSERT INTO labour_contact_unlocks
+          (contractor_id, labour_id, days, amount, cashfree_order_id, expires_at)
+        VALUES ($1,$2,$3,0,$4,$5)
+      `, [req.user.id, labourId, REHIRE_FREE_DAYS, 'REPEAT_HIRE_FREE', expiresAt]);
+    }
+
+    const { rows } = await pool.query(`
+      SELECT l.*, u.name AS user_name, u.phone AS user_phone
+      FROM labour_profiles l LEFT JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1
+    `, [labourId]);
+
+    res.json({
+      ok: true,
+      profile: rows[0],
+      contactUnlocked: true,
+      unlockExpiresAt: expiresAt,
+      freeDays: REHIRE_FREE_DAYS,
+    });
+  } catch (err) {
+    console.error('[labour] rehire-unlock error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to unlock contact' });
+  }
+});
+
+// POST /api/labour/:id/favourite — save a worker to my favourites
+router.post('/:id/favourite', auth, async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    const labour = await pool.query('SELECT id FROM labour_profiles WHERE id = $1', [labourId]);
+    if (!labour.rows.length) return res.status(404).json({ ok: false, error: 'Profile not found' });
+
+    await pool.query(`
+      INSERT INTO labour_favourites (contractor_id, labour_id)
+      VALUES ($1, $2)
+      ON CONFLICT (contractor_id, labour_id) DO NOTHING
+    `, [req.user.id, labourId]);
+
+    res.json({ ok: true, favourited: true });
+  } catch (err) {
+    console.error('[labour] favourite error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to save worker' });
+  }
+});
+
+// DELETE /api/labour/:id/favourite — remove a worker from my favourites
+router.delete('/:id/favourite', auth, async (req, res) => {
+  try {
+    const labourId = parseInt(req.params.id);
+    await pool.query(
+      'DELETE FROM labour_favourites WHERE contractor_id = $1 AND labour_id = $2',
+      [req.user.id, labourId]
+    );
+    res.json({ ok: true, favourited: false });
+  } catch (err) {
+    console.error('[labour] unfavourite error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to remove saved worker' });
+  }
+});
+
+// GET /api/labour/favourites/mine — my saved/favourited workers
+router.get('/favourites/mine', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT l.id, l.full_name, l.skill_category, l.skills, l.experience_years,
+             l.daily_wage, l.district, l.location, l.availability, l.bio,
+             l.photo_url, l.id_verified, l.rating_avg, l.rating_count,
+             l.profile_type, l.team_size, l.team_composition,
+             (l.checked_in_until IS NOT NULL AND l.checked_in_until > NOW()) AS checked_in_today,
+             f.created_at AS favourited_at
+      FROM labour_favourites f
+      JOIN labour_profiles l ON l.id = f.labour_id
+      JOIN users u ON u.id = l.user_id
+      WHERE f.contractor_id = $1 AND l.status = 'active' AND u.active = true
+      ORDER BY f.created_at DESC
+    `, [req.user.id]);
+    res.json({ ok: true, labourers: rows, total: rows.length });
+  } catch (err) {
+    console.error('[labour] favourites/mine error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load saved workers' });
+  }
+});
+
+// GET /api/labour/hire-requests/sent — hire requests I sent as a contractor
+router.get('/hire-requests/sent', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT hr.*, l.full_name AS labour_name, l.skill_category, l.photo_url,
+             EXISTS(
+               SELECT 1 FROM ratings r WHERE r.hire_request_id = hr.id AND r.rater_id = $1
+             ) AS already_rated
+      FROM hire_requests hr
+      JOIN labour_profiles l ON l.id = hr.labour_id
+      WHERE hr.contractor_id = $1
+      ORDER BY hr.created_at DESC
+    `, [req.user.id]);
+    res.json({ ok: true, hireRequests: rows });
+  } catch (err) {
+    console.error('[labour] hire-requests/sent error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load hire requests' });
+  }
+});
+
+// GET /api/labour/hire-requests/received — hire requests sent to my labour
+// profile. Returns an empty list (not an error) if the user has no profile,
+// since a contractor-only account visiting this tab is a normal case.
+//
+// UPDATED: the contractor's phone number (both their account phone and the
+// per-request contact_phone) is now visible to the labourer on ALL requests,
+// including 'pending' ones — not just after accepting. The worker needs to
+// be able to call and negotiate the rate/details before deciding whether to
+// accept, so gating the number behind acceptance defeated that. This is not
+// symmetric with the contractor's side: the contractor still can't see the
+// labourer's number until the labourer accepts (see GET /:id), since it's
+// the contractor reaching out first and the labourer who needs to be
+// reachable to negotiate.
+router.get('/hire-requests/received', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT hr.*, u.name AS contractor_name, u.phone AS contractor_phone
+      FROM hire_requests hr
+      JOIN labour_profiles l ON l.id = hr.labour_id
+      JOIN users u ON u.id = hr.contractor_id
+      WHERE l.user_id = $1
+      ORDER BY hr.created_at DESC
+    `, [req.user.id]);
+    res.json({ ok: true, hireRequests: rows });
+  } catch (err) {
+    console.error('[labour] hire-requests/received error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load hire requests' });
+  }
+});
+
+// PATCH /api/labour/hire-requests/:id — update a hire request's status
+//
+// FIX: previously ONLY the labourer could ever change status — there was no
+// way for the contractor who sent the request to mark it completed or
+// cancel it, which meant `status` could get stuck at 'accepted' forever and
+// the rating flow (which requires status='completed') was unreachable.
+// Now: the labourer can accept/decline a pending request or cancel one, and
+// either side can mark an accepted job completed or cancelled. Transitions
+// are also validated so e.g. a declined request can't be reopened.
+router.patch('/hire-requests/:id', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const id = parseInt(req.params.id);
+    const { status } = req.body;
+    if (!['accepted', 'declined', 'completed', 'cancelled'].includes(status)) {
+      return res.status(400).json({ ok: false, error: 'Invalid status' });
+    }
+
+    const { rows } = await pool.query(`
+      SELECT hr.*, l.user_id AS labourer_user_id, l.full_name AS labourer_name, c.push_token AS contractor_push_token
+      FROM hire_requests hr
+      JOIN labour_profiles l ON l.id = hr.labour_id
+      JOIN users c ON c.id = hr.contractor_id
+      WHERE hr.id = $1
+    `, [id]);
+    if (!rows.length) {
+      return res.status(404).json({ ok: false, error: 'Hire request not found' });
+    }
+    const hr = rows[0];
+
+    const isLabourer   = hr.labourer_user_id === req.user.id;
+    const isContractor = hr.contractor_id === req.user.id;
+    if (!isLabourer && !isContractor) {
+      return res.status(403).json({ ok: false, error: 'Not authorized to update this hire request' });
+    }
+
+    // Who is allowed to set which target status
+    const labourerAllowed   = ['accepted', 'declined', 'completed', 'cancelled'];
+    const contractorAllowed = ['completed', 'cancelled'];
+    const allowed = isLabourer ? labourerAllowed : contractorAllowed;
+    if (!allowed.includes(status)) {
+      return res.status(403).json({ ok: false, error: 'Not authorized to set this status' });
+    }
+
+    // Valid forward transitions from the current status
+    const validFrom = {
+      pending:   ['accepted', 'declined', 'cancelled'],
+      accepted:  ['completed', 'cancelled'],
+    };
+    if (!validFrom[hr.status]?.includes(status)) {
+      return res.status(400).json({ ok: false, error: `Cannot change status from '${hr.status}' to '${status}'` });
+    }
+
+    await client.query('BEGIN');
+
+    // ── pending → accepted: charge the contractor's wallet the hire fee ──
+    // The labourer is the one making this call, but it's the contractor's
+    // wallet that gets debited — lock their balance row for the duration of
+    // the transaction so two near-simultaneous accepts can't both succeed
+    // against a balance that only covers one.
+    let hireFeeCharged = null;
+    if (status === 'accepted') {
+      const { rows: balRows } = await client.query(
+        'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE', [hr.contractor_id]
+      );
+      const balance = parseFloat(balRows[0]?.wallet_balance || 0);
+      if (balance < HIRE_FEE) {
+        await client.query('ROLLBACK');
+        return res.status(402).json({
+          ok: false,
+          error: `Contractor's wallet doesn't have enough balance for the ₹${HIRE_FEE} hire fee yet. Ask them to top up their wallet, then try accepting again.`,
+        });
+      }
+
+      const { rows: newBalRows } = await client.query(
+        'UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2 RETURNING wallet_balance',
+        [HIRE_FEE, hr.contractor_id]
+      );
+      await client.query(`
+        INSERT INTO wallet_transactions
+          (user_id, type, amount, balance_after, reason, reference_type, reference_id)
+        VALUES ($1, 'debit', $2, $3, 'labour_hire_fee', 'hire_requests', $4)
+      `, [hr.contractor_id, HIRE_FEE, newBalRows[0].wallet_balance, id]);
+      hireFeeCharged = HIRE_FEE;
+
+      // AUTO CHECK-OUT ON HIRE: they've got work for the day now, so pull
+      // them out of the "checked in" browse pool immediately — no manual
+      // checkout step required. They'll need to check in again to be
+      // visible for their next job, whether that's later today or tomorrow.
+      await client.query(
+        'UPDATE labour_profiles SET checked_in_until = NULL WHERE id = $1',
+        [hr.labour_id]
+      );
+      await cache.delPrefix('labour:');
+    }
+
+    // ── accepted → completed: credit the labourer's held commission ──
+    let commissionCredited = null;
+    if (status === 'completed') {
+      // Only pay a commission if this hire request actually had its fee
+      // charged (it should always be true via the accepted step above, but
+      // this keeps the payout strictly tied to real revenue rather than
+      // trusting the status column alone).
+      const { rows: feeRows } = await client.query(
+        `SELECT 1 FROM wallet_transactions WHERE reference_type = 'hire_requests' AND reference_id = $1 AND reason = 'labour_hire_fee' LIMIT 1`,
+        [id]
+      );
+
+      const { rows: pairRows } = await client.query(
+        `SELECT COUNT(*)::int AS n FROM labour_payouts p
+         JOIN hire_requests hr2 ON hr2.id = p.hire_request_id
+         WHERE hr2.contractor_id = $1 AND hr2.labour_id = $2 AND p.created_at >= CURRENT_DATE`,
+        [hr.contractor_id, hr.labour_id]
+      );
+      const underDailyCap = pairRows[0].n < MAX_PAIR_COMPLETIONS_PER_DAY;
+
+      if (feeRows.length && underDailyCap) {
+        const availableAt = new Date(Date.now() + PAYOUT_HOLD_HOURS * 60 * 60 * 1000);
+        await client.query(`
+          INSERT INTO labour_payouts (hire_request_id, labour_user_id, amount, status, available_at)
+          VALUES ($1, $2, $3, 'pending', $4)
+          ON CONFLICT (hire_request_id) DO NOTHING
+        `, [id, hr.labourer_user_id, LABOUR_COMMISSION, availableAt]);
+        commissionCredited = LABOUR_COMMISSION;
+      }
+    }
+
+    const result = await client.query(
+      status === 'completed'
+        ? 'UPDATE hire_requests SET status = $1, completed_at = NOW() WHERE id = $2 RETURNING *'
+        : 'UPDATE hire_requests SET status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    // ── Milestone rewards: award any newly-crossed threshold ──
+    let newlyAwardedRewards = [];
+    if (status === 'completed') {
+      const { rows: settingsRows } = await client.query(
+        'SELECT rewards_start_at FROM labour_reward_settings WHERE id = 1'
+      );
+      const rewardsStartAt = settingsRows[0]?.rewards_start_at;
+      if (rewardsStartAt) {
+        const { rows: countRows } = await client.query(
+          `SELECT COUNT(*)::int AS n FROM hire_requests
+           WHERE labour_id = $1 AND status = 'completed' AND completed_at >= $2`,
+          [hr.labour_id, rewardsStartAt]
+        );
+        const completedCount = countRows[0].n;
+
+        for (const milestone of MILESTONE_REWARDS) {
+          if (completedCount >= milestone.milestone_bookings) {
+            const { rows: awarded } = await client.query(
+              `INSERT INTO labour_milestone_rewards (labour_id, reward_type, milestone_bookings)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (labour_id, reward_type) DO NOTHING
+               RETURNING *`,
+              [hr.labour_id, milestone.reward_type, milestone.milestone_bookings]
+            );
+            if (awarded.length) newlyAwardedRewards.push(awarded[0]);
+          }
+        }
+      }
+    }
+
+    await client.query('COMMIT');
+
+    // Notify the contractor when the labourer accepts or declines their
+    // request — the two responses the contractor is actually waiting on.
+    // Best-effort and non-blocking, mirrors the hire-request push above.
+    if (sendPushNotifications && hr.contractor_push_token && (status === 'accepted' || status === 'declined')) {
+      sendPushNotifications([hr.contractor_push_token], {
+        title: status === 'accepted' ? 'Hire request accepted' : 'Hire request declined',
+        body: status === 'accepted'
+          ? `${hr.labourer_name || 'The worker'} accepted your hire request. Tap to view.`
+          : `${hr.labourer_name || 'The worker'} declined your hire request.`,
+        data: { type: 'hire_request_status', hireRequestId: id, status },
+      }).catch(e => console.warn('[labour] hire-request status push notify failed (non-fatal):', e.message));
+    }
+
+    res.json({
+      ok: true,
+      hireRequest: result.rows[0],
+      hireFeeCharged,
+      commissionCredited,
+      newlyAwardedRewards,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[labour] hire-request update error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to update hire request' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/labour/payouts/mine — a labourer's earnings dashboard: held
+// balance, withdrawable balance, recent commissions, and withdrawal history.
+// Lazily flips any 'pending' payouts past their hold window to 'available'
+// on read, instead of a background job.
+router.get('/payouts/mine', auth, async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE labour_payouts SET status = 'available' WHERE labour_user_id = $1 AND status = 'pending' AND available_at <= NOW()`,
+      [req.user.id]
+    );
+
+    const { rows: balRows } = await pool.query(`
+      SELECT
+        COALESCE(SUM(amount) FILTER (WHERE status = 'pending'), 0)   AS held_balance,
+        COALESCE(SUM(amount) FILTER (WHERE status = 'available'), 0) AS available_balance,
+        COALESCE(SUM(amount) FILTER (WHERE status = 'requested'), 0) AS requested_balance,
+        COALESCE(SUM(amount) FILTER (WHERE status = 'paid'), 0)      AS lifetime_paid
+      FROM labour_payouts WHERE labour_user_id = $1
+    `, [req.user.id]);
+
+    const { rows: ledger } = await pool.query(`
+      SELECT p.id, p.hire_request_id, p.contact_unlock_id, p.source, p.amount, p.status, p.available_at, p.created_at,
+             COALESCE(hu.name, cu.name) AS contractor_name
+      FROM labour_payouts p
+      LEFT JOIN hire_requests hr ON hr.id = p.hire_request_id
+      LEFT JOIN users hu ON hu.id = hr.contractor_id
+      LEFT JOIN labour_contact_unlocks lcu ON lcu.id = p.contact_unlock_id
+      LEFT JOIN users cu ON cu.id = lcu.contractor_id
+      WHERE p.labour_user_id = $1
+      ORDER BY p.created_at DESC LIMIT 50
+    `, [req.user.id]);
+
+    const { rows: withdrawals } = await pool.query(`
+      SELECT id, amount, upi_id, status, utr_reference, admin_note, requested_at, processed_at
+      FROM labour_withdrawals WHERE user_id = $1 ORDER BY requested_at DESC LIMIT 20
+    `, [req.user.id]);
+
+    const { rows: userRows } = await pool.query('SELECT labour_upi_id FROM users WHERE id = $1', [req.user.id]);
+
+    res.json({
+      ok: true,
+      heldBalance: parseFloat(balRows[0].held_balance),
+      availableBalance: parseFloat(balRows[0].available_balance),
+      requestedBalance: parseFloat(balRows[0].requested_balance),
+      lifetimePaid: parseFloat(balRows[0].lifetime_paid),
+      upiId: userRows[0]?.labour_upi_id || null,
+      minWithdrawal: MIN_WITHDRAWAL,
+      holdHours: PAYOUT_HOLD_HOURS,
+      ledger,
+      withdrawals,
+    });
+  } catch (err) {
+    console.error('[labour] payouts/mine error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load earnings' });
+  }
+});
+
+// POST /api/labour/ads/reward — credits AD_REWARD_AMOUNT instantly (no
+// hold) after a worker watches a rewarded/rewarded-interstitial ad to
+// completion. Client only calls this once the SDK's EARNED_REWARD event
+// has actually fired, but this is still a client-trusted signal (no AdMob
+// server-side verification callback wired up), so the per-day cap here is
+// the real abuse guard, not a nice-to-have.
+router.post('/ads/reward', auth, async (req, res) => {
+  try {
+    // Must have an active labour profile — this bonus is a worker-side
+    // earnings feature, not something a contractor account should hit.
+    const { rows: profileRows } = await pool.query(
+      `SELECT id FROM labour_profiles WHERE user_id = $1 AND status = 'active' LIMIT 1`,
+      [req.user.id]
+    );
+    if (!profileRows.length) {
+      return res.status(403).json({ ok: false, error: 'Only workers with an active labour profile can earn ad rewards.' });
+    }
+
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM labour_payouts
+       WHERE labour_user_id = $1 AND source = 'ad_reward' AND created_at >= CURRENT_DATE`,
+      [req.user.id]
+    );
+    if (countRows[0].n >= AD_REWARD_DAILY_CAP) {
+      return res.status(429).json({ ok: false, error: 'daily_cap_reached', dailyCap: AD_REWARD_DAILY_CAP });
+    }
+
+    await pool.query(`
+      INSERT INTO labour_payouts (hire_request_id, labour_user_id, amount, status, available_at, source)
+      VALUES (NULL, $1, $2, 'available', NOW(), 'ad_reward')
+    `, [req.user.id, AD_REWARD_AMOUNT]);
+
+    res.json({ ok: true, amount: AD_REWARD_AMOUNT, dailyCap: AD_REWARD_DAILY_CAP, rewardsToday: countRows[0].n + 1 });
+  } catch (err) {
+    console.error('[labour] ads/reward error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to credit ad reward' });
+  }
+});
+
+// GET /api/labour/rewards/mine — a worker's milestone-reward progress:
+// how many completed bookings count toward rewards (since the fresh-start
+// cutoff), which rewards have been earned/issued, and how many bookings
+// remain until the next one.
+router.get('/rewards/mine', auth, async (req, res) => {
+  try {
+    const { rows: profileRows } = await pool.query(
+      'SELECT id FROM labour_profiles WHERE user_id = $1', [req.user.id]
+    );
+    if (!profileRows.length) {
+      return res.json({ ok: true, completedCount: 0, rewards: [], nextMilestone: MILESTONE_REWARDS[0] });
+    }
+    const labourId = profileRows[0].id;
+
+    const { rows: settingsRows } = await pool.query('SELECT rewards_start_at FROM labour_reward_settings WHERE id = 1');
+    const rewardsStartAt = settingsRows[0]?.rewards_start_at || new Date(0);
+
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM hire_requests
+       WHERE labour_id = $1 AND status = 'completed' AND completed_at >= $2`,
+      [labourId, rewardsStartAt]
+    );
+    const completedCount = countRows[0].n;
+
+    const { rows: earned } = await pool.query(
+      `SELECT reward_type, milestone_bookings, status, achieved_at, issued_at
+       FROM labour_milestone_rewards WHERE labour_id = $1 ORDER BY milestone_bookings ASC`,
+      [labourId]
+    );
+    const earnedTypes = new Set(earned.map(r => r.reward_type));
+
+    const rewards = MILESTONE_REWARDS.map(m => {
+      const row = earned.find(r => r.reward_type === m.reward_type);
+      return row
+        ? { ...m, status: row.status, achieved_at: row.achieved_at, issued_at: row.issued_at }
+        : { ...m, status: 'locked', achieved_at: null, issued_at: null };
+    });
+
+    const nextMilestone = MILESTONE_REWARDS.find(m => !earnedTypes.has(m.reward_type)) || null;
+
+    res.json({
+      ok: true,
+      completedCount,
+      rewards,
+      nextMilestone: nextMilestone
+        ? { ...nextMilestone, bookingsRemaining: Math.max(0, nextMilestone.milestone_bookings - completedCount) }
+        : null,
+    });
+  } catch (err) {
+    console.error('[labour] rewards/mine error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to load rewards' });
+  }
+});
+
+// PATCH /api/labour/payouts/upi — set/update the UPI ID commissions get paid to.
+router.patch('/payouts/upi', auth, async (req, res) => {
+  try {
+    const upiId = (req.body.upiId || '').trim();
+    if (!/^[\w.\-]{2,256}@[a-zA-Z]{2,64}$/.test(upiId)) {
+      return res.status(400).json({ ok: false, error: 'Enter a valid UPI ID, e.g. name@bank' });
+    }
+    await pool.query('UPDATE users SET labour_upi_id = $1 WHERE id = $2', [upiId, req.user.id]);
+    res.json({ ok: true, upiId });
+  } catch (err) {
+    console.error('[labour] payouts/upi error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to save UPI ID' });
+  }
+});
+
+// POST /api/labour/payouts/withdraw — request a cash-out of the available
+// (past-hold) balance to the UPI ID on file. Locks and claims 'available'
+// payout rows atomically so a double-tap can't create two withdrawal
+// requests against the same money.
+router.post('/payouts/withdraw', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { rows: userRows } = await pool.query('SELECT labour_upi_id FROM users WHERE id = $1', [req.user.id]);
+    const upiId = userRows[0]?.labour_upi_id;
+    if (!upiId) {
+      return res.status(400).json({ ok: false, error: 'Add a UPI ID before requesting a withdrawal.' });
+    }
+
+    await client.query('BEGIN');
+
+    // Flip anything past its hold window, then lock and claim it.
+    await client.query(
+      `UPDATE labour_payouts SET status = 'available' WHERE labour_user_id = $1 AND status = 'pending' AND available_at <= NOW()`,
+      [req.user.id]
+    );
+    const { rows: claimRows } = await client.query(
+      `SELECT id, amount FROM labour_payouts WHERE labour_user_id = $1 AND status = 'available' FOR UPDATE`,
+      [req.user.id]
+    );
+    const total = claimRows.reduce((sum, r) => sum + parseFloat(r.amount), 0);
+
+    if (total < MIN_WITHDRAWAL) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        ok: false,
+        error: `Minimum withdrawal is ₹${MIN_WITHDRAWAL}. Available balance: ₹${total.toFixed(2)}.`,
+      });
+    }
+
+    const { rows: wRows } = await client.query(`
+      INSERT INTO labour_withdrawals (user_id, amount, upi_id, status)
+      VALUES ($1, $2, $3, 'requested') RETURNING *
+    `, [req.user.id, total, upiId]);
+
+    await client.query(
+      `UPDATE labour_payouts SET status = 'requested', withdrawal_id = $1 WHERE id = ANY($2::int[])`,
+      [wRows[0].id, claimRows.map(r => r.id)]
+    );
+
+    await client.query('COMMIT');
+    res.json({ ok: true, withdrawal: wRows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[labour] payouts/withdraw error:', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to request withdrawal' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/labour/payouts/certificate — Formal Earnings Certificate.
+// A downloadable PDF summary of a worker's lifetime paid earnings on the
+// platform, usable as informal income verification when applying for a
+// small bank loan or a government scheme. Only counts payouts that have
+// actually reached status='paid' (real money that moved), not pending or
+// held commissions, so the figure can't be inflated by unpaid claims.
+router.get('/payouts/certificate', auth, async (req, res) => {
+  try {
+    const PDFDocument = require('pdfkit');
+
+    const { rows: userRows } = await pool.query('SELECT name, phone, labour_upi_id, created_at FROM users WHERE id = $1', [req.user.id]);
+    const user = userRows[0];
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+
+    const { rows: profileRows } = await pool.query(
+      'SELECT full_name, skill_category, district FROM labour_profiles WHERE user_id = $1', [req.user.id]
+    );
+    const profile = profileRows[0];
+
+    const { rows: paidRows } = await pool.query(`
+      SELECT p.amount, p.created_at, p.source, COALESCE(hu.name, cu.name) AS contractor_name
+      FROM labour_payouts p
+      LEFT JOIN hire_requests hr ON hr.id = p.hire_request_id
+      LEFT JOIN users hu ON hu.id = hr.contractor_id
+      LEFT JOIN labour_contact_unlocks lcu ON lcu.id = p.contact_unlock_id
+      LEFT JOIN users cu ON cu.id = lcu.contractor_id
+      WHERE p.labour_user_id = $1 AND p.status = 'paid'
+      ORDER BY p.created_at ASC
+    `, [req.user.id]);
+
+    const { rows: withdrawnRows } = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) AS total FROM labour_withdrawals WHERE user_id = $1 AND status = 'paid'`,
+      [req.user.id]
+    );
+
+    const totalPaid = paidRows.reduce((s, r) => s + parseFloat(r.amount), 0);
+    const jobsCompleted = paidRows.filter(r => r.source !== 'contact_unlock').length;
+    const firstEarning = paidRows[0]?.created_at || null;
+    const lastEarning  = paidRows[paidRows.length - 1]?.created_at || null;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="earnings-certificate-${req.user.id}.pdf"`);
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    doc.pipe(res);
+
+    doc.fontSize(20).fillColor('#f97316').text('NandedRozgar', { align: 'left' });
+    doc.fontSize(12).fillColor('#666').text('Certificate of Earnings', { align: 'left' });
+    doc.moveDown(1.5);
+
+    doc.fontSize(10).fillColor('#999').text(`Issued: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`);
+    doc.moveDown(1);
+
+    doc.fontSize(13).fillColor('#111').text('Worker Details', { underline: true });
+    doc.moveDown(0.3);
+    doc.fontSize(11).fillColor('#333');
+    doc.text(`Name: ${profile?.full_name || user.name || '—'}`);
+    doc.text(`Phone: ${user.phone || '—'}`);
+    doc.text(`Primary skill: ${profile?.skill_category || '—'}`);
+    doc.text(`District: ${profile?.district || '—'}`);
+    doc.text(`Platform member since: ${user.created_at ? new Date(user.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}`);
+    doc.moveDown(1);
+
+    doc.fontSize(13).fillColor('#111').text('Earnings Summary', { underline: true });
+    doc.moveDown(0.3);
+    doc.fontSize(11).fillColor('#333');
+    doc.text(`Total verified earnings (paid): Rs. ${totalPaid.toFixed(2)}`);
+    doc.text(`Jobs completed and paid: ${jobsCompleted}`);
+    doc.text(`Total withdrawn to bank/UPI: Rs. ${parseFloat(withdrawnRows[0].total).toFixed(2)}`);
+    if (firstEarning) doc.text(`Earning history: ${new Date(firstEarning).toLocaleDateString('en-IN')} to ${new Date(lastEarning).toLocaleDateString('en-IN')}`);
+    doc.moveDown(1);
+
+    if (paidRows.length) {
+      doc.fontSize(13).fillColor('#111').text('Transaction History', { underline: true });
+      doc.moveDown(0.3);
+      doc.fontSize(9).fillColor('#333');
+      const rowsToShow = paidRows.slice(-40); // last 40 to keep the PDF short
+      rowsToShow.forEach((r, i) => {
+        const date = new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        doc.text(`${i + 1}. ${date}  —  Rs. ${parseFloat(r.amount).toFixed(2)}  —  ${r.contractor_name || 'NandedRozgar platform'}`);
+      });
+      doc.moveDown(1);
+    }
+
+    doc.fontSize(9).fillColor('#999').text(
+      'This certificate is generated from platform transaction records and reflects income earned through NandedRozgar. ' +
+      'It is provided for informational purposes to support loan or scheme applications and is not a bank statement.',
+      { align: 'left' }
+    );
+
+    doc.end();
+  } catch (err) {
+    console.error('[labour] certificate error:', err.message);
+    if (!res.headersSent) res.status(500).json({ ok: false, error: 'Failed to generate certificate' });
+  }
+});
+
+module.exports = router;
